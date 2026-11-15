@@ -1,0 +1,28 @@
+# Environment & Local Secrets
+.env
+.env.*
+!.env.example
+
+# Composer Dependencies
+vendor/
+
+# PHPUnit & Testing Caches
+.phpunit.cache/
+.phpunit.result.cache
+
+# Logs & Runtime Dumps
+*.log
+logs/
+
+# IDE & Editor Directories
+.idea/
+.vscode/
+
+# OS Specific Files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Temporary & Cache Files
+*.tmp
+*.cache
