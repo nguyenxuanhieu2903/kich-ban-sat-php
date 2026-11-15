@@ -1,0 +1,113 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Infrastructure\Config;
+
+class Config
+{
+    /** @var array<string, mixed> */
+    private static array $repository = [];
+    private static bool $loaded = false;
+
+    /**
+     * Load environment configuration from .env file and environment variables.
+     */
+    public static function load(?string $basePath = null): void
+    {
+        if (self::$loaded && $basePath === null) {
+            return;
+        }
+
+        $basePath = $basePath ?? dirname(__DIR__, 3);
+        $envFile = rtrim($basePath, '/\\') . DIRECTORY_SEPARATOR . '.env';
+
+        if (file_exists($envFile)) {
+            $lines = file($envFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+            if ($lines !== false) {
+                foreach ($lines as $line) {
+                    $line = trim($line);
+                    if ($line === '' || str_starts_with($line, '#')) {
+                        continue;
+                    }
+
+                    if (str_contains($line, '=')) {
+                        [$name, $value] = explode('=', $line, 2);
+                        $name = trim($name);
+                        $value = trim($value);
+
+                        // Strip outer quotes if present
+                        if ((str_starts_with($value, '"') && str_ends_with($value, '"')) ||
+                            (str_starts_with($value, "'") && str_ends_with($value, "'"))) {
+                            $value = substr($value, 1, -1);
+                        }
+
+                        self::$repository[$name] = $value;
+                        if (!array_key_exists($name, $_ENV)) {
+                            $_ENV[$name] = $value;
+                        }
+                    }
+                }
+            }
+        }
+
+        self::$loaded = true;
+    }
+
+    /**
+     * Get an environment variable with a fallback default.
+     */
+    public static function get(string $key, mixed $default = null): mixed
+    {
+        if (!self::$loaded) {
+            self::load();
+        }
+
+        if (array_key_exists($key, self::$repository)) {
+            return self::castValue(self::$repository[$key]);
+        }
+
+        $envVal = getenv($key);
+        if ($envVal !== false) {
+            return self::castValue($envVal);
+        }
+
+        if (isset($_ENV[$key])) {
+            return self::castValue($_ENV[$key]);
+        }
+
+        return $default;
+    }
+
+    /**
+     * Set a configuration value at runtime (useful for testing).
+     */
+    public static function set(string $key, mixed $value): void
+    {
+        self::$repository[$key] = $value;
+    }
+
+    /**
+     * Clear all stored configuration (useful for testing).
+     */
+    public static function reset(): void
+    {
+        self::$repository = [];
+        self::$loaded = false;
+    }
+
+    private static function castValue(mixed $value): mixed
+    {
+        if (!is_string($value)) {
+            return $value;
+        }
+
+        return match (strtolower($value)) {
+            'true', '(true)' => true,
+            'false', '(false)' => false,
+            'null', '(null)' => null,
+            'empty', '(empty)' => '',
+            default => $value,
+        };
+    }
+}
