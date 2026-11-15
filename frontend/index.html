@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Kịch Bản Sát V16 — Platform Foundation</title>
+  <link rel="stylesheet" href="./src/styles/reset.css">
+  <link rel="stylesheet" href="./src/styles/variables.css">
+  <link rel="stylesheet" href="./src/styles/main.css">
+</head>
+<body>
+  <div class="app-container">
+    <header class="app-header">
+      <div>
+        <h1 class="brand-title">Kịch Bản Sát V16</h1>
+        <p class="brand-subtitle">Web-based Booking Platform — Technical Foundation</p>
+      </div>
+      <div>
+        <span style="font-size: 0.8rem; background: var(--color-bg-card); padding: 0.35rem 0.75rem; border-radius: var(--radius-sm); border: 1px solid var(--color-border); color: var(--color-text-muted);">
+          Architecture: PHP Native MVC + ES Modules
+        </span>
+      </div>
+    </header>
+
+    <main id="app-mount">
+      <!-- Mounted dynamically by ES Modules -->
+      <p style="color: var(--color-text-muted);">Initializing application modules...</p>
+    </main>
+  </div>
+
+  <script type="module" src="./src/app.js"></script>
+</body>
+</html>
