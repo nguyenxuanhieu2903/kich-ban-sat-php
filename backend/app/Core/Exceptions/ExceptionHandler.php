@@ -121,7 +121,7 @@ class ExceptionHandler
 
         // 3. Redact URL query parameters: ?token=xyz or &password=xyz or &key=xyz
         $sanitized = preg_replace(
-            '/([?&](?:password|pwd|token|secret|key|api_key|access_token|refresh_token)=)[^&\s#]+/i',
+            '/([?&](?:password|pwd|token|client_secret|secret|api_?key|key|access_token|refresh_token|auth)=)[^&\s#]+/i',
             '$1***',
             $sanitized
         );
@@ -134,7 +134,7 @@ class ExceptionHandler
         // - Prefix: optional [ or [' or [" then keyword then optional ] or '] or "]
         // - Separator: => or : or is or = or whitespace
         // - Value: single-quoted string, double-quoted string, or unquoted value up to delimiter/whitespace
-        $pattern = '/(?P<prefix>\[?(?:\'|")?\b(?:password|pwd|token|secret|api_key|access_token|refresh_token|credential)\b(?:\'|")?\]?)(?P<sep>\s*(?:=>|:|is|=|\s+)\s*)(?P<val>\'[^\']*\'|"[^"]*"|[^\s,\r\n]+)/i';
+        $pattern = '/(?P<prefix>\[?(?:\'|")?\b(?:password|pwd|token|client_secret|secret|api_?key|access_token|refresh_token|auth|credential)\b(?:\'|")?\]?)(?P<sep>\s*(?:=>|:|is|=|\s+)\s*)(?P<val>\'[^\']*\'|"[^"]*"|(?!(?:password|pwd|token|client_secret|secret|api_?key|access_token|refresh_token|auth|credential)\s*(?:=|:|=>))[^\s,\r\n]+)/i';
         $sanitized = preg_replace_callback($pattern, function (array $m): string {
             $val = $m['val'];
             // If already redacted, avoid altering

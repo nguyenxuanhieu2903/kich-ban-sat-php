@@ -173,4 +173,163 @@ class ExceptionHandlerTest extends TestCase
         // Client-side 4xx exceptions do not trigger server error logging
         $this->assertEmpty($this->capturedLogs);
     }
+
+    public function testSanitizeApiKeyCamelCaseAndVariants(): void
+    {
+        // Plain key-value camelCase
+        $input1 = 'apiKey=mySecretKey123';
+        $sanitized1 = ExceptionHandler::sanitize($input1);
+        $this->assertStringNotContainsString('mySecretKey123', $sanitized1);
+        $this->assertStringContainsString('apiKey=***', $sanitized1);
+
+        // Uppercase
+        $input2 = 'APIKEY=mySecretKey123';
+        $sanitized2 = ExceptionHandler::sanitize($input2);
+        $this->assertStringNotContainsString('mySecretKey123', $sanitized2);
+        $this->assertStringContainsString('APIKEY=***', $sanitized2);
+
+        // JSON format
+        $input3 = '{"apiKey": "mySecretKey123"}';
+        $sanitized3 = ExceptionHandler::sanitize($input3);
+        $this->assertStringNotContainsString('mySecretKey123', $sanitized3);
+        $this->assertStringContainsString('{"apiKey": "***"}', $sanitized3);
+
+        // Array dump
+        $input4 = 'Array ( [apiKey] => mySecretKey123 )';
+        $sanitized4 = ExceptionHandler::sanitize($input4);
+        $this->assertStringNotContainsString('mySecretKey123', $sanitized4);
+        $this->assertStringContainsString('[apiKey] => ***', $sanitized4);
+    }
+
+    public function testSanitizeClientSecret(): void
+    {
+        // Plain key-value
+        $input1 = 'client_secret=topSecret456';
+        $sanitized1 = ExceptionHandler::sanitize($input1);
+        $this->assertStringNotContainsString('topSecret456', $sanitized1);
+        $this->assertStringContainsString('client_secret=***', $sanitized1);
+
+        // Uppercase
+        $input2 = 'CLIENT_SECRET=topSecret456';
+        $sanitized2 = ExceptionHandler::sanitize($input2);
+        $this->assertStringNotContainsString('topSecret456', $sanitized2);
+        $this->assertStringContainsString('CLIENT_SECRET=***', $sanitized2);
+
+        // JSON quoted
+        $input3 = '{"client_secret": "my-client-secret-val"}';
+        $sanitized3 = ExceptionHandler::sanitize($input3);
+        $this->assertStringNotContainsString('my-client-secret-val', $sanitized3);
+        $this->assertStringContainsString('{"client_secret": "***"}', $sanitized3);
+
+        // Array format with spaces
+        $input4 = "['client_secret' => 'phrase with spaces and words']";
+        $sanitized4 = ExceptionHandler::sanitize($input4);
+        $this->assertStringNotContainsString('phrase with spaces and words', $sanitized4);
+        $this->assertStringContainsString("['client_secret' => '***']", $sanitized4);
+    }
+
+    public function testSanitizeAuthToken(): void
+    {
+        // Plain key-value
+        $input1 = 'auth=myAuthToken123';
+        $sanitized1 = ExceptionHandler::sanitize($input1);
+        $this->assertStringNotContainsString('myAuthToken123', $sanitized1);
+        $this->assertStringContainsString('auth=***', $sanitized1);
+
+        // Uppercase
+        $input2 = 'AUTH=myAuthToken123';
+        $sanitized2 = ExceptionHandler::sanitize($input2);
+        $this->assertStringNotContainsString('myAuthToken123', $sanitized2);
+        $this->assertStringContainsString('AUTH=***', $sanitized2);
+
+        // Colon separator
+        $input3 = 'auth: myAuthToken123';
+        $sanitized3 = ExceptionHandler::sanitize($input3);
+        $this->assertStringNotContainsString('myAuthToken123', $sanitized3);
+        $this->assertStringContainsString('auth: ***', $sanitized3);
+
+        // Quoted in array
+        $input4 = "'auth' => 'my-auth-secret'";
+        $sanitized4 = ExceptionHandler::sanitize($input4);
+        $this->assertStringNotContainsString('my-auth-secret', $sanitized4);
+        $this->assertStringContainsString("'auth' => '***'", $sanitized4);
+    }
+
+    public function testSanitizeNewKeysInUrlQueryParameters(): void
+    {
+        // apiKey in query
+        $input1 = 'https://api.test/cb?apiKey=secret123';
+        $sanitized1 = ExceptionHandler::sanitize($input1);
+        $this->assertStringNotContainsString('secret123', $sanitized1);
+        $this->assertStringContainsString('?apiKey=***', $sanitized1);
+
+        // client_secret in query
+        $input2 = 'https://api.test/cb?client_secret=mySecretVal456';
+        $sanitized2 = ExceptionHandler::sanitize($input2);
+        $this->assertStringNotContainsString('mySecretVal456', $sanitized2);
+        $this->assertStringContainsString('?client_secret=***', $sanitized2);
+
+        // auth in query
+        $input3 = 'https://api.test/cb?auth=myAuthToken123';
+        $sanitized3 = ExceptionHandler::sanitize($input3);
+        $this->assertStringNotContainsString('myAuthToken123', $sanitized3);
+        $this->assertStringContainsString('?auth=***', $sanitized3);
+
+        // Multiple query params mixed with non-sensitive params
+        $input4 = 'https://api.test/cb?apiKey=sec1&client_secret=sec2&auth=sec3&other=safe';
+        $sanitized4 = ExceptionHandler::sanitize($input4);
+        $this->assertStringNotContainsString('sec1', $sanitized4);
+        $this->assertStringNotContainsString('sec2', $sanitized4);
+        $this->assertStringNotContainsString('sec3', $sanitized4);
+        $this->assertStringContainsString('?apiKey=***&client_secret=***&auth=***&other=safe', $sanitized4);
+    }
+
+    public function testPreservesNonSensitiveProseWithAuthAndKeyWords(): void
+    {
+        $input1 = 'User authentication status is active';
+        $this->assertSame($input1, ExceptionHandler::sanitize($input1));
+
+        $input2 = 'Author of the script is John';
+        $this->assertSame($input2, ExceptionHandler::sanitize($input2));
+
+        $input3 = 'Authority node responded with code 200';
+        $this->assertSame($input3, ExceptionHandler::sanitize($input3));
+
+        $input4 = 'Keyboard layout is standard';
+        $this->assertSame($input4, ExceptionHandler::sanitize($input4));
+    }
+
+    public function testDbAuthMessagesPreserveStructureWhileRedactingTokens(): void
+    {
+        $input1 = 'Failed DB auth: password=MySecret123';
+        $sanitized1 = ExceptionHandler::sanitize($input1);
+        $this->assertStringNotContainsString('MySecret123', $sanitized1);
+        $this->assertSame('Failed DB auth: password=***', $sanitized1);
+
+        $input2 = 'Failed DB auth: access_token=MyToken123';
+        $sanitized2 = ExceptionHandler::sanitize($input2);
+        $this->assertStringNotContainsString('MyToken123', $sanitized2);
+        $this->assertSame('Failed DB auth: access_token=***', $sanitized2);
+    }
+
+    public function testChainedExceptionsWithNewKeys(): void
+    {
+        $innerSecret = 'InnerApiKeySecret999';
+        $outerSecret = 'OuterClientSecret888';
+
+        $innerException = new RuntimeException("Inner error with apiKey={$innerSecret}");
+        $outerException = new RuntimeException("Outer error with client_secret={$outerSecret}", 500, $innerException);
+
+        Config::set('APP_DEBUG', false);
+        $response = ExceptionHandler::handle($outerException);
+
+        $this->assertSame(500, $response->getStatusCode());
+        $this->assertCount(1, $this->capturedLogs);
+        $log = $this->capturedLogs[0];
+        $this->assertStringNotContainsString($innerSecret, $log);
+        $this->assertStringNotContainsString($outerSecret, $log);
+        $this->assertStringContainsString('Caused by:', $log);
+        $this->assertStringContainsString('apiKey=***', $log);
+        $this->assertStringContainsString('client_secret=***', $log);
+    }
 }
