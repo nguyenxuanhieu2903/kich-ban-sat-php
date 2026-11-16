@@ -64,7 +64,7 @@ A template is provided at `backend/.env.example`. **Never commit `.env` into ver
 Key variables:
 - `APP_ENV`: `local` (or `testing`, `production`)
 - `APP_DEBUG`: `true` (enables detailed error responses in development only)
-- `APP_URL`: `http://127.0.0.1:8000`
+- `APP_URL`: `http://127.0.0.1:8080`
 - `DB_HOST`: `127.0.0.1`
 - `DB_PORT`: `3306`
 - `DB_DATABASE`: `booking_v16`
