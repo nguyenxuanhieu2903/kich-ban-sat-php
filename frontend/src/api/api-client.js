@@ -28,10 +28,21 @@ class ApiClient {
     };
 
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), options.timeout || config.defaultTimeoutMs);
+    const timeoutMs = options.timeout || config.defaultTimeoutMs;
+    const timeout = setTimeout(() => controller.abort(), timeoutMs);
+
+    // Compose caller signal with internal timeout controller to preserve cancellation
+    if (options.signal) {
+      if (options.signal.aborted) {
+        controller.abort(options.signal.reason);
+      } else {
+        options.signal.addEventListener('abort', () => controller.abort(options.signal.reason), { once: true });
+      }
+    }
 
     try {
       const response = await fetch(url, {
+        credentials: options.credentials || 'same-origin',
         ...options,
         headers,
         signal: controller.signal,
@@ -69,7 +80,7 @@ class ApiClient {
       }
 
       if (err.name === 'AbortError') {
-        throw new ApiError('Request timed out after ' + config.defaultTimeoutMs + 'ms', 0, 'REQUEST_TIMEOUT');
+        throw new ApiError('Request timed out after ' + timeoutMs + 'ms', 0, 'REQUEST_TIMEOUT');
       }
 
       // Network unreachable, DNS failure, CORS blocked

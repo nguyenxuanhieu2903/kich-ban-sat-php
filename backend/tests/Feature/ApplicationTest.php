@@ -14,13 +14,25 @@ use PHPUnit\Framework\TestCase;
 class ApplicationTest extends TestCase
 {
     private Application $app;
+    private array $capturedLogs = [];
 
     protected function setUp(): void
     {
         parent::setUp();
         Config::reset();
         Config::set('APP_DEBUG', false);
+        $this->capturedLogs = [];
+        \App\Core\Exceptions\ExceptionHandler::setLogger(function (string $message) {
+            $this->capturedLogs[] = $message;
+        });
         $this->app = require __DIR__ . '/../../bootstrap/app.php';
+    }
+
+    protected function tearDown(): void
+    {
+        \App\Core\Exceptions\ExceptionHandler::setLogger(null);
+        Config::reset();
+        parent::tearDown();
     }
 
     public function testHealthEndpointReturnsSuccessJson(): void
@@ -101,5 +113,9 @@ class ApplicationTest extends TestCase
         $this->assertSame('Internal Server Error', $body['error']['message']);
         $this->assertArrayNotHasKey('details', $body['error']);
         $this->assertStringNotContainsString('password', $response->getContent());
+
+        // Verify captured log output is sanitized and did not leak secret
+        $this->assertNotEmpty($this->capturedLogs);
+        $this->assertStringNotContainsString('Database password secret revealed', $this->capturedLogs[0]);
     }
 }

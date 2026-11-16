@@ -11,6 +11,19 @@ use Throwable;
 
 class ExceptionHandler
 {
+    /** @var (callable(string): void)|null */
+    protected static $logger = null;
+
+    /**
+     * Set a custom logger callback (useful for testing or custom log channels).
+     *
+     * @param (callable(string): void)|null $logger
+     */
+    public static function setLogger(?callable $logger): void
+    {
+        self::$logger = $logger;
+    }
+
     /**
      * Convert an uncaught Throwable into a clean JSON Response.
      */
@@ -37,7 +50,7 @@ class ExceptionHandler
         } else {
             $isDebug = (bool) Config::get('APP_DEBUG', false);
             if ($isDebug) {
-                $message = $e->getMessage();
+                $message = self::sanitize($e->getMessage());
                 $errors = [
                     'exception' => get_class($e),
                     'file' => $e->getFile(),
@@ -54,21 +67,72 @@ class ExceptionHandler
     }
 
     /**
-     * Log unexpected server errors safely.
+     * Format a safe log message with structured metadata and sanitized secrets.
      */
-    protected static function logError(Throwable $e): void
+    public static function formatLogMessage(Throwable $e): string
     {
-        // Safe sanitization: strip any potential passwords from logs
-        $safeTrace = preg_replace('/(password|token|secret|key)=([^&\\s]+)/i', '$1=***', $e->getTraceAsString());
-        $logMessage = sprintf(
-            "[%s] %s in %s:%d\nTrace:\n%s\n",
+        $safeMessage = self::sanitize($e->getMessage());
+        $safeTrace = self::sanitize($e->getTraceAsString());
+
+        return sprintf(
+            "[%s] %s: %s in %s:%d\nTrace:\n%s\n",
             date('Y-m-d H:i:s'),
-            $e->getMessage(),
+            get_class($e),
+            $safeMessage,
             $e->getFile(),
             $e->getLine(),
             $safeTrace
         );
+    }
 
-        error_log($logMessage);
+    /**
+     * Sanitize sensitive keywords and patterns from string output.
+     */
+    public static function sanitize(string $input): string
+    {
+        // 1. Redact key=value, key: value, key is value, or key value
+        $sanitized = preg_replace(
+            '/(password|token|secret|key|pwd|credential|auth|bearer|access_token|refresh_token)\s*(?:[:=]|\s+is\s+|\s+)\s*([^\s,;&"\'\(\)]+)/i',
+            '$1=***',
+            $input
+        );
+
+        if (!is_string($sanitized)) {
+            $sanitized = $input;
+        }
+
+        // 2. Redact JSON quoted properties: "password": "value"
+        $sanitized = preg_replace(
+            '/("(?:password|token|secret|key|pwd|credential|access_token|refresh_token)"\s*:\s*)"(?:[^"\\\\]|\\\\.)*"/i',
+            '$1"***"',
+            $sanitized
+        );
+
+        if (!is_string($sanitized)) {
+            $sanitized = $input;
+        }
+
+        // 3. Redact URI/DSN passwords: scheme://user:password@host
+        $sanitized = preg_replace(
+            '#://([^:]+):([^@]+)@#',
+            '://$1:***@',
+            $sanitized
+        );
+
+        return is_string($sanitized) ? $sanitized : $input;
+    }
+
+    /**
+     * Log unexpected server errors safely.
+     */
+    protected static function logError(Throwable $e): void
+    {
+        $logMessage = self::formatLogMessage($e);
+
+        if (self::$logger !== null) {
+            (self::$logger)($logMessage);
+        } else {
+            error_log($logMessage);
+        }
     }
 }

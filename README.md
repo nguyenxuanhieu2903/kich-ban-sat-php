@@ -118,11 +118,11 @@ cd ..
 ### 6.1. Start the Backend API Server
 Start PHP's built-in development server from `backend/public`:
 ```powershell
-php -S 127.0.0.1:8000 -t backend/public
+php -S 127.0.0.1:8080 -t backend/public
 ```
 The backend health check will be accessible at:
 ```text
-http://127.0.0.1:8000/api/health
+http://127.0.0.1:8080/api/health
 ```
 
 ### 6.2. Start the Frontend Server

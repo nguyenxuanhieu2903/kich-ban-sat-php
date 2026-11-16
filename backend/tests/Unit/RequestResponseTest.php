@@ -11,6 +11,26 @@ use PHPUnit\Framework\TestCase;
 
 class RequestResponseTest extends TestCase
 {
+    private array $savedServer;
+    private array $savedGet;
+    private array $savedPost;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+        $this->savedServer = $_SERVER;
+        $this->savedGet = $_GET;
+        $this->savedPost = $_POST;
+    }
+
+    protected function tearDown(): void
+    {
+        $_SERVER = $this->savedServer;
+        $_GET = $this->savedGet;
+        $_POST = $this->savedPost;
+        parent::tearDown();
+    }
+
     public function testRequestNormalizesMethodAndPath(): void
     {
         $request = new Request('post', '/api/test/');
@@ -43,21 +63,84 @@ class RequestResponseTest extends TestCase
         $this->assertSame(['field' => 'Required'], $decoded['error']['details']);
     }
 
-    public function testCaptureDetectsMalformedJson(): void
+    public function testParseJsonPayloadValidObject(): void
+    {
+        $payload = '{"title":"Mystery Game","maxPlayers":6}';
+        $result = Request::parseJsonPayload($payload);
+
+        $this->assertSame(['title' => 'Mystery Game', 'maxPlayers' => 6], $result);
+    }
+
+    public function testParseJsonPayloadValidArray(): void
+    {
+        $payload = '[{"id":1},{"id":2}]';
+        $result = Request::parseJsonPayload($payload);
+
+        $this->assertSame([['id' => 1], ['id' => 2]], $result);
+    }
+
+    public function testParseJsonPayloadEmptyBodyReturnsEmptyArray(): void
+    {
+        $this->assertSame([], Request::parseJsonPayload(''));
+        $this->assertSame([], Request::parseJsonPayload('   '));
+    }
+
+    public function testParseJsonPayloadInvalidSyntaxThrowsBadRequestException(): void
+    {
+        $this->expectException(BadRequestException::class);
+        $this->expectExceptionMessage('Malformed JSON in request payload');
+
+        Request::parseJsonPayload('{"key": "unclosed');
+    }
+
+    public function testParseJsonPayloadScalarThrowsBadRequestException(): void
+    {
+        $this->expectException(BadRequestException::class);
+        $this->expectExceptionMessage('Payload must be a JSON object or array');
+
+        Request::parseJsonPayload('12345');
+    }
+
+    public function testCaptureParsesValidJsonBody(): void
     {
         $_SERVER['REQUEST_METHOD'] = 'POST';
-        $_SERVER['REQUEST_URI'] = '/api/test';
+        $_SERVER['REQUEST_URI'] = '/api/rooms';
+        $_SERVER['CONTENT_TYPE'] = 'application/json; charset=utf-8';
+
+        $rawJson = '{"roomName":"Sherlock Room","capacity":8}';
+        $request = Request::capture($rawJson);
+
+        $this->assertSame('POST', $request->getMethod());
+        $this->assertSame('/api/rooms', $request->getPath());
+        $this->assertSame('Sherlock Room', $request->input('roomName'));
+        $this->assertSame(8, $request->input('capacity'));
+        $this->assertSame($rawJson, $request->getRawBody());
+    }
+
+    public function testCaptureThrowsBadRequestExceptionOnMalformedJson(): void
+    {
+        $_SERVER['REQUEST_METHOD'] = 'POST';
+        $_SERVER['REQUEST_URI'] = '/api/rooms';
         $_SERVER['CONTENT_TYPE'] = 'application/json';
 
-        // We simulate php://input via custom stream or direct BadRequestException check
-        // In unit test context, we can test Request creation with bad JSON behavior
         $this->expectException(BadRequestException::class);
+        $this->expectExceptionCode(400);
+        $this->expectExceptionMessage('Malformed JSON in request payload');
 
-        // Simulate malformed json decoding in Request
-        $invalidJson = '{"key": "value" broken}';
-        json_decode($invalidJson);
-        if (json_last_error() !== JSON_ERROR_NONE) {
-            throw new BadRequestException('Malformed JSON in request payload: ' . json_last_error_msg());
-        }
+        $malformedJson = '{"roomName": "Broken", }';
+        Request::capture($malformedJson);
+    }
+
+    public function testCaptureIgnoresNonJsonContentType(): void
+    {
+        $_SERVER['REQUEST_METHOD'] = 'POST';
+        $_SERVER['REQUEST_URI'] = '/api/upload';
+        $_SERVER['CONTENT_TYPE'] = 'text/plain';
+        $_POST = ['plainField' => 'textValue'];
+
+        $request = Request::capture('raw unparsed text');
+
+        $this->assertSame('textValue', $request->input('plainField'));
+        $this->assertSame('raw unparsed text', $request->getRawBody());
     }
 }

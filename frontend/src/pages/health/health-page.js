@@ -34,82 +34,141 @@ export class HealthPage {
   render() {
     const { status, data, error, latency } = this.state;
 
-    let statusBadge = '';
-    let bodyContent = '';
+    const section = document.createElement('section');
+    section.className = 'card';
+
+    // Card title
+    const cardTitle = document.createElement('div');
+    cardTitle.className = 'card-title';
+    const titleSpan = document.createElement('span');
+    titleSpan.textContent = 'Backend Health Verification';
+    cardTitle.appendChild(titleSpan);
+
+    // Status badge
+    const badge = document.createElement('span');
+    const dot = document.createElement('span');
+    dot.className = 'status-indicator-dot';
 
     if (status === 'loading') {
-      statusBadge = `
-        <span class="status-badge loading">
-          <span class="status-indicator-dot"></span> Checking API...
-        </span>
-      `;
-      bodyContent = `
-        <p style="color: var(--color-text-muted);">Contacting backend at <code>/api/health</code>...</p>
-      `;
+      badge.className = 'status-badge loading';
+      badge.appendChild(dot);
+      badge.appendChild(document.createTextNode(' Checking API...'));
+    } else if (status === 'success') {
+      badge.className = 'status-badge success';
+      badge.appendChild(dot);
+      badge.appendChild(document.createTextNode(' Connected'));
+    } else if (status === 'error') {
+      badge.className = 'status-badge error';
+      badge.appendChild(dot);
+      badge.appendChild(document.createTextNode(' Unreachable / Error'));
+    } else {
+      badge.className = 'status-badge';
+      badge.appendChild(dot);
+      badge.appendChild(document.createTextNode(' Idle'));
+    }
+    cardTitle.appendChild(badge);
+    section.appendChild(cardTitle);
+
+    // Body content
+    const bodyContainer = document.createElement('div');
+    bodyContainer.className = 'card-body';
+
+    if (status === 'loading') {
+      const p = document.createElement('p');
+      p.style.color = 'var(--color-text-muted)';
+      p.textContent = 'Contacting backend at /api/health...';
+      bodyContainer.appendChild(p);
     } else if (status === 'success') {
       const healthData = data?.data || {};
-      statusBadge = `
-        <span class="status-badge success">
-          <span class="status-indicator-dot"></span> Connected
-        </span>
-      `;
-      bodyContent = `
-        <div class="data-grid">
-          <div class="data-cell">
-            <div class="data-label">API Status</div>
-            <div class="data-value">${healthData.status || 'OK'}</div>
-          </div>
-          <div class="data-cell">
-            <div class="data-label">Application</div>
-            <div class="data-value">${healthData.application || 'Kich Ban Sat'}</div>
-          </div>
-          <div class="data-cell">
-            <div class="data-label">Platform Version</div>
-            <div class="data-value">V${healthData.version || '16'}</div>
-          </div>
-          <div class="data-cell">
-            <div class="data-label">Response Latency</div>
-            <div class="data-value">${latency} ms</div>
-          </div>
-        </div>
-        <div class="data-label">Raw JSON Response:</div>
-        <pre class="code-block">${JSON.stringify(data, null, 2)}</pre>
-      `;
+
+      const dataGrid = document.createElement('div');
+      dataGrid.className = 'data-grid';
+
+      const createCell = (label, value) => {
+        const cell = document.createElement('div');
+        cell.className = 'data-cell';
+        const lbl = document.createElement('div');
+        lbl.className = 'data-label';
+        lbl.textContent = label;
+        const val = document.createElement('div');
+        val.className = 'data-value';
+        val.textContent = String(value);
+        cell.appendChild(lbl);
+        cell.appendChild(val);
+        return cell;
+      };
+
+      dataGrid.appendChild(createCell('API Status', healthData.status || 'OK'));
+      dataGrid.appendChild(createCell('Application', healthData.application || 'Kich Ban Sat'));
+      dataGrid.appendChild(createCell('Platform Version', `V${healthData.version || '16'}`));
+      dataGrid.appendChild(createCell('Response Latency', `${latency} ms`));
+      bodyContainer.appendChild(dataGrid);
+
+      const rawLabel = document.createElement('div');
+      rawLabel.className = 'data-label';
+      rawLabel.textContent = 'Raw JSON Response:';
+      bodyContainer.appendChild(rawLabel);
+
+      const pre = document.createElement('pre');
+      pre.className = 'code-block';
+      pre.textContent = JSON.stringify(data, null, 2);
+      bodyContainer.appendChild(pre);
     } else if (status === 'error') {
-      statusBadge = `
-        <span class="status-badge error">
-          <span class="status-indicator-dot"></span> Unreachable / Error
-        </span>
-      `;
-      bodyContent = `
-        <div style="margin-bottom: 1rem; color: var(--color-error);">
-          <strong>Error [${error.code || 'UNKNOWN'}]:</strong> ${error.message}
-        </div>
-        ${error.details ? `<pre class="code-block">${JSON.stringify(error.details, null, 2)}</pre>` : ''}
-        <p style="color: var(--color-text-muted); font-size: 0.875rem;">
-          Make sure the PHP backend server is running on <code>127.0.0.1:8000</code>.
-        </p>
-      `;
+      const errorDiv = document.createElement('div');
+      errorDiv.style.marginBottom = '1rem';
+      errorDiv.style.color = 'var(--color-error)';
+
+      const strong = document.createElement('strong');
+      strong.textContent = `Error [${error?.code || 'UNKNOWN'}]: `;
+      errorDiv.appendChild(strong);
+      errorDiv.appendChild(document.createTextNode(error?.message || 'An unknown error occurred'));
+      bodyContainer.appendChild(errorDiv);
+
+      if (error?.details) {
+        const pre = document.createElement('pre');
+        pre.className = 'code-block';
+        pre.textContent = JSON.stringify(error.details, null, 2);
+        bodyContainer.appendChild(pre);
+      }
+
+      const hintP = document.createElement('p');
+      hintP.style.color = 'var(--color-text-muted)';
+      hintP.style.fontSize = '0.875rem';
+      const code = document.createElement('code');
+      code.textContent = '127.0.0.1:8080';
+      hintP.appendChild(document.createTextNode('Make sure the PHP backend server is running on '));
+      hintP.appendChild(code);
+      hintP.appendChild(document.createTextNode('.'));
+      bodyContainer.appendChild(hintP);
     }
 
-    this.container.innerHTML = `
-      <section class="card">
-        <div class="card-title">
-          <span>Backend Health Verification</span>
-          ${statusBadge}
-        </div>
-        ${bodyContent}
-        <div style="margin-top: 1.5rem;">
-          <button id="btn-recheck" class="btn" ${status === 'loading' ? 'disabled' : ''}>
-            ${status === 'loading' ? 'Checking...' : 'Check Connection'}
-          </button>
-        </div>
-      </section>
-    `;
+    section.appendChild(bodyContainer);
 
-    const button = this.container.querySelector('#btn-recheck');
-    if (button) {
-      button.addEventListener('click', () => this.runCheck());
+    // Action button
+    const actionsDiv = document.createElement('div');
+    actionsDiv.style.marginTop = '1.5rem';
+
+    const button = document.createElement('button');
+    button.id = 'btn-recheck';
+    button.className = 'btn';
+    if (status === 'loading') {
+      button.disabled = true;
+      button.textContent = 'Checking...';
+    } else {
+      button.disabled = false;
+      button.textContent = 'Check Connection';
+    }
+    button.addEventListener('click', () => this.runCheck());
+
+    actionsDiv.appendChild(button);
+    section.appendChild(actionsDiv);
+
+    // Safe DOM replacement
+    if (typeof this.container.replaceChildren === 'function') {
+      this.container.replaceChildren(section);
+    } else {
+      this.container.innerHTML = '';
+      this.container.appendChild(section);
     }
   }
 }

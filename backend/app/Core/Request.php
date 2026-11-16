@@ -42,9 +42,33 @@ class Request
     }
 
     /**
+     * Parse raw JSON payload into an array of parameters.
+     *
+     * @return array<string, mixed>
+     * @throws BadRequestException
+     */
+    public static function parseJsonPayload(string $rawBody): array
+    {
+        if (trim($rawBody) === '') {
+            return [];
+        }
+
+        $decoded = json_decode($rawBody, true);
+        if (json_last_error() !== JSON_ERROR_NONE) {
+            throw new BadRequestException('Malformed JSON in request payload: ' . json_last_error_msg());
+        }
+
+        if (!is_array($decoded)) {
+            throw new BadRequestException('Malformed JSON in request payload: Payload must be a JSON object or array');
+        }
+
+        return $decoded;
+    }
+
+    /**
      * Capture the current HTTP request from superglobals and input stream.
      */
-    public static function capture(): self
+    public static function capture(?string $rawBody = null): self
     {
         $server = $_SERVER;
         $method = $server['REQUEST_METHOD'] ?? 'GET';
@@ -71,22 +95,26 @@ class Request
             }
         }
 
-        $rawBody = file_get_contents('php://input');
-        if ($rawBody === false) {
-            $rawBody = '';
+        if ($rawBody === null) {
+            $input = file_get_contents('php://input');
+            $rawBody = $input !== false ? $input : '';
         }
 
-        $contentType = $server['CONTENT_TYPE'] ?? $headers['Content-Type'] ?? $headers['content-type'] ?? '';
+        // Case-insensitive Content-Type detection across server vars and headers
+        $contentType = $server['CONTENT_TYPE'] ?? $server['HTTP_CONTENT_TYPE'] ?? '';
+        if ($contentType === '') {
+            foreach ($headers as $k => $v) {
+                if (strcasecmp($k, 'Content-Type') === 0) {
+                    $contentType = (string) $v;
+                    break;
+                }
+            }
+        }
+
         $bodyParams = [];
 
-        if (str_contains(strtolower($contentType), 'application/json') && trim($rawBody) !== '') {
-            $decoded = json_decode($rawBody, true);
-            if (json_last_error() !== JSON_ERROR_NONE) {
-                throw new BadRequestException('Malformed JSON in request payload: ' . json_last_error_msg());
-            }
-            if (is_array($decoded)) {
-                $bodyParams = $decoded;
-            }
+        if (str_contains(strtolower($contentType), 'application/json')) {
+            $bodyParams = self::parseJsonPayload($rawBody);
         } elseif (!empty($_POST)) {
             $bodyParams = $_POST;
         }

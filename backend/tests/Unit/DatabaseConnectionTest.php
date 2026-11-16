@@ -32,8 +32,16 @@ class DatabaseConnectionTest extends TestCase
             ]);
             $this->fail('Expected DatabaseException was not thrown');
         } catch (DatabaseException $e) {
+            // 1. Password must not appear in exception message
             $this->assertStringNotContainsString($sensitivePassword, $e->getMessage());
-            $this->assertStringContainsString('Failed to connect to database', $e->getMessage());
+            $this->assertStringContainsString('Failed to connect to database [nonexistent_db]', $e->getMessage());
+
+            // 2. Password must not appear in stringified exception / stack trace
+            $this->assertStringNotContainsString($sensitivePassword, (string) $e);
+            $this->assertStringNotContainsString($sensitivePassword, $e->getTraceAsString());
+
+            // 3. Raw PDOException must not be chained as previous to prevent leaking constructor arguments
+            $this->assertNull($e->getPrevious(), 'Chained PDOException must be omitted to prevent argument trace leakage');
         }
     }
 
