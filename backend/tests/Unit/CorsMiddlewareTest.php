@@ -23,7 +23,7 @@ class CorsMiddlewareTest extends TestCase
         $headers = $response->getHeaders();
         $this->assertSame('http://127.0.0.1:3000', $headers['Access-Control-Allow-Origin']);
         $this->assertSame('true', $headers['Access-Control-Allow-Credentials']);
-        $this->assertStringContainsString('Origin', $headers['Vary']);
+        $this->assertSame('Origin', $headers['Vary']);
     }
 
     public function testUnauthorizedOriginReceivesNoCorsAccess(): void
@@ -40,6 +40,45 @@ class CorsMiddlewareTest extends TestCase
         $this->assertArrayNotHasKey('Access-Control-Allow-Credentials', $headers);
         // Vary: Origin must still be present to prevent HTTP cache poisoning
         $this->assertSame('Origin', $headers['Vary']);
+    }
+
+    public function testRequestWithoutOriginHeaderReceivesVaryOriginForCacheSafety(): void
+    {
+        $middleware = new CorsMiddleware(['http://127.0.0.1:3000'], true);
+        $request = new Request('GET', '/api/health', [], [], []); // No Origin header
+
+        $response = $middleware->handle($request, function (Request $req) {
+            return Response::json(['status' => 'ok']);
+        });
+
+        $headers = $response->getHeaders();
+        $this->assertArrayNotHasKey('Access-Control-Allow-Origin', $headers);
+        $this->assertArrayNotHasKey('Access-Control-Allow-Credentials', $headers);
+        // RFC 7234: Cache safety requires Vary: Origin even when Origin is absent
+        $this->assertSame('Origin', $headers['Vary']);
+    }
+
+    public function testMultipleAllowedOriginsVaryCorrectlyAcrossRequests(): void
+    {
+        $middleware = new CorsMiddleware(['http://127.0.0.1:3000', 'http://localhost:3000'], true);
+
+        // Request 1 from first allowed origin
+        $req1 = new Request('GET', '/api/rooms', [], [], ['Origin' => 'http://127.0.0.1:3000']);
+        $res1 = $middleware->handle($req1, fn() => Response::json([]));
+        $this->assertSame('http://127.0.0.1:3000', $res1->getHeaders()['Access-Control-Allow-Origin']);
+        $this->assertSame('Origin', $res1->getHeaders()['Vary']);
+
+        // Request 2 from second allowed origin
+        $req2 = new Request('GET', '/api/rooms', [], [], ['Origin' => 'http://localhost:3000']);
+        $res2 = $middleware->handle($req2, fn() => Response::json([]));
+        $this->assertSame('http://localhost:3000', $res2->getHeaders()['Access-Control-Allow-Origin']);
+        $this->assertSame('Origin', $res2->getHeaders()['Vary']);
+
+        // Request 3 from disallowed origin
+        $req3 = new Request('GET', '/api/rooms', [], [], ['Origin' => 'http://unauthorized.org']);
+        $res3 = $middleware->handle($req3, fn() => Response::json([]));
+        $this->assertArrayNotHasKey('Access-Control-Allow-Origin', $res3->getHeaders());
+        $this->assertSame('Origin', $res3->getHeaders()['Vary']);
     }
 
     public function testWildcardOriginWithoutCredentialsReturnsLiteralAsterisk(): void

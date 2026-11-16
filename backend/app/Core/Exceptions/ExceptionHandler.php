@@ -67,22 +67,31 @@ class ExceptionHandler
     }
 
     /**
-     * Format a safe log message with structured metadata and sanitized secrets.
+     * Format a safe log message with structured metadata and sanitized secrets across the entire exception chain.
      */
     public static function formatLogMessage(Throwable $e): string
     {
-        $safeMessage = self::sanitize($e->getMessage());
-        $safeTrace = self::sanitize($e->getTraceAsString());
+        $frames = [];
+        $current = $e;
 
-        return sprintf(
-            "[%s] %s: %s in %s:%d\nTrace:\n%s\n",
-            date('Y-m-d H:i:s'),
-            get_class($e),
-            $safeMessage,
-            $e->getFile(),
-            $e->getLine(),
-            $safeTrace
-        );
+        while ($current !== null) {
+            $safeMessage = self::sanitize($current->getMessage());
+            $safeTrace = self::sanitize($current->getTraceAsString());
+
+            $frames[] = sprintf(
+                "[%s] %s: %s in %s:%d\nTrace:\n%s",
+                date('Y-m-d H:i:s'),
+                get_class($current),
+                $safeMessage,
+                $current->getFile(),
+                $current->getLine(),
+                $safeTrace
+            );
+
+            $current = $current->getPrevious();
+        }
+
+        return implode("\nCaused by: ", $frames) . "\n";
     }
 
     /**
@@ -90,36 +99,65 @@ class ExceptionHandler
      */
     public static function sanitize(string $input): string
     {
-        // 1. Redact key=value, key: value, key is value, or key value
-        $sanitized = preg_replace(
-            '/(password|token|secret|key|pwd|credential|auth|bearer|access_token|refresh_token)\s*(?:[:=]|\s+is\s+|\s+)\s*([^\s,;&"\'\(\)]+)/i',
-            '$1=***',
-            $input
-        );
-
-        if (!is_string($sanitized)) {
-            $sanitized = $input;
-        }
-
-        // 2. Redact JSON quoted properties: "password": "value"
-        $sanitized = preg_replace(
-            '/("(?:password|token|secret|key|pwd|credential|access_token|refresh_token)"\s*:\s*)"(?:[^"\\\\]|\\\\.)*"/i',
-            '$1"***"',
-            $sanitized
-        );
-
-        if (!is_string($sanitized)) {
-            $sanitized = $input;
-        }
-
-        // 3. Redact URI/DSN passwords: scheme://user:password@host
+        // 1. Redact URI/DSN passwords: scheme://user:password@host
         $sanitized = preg_replace(
             '#://([^:]+):([^@]+)@#',
             '://$1:***@',
+            $input
+        );
+        if (!is_string($sanitized)) {
+            $sanitized = $input;
+        }
+
+        // 2. Redact Authorization headers: Authorization: Bearer <token> or Basic <token>
+        $sanitized = preg_replace(
+            '/((?:authorization|proxy-authorization)\s*:\s*(?:bearer|basic|token)\s+)[^\s,;\r\n]+/i',
+            '$1***',
             $sanitized
         );
+        if (!is_string($sanitized)) {
+            $sanitized = $input;
+        }
 
-        return is_string($sanitized) ? $sanitized : $input;
+        // 3. Redact URL query parameters: ?token=xyz or &password=xyz or &key=xyz
+        $sanitized = preg_replace(
+            '/([?&](?:password|pwd|token|secret|key|api_key|access_token|refresh_token)=)[^&\s#]+/i',
+            '$1***',
+            $sanitized
+        );
+        if (!is_string($sanitized)) {
+            $sanitized = $input;
+        }
+
+        // 4. Redact key-value pairs (JSON quoted, array dumps, key=val, key: val, or key val)
+        // Matches:
+        // - Prefix: optional [ or [' or [" then keyword then optional ] or '] or "]
+        // - Separator: => or : or is or = or whitespace
+        // - Value: single-quoted string, double-quoted string, or unquoted value up to delimiter/whitespace
+        $pattern = '/(?P<prefix>\[?(?:\'|")?\b(?:password|pwd|token|secret|api_key|access_token|refresh_token|credential)\b(?:\'|")?\]?)(?P<sep>\s*(?:=>|:|is|=|\s+)\s*)(?P<val>\'[^\']*\'|"[^"]*"|[^\s,\r\n]+)/i';
+        $sanitized = preg_replace_callback($pattern, function (array $m): string {
+            $val = $m['val'];
+            // If already redacted, avoid altering
+            if ($val === '***' || $val === '"***"' || $val === "'***'" || str_starts_with($val, '***')) {
+                return $m[0];
+            }
+
+            if (str_starts_with($val, '"') && str_ends_with($val, '"')) {
+                $replacementVal = '"***"';
+            } elseif (str_starts_with($val, "'") && str_ends_with($val, "'")) {
+                $replacementVal = "'***'";
+            } else {
+                $replacementVal = '***';
+            }
+
+            return $m['prefix'] . $m['sep'] . $replacementVal;
+        }, $sanitized);
+
+        if (!is_string($sanitized)) {
+            $sanitized = $input;
+        }
+
+        return $sanitized;
     }
 
     /**

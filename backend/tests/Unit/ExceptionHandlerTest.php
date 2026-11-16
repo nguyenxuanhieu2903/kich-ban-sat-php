@@ -7,7 +7,6 @@ namespace Tests\Unit;
 use App\Core\Exceptions\BadRequestException;
 use App\Core\Exceptions\ExceptionHandler;
 use App\Core\Exceptions\NotFoundException;
-use App\Core\Request;
 use App\Infrastructure\Config\Config;
 use App\Infrastructure\Database\DatabaseException;
 use PHPUnit\Framework\TestCase;
@@ -33,55 +32,123 @@ class ExceptionHandlerTest extends TestCase
         parent::tearDown();
     }
 
-    public function testSanitizeRedactsPasswordInVariousFormats(): void
+    public function testSanitizePasswordEqualsValue(): void
     {
-        $input1 = 'Failed connecting with password=MySecretPass123! to host';
-        $sanitized1 = ExceptionHandler::sanitize($input1);
-        $this->assertStringNotContainsString('MySecretPass123!', $sanitized1);
-        $this->assertStringContainsString('password=***', $sanitized1);
-
-        $input2 = '{"user": "admin", "password": "SuperSecretPassword!", "token": "xyz789"}';
-        $sanitized2 = ExceptionHandler::sanitize($input2);
-        $this->assertStringNotContainsString('SuperSecretPassword!', $sanitized2);
-        $this->assertStringNotContainsString('xyz789', $sanitized2);
-        $this->assertStringContainsString('"password": "***"', $sanitized2);
-        $this->assertStringContainsString('"token": "***"', $sanitized2);
-
-        $input3 = 'Connection error on mysql://root:SuperSecret123@127.0.0.1:3306/db';
-        $sanitized3 = ExceptionHandler::sanitize($input3);
-        $this->assertStringNotContainsString('SuperSecret123', $sanitized3);
-        $this->assertStringContainsString('mysql://root:***@127.0.0.1:3306/db', $sanitized3);
+        $input = 'Failed connecting with password=MySecretPass123! to host 127.0.0.1';
+        $sanitized = ExceptionHandler::sanitize($input);
+        $this->assertStringNotContainsString('MySecretPass123!', $sanitized);
+        $this->assertStringContainsString('password=***', $sanitized);
     }
 
-    public function testLogErrorRedactsSecretsFromMessageAndTrace(): void
+    public function testSanitizePasswordFatCommaInArrayDumps(): void
     {
-        $sensitiveSecret = 'TopSecretTokenValue456';
-        $sensitivePass = 'MyDbSecretPass999!';
+        // PHP array dump format
+        $input1 = "Array ( [password] => MySecret123 )";
+        $sanitized1 = ExceptionHandler::sanitize($input1);
+        $this->assertStringNotContainsString('MySecret123', $sanitized1);
+        $this->assertStringContainsString('[password] => ***', $sanitized1);
 
-        $exception = new RuntimeException("DB error with secret={$sensitiveSecret} and password={$sensitivePass}");
+        // Quoted array format
+        $input2 = "['password' => 'secret_pass_456']";
+        $sanitized2 = ExceptionHandler::sanitize($input2);
+        $this->assertStringNotContainsString('secret_pass_456', $sanitized2);
+        $this->assertStringContainsString("['password' => '***']", $sanitized2);
+    }
+
+    public function testSanitizeTokenInUrlQuery(): void
+    {
+        $input = 'GET https://api.example.com/oauth/callback?token=eyJhbGciOiJIUzI1NiJ9.secretToken&user=admin';
+        $sanitized = ExceptionHandler::sanitize($input);
+        $this->assertStringNotContainsString('eyJhbGciOiJIUzI1NiJ9.secretToken', $sanitized);
+        $this->assertStringContainsString('?token=***&user=admin', $sanitized);
+
+        $input2 = '/api/reset-password?userId=42&api_key=SuperSecretApiKey999';
+        $sanitized2 = ExceptionHandler::sanitize($input2);
+        $this->assertStringNotContainsString('SuperSecretApiKey999', $sanitized2);
+        $this->assertStringContainsString('&api_key=***', $sanitized2);
+    }
+
+    public function testSanitizeSecretWithSpaces(): void
+    {
+        // JSON format with spaces
+        $input1 = '{"user": "admin", "password": "my secret phrase with spaces"}';
+        $sanitized1 = ExceptionHandler::sanitize($input1);
+        $this->assertStringNotContainsString('my secret phrase with spaces', $sanitized1);
+        $this->assertStringContainsString('"password": "***"', $sanitized1);
+
+        // Single-quoted format with spaces
+        $input2 = "'secret' => 'phrase with spaces and words'";
+        $sanitized2 = ExceptionHandler::sanitize($input2);
+        $this->assertStringNotContainsString('phrase with spaces and words', $sanitized2);
+        $this->assertStringContainsString("'secret' => '***'", $sanitized2);
+    }
+
+    public function testSanitizeSecretWithSpecialCharacters(): void
+    {
+        $input = 'Failed DB auth: password=P@$$w0rd!#%^&*()_+-=[]{};:,.<>?/ for user root';
+        $sanitized = ExceptionHandler::sanitize($input);
+        $this->assertStringNotContainsString('P@$$w0rd!#%^&*', $sanitized);
+        $this->assertStringContainsString('password=***', $sanitized);
+    }
+
+    public function testSanitizeAuthorizationBearerToken(): void
+    {
+        $input = 'HTTP Request failed with header Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.e30.signature';
+        $sanitized = ExceptionHandler::sanitize($input);
+        $this->assertStringNotContainsString('eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.e30.signature', $sanitized);
+        $this->assertStringContainsString('Authorization: Bearer ***', $sanitized);
+
+        $inputBasic = 'Authorization: Basic dXNlcjpwYXNzd29yZA==';
+        $sanitizedBasic = ExceptionHandler::sanitize($inputBasic);
+        $this->assertStringNotContainsString('dXNlcjpwYXNzd29yZA==', $sanitizedBasic);
+        $this->assertStringContainsString('Authorization: Basic ***', $sanitizedBasic);
+    }
+
+    public function testSanitizeUriDsnCredentials(): void
+    {
+        $input = 'PDO connection to mysql://admin:SecretDbPassword42@127.0.0.1:3306/booking_v16 failed';
+        $sanitized = ExceptionHandler::sanitize($input);
+        $this->assertStringNotContainsString('SecretDbPassword42', $sanitized);
+        $this->assertStringContainsString('mysql://admin:***@127.0.0.1:3306/booking_v16', $sanitized);
+    }
+
+    public function testNonSensitiveExceptionPreservesDiagnosticDetails(): void
+    {
+        $input = "Table 'booking_v16.game_rooms' does not exist in schema";
+        $sanitized = ExceptionHandler::sanitize($input);
+        $this->assertSame($input, $sanitized);
+    }
+
+    public function testLogErrorSanitizesMessageTraceAndChainedExceptions(): void
+    {
+        $innerSecret = 'InnerSecretKey999';
+        $outerSecret = 'OuterDbPassword888';
+
+        $innerException = new RuntimeException("Inner error with secret={$innerSecret}");
+        $outerException = new RuntimeException("Outer error with password={$outerSecret}", 500, $innerException);
 
         Config::set('APP_DEBUG', false);
-        $response = ExceptionHandler::handle($exception);
+        $response = ExceptionHandler::handle($outerException);
 
-        // Client response in production must be generic
+        // Production client response must be generic
         $this->assertSame(500, $response->getStatusCode());
         $body = json_decode($response->getContent(), true);
         $this->assertFalse($body['success']);
         $this->assertSame('Internal Server Error', $body['error']['message']);
-        $this->assertStringNotContainsString($sensitiveSecret, $response->getContent());
-        $this->assertStringNotContainsString($sensitivePass, $response->getContent());
+        $this->assertStringNotContainsString($innerSecret, $response->getContent());
+        $this->assertStringNotContainsString($outerSecret, $response->getContent());
 
-        // Captured log must exist and be sanitized
+        // Captured log must redact secrets across both outer and chained inner exceptions
         $this->assertCount(1, $this->capturedLogs);
         $log = $this->capturedLogs[0];
-        $this->assertStringNotContainsString($sensitiveSecret, $log);
-        $this->assertStringNotContainsString($sensitivePass, $log);
+        $this->assertStringNotContainsString($innerSecret, $log);
+        $this->assertStringNotContainsString($outerSecret, $log);
+        $this->assertStringContainsString('Caused by:', $log);
         $this->assertStringContainsString('secret=***', $log);
         $this->assertStringContainsString('password=***', $log);
-        $this->assertStringContainsString('RuntimeException', $log);
     }
 
-    public function testDebugModeSanitizesClientFacingMessage(): void
+    public function testDebugModeSanitizesClientFacingMessageWithoutExposingInternalTraces(): void
     {
         $sensitivePassword = 'UnrevealedPassSecret123!';
         $exception = new DatabaseException("Failed connection for password={$sensitivePassword}");

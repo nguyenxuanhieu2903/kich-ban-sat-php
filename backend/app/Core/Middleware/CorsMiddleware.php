@@ -77,7 +77,9 @@ class CorsMiddleware implements MiddlewareInterface
             }
 
             $response = new Response('', 204, $headers);
-            if ($origin !== null && $origin !== '') {
+            // RFC 7234: If the response representation varies by Origin allowlist,
+            // Vary: Origin must be set consistently on all responses to protect HTTP caches.
+            if (!$isWildcard) {
                 $response = $this->appendVaryHeader($response, 'Origin');
             }
 
@@ -87,7 +89,11 @@ class CorsMiddleware implements MiddlewareInterface
         /** @var Response $response */
         $response = $next($request);
 
-        if ($origin !== null && $origin !== '') {
+        // For non-wildcard configurations, response headers depend on the Origin header.
+        // Therefore, Vary: Origin MUST be set on all responses (including requests without Origin,
+        // or with disallowed origins) so intermediate caches do not serve an origin-specific response
+        // to an origin-less or different-origin request.
+        if (!$isWildcard) {
             $response = $this->appendVaryHeader($response, 'Origin');
         }
 

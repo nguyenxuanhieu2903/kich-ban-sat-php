@@ -12,7 +12,7 @@ export class ApiError extends Error {
 
 /**
  * Native Fetch API wrapper providing uniform JSON request handling,
- * error normalization, and lifecycle states.
+ * error normalization, cancellation, and lifecycle states.
  */
 class ApiClient {
   constructor(baseUrl = config.apiBaseUrl) {
@@ -29,14 +29,23 @@ class ApiClient {
 
     const controller = new AbortController();
     const timeoutMs = options.timeout || config.defaultTimeoutMs;
-    const timeout = setTimeout(() => controller.abort(), timeoutMs);
+    let isTimeout = false;
+    let abortListener = null;
+
+    const timeout = setTimeout(() => {
+      isTimeout = true;
+      controller.abort();
+    }, timeoutMs);
 
     // Compose caller signal with internal timeout controller to preserve cancellation
     if (options.signal) {
       if (options.signal.aborted) {
         controller.abort(options.signal.reason);
       } else {
-        options.signal.addEventListener('abort', () => controller.abort(options.signal.reason), { once: true });
+        abortListener = () => {
+          controller.abort(options.signal.reason);
+        };
+        options.signal.addEventListener('abort', abortListener, { once: true });
       }
     }
 
@@ -47,8 +56,6 @@ class ApiClient {
         headers,
         signal: controller.signal,
       });
-
-      clearTimeout(timeout);
 
       let data = null;
       const contentType = response.headers.get('content-type') || '';
@@ -73,14 +80,21 @@ class ApiClient {
 
       return data;
     } catch (err) {
-      clearTimeout(timeout);
-
       if (err instanceof ApiError) {
         throw err;
       }
 
       if (err.name === 'AbortError') {
-        throw new ApiError('Request timed out after ' + timeoutMs + 'ms', 0, 'REQUEST_TIMEOUT');
+        if (isTimeout) {
+          throw new ApiError(`Request timed out after ${timeoutMs}ms`, 0, 'REQUEST_TIMEOUT');
+        }
+
+        const reason = options.signal?.reason;
+        const message = typeof reason === 'string'
+          ? reason
+          : (reason instanceof Error ? reason.message : 'Request was aborted by caller');
+
+        throw new ApiError(message, 0, 'REQUEST_ABORTED', { reason });
       }
 
       // Network unreachable, DNS failure, CORS blocked
@@ -90,6 +104,11 @@ class ApiClient {
         'NETWORK_FAILURE',
         { originalError: err.message }
       );
+    } finally {
+      clearTimeout(timeout);
+      if (options.signal && abortListener) {
+        options.signal.removeEventListener('abort', abortListener);
+      }
     }
   }
 
