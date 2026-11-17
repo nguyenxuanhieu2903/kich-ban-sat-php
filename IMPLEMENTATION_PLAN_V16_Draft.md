@@ -98,7 +98,7 @@ kiểm tra tính đầy đủ.
 1.  **V15 is the business source of truth.** V16 changes implementation
     technology, not accepted business rules.
 2.  **One official repository.** Work only in
-    `nguyenxuanhieu2903/kich-ban-sat`; reference repositories are
+    `nguyenxuanhieu2903/kich-ban-sat-php`; reference repositories are
     audit-only.
 3.  **No big-bang migration.** Build a runnable skeleton, then vertical
     slices.

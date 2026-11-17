@@ -97,7 +97,7 @@ kiểm tra tính đầy đủ.
 
 1.  **V15 accepted state machines + V16 Business Freeze are the business source of truth.** V16 preserves accepted V15 lifecycle rules except explicit V16 overrides: deposit 50.000 VNĐ/person, refund eligibility at least 24 hours before Session start, Tuesday promotion does not stack with HSSV, and the full supplied menu catalog is MVP scope.
 2.  **One official repository.** Work only in
-    `nguyenxuanhieu2903/kich-ban-sat`; reference repositories are
+    `nguyenxuanhieu2903/kich-ban-sat-php`; reference repositories are
     audit-only.
 3.  **No big-bang migration.** Build a runnable skeleton, then vertical
     slices.
