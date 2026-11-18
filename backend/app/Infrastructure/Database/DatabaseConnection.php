@@ -132,6 +132,9 @@ class DatabaseConnection
     /**
      * Execute a callable within a transactional boundary.
      *
+     * Delegates to TransactionManager to provide safe nested savepoint transactions
+     * and unified transaction lifecycle management.
+     *
      * @template T
      * @param callable(PDO): T $callback
      * @return T
@@ -140,22 +143,8 @@ class DatabaseConnection
     public static function transaction(callable $callback, ?PDO $pdo = null): mixed
     {
         $connection = $pdo ?? self::getInstance();
+        $manager = new TransactionManager($connection);
 
-        if ($connection->inTransaction()) {
-            return $callback($connection);
-        }
-
-        $connection->beginTransaction();
-
-        try {
-            $result = $callback($connection);
-            $connection->commit();
-            return $result;
-        } catch (Throwable $e) {
-            if ($connection->inTransaction()) {
-                $connection->rollBack();
-            }
-            throw $e;
-        }
+        return $manager->transaction($callback);
     }
 }
