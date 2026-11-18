@@ -5,58 +5,134 @@ declare(strict_types=1);
 namespace App\Infrastructure\Database;
 
 use App\Core\Exceptions\ExceptionHandler;
-use App\Infrastructure\Config\Config;
+use App\Infrastructure\Database\Exceptions\InvalidConfigurationException;
 use PDO;
 use PDOException;
 
+/**
+ * Factory responsible for creating and configuring secure PDO database connections.
+ *
+ * Supports both dependency injection (instantiable service) and static creation.
+ */
 class ConnectionFactory
 {
     /**
-     * Create a new PDO instance from environment configuration or explicit options.
+     * Default secure PDO connection options.
      *
-     * @param array<string, mixed> $overrideConfig
+     * @var array<int, mixed>
+     */
+    public const DEFAULT_OPTIONS = [
+        PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+        PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+        PDO::ATTR_EMULATE_PREPARES => false,
+        PDO::ATTR_PERSISTENT => false,
+    ];
+
+    private DatabaseConfig $config;
+
+    /**
+     * @param DatabaseConfig|null $config Validated DatabaseConfig. Falls back to environment config if omitted.
+     * @throws InvalidConfigurationException If environment configuration is invalid.
+     */
+    public function __construct(?DatabaseConfig $config = null)
+    {
+        $this->config = $config ?? DatabaseConfig::fromEnvironment();
+    }
+
+    /**
+     * Get the active DatabaseConfig associated with this factory instance.
+     */
+    public function getConfig(): DatabaseConfig
+    {
+        return $this->config;
+    }
+
+    /**
+     * Create a new PDO instance using the configured or provided DatabaseConfig.
+     *
+     * @param DatabaseConfig|array<string, mixed>|null $overrideConfig Optional override configuration.
+     * @param array<int, mixed> $customOptions Optional additional or override PDO attributes.
+     * @throws DatabaseException If configuration is invalid or database connection fails.
+     */
+    public function createConnection(
+        DatabaseConfig|array|null $overrideConfig = null,
+        array $customOptions = []
+    ): PDO {
+        $resolvedConfig = match (true) {
+            $overrideConfig instanceof DatabaseConfig => $overrideConfig,
+            is_array($overrideConfig) && !empty($overrideConfig) => DatabaseConfig::fromArray(
+                array_merge($this->config->toArray(), $overrideConfig)
+            ),
+            default => $this->config,
+        };
+
+        return self::establishConnection($resolvedConfig, $customOptions);
+    }
+
+    /**
+     * Static factory method for backward compatibility with existing procedural callers.
+     *
+     * @param DatabaseConfig|array<string, mixed> $overrideConfig
+     * @param array<int, mixed> $customOptions
      * @throws DatabaseException
      */
-    public static function create(array $overrideConfig = []): PDO
+    public static function create(
+        DatabaseConfig|array $overrideConfig = [],
+        array $customOptions = []
+    ): PDO {
+        if ($overrideConfig instanceof DatabaseConfig) {
+            return self::establishConnection($overrideConfig, $customOptions);
+        }
+
+        $factory = new self();
+        return $factory->createConnection($overrideConfig, $customOptions);
+    }
+
+    /**
+     * Internal connection establishment logic.
+     *
+     * @param array<int, mixed> $customOptions
+     * @throws DatabaseException
+     */
+    private static function establishConnection(DatabaseConfig $dbConfig, array $customOptions = []): PDO
     {
-        $driver = (string) ($overrideConfig['driver'] ?? Config::get('DB_CONNECTION', 'mysql'));
-        $host = (string) ($overrideConfig['host'] ?? Config::get('DB_HOST', '127.0.0.1'));
-        $port = (int) ($overrideConfig['port'] ?? Config::get('DB_PORT', 3306));
-        $database = (string) ($overrideConfig['database'] ?? Config::get('DB_DATABASE', 'booking_v16'));
-        $username = (string) ($overrideConfig['username'] ?? Config::get('DB_USERNAME', 'root'));
-        $password = (string) ($overrideConfig['password'] ?? Config::get('DB_PASSWORD', ''));
-        $charset = (string) ($overrideConfig['charset'] ?? Config::get('DB_CHARSET', 'utf8mb4'));
+        $options = self::DEFAULT_OPTIONS;
 
-        $dsn = sprintf('%s:host=%s;port=%d;dbname=%s;charset=%s', $driver, $host, $port, $database, $charset);
+        // Ensure MySQL connection explicitly enforces validated charset and collation
+        if ($dbConfig->getDriver() === 'mysql' && defined('PDO::MYSQL_ATTR_INIT_COMMAND')) {
+            $options[PDO::MYSQL_ATTR_INIT_COMMAND] = sprintf(
+                "SET NAMES '%s' COLLATE '%s'",
+                $dbConfig->getCharset(),
+                $dbConfig->getCollation()
+            );
+        }
 
-        $defaultOptions = [
-            PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-            PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-            PDO::ATTR_EMULATE_PREPARES => false,
-            PDO::ATTR_PERSISTENT => false,
-        ];
-
-        // Ensure proper collation on MySQL
-        if ($driver === 'mysql') {
-            $defaultOptions[PDO::MYSQL_ATTR_INIT_COMMAND] = "SET NAMES '{$charset}' COLLATE 'utf8mb4_unicode_ci'";
+        // Merge custom options, preserving explicit mandatory PDO settings unless caller overrides
+        if (!empty($customOptions)) {
+            $options = array_replace($options, $customOptions);
         }
 
         try {
-            return new PDO($dsn, $username, $password, $defaultOptions);
+            return new PDO(
+                $dbConfig->getDsn(),
+                $dbConfig->getUsername(),
+                $dbConfig->getPassword(),
+                $options
+            );
         } catch (PDOException $e) {
             $sanitizedMsg = ExceptionHandler::sanitize($e->getMessage());
 
             $errorInfo = sprintf(
                 'Failed to connect to database [%s] on host [%s:%d]: %s',
-                $database,
-                $host,
-                $port,
+                $dbConfig->getDatabase(),
+                $dbConfig->getHost(),
+                $dbConfig->getPort(),
                 $sanitizedMsg
             );
 
-            // Raw PDOException is deliberately NOT chained as previous to prevent leaking
-            // plain-text password from PDO::__construct() stack trace frame arguments.
-            throw new DatabaseException($errorInfo, (int) $e->getCode());
+            // Wrap in DatabaseException preserving original PDOException as previous,
+            // while ensuring no plain-text passwords or credentials leak.
+            throw new DatabaseException($errorInfo, (int) $e->getCode(), $e);
         }
     }
 }

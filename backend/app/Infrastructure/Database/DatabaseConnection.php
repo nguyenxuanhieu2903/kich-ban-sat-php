@@ -7,14 +7,64 @@ namespace App\Infrastructure\Database;
 use PDO;
 use Throwable;
 
+/**
+ * Database connection holder and provider.
+ *
+ * Exposes database connections according to project conventions,
+ * supporting both dependency injection (instantiable provider)
+ * and legacy static access (getInstance).
+ */
 class DatabaseConnection
 {
     private static ?PDO $instance = null;
+    private static ?ConnectionFactory $defaultFactory = null;
+
+    private ?PDO $connection = null;
+    private ConnectionFactory $factory;
 
     /**
-     * Get or initialize the shared PDO connection.
+     * Create an instance-based database connection provider for DI containers.
+     *
+     * @param ConnectionFactory|null $factory Factory to create connection when needed.
+     * @param PDO|null $connection Existing connection (e.g. for testing/mocking).
      */
-    public static function getInstance(array $config = []): PDO
+    public function __construct(
+        ?ConnectionFactory $factory = null,
+        ?PDO $connection = null
+    ) {
+        $this->factory = $factory ?? self::getDefaultFactory();
+        $this->connection = $connection;
+    }
+
+    /**
+     * Get or initialize the connection for this provider instance.
+     *
+     * @throws DatabaseException
+     */
+    public function getConnection(): PDO
+    {
+        if ($this->connection === null) {
+            $this->connection = $this->factory->createConnection();
+        }
+
+        return $this->connection;
+    }
+
+    /**
+     * Check connectivity on this provider instance.
+     */
+    public function ping(): bool
+    {
+        return self::checkConnectivity($this->getConnection());
+    }
+
+    /**
+     * Get or initialize the shared PDO connection (static singleton for backward compatibility).
+     *
+     * @param DatabaseConfig|array<string, mixed> $config
+     * @throws DatabaseException
+     */
+    public static function getInstance(DatabaseConfig|array $config = []): PDO
     {
         if (self::$instance === null || !empty($config)) {
             self::$instance = ConnectionFactory::create($config);
@@ -24,11 +74,40 @@ class DatabaseConnection
     }
 
     /**
-     * Set a custom PDO instance (useful for mocks or test SQLite).
+     * Set a custom PDO instance for static access (useful for mocks or test SQLite).
      */
     public static function setInstance(?PDO $pdo): void
     {
         self::$instance = $pdo;
+    }
+
+    /**
+     * Configure or reset the default ConnectionFactory for static/default instances.
+     */
+    public static function setFactory(?ConnectionFactory $factory): void
+    {
+        self::$defaultFactory = $factory;
+    }
+
+    /**
+     * Get the default ConnectionFactory instance.
+     */
+    public static function getDefaultFactory(): ConnectionFactory
+    {
+        if (self::$defaultFactory === null) {
+            self::$defaultFactory = new ConnectionFactory();
+        }
+
+        return self::$defaultFactory;
+    }
+
+    /**
+     * Reset all static state (both singleton instance and default factory).
+     */
+    public static function reset(): void
+    {
+        self::$instance = null;
+        self::$defaultFactory = null;
     }
 
     /**
