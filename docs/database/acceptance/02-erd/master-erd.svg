@@ -1,0 +1,495 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 2100 1700" width="2100" height="1700" style="background:#ffffff;font-family:Segoe UI, Helvetica, Arial, sans-serif;">
+
+<defs>
+  <marker id="arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+    <path d="M 0 0 L 10 5 L 0 10 z" fill="#555" />
+  </marker>
+  <filter id="shadow" x="-5%" y="-5%" width="110%" height="110%">
+    <feDropShadow dx="2" dy="2" stdDeviation="3" flood-opacity="0.15"/>
+  </filter>
+</defs>
+<rect width="100%" height="100%" fill="#fcfcfc"/>
+<text x="50" y="45" font-size="24" font-weight="bold" fill="#1a202c">MASTER ERD — 34 TABLES &amp; 8 BOUNDED CONTEXTS</text>
+<text x="750" y="45" font-size="14" fill="#718096">Engine: MySQL 8.4 LTS InnoDB | Phase 1 Final Acceptance</text>
+
+<rect x="40" y="60" width="530" height="430" rx="8" fill="#f3e8ff" fill-opacity="0.35" stroke="#a855f7" stroke-width="1.5" stroke-dasharray="4,4"/>
+<text x="55" y="85" font-size="14" font-weight="bold" fill="#a855f7">CONTEXT: IDENTITY & ACCESS</text>
+<rect x="40" y="500" width="550" height="610" rx="8" fill="#e0f2fe" fill-opacity="0.35" stroke="#0284c7" stroke-width="1.5" stroke-dasharray="4,4"/>
+<text x="55" y="525" font-size="14" font-weight="bold" fill="#0284c7">CONTEXT: GAME CATALOG</text>
+<rect x="650" y="60" width="560" height="410" rx="8" fill="#fef3c7" fill-opacity="0.35" stroke="#d97706" stroke-width="1.5" stroke-dasharray="4,4"/>
+<text x="665" y="85" font-size="14" font-weight="bold" fill="#d97706">CONTEXT: DM MANAGEMENT</text>
+<rect x="650" y="480" width="670" height="680" rx="8" fill="#dcfce7" fill-opacity="0.35" stroke="#16a34a" stroke-width="1.5" stroke-dasharray="4,4"/>
+<text x="665" y="505" font-size="14" font-weight="bold" fill="#16a34a">CONTEXT: GAMEROOM MANAGEMENT</text>
+<rect x="1380" y="60" width="640" height="660" rx="8" fill="#fef9c3" fill-opacity="0.35" stroke="#ca8a04" stroke-width="1.5" stroke-dasharray="4,4"/>
+<text x="1395" y="85" font-size="14" font-weight="bold" fill="#ca8a04">CONTEXT: VENUE & SCHEDULING</text>
+<rect x="1380" y="730" width="640" height="240" rx="8" fill="#ffe4e6" fill-opacity="0.35" stroke="#e11d48" stroke-width="1.5" stroke-dasharray="4,4"/>
+<text x="1395" y="755" font-size="14" font-weight="bold" fill="#e11d48">CONTEXT: PRICING & PROMOTION</text>
+<rect x="1380" y="980" width="640" height="630" rx="8" fill="#ede9fe" fill-opacity="0.35" stroke="#7c3aed" stroke-width="1.5" stroke-dasharray="4,4"/>
+<text x="1395" y="1005" font-size="14" font-weight="bold" fill="#7c3aed">CONTEXT: PAYMENT & REFUND</text>
+<rect x="40" y="1170" width="580" height="460" rx="8" fill="#f1f5f9" fill-opacity="0.35" stroke="#475569" stroke-width="1.5" stroke-dasharray="4,4"/>
+<text x="55" y="1195" font-size="14" font-weight="bold" fill="#475569">CONTEXT: NOTIFICATION & AUDIT</text>
+<g filter="url(#shadow)">
+<rect x="60" y="80" width="230" height="190" rx="6" fill="#ffffff" stroke="#9673a6" stroke-width="1.5"/>
+<rect x="60" y="80" width="230" height="28" rx="6" fill="#d5bfe3" stroke="#9673a6" stroke-width="1.5"/>
+<rect x="60" y="100" width="230" height="8" fill="#d5bfe3"/>
+<text x="175.0" y="99" font-size="12" font-weight="bold" text-anchor="middle" fill="#1a202c">users</text>
+<text x="68" y="124" font-size="10.5" font-weight="bold" fill="#0284c7">+ id: BIGINT UNSIGNED [PK]</text>
+<text x="68" y="141" font-size="10.5" font-weight="normal" fill="#4b5563">- email: VARCHAR(191) [UK]</text>
+<text x="68" y="158" font-size="10.5" font-weight="normal" fill="#4b5563">- password_hash: VARCHAR(255)</text>
+<text x="68" y="175" font-size="10.5" font-weight="normal" fill="#4b5563">- status: VARCHAR(30)</text>
+<text x="68" y="192" font-size="10.5" font-weight="normal" fill="#4b5563">- email_verified_at: TIMESTAMP</text>
+<text x="68" y="209" font-size="10.5" font-weight="normal" fill="#4b5563">- created_at: TIMESTAMP</text>
+<text x="68" y="226" font-size="10.5" font-weight="normal" fill="#4b5563">- updated_at: TIMESTAMP</text>
+</g>
+<g filter="url(#shadow)">
+<rect x="60" y="300" width="230" height="170" rx="6" fill="#ffffff" stroke="#9673a6" stroke-width="1.5"/>
+<rect x="60" y="300" width="230" height="28" rx="6" fill="#d5bfe3" stroke="#9673a6" stroke-width="1.5"/>
+<rect x="60" y="320" width="230" height="8" fill="#d5bfe3"/>
+<text x="175.0" y="319" font-size="12" font-weight="bold" text-anchor="middle" fill="#1a202c">user_profiles</text>
+<text x="68" y="344" font-size="10.5" font-weight="bold" fill="#0284c7">+ id: BIGINT UNSIGNED [PK]</text>
+<text x="68" y="361" font-size="10.5" font-weight="bold" fill="#dc2626"># user_id: BIGINT UNSIGNED [FK, UK]</text>
+<text x="68" y="378" font-size="10.5" font-weight="normal" fill="#4b5563">- display_name: VARCHAR(100)</text>
+<text x="68" y="395" font-size="10.5" font-weight="normal" fill="#4b5563">- phone: VARCHAR(20)</text>
+<text x="68" y="412" font-size="10.5" font-weight="normal" fill="#4b5563">- avatar_url: VARCHAR(255)</text>
+<text x="68" y="429" font-size="10.5" font-weight="normal" fill="#4b5563">- bio: TEXT</text>
+<text x="68" y="446" font-size="10.5" font-weight="normal" fill="#4b5563">- updated_at: TIMESTAMP</text>
+</g>
+<g filter="url(#shadow)">
+<rect x="330" y="80" width="210" height="140" rx="6" fill="#ffffff" stroke="#9673a6" stroke-width="1.5"/>
+<rect x="330" y="80" width="210" height="28" rx="6" fill="#d5bfe3" stroke="#9673a6" stroke-width="1.5"/>
+<rect x="330" y="100" width="210" height="8" fill="#d5bfe3"/>
+<text x="435.0" y="99" font-size="12" font-weight="bold" text-anchor="middle" fill="#1a202c">roles</text>
+<text x="338" y="124" font-size="10.5" font-weight="bold" fill="#0284c7">+ id: BIGINT UNSIGNED [PK]</text>
+<text x="338" y="141" font-size="10.5" font-weight="normal" fill="#4b5563">- name: VARCHAR(50) [UK]</text>
+<text x="338" y="158" font-size="10.5" font-weight="normal" fill="#4b5563">- label: VARCHAR(100)</text>
+<text x="338" y="175" font-size="10.5" font-weight="normal" fill="#4b5563">- created_at: TIMESTAMP</text>
+</g>
+<g filter="url(#shadow)">
+<rect x="330" y="260" width="210" height="140" rx="6" fill="#ffffff" stroke="#9673a6" stroke-width="1.5"/>
+<rect x="330" y="260" width="210" height="28" rx="6" fill="#d5bfe3" stroke="#9673a6" stroke-width="1.5"/>
+<rect x="330" y="280" width="210" height="8" fill="#d5bfe3"/>
+<text x="435.0" y="279" font-size="12" font-weight="bold" text-anchor="middle" fill="#1a202c">user_roles</text>
+<text x="338" y="304" font-size="10.5" font-weight="bold" fill="#0284c7">+ id: BIGINT UNSIGNED [PK]</text>
+<text x="338" y="321" font-size="10.5" font-weight="bold" fill="#dc2626"># user_id: BIGINT UNSIGNED [FK]</text>
+<text x="338" y="338" font-size="10.5" font-weight="bold" fill="#dc2626"># role_id: BIGINT UNSIGNED [FK]</text>
+<text x="338" y="355" font-size="10.5" font-weight="normal" fill="#4b5563">- assigned_at: TIMESTAMP</text>
+</g>
+<g filter="url(#shadow)">
+<rect x="60" y="520" width="240" height="200" rx="6" fill="#ffffff" stroke="#6c8ebf" stroke-width="1.5"/>
+<rect x="60" y="520" width="240" height="28" rx="6" fill="#b9d6fc" stroke="#6c8ebf" stroke-width="1.5"/>
+<rect x="60" y="540" width="240" height="8" fill="#b9d6fc"/>
+<text x="180.0" y="539" font-size="12" font-weight="bold" text-anchor="middle" fill="#1a202c">games</text>
+<text x="68" y="564" font-size="10.5" font-weight="bold" fill="#0284c7">+ id: BIGINT UNSIGNED [PK]</text>
+<text x="68" y="581" font-size="10.5" font-weight="normal" fill="#4b5563">- title: VARCHAR(191)</text>
+<text x="68" y="598" font-size="10.5" font-weight="normal" fill="#4b5563">- slug: VARCHAR(191) [UK]</text>
+<text x="68" y="615" font-size="10.5" font-weight="normal" fill="#4b5563">- min_players: INT UNSIGNED</text>
+<text x="68" y="632" font-size="10.5" font-weight="normal" fill="#4b5563">- max_players: INT UNSIGNED</text>
+<text x="68" y="649" font-size="10.5" font-weight="normal" fill="#4b5563">- duration_minutes: INT</text>
+<text x="68" y="666" font-size="10.5" font-weight="normal" fill="#4b5563">- is_active: BOOLEAN</text>
+<text x="68" y="683" font-size="10.5" font-weight="normal" fill="#4b5563">- created_at: TIMESTAMP</text>
+</g>
+<g filter="url(#shadow)">
+<rect x="340" y="520" width="210" height="140" rx="6" fill="#ffffff" stroke="#6c8ebf" stroke-width="1.5"/>
+<rect x="340" y="520" width="210" height="28" rx="6" fill="#b9d6fc" stroke="#6c8ebf" stroke-width="1.5"/>
+<rect x="340" y="540" width="210" height="8" fill="#b9d6fc"/>
+<text x="445.0" y="539" font-size="12" font-weight="bold" text-anchor="middle" fill="#1a202c">categories</text>
+<text x="348" y="564" font-size="10.5" font-weight="bold" fill="#0284c7">+ id: BIGINT UNSIGNED [PK]</text>
+<text x="348" y="581" font-size="10.5" font-weight="normal" fill="#4b5563">- name: VARCHAR(100)</text>
+<text x="348" y="598" font-size="10.5" font-weight="normal" fill="#4b5563">- slug: VARCHAR(100) [UK]</text>
+<text x="348" y="615" font-size="10.5" font-weight="normal" fill="#4b5563">- created_at: TIMESTAMP</text>
+</g>
+<g filter="url(#shadow)">
+<rect x="340" y="690" width="230" height="140" rx="6" fill="#ffffff" stroke="#6c8ebf" stroke-width="1.5"/>
+<rect x="340" y="690" width="230" height="28" rx="6" fill="#b9d6fc" stroke="#6c8ebf" stroke-width="1.5"/>
+<rect x="340" y="710" width="230" height="8" fill="#b9d6fc"/>
+<text x="455.0" y="709" font-size="12" font-weight="bold" text-anchor="middle" fill="#1a202c">game_category_assignments</text>
+<text x="348" y="734" font-size="10.5" font-weight="bold" fill="#0284c7">+ id: BIGINT UNSIGNED [PK]</text>
+<text x="348" y="751" font-size="10.5" font-weight="bold" fill="#dc2626"># game_id: BIGINT UNSIGNED [FK]</text>
+<text x="348" y="768" font-size="10.5" font-weight="bold" fill="#dc2626"># category_id: BIGINT UNSIGNED [FK]</text>
+<text x="348" y="785" font-size="10.5" font-weight="normal" fill="#4b5563">- created_at: TIMESTAMP</text>
+</g>
+<g filter="url(#shadow)">
+<rect x="60" y="760" width="240" height="150" rx="6" fill="#ffffff" stroke="#6c8ebf" stroke-width="1.5"/>
+<rect x="60" y="760" width="240" height="28" rx="6" fill="#b9d6fc" stroke="#6c8ebf" stroke-width="1.5"/>
+<rect x="60" y="780" width="240" height="8" fill="#b9d6fc"/>
+<text x="180.0" y="779" font-size="12" font-weight="bold" text-anchor="middle" fill="#1a202c">game_rules</text>
+<text x="68" y="804" font-size="10.5" font-weight="bold" fill="#0284c7">+ id: BIGINT UNSIGNED [PK]</text>
+<text x="68" y="821" font-size="10.5" font-weight="bold" fill="#dc2626"># game_id: BIGINT UNSIGNED [FK]</text>
+<text x="68" y="838" font-size="10.5" font-weight="normal" fill="#4b5563">- rule_name: VARCHAR(191)</text>
+<text x="68" y="855" font-size="10.5" font-weight="normal" fill="#4b5563">- rule_content: TEXT</text>
+<text x="68" y="872" font-size="10.5" font-weight="normal" fill="#4b5563">- display_order: INT</text>
+</g>
+<g filter="url(#shadow)">
+<rect x="60" y="940" width="240" height="150" rx="6" fill="#ffffff" stroke="#6c8ebf" stroke-width="1.5"/>
+<rect x="60" y="940" width="240" height="28" rx="6" fill="#b9d6fc" stroke="#6c8ebf" stroke-width="1.5"/>
+<rect x="60" y="960" width="240" height="8" fill="#b9d6fc"/>
+<text x="180.0" y="959" font-size="12" font-weight="bold" text-anchor="middle" fill="#1a202c">game_configurations</text>
+<text x="68" y="984" font-size="10.5" font-weight="bold" fill="#0284c7">+ id: BIGINT UNSIGNED [PK]</text>
+<text x="68" y="1001" font-size="10.5" font-weight="bold" fill="#dc2626"># game_id: BIGINT UNSIGNED [FK]</text>
+<text x="68" y="1018" font-size="10.5" font-weight="normal" fill="#4b5563">- config_key: VARCHAR(100)</text>
+<text x="68" y="1035" font-size="10.5" font-weight="normal" fill="#4b5563">- config_value: TEXT</text>
+<text x="68" y="1052" font-size="10.5" font-weight="normal" fill="#4b5563">- updated_at: TIMESTAMP</text>
+</g>
+<g filter="url(#shadow)">
+<rect x="680" y="80" width="230" height="160" rx="6" fill="#ffffff" stroke="#d79b00" stroke-width="1.5"/>
+<rect x="680" y="80" width="230" height="28" rx="6" fill="#ffd39b" stroke="#d79b00" stroke-width="1.5"/>
+<rect x="680" y="100" width="230" height="8" fill="#ffd39b"/>
+<text x="795.0" y="99" font-size="12" font-weight="bold" text-anchor="middle" fill="#1a202c">dm_profiles</text>
+<text x="688" y="124" font-size="10.5" font-weight="bold" fill="#0284c7">+ id: BIGINT UNSIGNED [PK]</text>
+<text x="688" y="141" font-size="10.5" font-weight="bold" fill="#dc2626"># user_id: BIGINT UNSIGNED [FK, UK]</text>
+<text x="688" y="158" font-size="10.5" font-weight="normal" fill="#4b5563">- experience_years: INT</text>
+<text x="688" y="175" font-size="10.5" font-weight="normal" fill="#4b5563">- rating_avg: DECIMAL(3,2)</text>
+<text x="688" y="192" font-size="10.5" font-weight="normal" fill="#4b5563">- status: VARCHAR(30)</text>
+<text x="688" y="209" font-size="10.5" font-weight="normal" fill="#4b5563">- created_at: TIMESTAMP</text>
+</g>
+<g filter="url(#shadow)">
+<rect x="950" y="80" width="240" height="160" rx="6" fill="#ffffff" stroke="#d79b00" stroke-width="1.5"/>
+<rect x="950" y="80" width="240" height="28" rx="6" fill="#ffd39b" stroke="#d79b00" stroke-width="1.5"/>
+<rect x="950" y="100" width="240" height="8" fill="#ffd39b"/>
+<text x="1070.0" y="99" font-size="12" font-weight="bold" text-anchor="middle" fill="#1a202c">dm_availabilities</text>
+<text x="958" y="124" font-size="10.5" font-weight="bold" fill="#0284c7">+ id: BIGINT UNSIGNED [PK]</text>
+<text x="958" y="141" font-size="10.5" font-weight="bold" fill="#dc2626"># dm_profile_id: BIGINT UNSIGNED [FK]</text>
+<text x="958" y="158" font-size="10.5" font-weight="normal" fill="#4b5563">- day_of_week: TINYINT</text>
+<text x="958" y="175" font-size="10.5" font-weight="normal" fill="#4b5563">- start_time: TIME</text>
+<text x="958" y="192" font-size="10.5" font-weight="normal" fill="#4b5563">- end_time: TIME</text>
+<text x="958" y="209" font-size="10.5" font-weight="normal" fill="#4b5563">- is_available: BOOLEAN</text>
+</g>
+<g filter="url(#shadow)">
+<rect x="800" y="280" width="240" height="170" rx="6" fill="#ffffff" stroke="#d79b00" stroke-width="1.5"/>
+<rect x="800" y="280" width="240" height="28" rx="6" fill="#ffd39b" stroke="#d79b00" stroke-width="1.5"/>
+<rect x="800" y="300" width="240" height="8" fill="#ffd39b"/>
+<text x="920.0" y="299" font-size="12" font-weight="bold" text-anchor="middle" fill="#1a202c">dm_assignments</text>
+<text x="808" y="324" font-size="10.5" font-weight="bold" fill="#0284c7">+ id: BIGINT UNSIGNED [PK]</text>
+<text x="808" y="341" font-size="10.5" font-weight="bold" fill="#dc2626"># game_room_id: BIGINT UNSIGNED [FK]</text>
+<text x="808" y="358" font-size="10.5" font-weight="bold" fill="#dc2626"># dm_profile_id: BIGINT UNSIGNED [FK]</text>
+<text x="808" y="375" font-size="10.5" font-weight="normal" fill="#4b5563">- status: VARCHAR(40)</text>
+<text x="808" y="392" font-size="10.5" font-weight="normal" fill="#4b5563">- assigned_at: TIMESTAMP</text>
+<text x="808" y="409" font-size="10.5" font-weight="normal" fill="#4b5563">- notes: TEXT</text>
+</g>
+<g filter="url(#shadow)">
+<rect x="680" y="500" width="270" height="240" rx="6" fill="#ffffff" stroke="#82b366" stroke-width="1.5"/>
+<rect x="680" y="500" width="270" height="28" rx="6" fill="#b8e0b4" stroke="#82b366" stroke-width="1.5"/>
+<rect x="680" y="520" width="270" height="8" fill="#b8e0b4"/>
+<text x="815.0" y="519" font-size="12" font-weight="bold" text-anchor="middle" fill="#1a202c">game_rooms</text>
+<text x="688" y="544" font-size="10.5" font-weight="bold" fill="#0284c7">+ id: BIGINT UNSIGNED [PK]</text>
+<text x="688" y="561" font-size="10.5" font-weight="normal" fill="#4b5563">- room_code: VARCHAR(32) [UK]</text>
+<text x="688" y="578" font-size="10.5" font-weight="bold" fill="#dc2626"># creator_id: BIGINT UNSIGNED [FK]</text>
+<text x="688" y="595" font-size="10.5" font-weight="bold" fill="#dc2626"># game_id: BIGINT UNSIGNED [FK]</text>
+<text x="688" y="612" font-size="10.5" font-weight="normal" fill="#4b5563">- min_players: INT</text>
+<text x="688" y="629" font-size="10.5" font-weight="normal" fill="#4b5563">- max_players: INT</text>
+<text x="688" y="646" font-size="10.5" font-weight="normal" fill="#4b5563">- status: VARCHAR(40)</text>
+<text x="688" y="663" font-size="10.5" font-weight="normal" fill="#4b5563">- is_active: BOOLEAN</text>
+<text x="688" y="680" font-size="10.5" font-weight="normal" fill="#4b5563">- formation_deadline: TIMESTAMP</text>
+<text x="688" y="697" font-size="10.5" font-weight="normal" fill="#4b5563">- version: BIGINT</text>
+</g>
+<g filter="url(#shadow)">
+<rect x="1020" y="500" width="280" height="240" rx="6" fill="#ffffff" stroke="#82b366" stroke-width="1.5"/>
+<rect x="1020" y="500" width="280" height="28" rx="6" fill="#b8e0b4" stroke="#82b366" stroke-width="1.5"/>
+<rect x="1020" y="520" width="280" height="8" fill="#b8e0b4"/>
+<text x="1160.0" y="519" font-size="12" font-weight="bold" text-anchor="middle" fill="#1a202c">room_participants</text>
+<text x="1028" y="544" font-size="10.5" font-weight="bold" fill="#0284c7">+ id: BIGINT UNSIGNED [PK]</text>
+<text x="1028" y="561" font-size="10.5" font-weight="bold" fill="#dc2626"># game_room_id: BIGINT UNSIGNED [FK]</text>
+<text x="1028" y="578" font-size="10.5" font-weight="bold" fill="#dc2626"># user_id: BIGINT UNSIGNED [FK]</text>
+<text x="1028" y="595" font-size="10.5" font-weight="normal" fill="#4b5563">- role_in_room: VARCHAR(20)</text>
+<text x="1028" y="612" font-size="10.5" font-weight="normal" fill="#4b5563">- status: VARCHAR(40)</text>
+<text x="1028" y="629" font-size="10.5" font-weight="normal" fill="#4b5563">- deposit_amount: BIGINT</text>
+<text x="1028" y="646" font-size="10.5" font-weight="normal" fill="#4b5563">- remaining_amount: BIGINT</text>
+<text x="1028" y="663" font-size="10.5" font-weight="normal" fill="#4b5563">- deposit_deadline: TIMESTAMP</text>
+<text x="1028" y="680" font-size="10.5" font-weight="normal" fill="#4b5563">- joined_at: TIMESTAMP</text>
+</g>
+<g filter="url(#shadow)">
+<rect x="680" y="780" width="260" height="160" rx="6" fill="#ffffff" stroke="#82b366" stroke-width="1.5"/>
+<rect x="680" y="780" width="260" height="28" rx="6" fill="#b8e0b4" stroke="#82b366" stroke-width="1.5"/>
+<rect x="680" y="800" width="260" height="8" fill="#b8e0b4"/>
+<text x="810.0" y="799" font-size="12" font-weight="bold" text-anchor="middle" fill="#1a202c">game_room_status_histories</text>
+<text x="688" y="824" font-size="10.5" font-weight="bold" fill="#0284c7">+ id: BIGINT UNSIGNED [PK]</text>
+<text x="688" y="841" font-size="10.5" font-weight="bold" fill="#dc2626"># game_room_id: BIGINT UNSIGNED [FK]</text>
+<text x="688" y="858" font-size="10.5" font-weight="bold" fill="#dc2626"># changed_by_user_id: BIGINT [FK, NULL]</text>
+<text x="688" y="875" font-size="10.5" font-weight="normal" fill="#4b5563">- from_status: VARCHAR(40)</text>
+<text x="688" y="892" font-size="10.5" font-weight="normal" fill="#4b5563">- to_status: VARCHAR(40)</text>
+<text x="688" y="909" font-size="10.5" font-weight="normal" fill="#4b5563">- created_at: TIMESTAMP</text>
+</g>
+<g filter="url(#shadow)">
+<rect x="1020" y="780" width="270" height="150" rx="6" fill="#ffffff" stroke="#82b366" stroke-width="1.5"/>
+<rect x="1020" y="780" width="270" height="28" rx="6" fill="#b8e0b4" stroke="#82b366" stroke-width="1.5"/>
+<rect x="1020" y="800" width="270" height="8" fill="#b8e0b4"/>
+<text x="1155.0" y="799" font-size="12" font-weight="bold" text-anchor="middle" fill="#1a202c">participant_status_histories</text>
+<text x="1028" y="824" font-size="10.5" font-weight="bold" fill="#0284c7">+ id: BIGINT UNSIGNED [PK]</text>
+<text x="1028" y="841" font-size="10.5" font-weight="bold" fill="#dc2626"># room_participant_id: BIGINT [FK]</text>
+<text x="1028" y="858" font-size="10.5" font-weight="normal" fill="#4b5563">- from_status: VARCHAR(40)</text>
+<text x="1028" y="875" font-size="10.5" font-weight="normal" fill="#4b5563">- to_status: VARCHAR(40)</text>
+<text x="1028" y="892" font-size="10.5" font-weight="normal" fill="#4b5563">- reason: TEXT</text>
+<text x="1028" y="909" font-size="10.5" font-weight="normal" fill="#4b5563">- created_at: TIMESTAMP</text>
+</g>
+<g filter="url(#shadow)">
+<rect x="680" y="970" width="270" height="170" rx="6" fill="#ffffff" stroke="#82b366" stroke-width="1.5"/>
+<rect x="680" y="970" width="270" height="28" rx="6" fill="#b8e0b4" stroke="#82b366" stroke-width="1.5"/>
+<rect x="680" y="990" width="270" height="8" fill="#b8e0b4"/>
+<text x="815.0" y="989" font-size="12" font-weight="bold" text-anchor="middle" fill="#1a202c">replacement_windows</text>
+<text x="688" y="1014" font-size="10.5" font-weight="bold" fill="#0284c7">+ id: BIGINT UNSIGNED [PK]</text>
+<text x="688" y="1031" font-size="10.5" font-weight="bold" fill="#dc2626"># game_room_id: BIGINT UNSIGNED [FK]</text>
+<text x="688" y="1048" font-size="10.5" font-weight="bold" fill="#dc2626"># original_participant_id: BIGINT [FK]</text>
+<text x="688" y="1065" font-size="10.5" font-weight="bold" fill="#dc2626"># replacement_participant_id: BIGINT [FK, NULL]</text>
+<text x="688" y="1082" font-size="10.5" font-weight="normal" fill="#4b5563">- status: VARCHAR(30)</text>
+<text x="688" y="1099" font-size="10.5" font-weight="normal" fill="#4b5563">- expires_at: TIMESTAMP</text>
+</g>
+<g filter="url(#shadow)">
+<rect x="1020" y="970" width="280" height="170" rx="6" fill="#ffffff" stroke="#82b366" stroke-width="1.5"/>
+<rect x="1020" y="970" width="280" height="28" rx="6" fill="#b8e0b4" stroke="#82b366" stroke-width="1.5"/>
+<rect x="1020" y="990" width="280" height="8" fill="#b8e0b4"/>
+<text x="1160.0" y="989" font-size="12" font-weight="bold" text-anchor="middle" fill="#1a202c">participant_leave_requests</text>
+<text x="1028" y="1014" font-size="10.5" font-weight="bold" fill="#0284c7">+ id: BIGINT UNSIGNED [PK]</text>
+<text x="1028" y="1031" font-size="10.5" font-weight="bold" fill="#dc2626"># room_participant_id: BIGINT [FK]</text>
+<text x="1028" y="1048" font-size="10.5" font-weight="bold" fill="#dc2626"># game_room_id: BIGINT UNSIGNED [FK]</text>
+<text x="1028" y="1065" font-size="10.5" font-weight="bold" fill="#dc2626"># reviewed_by_user_id: BIGINT [FK, NULL]</text>
+<text x="1028" y="1082" font-size="10.5" font-weight="normal" fill="#4b5563">- reason: TEXT</text>
+<text x="1028" y="1099" font-size="10.5" font-weight="normal" fill="#4b5563">- status: VARCHAR(30)</text>
+</g>
+<g filter="url(#shadow)">
+<rect x="1420" y="80" width="250" height="160" rx="6" fill="#ffffff" stroke="#d6b656" stroke-width="1.5"/>
+<rect x="1420" y="80" width="250" height="28" rx="6" fill="#ffe599" stroke="#d6b656" stroke-width="1.5"/>
+<rect x="1420" y="100" width="250" height="8" fill="#ffe599"/>
+<text x="1545.0" y="99" font-size="12" font-weight="bold" text-anchor="middle" fill="#1a202c">schedule_proposals</text>
+<text x="1428" y="124" font-size="10.5" font-weight="bold" fill="#0284c7">+ id: BIGINT UNSIGNED [PK]</text>
+<text x="1428" y="141" font-size="10.5" font-weight="bold" fill="#dc2626"># game_room_id: BIGINT UNSIGNED [FK]</text>
+<text x="1428" y="158" font-size="10.5" font-weight="bold" fill="#dc2626"># proposed_by_user_id: BIGINT [FK]</text>
+<text x="1428" y="175" font-size="10.5" font-weight="normal" fill="#4b5563">- proposed_date: DATE</text>
+<text x="1428" y="192" font-size="10.5" font-weight="normal" fill="#4b5563">- start_time: TIME</text>
+<text x="1428" y="209" font-size="10.5" font-weight="normal" fill="#4b5563">- status: VARCHAR(30)</text>
+</g>
+<g filter="url(#shadow)">
+<rect x="1720" y="80" width="250" height="150" rx="6" fill="#ffffff" stroke="#d6b656" stroke-width="1.5"/>
+<rect x="1720" y="80" width="250" height="28" rx="6" fill="#ffe599" stroke="#d6b656" stroke-width="1.5"/>
+<rect x="1720" y="100" width="250" height="8" fill="#ffe599"/>
+<text x="1845.0" y="99" font-size="12" font-weight="bold" text-anchor="middle" fill="#1a202c">schedule_responses</text>
+<text x="1728" y="124" font-size="10.5" font-weight="bold" fill="#0284c7">+ id: BIGINT UNSIGNED [PK]</text>
+<text x="1728" y="141" font-size="10.5" font-weight="bold" fill="#dc2626"># schedule_proposal_id: BIGINT [FK]</text>
+<text x="1728" y="158" font-size="10.5" font-weight="bold" fill="#dc2626"># room_participant_id: BIGINT [FK]</text>
+<text x="1728" y="175" font-size="10.5" font-weight="normal" fill="#4b5563">- response: VARCHAR(20)</text>
+<text x="1728" y="192" font-size="10.5" font-weight="normal" fill="#4b5563">- responded_at: TIMESTAMP</text>
+</g>
+<g filter="url(#shadow)">
+<rect x="1420" y="270" width="230" height="150" rx="6" fill="#ffffff" stroke="#d6b656" stroke-width="1.5"/>
+<rect x="1420" y="270" width="230" height="28" rx="6" fill="#ffe599" stroke="#d6b656" stroke-width="1.5"/>
+<rect x="1420" y="290" width="230" height="8" fill="#ffe599"/>
+<text x="1535.0" y="289" font-size="12" font-weight="bold" text-anchor="middle" fill="#1a202c">physical_rooms</text>
+<text x="1428" y="314" font-size="10.5" font-weight="bold" fill="#0284c7">+ id: BIGINT UNSIGNED [PK]</text>
+<text x="1428" y="331" font-size="10.5" font-weight="normal" fill="#4b5563">- code: VARCHAR(32) [UK]</text>
+<text x="1428" y="348" font-size="10.5" font-weight="normal" fill="#4b5563">- name: VARCHAR(100)</text>
+<text x="1428" y="365" font-size="10.5" font-weight="normal" fill="#4b5563">- capacity: INT</text>
+<text x="1428" y="382" font-size="10.5" font-weight="normal" fill="#4b5563">- status: VARCHAR(30)</text>
+</g>
+<g filter="url(#shadow)">
+<rect x="1700" y="270" width="270" height="170" rx="6" fill="#ffffff" stroke="#d6b656" stroke-width="1.5"/>
+<rect x="1700" y="270" width="270" height="28" rx="6" fill="#ffe599" stroke="#d6b656" stroke-width="1.5"/>
+<rect x="1700" y="290" width="270" height="8" fill="#ffe599"/>
+<text x="1835.0" y="289" font-size="12" font-weight="bold" text-anchor="middle" fill="#1a202c">physical_room_reservations</text>
+<text x="1708" y="314" font-size="10.5" font-weight="bold" fill="#0284c7">+ id: BIGINT UNSIGNED [PK]</text>
+<text x="1708" y="331" font-size="10.5" font-weight="bold" fill="#dc2626"># physical_room_id: BIGINT [FK]</text>
+<text x="1708" y="348" font-size="10.5" font-weight="bold" fill="#dc2626"># session_id: BIGINT UNSIGNED [FK]</text>
+<text x="1708" y="365" font-size="10.5" font-weight="normal" fill="#4b5563">- reservation_date: DATE</text>
+<text x="1708" y="382" font-size="10.5" font-weight="normal" fill="#4b5563">- start_time: TIME</text>
+<text x="1708" y="399" font-size="10.5" font-weight="normal" fill="#4b5563">- end_time: TIME</text>
+<text x="1708" y="416" font-size="10.5" font-weight="normal" fill="#4b5563">- status: VARCHAR(30)</text>
+</g>
+<g filter="url(#shadow)">
+<rect x="1420" y="480" width="260" height="220" rx="6" fill="#ffffff" stroke="#d6b656" stroke-width="1.5"/>
+<rect x="1420" y="480" width="260" height="28" rx="6" fill="#ffe599" stroke="#d6b656" stroke-width="1.5"/>
+<rect x="1420" y="500" width="260" height="8" fill="#ffe599"/>
+<text x="1550.0" y="499" font-size="12" font-weight="bold" text-anchor="middle" fill="#1a202c">sessions</text>
+<text x="1428" y="524" font-size="10.5" font-weight="bold" fill="#0284c7">+ id: BIGINT UNSIGNED [PK]</text>
+<text x="1428" y="541" font-size="10.5" font-weight="bold" fill="#dc2626"># game_room_id: BIGINT UNSIGNED [FK]</text>
+<text x="1428" y="558" font-size="10.5" font-weight="bold" fill="#dc2626"># dm_assignment_id: BIGINT [FK, NULL]</text>
+<text x="1428" y="575" font-size="10.5" font-weight="normal" fill="#4b5563">- session_code: VARCHAR(32) [UK]</text>
+<text x="1428" y="592" font-size="10.5" font-weight="normal" fill="#4b5563">- scheduled_date: DATE</text>
+<text x="1428" y="609" font-size="10.5" font-weight="normal" fill="#4b5563">- start_time: TIME</text>
+<text x="1428" y="626" font-size="10.5" font-weight="normal" fill="#4b5563">- end_time: TIME</text>
+<text x="1428" y="643" font-size="10.5" font-weight="normal" fill="#4b5563">- status: VARCHAR(40)</text>
+<text x="1428" y="660" font-size="10.5" font-weight="normal" fill="#4b5563">- version: BIGINT</text>
+</g>
+<g filter="url(#shadow)">
+<rect x="1750" y="480" width="250" height="160" rx="6" fill="#ffffff" stroke="#b85450" stroke-width="1.5"/>
+<rect x="1750" y="480" width="250" height="28" rx="6" fill="#f5b2b0" stroke="#b85450" stroke-width="1.5"/>
+<rect x="1750" y="500" width="250" height="8" fill="#f5b2b0"/>
+<text x="1875.0" y="499" font-size="12" font-weight="bold" text-anchor="middle" fill="#1a202c">game_prices</text>
+<text x="1758" y="524" font-size="10.5" font-weight="bold" fill="#0284c7">+ id: BIGINT UNSIGNED [PK]</text>
+<text x="1758" y="541" font-size="10.5" font-weight="bold" fill="#dc2626"># game_id: BIGINT UNSIGNED [FK]</text>
+<text x="1758" y="558" font-size="10.5" font-weight="normal" fill="#4b5563">- price_tier_name: VARCHAR(50)</text>
+<text x="1758" y="575" font-size="10.5" font-weight="normal" fill="#4b5563">- time_from: TIME</text>
+<text x="1758" y="592" font-size="10.5" font-weight="normal" fill="#4b5563">- time_to: TIME</text>
+<text x="1758" y="609" font-size="10.5" font-weight="normal" fill="#4b5563">- base_price_per_player: BIGINT</text>
+</g>
+<g filter="url(#shadow)">
+<rect x="1750" y="670" width="250" height="160" rx="6" fill="#ffffff" stroke="#b85450" stroke-width="1.5"/>
+<rect x="1750" y="670" width="250" height="28" rx="6" fill="#f5b2b0" stroke="#b85450" stroke-width="1.5"/>
+<rect x="1750" y="690" width="250" height="8" fill="#f5b2b0"/>
+<text x="1875.0" y="689" font-size="12" font-weight="bold" text-anchor="middle" fill="#1a202c">promotions</text>
+<text x="1758" y="714" font-size="10.5" font-weight="bold" fill="#0284c7">+ id: BIGINT UNSIGNED [PK]</text>
+<text x="1758" y="731" font-size="10.5" font-weight="normal" fill="#4b5563">- code: VARCHAR(50) [UK]</text>
+<text x="1758" y="748" font-size="10.5" font-weight="normal" fill="#4b5563">- discount_type: VARCHAR(20)</text>
+<text x="1758" y="765" font-size="10.5" font-weight="normal" fill="#4b5563">- discount_value: BIGINT</text>
+<text x="1758" y="782" font-size="10.5" font-weight="normal" fill="#4b5563">- non_stackable: BOOLEAN</text>
+<text x="1758" y="799" font-size="10.5" font-weight="normal" fill="#4b5563">- is_active: BOOLEAN</text>
+</g>
+<g filter="url(#shadow)">
+<rect x="1420" y="740" width="280" height="200" rx="6" fill="#ffffff" stroke="#b85450" stroke-width="1.5"/>
+<rect x="1420" y="740" width="280" height="28" rx="6" fill="#f5b2b0" stroke="#b85450" stroke-width="1.5"/>
+<rect x="1420" y="760" width="280" height="8" fill="#f5b2b0"/>
+<text x="1560.0" y="759" font-size="12" font-weight="bold" text-anchor="middle" fill="#1a202c">booking_price_snapshots</text>
+<text x="1428" y="784" font-size="10.5" font-weight="bold" fill="#0284c7">+ id: BIGINT UNSIGNED [PK]</text>
+<text x="1428" y="801" font-size="10.5" font-weight="bold" fill="#dc2626"># session_id: BIGINT [FK, UK]</text>
+<text x="1428" y="818" font-size="10.5" font-weight="bold" fill="#dc2626"># game_price_id: BIGINT [FK, NULL]</text>
+<text x="1428" y="835" font-size="10.5" font-weight="bold" fill="#dc2626"># promotion_id: BIGINT [FK, NULL]</text>
+<text x="1428" y="852" font-size="10.5" font-weight="normal" fill="#4b5563">- original_base_price: BIGINT</text>
+<text x="1428" y="869" font-size="10.5" font-weight="normal" fill="#4b5563">- discount_amount: BIGINT</text>
+<text x="1428" y="886" font-size="10.5" font-weight="normal" fill="#4b5563">- final_price: BIGINT</text>
+<text x="1428" y="903" font-size="10.5" font-weight="normal" fill="#4b5563">- required_deposit_per_player: BIGINT</text>
+<text x="1428" y="920" font-size="10.5" font-weight="normal" fill="#4b5563">- snapshot_at: TIMESTAMP</text>
+</g>
+<g filter="url(#shadow)">
+<rect x="1420" y="1000" width="270" height="180" rx="6" fill="#ffffff" stroke="#9673a6" stroke-width="1.5"/>
+<rect x="1420" y="1000" width="270" height="28" rx="6" fill="#d7bde2" stroke="#9673a6" stroke-width="1.5"/>
+<rect x="1420" y="1020" width="270" height="8" fill="#d7bde2"/>
+<text x="1555.0" y="1019" font-size="12" font-weight="bold" text-anchor="middle" fill="#1a202c">player_payments</text>
+<text x="1428" y="1044" font-size="10.5" font-weight="bold" fill="#0284c7">+ id: BIGINT UNSIGNED [PK]</text>
+<text x="1428" y="1061" font-size="10.5" font-weight="bold" fill="#dc2626"># room_participant_id: BIGINT [FK]</text>
+<text x="1428" y="1078" font-size="10.5" font-weight="bold" fill="#dc2626"># session_id: BIGINT UNSIGNED [FK]</text>
+<text x="1428" y="1095" font-size="10.5" font-weight="normal" fill="#4b5563">- payment_type: VARCHAR(30)</text>
+<text x="1428" y="1112" font-size="10.5" font-weight="normal" fill="#4b5563">- amount_due: BIGINT</text>
+<text x="1428" y="1129" font-size="10.5" font-weight="normal" fill="#4b5563">- amount_paid: BIGINT</text>
+<text x="1428" y="1146" font-size="10.5" font-weight="normal" fill="#4b5563">- status: VARCHAR(30)</text>
+</g>
+<g filter="url(#shadow)">
+<rect x="1420" y="1220" width="260" height="170" rx="6" fill="#ffffff" stroke="#9673a6" stroke-width="1.5"/>
+<rect x="1420" y="1220" width="260" height="28" rx="6" fill="#d7bde2" stroke="#9673a6" stroke-width="1.5"/>
+<rect x="1420" y="1240" width="260" height="8" fill="#d7bde2"/>
+<text x="1550.0" y="1239" font-size="12" font-weight="bold" text-anchor="middle" fill="#1a202c">payment_attempts</text>
+<text x="1428" y="1264" font-size="10.5" font-weight="bold" fill="#0284c7">+ id: BIGINT UNSIGNED [PK]</text>
+<text x="1428" y="1281" font-size="10.5" font-weight="bold" fill="#dc2626"># player_payment_id: BIGINT [FK]</text>
+<text x="1428" y="1298" font-size="10.5" font-weight="normal" fill="#4b5563">- idempotency_key: VARCHAR(64) [UK]</text>
+<text x="1428" y="1315" font-size="10.5" font-weight="normal" fill="#4b5563">- payment_method: VARCHAR(30)</text>
+<text x="1428" y="1332" font-size="10.5" font-weight="normal" fill="#4b5563">- amount: BIGINT</text>
+<text x="1428" y="1349" font-size="10.5" font-weight="normal" fill="#4b5563">- status: VARCHAR(30)</text>
+</g>
+<g filter="url(#shadow)">
+<rect x="1420" y="1430" width="260" height="150" rx="6" fill="#ffffff" stroke="#9673a6" stroke-width="1.5"/>
+<rect x="1420" y="1430" width="260" height="28" rx="6" fill="#d7bde2" stroke="#9673a6" stroke-width="1.5"/>
+<rect x="1420" y="1450" width="260" height="8" fill="#d7bde2"/>
+<text x="1550.0" y="1449" font-size="12" font-weight="bold" text-anchor="middle" fill="#1a202c">payment_transactions</text>
+<text x="1428" y="1474" font-size="10.5" font-weight="bold" fill="#0284c7">+ id: BIGINT UNSIGNED [PK]</text>
+<text x="1428" y="1491" font-size="10.5" font-weight="bold" fill="#dc2626"># payment_attempt_id: BIGINT [FK]</text>
+<text x="1428" y="1508" font-size="10.5" font-weight="normal" fill="#4b5563">- transaction_reference: VARCHAR(64) [UK]</text>
+<text x="1428" y="1525" font-size="10.5" font-weight="normal" fill="#4b5563">- amount: BIGINT</text>
+<text x="1428" y="1542" font-size="10.5" font-weight="normal" fill="#4b5563">- currency: VARCHAR(10) [VND]</text>
+<text x="1428" y="1559" font-size="10.5" font-weight="normal" fill="#4b5563">- transacted_at: TIMESTAMP</text>
+</g>
+<g filter="url(#shadow)">
+<rect x="1740" y="1000" width="260" height="180" rx="6" fill="#ffffff" stroke="#9673a6" stroke-width="1.5"/>
+<rect x="1740" y="1000" width="260" height="28" rx="6" fill="#d7bde2" stroke="#9673a6" stroke-width="1.5"/>
+<rect x="1740" y="1020" width="260" height="8" fill="#d7bde2"/>
+<text x="1870.0" y="1019" font-size="12" font-weight="bold" text-anchor="middle" fill="#1a202c">refunds</text>
+<text x="1748" y="1044" font-size="10.5" font-weight="bold" fill="#0284c7">+ id: BIGINT UNSIGNED [PK]</text>
+<text x="1748" y="1061" font-size="10.5" font-weight="bold" fill="#dc2626"># player_payment_id: BIGINT [FK]</text>
+<text x="1748" y="1078" font-size="10.5" font-weight="bold" fill="#dc2626"># room_participant_id: BIGINT [FK]</text>
+<text x="1748" y="1095" font-size="10.5" font-weight="bold" fill="#dc2626"># processed_by_user_id: BIGINT [FK, NULL]</text>
+<text x="1748" y="1112" font-size="10.5" font-weight="normal" fill="#4b5563">- refund_type: VARCHAR(30)</text>
+<text x="1748" y="1129" font-size="10.5" font-weight="normal" fill="#4b5563">- refund_amount: BIGINT</text>
+<text x="1748" y="1146" font-size="10.5" font-weight="normal" fill="#4b5563">- status: VARCHAR(30)</text>
+</g>
+<g filter="url(#shadow)">
+<rect x="1740" y="1220" width="260" height="160" rx="6" fill="#ffffff" stroke="#9673a6" stroke-width="1.5"/>
+<rect x="1740" y="1220" width="260" height="28" rx="6" fill="#d7bde2" stroke="#9673a6" stroke-width="1.5"/>
+<rect x="1740" y="1240" width="260" height="8" fill="#d7bde2"/>
+<text x="1870.0" y="1239" font-size="12" font-weight="bold" text-anchor="middle" fill="#1a202c">refund_attempts</text>
+<text x="1748" y="1264" font-size="10.5" font-weight="bold" fill="#0284c7">+ id: BIGINT UNSIGNED [PK]</text>
+<text x="1748" y="1281" font-size="10.5" font-weight="bold" fill="#dc2626"># refund_id: BIGINT UNSIGNED [FK]</text>
+<text x="1748" y="1298" font-size="10.5" font-weight="normal" fill="#4b5563">- idempotency_key: VARCHAR(64) [UK]</text>
+<text x="1748" y="1315" font-size="10.5" font-weight="normal" fill="#4b5563">- amount: BIGINT</text>
+<text x="1748" y="1332" font-size="10.5" font-weight="normal" fill="#4b5563">- status: VARCHAR(30)</text>
+</g>
+<g filter="url(#shadow)">
+<rect x="60" y="1200" width="240" height="160" rx="6" fill="#ffffff" stroke="#666666" stroke-width="1.5"/>
+<rect x="60" y="1200" width="240" height="28" rx="6" fill="#e0e0e0" stroke="#666666" stroke-width="1.5"/>
+<rect x="60" y="1220" width="240" height="8" fill="#e0e0e0"/>
+<text x="180.0" y="1219" font-size="12" font-weight="bold" text-anchor="middle" fill="#1a202c">notifications</text>
+<text x="68" y="1244" font-size="10.5" font-weight="bold" fill="#0284c7">+ id: BIGINT UNSIGNED [PK]</text>
+<text x="68" y="1261" font-size="10.5" font-weight="bold" fill="#dc2626"># sender_id: BIGINT UNSIGNED [FK, NULL]</text>
+<text x="68" y="1278" font-size="10.5" font-weight="normal" fill="#4b5563">- title: VARCHAR(191)</text>
+<text x="68" y="1295" font-size="10.5" font-weight="normal" fill="#4b5563">- notification_type: VARCHAR(40)</text>
+<text x="68" y="1312" font-size="10.5" font-weight="normal" fill="#4b5563">- payload: JSON</text>
+<text x="68" y="1329" font-size="10.5" font-weight="normal" fill="#4b5563">- created_at: TIMESTAMP</text>
+</g>
+<g filter="url(#shadow)">
+<rect x="340" y="1200" width="260" height="160" rx="6" fill="#ffffff" stroke="#666666" stroke-width="1.5"/>
+<rect x="340" y="1200" width="260" height="28" rx="6" fill="#e0e0e0" stroke="#666666" stroke-width="1.5"/>
+<rect x="340" y="1220" width="260" height="8" fill="#e0e0e0"/>
+<text x="470.0" y="1219" font-size="12" font-weight="bold" text-anchor="middle" fill="#1a202c">notification_recipient_states</text>
+<text x="348" y="1244" font-size="10.5" font-weight="bold" fill="#0284c7">+ id: BIGINT UNSIGNED [PK]</text>
+<text x="348" y="1261" font-size="10.5" font-weight="bold" fill="#dc2626"># notification_id: BIGINT [FK]</text>
+<text x="348" y="1278" font-size="10.5" font-weight="bold" fill="#dc2626"># user_id: BIGINT UNSIGNED [FK]</text>
+<text x="348" y="1295" font-size="10.5" font-weight="normal" fill="#4b5563">- is_read: BOOLEAN</text>
+<text x="348" y="1312" font-size="10.5" font-weight="normal" fill="#4b5563">- read_at: TIMESTAMP</text>
+</g>
+<g filter="url(#shadow)">
+<rect x="60" y="1420" width="270" height="190" rx="6" fill="#ffffff" stroke="#666666" stroke-width="1.5"/>
+<rect x="60" y="1420" width="270" height="28" rx="6" fill="#e0e0e0" stroke="#666666" stroke-width="1.5"/>
+<rect x="60" y="1440" width="270" height="8" fill="#e0e0e0"/>
+<text x="195.0" y="1439" font-size="12" font-weight="bold" text-anchor="middle" fill="#1a202c">audit_logs</text>
+<text x="68" y="1464" font-size="10.5" font-weight="bold" fill="#0284c7">+ id: BIGINT UNSIGNED [PK]</text>
+<text x="68" y="1481" font-size="10.5" font-weight="bold" fill="#dc2626"># user_id: BIGINT UNSIGNED [FK, NULL]</text>
+<text x="68" y="1498" font-size="10.5" font-weight="normal" fill="#4b5563">- action: VARCHAR(50)</text>
+<text x="68" y="1515" font-size="10.5" font-weight="normal" fill="#4b5563">- entity_type: VARCHAR(50)</text>
+<text x="68" y="1532" font-size="10.5" font-weight="normal" fill="#4b5563">- entity_id: BIGINT UNSIGNED</text>
+<text x="68" y="1549" font-size="10.5" font-weight="normal" fill="#4b5563">- old_values: JSON</text>
+<text x="68" y="1566" font-size="10.5" font-weight="normal" fill="#4b5563">- new_values: JSON</text>
+<text x="68" y="1583" font-size="10.5" font-weight="normal" fill="#4b5563">- created_at: TIMESTAMP</text>
+</g>
+<path d="M 60 385.0 L 175.0 385.0 L 175.0 175.0 L 290 175.0" fill="none" stroke="#64748b" stroke-width="1.2" marker-end="url(#arrow)" opacity="0.65"/>
+<path d="M 330 330.0 L 310.0 330.0 L 310.0 175.0 L 290 175.0" fill="none" stroke="#64748b" stroke-width="1.2" marker-end="url(#arrow)" opacity="0.65"/>
+<path d="M 330 330.0 L 435.0 330.0 L 435.0 150.0 L 540 150.0" fill="none" stroke="#64748b" stroke-width="1.2" marker-end="url(#arrow)" opacity="0.65"/>
+<path d="M 60 835.0 L 180.0 835.0 L 180.0 620.0 L 300 620.0" fill="none" stroke="#64748b" stroke-width="1.2" marker-end="url(#arrow)" opacity="0.65"/>
+<path d="M 60 1015.0 L 180.0 1015.0 L 180.0 620.0 L 300 620.0" fill="none" stroke="#64748b" stroke-width="1.2" marker-end="url(#arrow)" opacity="0.65"/>
+<path d="M 340 760.0 L 320.0 760.0 L 320.0 620.0 L 300 620.0" fill="none" stroke="#64748b" stroke-width="1.2" marker-end="url(#arrow)" opacity="0.65"/>
+<path d="M 340 760.0 L 445.0 760.0 L 445.0 590.0 L 550 590.0" fill="none" stroke="#64748b" stroke-width="1.2" marker-end="url(#arrow)" opacity="0.65"/>
+<path d="M 1750 560.0 L 1025.0 560.0 L 1025.0 620.0 L 300 620.0" fill="none" stroke="#64748b" stroke-width="1.2" marker-end="url(#arrow)" opacity="0.65"/>
+<path d="M 680 620.0 L 485.0 620.0 L 485.0 175.0 L 290 175.0" fill="none" stroke="#64748b" stroke-width="1.2" marker-end="url(#arrow)" opacity="0.65"/>
+<path d="M 680 620.0 L 490.0 620.0 L 490.0 620.0 L 300 620.0" fill="none" stroke="#64748b" stroke-width="1.2" marker-end="url(#arrow)" opacity="0.65"/>
+<path d="M 1020 620.0 L 985.0 620.0 L 985.0 620.0 L 950 620.0" fill="none" stroke="#64748b" stroke-width="1.2" marker-end="url(#arrow)" opacity="0.65"/>
+<path d="M 1020 620.0 L 655.0 620.0 L 655.0 175.0 L 290 175.0" fill="none" stroke="#64748b" stroke-width="1.2" marker-end="url(#arrow)" opacity="0.65"/>
+<path d="M 940 860.0 L 810.0 860.0 L 810.0 620.0 L 680 620.0" fill="none" stroke="#64748b" stroke-width="1.2" marker-end="url(#arrow)" opacity="0.65"/>
+<path d="M 680 860.0 L 485.0 860.0 L 485.0 175.0 L 290 175.0" fill="none" stroke="#64748b" stroke-width="1.2" marker-end="url(#arrow)" opacity="0.65"/>
+<path d="M 1290 855.0 L 1155.0 855.0 L 1155.0 620.0 L 1020 620.0" fill="none" stroke="#64748b" stroke-width="1.2" marker-end="url(#arrow)" opacity="0.65"/>
+<path d="M 680 1055.0 L 815.0 1055.0 L 815.0 620.0 L 950 620.0" fill="none" stroke="#64748b" stroke-width="1.2" marker-end="url(#arrow)" opacity="0.65"/>
+<path d="M 950 1055.0 L 985.0 1055.0 L 985.0 620.0 L 1020 620.0" fill="none" stroke="#64748b" stroke-width="1.2" marker-end="url(#arrow)" opacity="0.65"/>
+<path d="M 950 1055.0 L 985.0 1055.0 L 985.0 620.0 L 1020 620.0" fill="none" stroke="#64748b" stroke-width="1.2" marker-end="url(#arrow)" opacity="0.65"/>
+<path d="M 1020 1055.0 L 1160.0 1055.0 L 1160.0 620.0 L 1300 620.0" fill="none" stroke="#64748b" stroke-width="1.2" marker-end="url(#arrow)" opacity="0.65"/>
+<path d="M 1020 1055.0 L 985.0 1055.0 L 985.0 620.0 L 950 620.0" fill="none" stroke="#64748b" stroke-width="1.2" marker-end="url(#arrow)" opacity="0.65"/>
+<path d="M 1020 1055.0 L 655.0 1055.0 L 655.0 175.0 L 290 175.0" fill="none" stroke="#64748b" stroke-width="1.2" marker-end="url(#arrow)" opacity="0.65"/>
+<path d="M 680 160.0 L 485.0 160.0 L 485.0 175.0 L 290 175.0" fill="none" stroke="#64748b" stroke-width="1.2" marker-end="url(#arrow)" opacity="0.65"/>
+<path d="M 950 160.0 L 930.0 160.0 L 930.0 160.0 L 910 160.0" fill="none" stroke="#64748b" stroke-width="1.2" marker-end="url(#arrow)" opacity="0.65"/>
+<path d="M 800 365.0 L 875.0 365.0 L 875.0 620.0 L 950 620.0" fill="none" stroke="#64748b" stroke-width="1.2" marker-end="url(#arrow)" opacity="0.65"/>
+<path d="M 800 365.0 L 855.0 365.0 L 855.0 160.0 L 910 160.0" fill="none" stroke="#64748b" stroke-width="1.2" marker-end="url(#arrow)" opacity="0.65"/>
+<path d="M 1420 160.0 L 1185.0 160.0 L 1185.0 620.0 L 950 620.0" fill="none" stroke="#64748b" stroke-width="1.2" marker-end="url(#arrow)" opacity="0.65"/>
+<path d="M 1420 160.0 L 855.0 160.0 L 855.0 175.0 L 290 175.0" fill="none" stroke="#64748b" stroke-width="1.2" marker-end="url(#arrow)" opacity="0.65"/>
+<path d="M 1720 155.0 L 1695.0 155.0 L 1695.0 160.0 L 1670 160.0" fill="none" stroke="#64748b" stroke-width="1.2" marker-end="url(#arrow)" opacity="0.65"/>
+<path d="M 1720 155.0 L 1510.0 155.0 L 1510.0 620.0 L 1300 620.0" fill="none" stroke="#64748b" stroke-width="1.2" marker-end="url(#arrow)" opacity="0.65"/>
+<path d="M 1420 590.0 L 1185.0 590.0 L 1185.0 620.0 L 950 620.0" fill="none" stroke="#64748b" stroke-width="1.2" marker-end="url(#arrow)" opacity="0.65"/>
+<path d="M 1420 590.0 L 1230.0 590.0 L 1230.0 365.0 L 1040 365.0" fill="none" stroke="#64748b" stroke-width="1.2" marker-end="url(#arrow)" opacity="0.65"/>
+<path d="M 1700 355.0 L 1675.0 355.0 L 1675.0 345.0 L 1650 345.0" fill="none" stroke="#64748b" stroke-width="1.2" marker-end="url(#arrow)" opacity="0.65"/>
+<path d="M 1700 355.0 L 1690.0 355.0 L 1690.0 590.0 L 1680 590.0" fill="none" stroke="#64748b" stroke-width="1.2" marker-end="url(#arrow)" opacity="0.65"/>
+<path d="M 1420 840.0 L 1550.0 840.0 L 1550.0 590.0 L 1680 590.0" fill="none" stroke="#64748b" stroke-width="1.2" marker-end="url(#arrow)" opacity="0.65"/>
+<path d="M 1700 840.0 L 1725.0 840.0 L 1725.0 560.0 L 1750 560.0" fill="none" stroke="#64748b" stroke-width="1.2" marker-end="url(#arrow)" opacity="0.65"/>
+<path d="M 1700 840.0 L 1725.0 840.0 L 1725.0 750.0 L 1750 750.0" fill="none" stroke="#64748b" stroke-width="1.2" marker-end="url(#arrow)" opacity="0.65"/>
+<path d="M 1420 1090.0 L 1360.0 1090.0 L 1360.0 620.0 L 1300 620.0" fill="none" stroke="#64748b" stroke-width="1.2" marker-end="url(#arrow)" opacity="0.65"/>
+<path d="M 1420 1090.0 L 1550.0 1090.0 L 1550.0 590.0 L 1680 590.0" fill="none" stroke="#64748b" stroke-width="1.2" marker-end="url(#arrow)" opacity="0.65"/>
+<path d="M 1680 1305.0 L 1550.0 1305.0 L 1550.0 1090.0 L 1420 1090.0" fill="none" stroke="#64748b" stroke-width="1.2" marker-end="url(#arrow)" opacity="0.65"/>
+<path d="M 1420 1505.0 L 1550.0 1505.0 L 1550.0 1305.0 L 1680 1305.0" fill="none" stroke="#64748b" stroke-width="1.2" marker-end="url(#arrow)" opacity="0.65"/>
+<path d="M 1740 1090.0 L 1715.0 1090.0 L 1715.0 1090.0 L 1690 1090.0" fill="none" stroke="#64748b" stroke-width="1.2" marker-end="url(#arrow)" opacity="0.65"/>
+<path d="M 1740 1090.0 L 1520.0 1090.0 L 1520.0 620.0 L 1300 620.0" fill="none" stroke="#64748b" stroke-width="1.2" marker-end="url(#arrow)" opacity="0.65"/>
+<path d="M 1740 1090.0 L 1015.0 1090.0 L 1015.0 175.0 L 290 175.0" fill="none" stroke="#64748b" stroke-width="1.2" marker-end="url(#arrow)" opacity="0.65"/>
+<path d="M 1740 1300.0 L 1870.0 1300.0 L 1870.0 1090.0 L 2000 1090.0" fill="none" stroke="#64748b" stroke-width="1.2" marker-end="url(#arrow)" opacity="0.65"/>
+<path d="M 60 1280.0 L 175.0 1280.0 L 175.0 175.0 L 290 175.0" fill="none" stroke="#64748b" stroke-width="1.2" marker-end="url(#arrow)" opacity="0.65"/>
+<path d="M 340 1280.0 L 320.0 1280.0 L 320.0 1280.0 L 300 1280.0" fill="none" stroke="#64748b" stroke-width="1.2" marker-end="url(#arrow)" opacity="0.65"/>
+<path d="M 340 1280.0 L 315.0 1280.0 L 315.0 175.0 L 290 175.0" fill="none" stroke="#64748b" stroke-width="1.2" marker-end="url(#arrow)" opacity="0.65"/>
+<path d="M 60 1515.0 L 175.0 1515.0 L 175.0 175.0 L 290 175.0" fill="none" stroke="#64748b" stroke-width="1.2" marker-end="url(#arrow)" opacity="0.65"/>
+</svg>
