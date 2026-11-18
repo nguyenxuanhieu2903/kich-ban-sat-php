@@ -5,8 +5,12 @@
 -- Encoding: utf8mb4 / utf8mb4_unicode_ci
 -- Total Tables: 34 across 8 Bounded Contexts
 -- =============================================================================
+CREATE DATABASE IF NOT EXISTS `booking_project_php` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+USE `booking_project_php`;
 
 SET NAMES utf8mb4;
+
 SET FOREIGN_KEY_CHECKS = 0;
 
 -- =============================================================================
@@ -101,8 +105,15 @@ CREATE TABLE IF NOT EXISTS `games` (
     `updated_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     PRIMARY KEY (`id`),
     UNIQUE KEY `uq_games_slug` (`slug`),
-    INDEX `idx_games_status_players` (`is_active`, `min_players`, `max_players`),
-    CONSTRAINT `chk_games_players` CHECK (`min_players` > 0 AND `max_players` >= `min_players`),
+    INDEX `idx_games_status_players` (
+        `is_active`,
+        `min_players`,
+        `max_players`
+    ),
+    CONSTRAINT `chk_games_players` CHECK (
+        `min_players` > 0
+        AND `max_players` >= `min_players`
+    ),
     CONSTRAINT `chk_games_duration` CHECK (`duration_minutes` > 0)
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_unicode_ci;
 
@@ -163,7 +174,12 @@ CREATE TABLE IF NOT EXISTS `game_prices` (
     `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     `updated_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     PRIMARY KEY (`id`),
-    INDEX `idx_game_prices_lookup` (`game_id`, `day_type`, `time_from`, `time_to`),
+    INDEX `idx_game_prices_lookup` (
+        `game_id`,
+        `day_type`,
+        `time_from`,
+        `time_to`
+    ),
     CONSTRAINT `fk_game_prices_games` FOREIGN KEY (`game_id`) REFERENCES `games` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE,
     CONSTRAINT `chk_game_prices_times` CHECK (`time_from` < `time_to`),
     CONSTRAINT `chk_game_prices_amount` CHECK (`base_price_per_player` >= 0)
@@ -208,7 +224,10 @@ CREATE TABLE IF NOT EXISTS `dm_profiles` (
     PRIMARY KEY (`id`),
     UNIQUE KEY `uq_dm_profiles_user_id` (`user_id`),
     CONSTRAINT `fk_dm_profiles_users` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
-    CONSTRAINT `chk_dm_rating` CHECK (`rating_avg` >= 0.00 AND `rating_avg` <= 5.00)
+    CONSTRAINT `chk_dm_rating` CHECK (
+        `rating_avg` >= 0.00
+        AND `rating_avg` <= 5.00
+    )
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_unicode_ci;
 
 -- 13. dm_availabilities: Working schedules and open slots
@@ -223,7 +242,11 @@ CREATE TABLE IF NOT EXISTS `dm_availabilities` (
     `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     `updated_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     PRIMARY KEY (`id`),
-    INDEX `idx_dm_avail_lookup` (`dm_profile_id`, `day_of_week`, `is_available`),
+    INDEX `idx_dm_avail_lookup` (
+        `dm_profile_id`,
+        `day_of_week`,
+        `is_available`
+    ),
     CONSTRAINT `fk_dm_availabilities_dm` FOREIGN KEY (`dm_profile_id`) REFERENCES `dm_profiles` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
     CONSTRAINT `chk_dm_avail_day` CHECK (`day_of_week` BETWEEN 0 AND 6),
     CONSTRAINT `chk_dm_avail_times` CHECK (`start_time` < `end_time`)
@@ -254,10 +277,16 @@ CREATE TABLE IF NOT EXISTS `game_rooms` (
     UNIQUE KEY `uq_game_rooms_code` (`room_code`),
     INDEX `idx_game_rooms_creator_active` (`creator_id`, `is_active`),
     INDEX `idx_game_rooms_game_status` (`game_id`, `status`),
-    INDEX `idx_game_rooms_status_deadline` (`status`, `formation_deadline`),
+    INDEX `idx_game_rooms_status_deadline` (
+        `status`,
+        `formation_deadline`
+    ),
     CONSTRAINT `fk_game_rooms_creator` FOREIGN KEY (`creator_id`) REFERENCES `users` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE,
     CONSTRAINT `fk_game_rooms_games` FOREIGN KEY (`game_id`) REFERENCES `games` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE,
-    CONSTRAINT `chk_game_rooms_players` CHECK (`min_players` > 0 AND `max_players` >= `min_players`)
+    CONSTRAINT `chk_game_rooms_players` CHECK (
+        `min_players` > 0
+        AND `max_players` >= `min_players`
+    )
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_unicode_ci;
 
 -- 15. dm_assignments: Room-to-DM assignment
@@ -273,7 +302,10 @@ CREATE TABLE IF NOT EXISTS `dm_assignments` (
     `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     `updated_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     `active_assigned_room_id` BIGINT UNSIGNED GENERATED ALWAYS AS (
-        CASE WHEN `status` IN ('ASSIGNED', 'CONFIRMED') THEN `game_room_id` ELSE NULL END
+        CASE
+            WHEN `status` IN ('ASSIGNED', 'CONFIRMED') THEN `game_room_id`
+            ELSE NULL
+        END
     ) VIRTUAL,
     PRIMARY KEY (`id`),
     UNIQUE KEY `uq_active_dm_assignment` (`active_assigned_room_id`),
@@ -301,11 +333,23 @@ CREATE TABLE IF NOT EXISTS `room_participants` (
     `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     `updated_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     `active_user_id` BIGINT UNSIGNED GENERATED ALWAYS AS (
-        CASE WHEN `status` IN ('JOINED', 'DEPOSIT_PENDING', 'DEPOSITED', 'REMAINING_PENDING', 'FULLY_PAID', 'LEAVE_REQUESTED') 
-             THEN `user_id` ELSE NULL END
+        CASE
+            WHEN `status` IN (
+                'JOINED',
+                'DEPOSIT_PENDING',
+                'DEPOSITED',
+                'REMAINING_PENDING',
+                'FULLY_PAID',
+                'LEAVE_REQUESTED'
+            ) THEN `user_id`
+            ELSE NULL
+        END
     ) VIRTUAL,
     PRIMARY KEY (`id`),
-    UNIQUE KEY `uq_room_active_participant` (`game_room_id`, `active_user_id`),
+    UNIQUE KEY `uq_room_active_participant` (
+        `game_room_id`,
+        `active_user_id`
+    ),
     INDEX `idx_participants_user` (`user_id`, `status`),
     INDEX `idx_participants_room_status` (`game_room_id`, `status`),
     CONSTRAINT `fk_room_participants_room` FOREIGN KEY (`game_room_id`) REFERENCES `game_rooms` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
@@ -336,7 +380,10 @@ CREATE TABLE IF NOT EXISTS `participant_status_histories` (
     `reason` TEXT NULL,
     `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (`id`),
-    INDEX `idx_psh_participant_created` (`room_participant_id`, `created_at`),
+    INDEX `idx_psh_participant_created` (
+        `room_participant_id`,
+        `created_at`
+    ),
     CONSTRAINT `fk_psh_participant` FOREIGN KEY (`room_participant_id`) REFERENCES `room_participants` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_unicode_ci;
 
@@ -351,7 +398,11 @@ CREATE TABLE IF NOT EXISTS `replacement_windows` (
     `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     `updated_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     PRIMARY KEY (`id`),
-    INDEX `idx_rw_room_status` (`game_room_id`, `status`, `expires_at`),
+    INDEX `idx_rw_room_status` (
+        `game_room_id`,
+        `status`,
+        `expires_at`
+    ),
     INDEX `idx_rw_replacement_id` (`replacement_participant_id`),
     CONSTRAINT `fk_replacement_windows_room` FOREIGN KEY (`game_room_id`) REFERENCES `game_rooms` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
     CONSTRAINT `fk_replacement_windows_orig` FOREIGN KEY (`original_participant_id`) REFERENCES `room_participants` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE,
@@ -372,7 +423,10 @@ CREATE TABLE IF NOT EXISTS `participant_leave_requests` (
     `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     `updated_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     `pending_participant_id` BIGINT UNSIGNED GENERATED ALWAYS AS (
-        CASE WHEN `status` = 'PENDING' THEN `room_participant_id` ELSE NULL END
+        CASE
+            WHEN `status` = 'PENDING' THEN `room_participant_id`
+            ELSE NULL
+        END
     ) VIRTUAL,
     PRIMARY KEY (`id`),
     UNIQUE KEY `uq_pending_leave_request` (`pending_participant_id`),
@@ -416,7 +470,10 @@ CREATE TABLE IF NOT EXISTS `schedule_proposals` (
     `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     `updated_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     `proposed_game_room_id` BIGINT UNSIGNED GENERATED ALWAYS AS (
-        CASE WHEN `status` = 'PROPOSED' THEN `game_room_id` ELSE NULL END
+        CASE
+            WHEN `status` = 'PROPOSED' THEN `game_room_id`
+            ELSE NULL
+        END
     ) VIRTUAL,
     PRIMARY KEY (`id`),
     UNIQUE KEY `uq_active_proposed_schedule` (`proposed_game_room_id`),
@@ -437,7 +494,10 @@ CREATE TABLE IF NOT EXISTS `schedule_responses` (
     `responded_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (`id`),
-    UNIQUE KEY `uq_schedule_responses_vote` (`schedule_proposal_id`, `room_participant_id`),
+    UNIQUE KEY `uq_schedule_responses_vote` (
+        `schedule_proposal_id`,
+        `room_participant_id`
+    ),
     INDEX `idx_schedule_responses_participant` (`room_participant_id`),
     CONSTRAINT `fk_schedule_responses_proposal` FOREIGN KEY (`schedule_proposal_id`) REFERENCES `schedule_proposals` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
     CONSTRAINT `fk_schedule_responses_participant` FOREIGN KEY (`room_participant_id`) REFERENCES `room_participants` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
@@ -482,11 +542,20 @@ CREATE TABLE IF NOT EXISTS `physical_room_reservations` (
     `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     `updated_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     `active_session_id` BIGINT UNSIGNED GENERATED ALWAYS AS (
-        CASE WHEN `status` IN ('RESERVED', 'CONFIRMED') THEN `session_id` ELSE NULL END
+        CASE
+            WHEN `status` IN ('RESERVED', 'CONFIRMED') THEN `session_id`
+            ELSE NULL
+        END
     ) VIRTUAL,
     PRIMARY KEY (`id`),
     UNIQUE KEY `uq_session_active_reservation` (`active_session_id`),
-    INDEX `idx_prr_schedule_check` (`physical_room_id`, `reservation_date`, `status`, `start_time`, `end_time`),
+    INDEX `idx_prr_schedule_check` (
+        `physical_room_id`,
+        `reservation_date`,
+        `status`,
+        `start_time`,
+        `end_time`
+    ),
     INDEX `idx_prr_session` (`session_id`),
     CONSTRAINT `fk_prr_physical_room` FOREIGN KEY (`physical_room_id`) REFERENCES `physical_rooms` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE,
     CONSTRAINT `fk_prr_session` FOREIGN KEY (`session_id`) REFERENCES `sessions` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
@@ -514,7 +583,12 @@ CREATE TABLE IF NOT EXISTS `booking_price_snapshots` (
     CONSTRAINT `fk_bps_session` FOREIGN KEY (`session_id`) REFERENCES `sessions` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE,
     CONSTRAINT `fk_bps_game_price` FOREIGN KEY (`game_price_id`) REFERENCES `game_prices` (`id`) ON DELETE SET NULL ON UPDATE CASCADE,
     CONSTRAINT `fk_bps_promotion` FOREIGN KEY (`promotion_id`) REFERENCES `promotions` (`id`) ON DELETE SET NULL ON UPDATE CASCADE,
-    CONSTRAINT `chk_bps_amounts` CHECK (`original_base_price` >= 0 AND `discount_amount` >= 0 AND `final_price` >= 0 AND `required_deposit_per_player` >= 0)
+    CONSTRAINT `chk_bps_amounts` CHECK (
+        `original_base_price` >= 0
+        AND `discount_amount` >= 0
+        AND `final_price` >= 0
+        AND `required_deposit_per_player` >= 0
+    )
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_unicode_ci;
 
 -- =============================================================================
@@ -534,11 +608,17 @@ CREATE TABLE IF NOT EXISTS `player_payments` (
     `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     `updated_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     PRIMARY KEY (`id`),
-    INDEX `idx_player_payments_participant` (`room_participant_id`, `status`),
+    INDEX `idx_player_payments_participant` (
+        `room_participant_id`,
+        `status`
+    ),
     INDEX `idx_player_payments_session` (`session_id`, `payment_type`),
     CONSTRAINT `fk_player_payments_participant` FOREIGN KEY (`room_participant_id`) REFERENCES `room_participants` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE,
     CONSTRAINT `fk_player_payments_session` FOREIGN KEY (`session_id`) REFERENCES `sessions` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE,
-    CONSTRAINT `chk_player_payments_amounts` CHECK (`amount_due` >= 0 AND `amount_paid` >= 0)
+    CONSTRAINT `chk_player_payments_amounts` CHECK (
+        `amount_due` >= 0
+        AND `amount_paid` >= 0
+    )
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_unicode_ci;
 
 -- 28. payment_attempts: Idempotent gateway transaction attempts
@@ -649,7 +729,11 @@ CREATE TABLE IF NOT EXISTS `notification_recipient_states` (
     `updated_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     PRIMARY KEY (`id`),
     UNIQUE KEY `uq_notification_recipient` (`notification_id`, `user_id`),
-    INDEX `idx_nrs_user_unread` (`user_id`, `is_read`, `created_at`),
+    INDEX `idx_nrs_user_unread` (
+        `user_id`,
+        `is_read`,
+        `created_at`
+    ),
     CONSTRAINT `fk_nrs_notification` FOREIGN KEY (`notification_id`) REFERENCES `notifications` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
     CONSTRAINT `fk_nrs_users` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_unicode_ci;
@@ -667,7 +751,11 @@ CREATE TABLE IF NOT EXISTS `audit_logs` (
     `user_agent` VARCHAR(255) NULL,
     `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (`id`),
-    INDEX `idx_audit_logs_entity` (`entity_type`, `entity_id`, `created_at`),
+    INDEX `idx_audit_logs_entity` (
+        `entity_type`,
+        `entity_id`,
+        `created_at`
+    ),
     INDEX `idx_audit_logs_user` (`user_id`, `created_at`),
     CONSTRAINT `fk_audit_logs_users` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE SET NULL ON UPDATE CASCADE
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_unicode_ci;
@@ -676,4 +764,49 @@ SET FOREIGN_KEY_CHECKS = 1;
 
 -- =============================================================================
 -- END OF MIGRATION: V1__baseline_schema_34_tables.sql
+-- =============================================================================
+
+-- =============================================================================
+-- RESTORE FOREIGN KEY CHECKS
+-- =============================================================================
+
+SET FOREIGN_KEY_CHECKS = 1;
+
+-- =============================================================================
+-- MIGRATION VERIFICATION
+-- =============================================================================
+
+SELECT DATABASE() AS current_database;
+
+SELECT COUNT(*) AS total_tables
+FROM information_schema.tables
+WHERE
+    table_schema = DATABASE()
+    AND table_type = 'BASE TABLE';
+
+SELECT COUNT(*) AS total_foreign_keys
+FROM information_schema.table_constraints
+WHERE
+    constraint_schema = DATABASE()
+    AND constraint_type = 'FOREIGN KEY';
+
+SELECT
+    COUNT(*) AS total_virtual_generated_columns
+FROM information_schema.columns
+WHERE
+    table_schema = DATABASE()
+    AND extra LIKE '%VIRTUAL GENERATED%';
+
+SELECT
+    table_name,
+    engine,
+    table_collation
+FROM information_schema.tables
+WHERE
+    table_schema = DATABASE()
+    AND table_type = 'BASE TABLE'
+ORDER BY table_name;
+
+-- =============================================================================
+-- END OF MIGRATION
 -- =============================================================================
