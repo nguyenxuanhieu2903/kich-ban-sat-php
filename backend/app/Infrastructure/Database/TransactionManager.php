@@ -54,12 +54,19 @@ class TransactionManager
 
         try {
             $result = $callback($pdo);
-            $this->commitLevel($pdo);
-            return $result;
         } catch (Throwable $e) {
             $this->rollBackLevel($pdo);
             throw $e;
         }
+
+        try {
+            $this->commitLevel($pdo);
+        } catch (Throwable $e) {
+            $this->rollBackLevel($pdo);
+            throw $e;
+        }
+
+        return $result;
     }
 
     /**
@@ -128,6 +135,7 @@ class TransactionManager
             try {
                 $pdo->beginTransaction();
             } catch (Throwable $e) {
+                // If beginTransaction fails, depth remains 0
                 throw new TransactionException('Failed to start database transaction', 0, $e);
             }
         } else {
@@ -135,6 +143,7 @@ class TransactionManager
             try {
                 $pdo->exec("SAVEPOINT {$savepointName}");
             } catch (Throwable $e) {
+                // If creating savepoint fails, depth remains unchanged
                 throw new TransactionException(
                     "Failed to create savepoint at depth {$depth}",
                     0,
@@ -149,6 +158,10 @@ class TransactionManager
     /**
      * Commit the current transaction level or release its savepoint.
      *
+     * Note: Depth is decremented ONLY when commit/release succeeds.
+     * If an error occurs, depth remains at the current level so rollBackLevel()
+     * can roll back this exact level.
+     *
      * @throws TransactionException
      */
     private function commitLevel(PDO $pdo): void
@@ -158,30 +171,24 @@ class TransactionManager
             return;
         }
 
-        $newDepth = $currentDepth - 1;
-        $this->setDepth($pdo, $newDepth);
-
-        if ($newDepth === 0) {
+        if ($currentDepth === 1) {
             try {
                 $pdo->commit();
+                $this->setDepth($pdo, 0);
             } catch (Throwable $e) {
-                try {
-                    if ($pdo->inTransaction()) {
-                        $pdo->rollBack();
-                    }
-                } catch (Throwable) {
-                    // Suppress secondary rollback failure so the original commit exception is preserved
-                }
-
                 throw new TransactionException('Failed to commit database transaction', 0, $e);
             }
         } else {
-            $savepointName = $this->getSavepointName($newDepth);
+            // Nested level: release the savepoint that was created for this level
+            $savepointLevel = $currentDepth - 1;
+            $savepointName = $this->getSavepointName($savepointLevel);
+
             try {
                 $pdo->exec("RELEASE SAVEPOINT {$savepointName}");
+                $this->setDepth($pdo, $currentDepth - 1);
             } catch (Throwable $e) {
                 throw new TransactionException(
-                    "Failed to release savepoint at depth {$newDepth}",
+                    "Failed to release savepoint at depth {$savepointLevel}",
                     0,
                     $e
                 );
@@ -191,7 +198,9 @@ class TransactionManager
 
     /**
      * Rollback the current transaction level to its savepoint or abort outermost transaction.
-     * Ensures depth is always decremented and does not mask original exception if rollback fails.
+     *
+     * Rollback is performed using the current level's savepoint, and depth is decremented.
+     * Secondary rollback failures are suppressed so the primary exception is preserved.
      */
     private function rollBackLevel(PDO $pdo): void
     {
@@ -200,23 +209,26 @@ class TransactionManager
             return;
         }
 
-        $newDepth = $currentDepth - 1;
-        $this->setDepth($pdo, $newDepth);
-
-        if ($newDepth === 0) {
+        if ($currentDepth === 1) {
             try {
                 if ($pdo->inTransaction()) {
                     $pdo->rollBack();
                 }
             } catch (Throwable) {
                 // Secondary rollback failure must not overwrite primary exception
+            } finally {
+                $this->setDepth($pdo, 0);
             }
         } else {
-            $savepointName = $this->getSavepointName($newDepth);
+            $savepointLevel = $currentDepth - 1;
+            $savepointName = $this->getSavepointName($savepointLevel);
+
             try {
                 $pdo->exec("ROLLBACK TO SAVEPOINT {$savepointName}");
             } catch (Throwable) {
                 // Secondary rollback failure must not overwrite primary exception
+            } finally {
+                $this->setDepth($pdo, $currentDepth - 1);
             }
         }
     }
