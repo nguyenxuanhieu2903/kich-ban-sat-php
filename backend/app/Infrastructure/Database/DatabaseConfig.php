@@ -10,13 +10,46 @@ use App\Infrastructure\Database\Exceptions\InvalidConfigurationException;
 /**
  * Immutable value object holding validated database connection configuration.
  */
-final class DatabaseConfig
+final readonly class DatabaseConfig
 {
     public const DEFAULT_DRIVER = 'mysql';
     public const DEFAULT_HOST = '127.0.0.1';
     public const DEFAULT_PORT = 3306;
     public const DEFAULT_CHARSET = 'utf8mb4';
     public const DEFAULT_COLLATION = 'utf8mb4_unicode_ci';
+
+    /**
+     * Allowlist of supported MySQL charsets and their compatible collations.
+     *
+     * @var array<string, array{default_collation: string, collations: list<string>}>
+     */
+    public const SUPPORTED_CHARSETS = [
+        'utf8mb4' => [
+            'default_collation' => 'utf8mb4_unicode_ci',
+            'collations' => [
+                'utf8mb4_unicode_ci',
+                'utf8mb4_0900_ai_ci',
+                'utf8mb4_general_ci',
+                'utf8mb4_bin',
+            ],
+        ],
+        'utf8' => [
+            'default_collation' => 'utf8_unicode_ci',
+            'collations' => [
+                'utf8_unicode_ci',
+                'utf8_general_ci',
+                'utf8_bin',
+            ],
+        ],
+        'latin1' => [
+            'default_collation' => 'latin1_swedish_ci',
+            'collations' => [
+                'latin1_swedish_ci',
+                'latin1_general_ci',
+                'latin1_bin',
+            ],
+        ],
+    ];
 
     private string $driver;
     private string $host;
@@ -35,18 +68,69 @@ final class DatabaseConfig
         string $username,
         string $password,
         string $charset = self::DEFAULT_CHARSET,
-        string $collation = self::DEFAULT_COLLATION
+        ?string $collation = null
     ) {
-        $this->driver = trim($driver) !== '' ? trim($driver) : self::DEFAULT_DRIVER;
-        $this->host = trim($host);
-        $this->port = $port;
-        $this->database = trim($database);
-        $this->username = trim($username);
-        $this->password = $password;
-        $this->charset = trim($charset) !== '' ? trim($charset) : self::DEFAULT_CHARSET;
-        $this->collation = trim($collation) !== '' ? trim($collation) : self::DEFAULT_COLLATION;
+        $trimmedDriver = strtolower(trim($driver));
+        $trimmedHost = trim($host);
+        $trimmedDatabase = trim($database);
+        $trimmedUsername = trim($username);
+        $normalizedCharset = strtolower(trim($charset));
 
-        $this->validate();
+        // 1. Validate driver
+        if ($trimmedDriver !== 'mysql') {
+            throw InvalidConfigurationException::invalidDriver($driver);
+        }
+
+        // 2. Validate host (prohibit control chars, delimiters, whitespace; validate IPv4, IPv6, RFC hostname)
+        self::validateHost($trimmedHost);
+
+        // 3. Validate port (1..65535)
+        if ($port < 1 || $port > 65535) {
+            throw InvalidConfigurationException::invalidPort($port);
+        }
+
+        // 4. Validate database name (MySQL identifier 1..64 chars, no delimiters/control chars)
+        self::validateDatabaseName($trimmedDatabase);
+
+        // 5. Validate username
+        if ($trimmedUsername === '') {
+            throw InvalidConfigurationException::missingRequired('DB_USERNAME');
+        }
+        if (preg_match('/[\x00-\x1F\x7F]/', $trimmedUsername)) {
+            throw InvalidConfigurationException::invalidFormat('DB_USERNAME', 'cannot contain control characters');
+        }
+
+        // 6. Validate charset against allowlist
+        if (!array_key_exists($normalizedCharset, self::SUPPORTED_CHARSETS)) {
+            throw InvalidConfigurationException::unsupportedCharset(
+                $charset,
+                array_keys(self::SUPPORTED_CHARSETS)
+            );
+        }
+
+        // 7. Resolve and validate collation compatibility
+        $charsetMeta = self::SUPPORTED_CHARSETS[$normalizedCharset];
+        $effectiveCollation = ($collation === null || trim($collation) === '')
+            ? $charsetMeta['default_collation']
+            : strtolower(trim($collation));
+
+        if (!in_array($effectiveCollation, $charsetMeta['collations'], true)) {
+            throw InvalidConfigurationException::incompatibleCollation(
+                $collation ?? $effectiveCollation,
+                $normalizedCharset,
+                $charsetMeta['collations']
+            );
+        }
+
+        $this->driver = $trimmedDriver;
+        $this->host = $trimmedHost;
+        $this->port = $port;
+        $this->database = $trimmedDatabase;
+        $this->username = $trimmedUsername;
+        // Password must NEVER be trimmed or modified
+        $this->password = $password;
+        $this->charset = $normalizedCharset;
+        $this->collation = $effectiveCollation;
     }
 
     /**
@@ -56,30 +140,53 @@ final class DatabaseConfig
      */
     public static function fromEnvironment(): self
     {
-        $driver = (string) Config::get('DB_CONNECTION', self::DEFAULT_DRIVER);
-        $host = (string) Config::get('DB_HOST', self::DEFAULT_HOST);
+        $rawDriver = Config::get('DB_CONNECTION', self::DEFAULT_DRIVER);
+        if (!is_string($rawDriver)) {
+            throw InvalidConfigurationException::invalidType('DB_CONNECTION', 'string', gettype($rawDriver));
+        }
+
+        $rawHost = Config::get('DB_HOST', self::DEFAULT_HOST);
+        if (!is_string($rawHost)) {
+            throw InvalidConfigurationException::invalidType('DB_HOST', 'string', gettype($rawHost));
+        }
 
         $rawPort = Config::get('DB_PORT', self::DEFAULT_PORT);
-        if (!is_numeric($rawPort)) {
-            throw InvalidConfigurationException::invalidPort($rawPort);
-        }
-        $port = (int) $rawPort;
+        $port = self::parseAndValidatePort($rawPort);
 
-        $database = (string) Config::get('DB_DATABASE', '');
-        $username = (string) Config::get('DB_USERNAME', '');
-        $password = (string) Config::get('DB_PASSWORD', '');
-        $charset = (string) Config::get('DB_CHARSET', self::DEFAULT_CHARSET);
-        $collation = (string) Config::get('DB_COLLATION', self::DEFAULT_COLLATION);
+        $rawDatabase = Config::get('DB_DATABASE', '');
+        if (!is_string($rawDatabase)) {
+            throw InvalidConfigurationException::invalidType('DB_DATABASE', 'string', gettype($rawDatabase));
+        }
+
+        $rawUsername = Config::get('DB_USERNAME', '');
+        if (!is_string($rawUsername)) {
+            throw InvalidConfigurationException::invalidType('DB_USERNAME', 'string', gettype($rawUsername));
+        }
+
+        $rawPassword = Config::get('DB_PASSWORD', '');
+        if (!is_string($rawPassword)) {
+            throw InvalidConfigurationException::invalidType('DB_PASSWORD', 'string', gettype($rawPassword));
+        }
+
+        $rawCharset = Config::get('DB_CHARSET', self::DEFAULT_CHARSET);
+        if (!is_string($rawCharset)) {
+            throw InvalidConfigurationException::invalidType('DB_CHARSET', 'string', gettype($rawCharset));
+        }
+
+        $rawCollation = Config::get('DB_COLLATION');
+        if ($rawCollation !== null && !is_string($rawCollation)) {
+            throw InvalidConfigurationException::invalidType('DB_COLLATION', 'string', gettype($rawCollation));
+        }
 
         return new self(
-            driver: $driver,
-            host: $host,
+            driver: $rawDriver,
+            host: $rawHost,
             port: $port,
-            database: $database,
-            username: $username,
-            password: $password,
-            charset: $charset,
-            collation: $collation
+            database: $rawDatabase,
+            username: $rawUsername,
+            password: $rawPassword,
+            charset: $rawCharset,
+            collation: $rawCollation
         );
     }
 
@@ -91,20 +198,19 @@ final class DatabaseConfig
      */
     public static function fromArray(array $data): self
     {
-        $driver = (string) ($data['driver'] ?? $data['DB_CONNECTION'] ?? Config::get('DB_CONNECTION', self::DEFAULT_DRIVER));
-        $host = (string) ($data['host'] ?? $data['DB_HOST'] ?? Config::get('DB_HOST', self::DEFAULT_HOST));
+        $driver = self::resolveString($data, 'driver', 'DB_CONNECTION', (string) Config::get('DB_CONNECTION', self::DEFAULT_DRIVER));
+        $host = self::resolveString($data, 'host', 'DB_HOST', (string) Config::get('DB_HOST', self::DEFAULT_HOST));
 
-        $rawPort = $data['port'] ?? $data['DB_PORT'] ?? Config::get('DB_PORT', self::DEFAULT_PORT);
-        if (!is_numeric($rawPort)) {
-            throw InvalidConfigurationException::invalidPort($rawPort);
-        }
-        $port = (int) $rawPort;
+        $rawPort = self::resolveValue($data, 'port', 'DB_PORT', Config::get('DB_PORT', self::DEFAULT_PORT));
+        $port = self::parseAndValidatePort($rawPort);
 
-        $database = (string) ($data['database'] ?? $data['DB_DATABASE'] ?? Config::get('DB_DATABASE', ''));
-        $username = (string) ($data['username'] ?? $data['DB_USERNAME'] ?? Config::get('DB_USERNAME', ''));
-        $password = (string) ($data['password'] ?? $data['DB_PASSWORD'] ?? Config::get('DB_PASSWORD', ''));
-        $charset = (string) ($data['charset'] ?? $data['DB_CHARSET'] ?? Config::get('DB_CHARSET', self::DEFAULT_CHARSET));
-        $collation = (string) ($data['collation'] ?? $data['DB_COLLATION'] ?? Config::get('DB_COLLATION', self::DEFAULT_COLLATION));
+        $database = self::resolveString($data, 'database', 'DB_DATABASE', (string) Config::get('DB_DATABASE', ''));
+        $username = self::resolveString($data, 'username', 'DB_USERNAME', (string) Config::get('DB_USERNAME', ''));
+        $password = self::resolvePassword($data, (string) Config::get('DB_PASSWORD', ''));
+
+        $charset = self::resolveString($data, 'charset', 'DB_CHARSET', (string) Config::get('DB_CHARSET', self::DEFAULT_CHARSET));
+
+        $rawCollation = self::resolveOptionalString($data, 'collation', 'DB_COLLATION', Config::get('DB_COLLATION'));
 
         return new self(
             driver: $driver,
@@ -114,46 +220,180 @@ final class DatabaseConfig
             username: $username,
             password: $password,
             charset: $charset,
-            collation: $collation
+            collation: $rawCollation
         );
     }
 
     /**
-     * Validate mandatory fields, types, and value formats.
+     * Parse and strictly validate port values.
+     * Only accepts true integers or clean numeric digit strings within 1..65535.
      *
      * @throws InvalidConfigurationException
      */
-    private function validate(): void
+    public static function parseAndValidatePort(mixed $port): int
     {
-        if ($this->driver !== 'mysql') {
-            throw InvalidConfigurationException::invalidDriver($this->driver);
+        if (is_int($port)) {
+            $intPort = $port;
+        } elseif (is_string($port) && preg_match('/^[0-9]+$/', $port) === 1) {
+            $intPort = (int) $port;
+        } else {
+            throw InvalidConfigurationException::invalidPort($port);
         }
 
-        if ($this->host === '') {
+        if ($intPort < 1 || $intPort > 65535) {
+            throw InvalidConfigurationException::invalidPort($intPort);
+        }
+
+        return $intPort;
+    }
+
+    /**
+     * Validate host against DSN injection, control characters, and verify IP or hostname format.
+     *
+     * @throws InvalidConfigurationException
+     */
+    private static function validateHost(string $host): void
+    {
+        if ($host === '') {
             throw InvalidConfigurationException::missingRequired('DB_HOST');
         }
 
-        if ($this->port < 1 || $this->port > 65535) {
-            throw InvalidConfigurationException::invalidPort($this->port);
+        // Prohibit null bytes, control characters, whitespace, and DSN delimiters
+        if (preg_match('/[\x00-\x1F\x7F\s;=]/', $host)) {
+            throw InvalidConfigurationException::invalidHost($host, 'contains invalid or control characters');
         }
 
-        if ($this->database === '') {
+        if (strlen($host) > 255) {
+            throw InvalidConfigurationException::invalidHost($host, 'exceeds maximum length of 255 characters');
+        }
+
+        // 1. IPv4 check
+        if (filter_var($host, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4) !== false) {
+            return;
+        }
+
+        // 2. IPv6 check (supports [::1] and ::1)
+        $unbracketed = (str_starts_with($host, '[') && str_ends_with($host, ']'))
+            ? substr($host, 1, -1)
+            : $host;
+
+        if (filter_var($unbracketed, FILTER_VALIDATE_IP, FILTER_FLAG_IPV6) !== false) {
+            return;
+        }
+
+        // 3. RFC 1123 / RFC 952 Hostname check
+        if (preg_match('/^(?!-)[a-zA-Z0-9-]{1,63}(?<!-)(\.(?!-)[a-zA-Z0-9-]{1,63}(?<!-))*$/', $host)) {
+            return;
+        }
+
+        throw InvalidConfigurationException::invalidHost($host, 'must be a valid hostname, IPv4, or IPv6 address');
+    }
+
+    /**
+     * Validate database name against DSN injection and MySQL identifier rules.
+     *
+     * @throws InvalidConfigurationException
+     */
+    private static function validateDatabaseName(string $database): void
+    {
+        if ($database === '') {
             throw InvalidConfigurationException::missingRequired('DB_DATABASE');
         }
 
-        if ($this->username === '') {
-            throw InvalidConfigurationException::missingRequired('DB_USERNAME');
+        // Prohibit null bytes, control characters, whitespace, DSN delimiters, quotes, and path separators
+        if (preg_match('/[\x00-\x1F\x7F\s;=\/\\\.]/', $database)) {
+            throw InvalidConfigurationException::invalidDatabase($database, 'contains invalid or control characters');
         }
 
-        // Validate charset: non-empty string, valid identifier pattern (flexible for utf8mb4, utf8, latin1, etc.)
-        if ($this->charset === '' || !preg_match('/^[a-zA-Z0-9_-]+$/', $this->charset)) {
-            throw InvalidConfigurationException::invalidCharset($this->charset);
+        if (strlen($database) > 64) {
+            throw InvalidConfigurationException::invalidDatabase($database, 'exceeds maximum length of 64 characters');
         }
 
-        // Validate collation: non-empty string, valid identifier pattern
-        if ($this->collation === '' || !preg_match('/^[a-zA-Z0-9_-]+$/', $this->collation)) {
-            throw InvalidConfigurationException::invalidFormat('DB_COLLATION', 'must be a valid identifier');
+        if (!preg_match('/^[a-zA-Z0-9_$-]{1,64}$/', $database)) {
+            throw InvalidConfigurationException::invalidDatabase($database, 'contains disallowed characters for database name');
         }
+    }
+
+    private static function resolveValue(array $data, string $key, string $envKey, mixed $fallback): mixed
+    {
+        if (array_key_exists($key, $data)) {
+            return $data[$key];
+        }
+        if (array_key_exists($envKey, $data)) {
+            return $data[$envKey];
+        }
+        return $fallback;
+    }
+
+    private static function resolveString(array $data, string $key, string $envKey, ?string $fallback): string
+    {
+        $hasKey = array_key_exists($key, $data);
+        $hasEnvKey = array_key_exists($envKey, $data);
+
+        if (!$hasKey && !$hasEnvKey) {
+            if ($fallback === null) {
+                throw InvalidConfigurationException::missingRequired($envKey);
+            }
+            return $fallback;
+        }
+
+        $activeKey = $hasKey ? $key : $envKey;
+        $val = $data[$activeKey];
+
+        if (!is_string($val)) {
+            throw InvalidConfigurationException::invalidType($envKey, 'string', gettype($val));
+        }
+
+        return $val;
+    }
+
+    private static function resolveOptionalString(array $data, string $key, string $envKey, mixed $fallback): ?string
+    {
+        $hasKey = array_key_exists($key, $data);
+        $hasEnvKey = array_key_exists($envKey, $data);
+
+        if (!$hasKey && !$hasEnvKey) {
+            if ($fallback === null) {
+                return null;
+            }
+            if (is_string($fallback)) {
+                return $fallback;
+            }
+            throw InvalidConfigurationException::invalidType($envKey, 'string', gettype($fallback));
+        }
+
+        $activeKey = $hasKey ? $key : $envKey;
+        $val = $data[$activeKey];
+
+        if ($val === null) {
+            return null;
+        }
+
+        if (!is_string($val)) {
+            throw InvalidConfigurationException::invalidType($envKey, 'string', gettype($val));
+        }
+
+        return $val;
+    }
+
+    private static function resolvePassword(array $data, string $fallback): string
+    {
+        $hasKey = array_key_exists('password', $data);
+        $hasEnvKey = array_key_exists('DB_PASSWORD', $data);
+
+        if (!$hasKey && !$hasEnvKey) {
+            return $fallback;
+        }
+
+        $activeKey = $hasKey ? 'password' : 'DB_PASSWORD';
+        $val = $data[$activeKey];
+
+        if (!is_string($val)) {
+            throw InvalidConfigurationException::invalidType('DB_PASSWORD', 'string', gettype($val));
+        }
+
+        // Retain raw password without any trimming or mutation
+        return $val;
     }
 
     public function getDriver(): string
@@ -197,7 +437,7 @@ final class DatabaseConfig
     }
 
     /**
-     * Build standard PDO DSN string.
+     * Build standard PDO DSN string using validated parameters.
      */
     public function getDsn(): string
     {
