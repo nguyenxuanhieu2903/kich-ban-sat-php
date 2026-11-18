@@ -61,13 +61,16 @@ class DatabaseConnection
     /**
      * Get or initialize the shared PDO connection (static singleton for backward compatibility).
      *
+     * Uses the configured ConnectionFactory (from setFactory or default).
+     *
      * @param DatabaseConfig|array<string, mixed> $config
      * @throws DatabaseException
      */
     public static function getInstance(DatabaseConfig|array $config = []): PDO
     {
         if (self::$instance === null || !empty($config)) {
-            self::$instance = ConnectionFactory::create($config);
+            $factory = self::getDefaultFactory();
+            self::$instance = $factory->createConnection(!empty($config) ? $config : null);
         }
 
         return self::$instance;
@@ -83,10 +86,12 @@ class DatabaseConnection
 
     /**
      * Configure or reset the default ConnectionFactory for static/default instances.
+     * Clears current static instance so future getInstance() calls use the new factory.
      */
     public static function setFactory(?ConnectionFactory $factory): void
     {
         self::$defaultFactory = $factory;
+        self::$instance = null;
     }
 
     /**

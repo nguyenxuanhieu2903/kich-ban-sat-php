@@ -17,16 +17,23 @@ use PDOException;
 class ConnectionFactory
 {
     /**
-     * Default secure PDO connection options.
+     * Mandatory secure PDO connection options that cannot be overridden.
      *
      * @var array<int, mixed>
      */
-    public const DEFAULT_OPTIONS = [
+    public const MANDATORY_OPTIONS = [
         PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
         PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
         PDO::ATTR_EMULATE_PREPARES => false,
         PDO::ATTR_PERSISTENT => false,
     ];
+
+    /**
+     * Default secure PDO connection options.
+     *
+     * @var array<int, mixed>
+     */
+    public const DEFAULT_OPTIONS = self::MANDATORY_OPTIONS;
 
     private DatabaseConfig $config;
 
@@ -51,7 +58,7 @@ class ConnectionFactory
      * Create a new PDO instance using the configured or provided DatabaseConfig.
      *
      * @param DatabaseConfig|array<string, mixed>|null $overrideConfig Optional override configuration.
-     * @param array<int, mixed> $customOptions Optional additional or override PDO attributes.
+     * @param array<int, mixed> $customOptions Optional additional PDO attributes (cannot override mandatory security attributes).
      * @throws DatabaseException If configuration is invalid or database connection fails.
      */
     public function createConnection(
@@ -96,20 +103,32 @@ class ConnectionFactory
      */
     private static function establishConnection(DatabaseConfig $dbConfig, array $customOptions = []): PDO
     {
-        $options = self::DEFAULT_OPTIONS;
+        // 1. Start with custom options if any
+        $options = $customOptions;
 
-        // Ensure MySQL connection explicitly enforces validated charset and collation
+        // 2. Enforce MySQL charset and collation init command (cannot be disabled or bypassed by custom options)
         if ($dbConfig->getDriver() === 'mysql' && defined('PDO::MYSQL_ATTR_INIT_COMMAND')) {
-            $options[PDO::MYSQL_ATTR_INIT_COMMAND] = sprintf(
+            $requiredInitCommand = sprintf(
                 "SET NAMES '%s' COLLATE '%s'",
                 $dbConfig->getCharset(),
                 $dbConfig->getCollation()
             );
+
+            if (isset($customOptions[PDO::MYSQL_ATTR_INIT_COMMAND])) {
+                $userInit = trim((string) $customOptions[PDO::MYSQL_ATTR_INIT_COMMAND]);
+                if ($userInit !== '' && !str_contains($userInit, "SET NAMES '{$dbConfig->getCharset()}'")) {
+                    $options[PDO::MYSQL_ATTR_INIT_COMMAND] = $requiredInitCommand . '; ' . $userInit;
+                } else {
+                    $options[PDO::MYSQL_ATTR_INIT_COMMAND] = $userInit !== '' ? $userInit : $requiredInitCommand;
+                }
+            } else {
+                $options[PDO::MYSQL_ATTR_INIT_COMMAND] = $requiredInitCommand;
+            }
         }
 
-        // Merge custom options, preserving explicit mandatory PDO settings unless caller overrides
-        if (!empty($customOptions)) {
-            $options = array_replace($options, $customOptions);
+        // 3. Strictly enforce mandatory security attributes over any custom options
+        foreach (self::MANDATORY_OPTIONS as $attribute => $mandatoryValue) {
+            $options[$attribute] = $mandatoryValue;
         }
 
         try {
