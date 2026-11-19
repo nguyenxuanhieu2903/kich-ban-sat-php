@@ -42,7 +42,9 @@ class Config
                             $value = substr($value, 1, -1);
                         }
 
-                        self::$repository[$name] = $value;
+                        if (!array_key_exists($name, self::$repository)) {
+    self::$repository[$name] = $value;
+}
                         if (!array_key_exists($name, $_ENV)) {
                             $_ENV[$name] = $value;
                         }
