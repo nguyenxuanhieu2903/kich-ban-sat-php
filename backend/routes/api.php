@@ -7,6 +7,7 @@ use App\Core\Response;
 use App\Core\Router;
 use App\Features\Identity\Controllers\AuthController;
 use App\Features\GameCatalog\Controllers\GameController;
+use App\Features\GameroomManagement\Controllers\GameRoomController;
 
 /** @var Router $router */
 
@@ -36,3 +37,12 @@ $router->post('/api/auth/logout', [AuthController::class, 'logout']);
 $router->get('/api/games', [GameController::class, 'index']);
 $router->get('/api/games/{id}', [GameController::class, 'show']);
 $router->get('/api/games/{id}/prices', [GameController::class, 'prices']);
+
+// =============================================================
+// DOMAIN 3: GAMEROOM MANAGEMENT API
+// =============================================================
+$router->get('/api/rooms', [GameRoomController::class, 'index']);
+$router->post('/api/rooms', [GameRoomController::class, 'create']);
+$router->get('/api/rooms/{id}', [GameRoomController::class, 'show']);
+$router->post('/api/rooms/{id}/join', [GameRoomController::class, 'join']);
+$router->post('/api/rooms/{id}/leave', [GameRoomController::class, 'leave']);
