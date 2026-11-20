@@ -30,384 +30,453 @@ class GameRoomService
     /** @return array<int, array<string, mixed>> */
     public function listRooms(?string $status = null): array
     {
-        $sql = "SELECT r.*, g.title AS game_title, g.min_players, g.max_players,
-                       (SELECT COUNT(*) FROM room_participants p
-                        WHERE p.room_id = r.id AND p.status IN ('PENDING_DEPOSIT', 'DEPOSITED', 'LEAVE_REQUESTED')) AS active_players
-                FROM game_rooms r
-                JOIN games g ON g.id = r.game_id";
+        $sql = 'SELECT * FROM game_rooms';
         $params = [];
 
-        if ($status !== null && $status !== '') {
-            $sql .= ' WHERE r.status = :status';
-            $params[':status'] = $status;
+        if ($status !== null && trim($status) !== '') {
+            $sql .= ' WHERE status = :status';
+            $params[':status'] = strtoupper(trim($status));
         }
 
-        $sql .= ' ORDER BY r.created_at DESC';
+        $sql .= ' ORDER BY scheduled_start_at ASC, id DESC';
 
         $stmt = $this->pdo->prepare($sql);
         $stmt->execute($params);
-        $rows = $stmt->fetchAll();
+        $rooms = $stmt->fetchAll();
 
-        foreach ($rows as &$row) {
-            $row['snapshot_game_rule'] = json_decode((string) $row['snapshot_game_rule'], true);
+        $result = [];
+        foreach ($rooms as $room) {
+            $roomId = (int) $room['id'];
+            $result[] = $this->formatRoomSummary($room, $this->countActivePlayers($roomId));
         }
 
-        return $rows;
+        return $result;
     }
 
     /** @return array<string, mixed> */
     public function getRoomDetail(int $roomId): array
     {
-        $stmt = $this->pdo->prepare(
-            'SELECT r.*, g.title AS game_title, g.category, g.is_18_plus
-             FROM game_rooms r
-             JOIN games g ON g.id = r.game_id
-             WHERE r.id = :id LIMIT 1'
-        );
+        $stmt = $this->pdo->prepare('SELECT * FROM game_rooms WHERE id = :id LIMIT 1');
         $stmt->execute([':id' => $roomId]);
         $room = $stmt->fetch();
 
         if ($room === false) {
-            throw new NotFoundException('Không tìm thấy phòng chơi #' . $roomId);
+            throw new NotFoundException('Không tìm thấy phòng chơi');
         }
 
         $partStmt = $this->pdo->prepare(
-            'SELECT p.id, p.user_id, u.full_name, p.status, p.deposit_deadline_at, p.joined_at
-             FROM room_participants p
-             JOIN users u ON u.id = p.user_id
-             WHERE p.room_id = :room_id
-             ORDER BY p.id ASC'
+            "SELECT rp.id, rp.user_id, rp.status, rp.deposit_deadline_at, rp.joined_at,
+                    u.full_name, u.email
+             FROM room_participants rp
+             INNER JOIN users u ON u.id = rp.user_id
+             WHERE rp.room_id = :room_id
+             ORDER BY rp.id ASC"
         );
         $partStmt->execute([':room_id' => $roomId]);
+        $participants = $partStmt->fetchAll();
 
-        $room['snapshot_game_rule'] = json_decode((string) $room['snapshot_game_rule'], true);
-        $room['participants'] = $partStmt->fetchAll();
+        $activeCount = 0;
+        foreach ($participants as $p) {
+            if (in_array((string) $p['status'], ['JOINED', 'DEPOSITED'], true)) {
+                $activeCount++;
+            }
+        }
 
-        return $room;
+        $detail = $this->formatRoomSummary($room, $activeCount);
+        $detail['participants'] = array_map(static function (array $p): array {
+            return [
+                'id' => (int) $p['id'],
+                'user_id' => (int) $p['user_id'],
+                'full_name' => (string) $p['full_name'],
+                'email' => (string) $p['email'],
+                'status' => (string) $p['status'],
+                'deposit_deadline_at' => $p['deposit_deadline_at'],
+                'joined_at' => (string) $p['joined_at'],
+            ];
+        }, $participants);
+
+        return $detail;
     }
 
-    /** @param array<string, mixed> $payload */
-    public function createRoom(int $hostUserId, array $payload): array
+    /**
+     * @param array<string, mixed> $input
+     * @return array<string, mixed>
+     */
+    public function createRoom(int $hostUserId, array $input): array
     {
-        $gameId = (int) ($payload['game_id'] ?? 0);
-        $scheduledStartRaw = trim((string) ($payload['scheduled_start_at'] ?? ''));
+        $gameId = (int) ($input['game_id'] ?? 0);
+        $scheduledRaw = trim((string) ($input['scheduled_start_at'] ?? ''));
 
-        $game = $this->gameRepo->findById($gameId);
-        if ($game === null || (int) $game['is_active'] !== 1) {
-            throw new BadRequestException('Kịch bản không tồn tại hoặc đang ngừng kinh doanh', ['game_id' => ['Invalid game']]);
+        if ($gameId <= 0 || $scheduledRaw === '') {
+            throw new BadRequestException('Thiếu game_id hoặc scheduled_start_at');
         }
 
-        $startAt = DateTimeImmutable::createFromFormat('Y-m-d H:i:s', $scheduledStartRaw)
-            ?: DateTimeImmutable::createFromFormat('Y-m-d\TH:i', $scheduledStartRaw);
-
-        if (!$startAt) {
-            throw new BadRequestException('Thời gian bắt đầu không đúng định dạng (YYYY-MM-DD HH:MM:SS)', ['scheduled_start_at' => ['Invalid format']]);
+        $scheduledAt = DateTimeImmutable::createFromFormat('Y-m-d H:i:s', $scheduledRaw);
+        if ($scheduledAt === false) {
+            $scheduledAt = DateTimeImmutable::createFromFormat(DateTimeImmutable::ATOM, $scheduledRaw);
+        }
+        if ($scheduledAt === false) {
+            throw new BadRequestException('Định dạng scheduled_start_at không hợp lệ (dùng YYYY-MM-DD HH:MM:SS)');
         }
 
-        $minute = (int) $startAt->format('i');
-        if (!in_array($minute, [0, 30], true)) {
-            throw new BadRequestException('Giờ bắt đầu chỉ được chọn mốc chẵn :00 hoặc :30', ['scheduled_start_at' => ['Minute must be 00 or 30']]);
+        $minute = (int) $scheduledAt->format('i');
+        $second = (int) $scheduledAt->format('s');
+        if (!in_array($minute, [0, 30], true) || $second !== 0) {
+            throw new BadRequestException('Giờ bắt đầu phải là mốc chẵn :00 hoặc :30');
         }
 
         $now = new DateTimeImmutable();
-        if ($startAt <= $now) {
-            throw new BadRequestException('Giờ bắt đầu phải nằm ở tương lai', ['scheduled_start_at' => ['Must be in future']]);
+        if ($scheduledAt <= $now) {
+            throw new BadRequestException('Giờ bắt đầu phải ở thời điểm tương lai');
         }
 
-        $roomId = DatabaseConnection::transaction(function (PDO $pdo) use ($hostUserId, $game, $startAt, $now): int {
-            $countStmt = $pdo->prepare(
-                "SELECT COUNT(*) FROM game_rooms
-                 WHERE host_user_id = :uid AND status NOT IN ('COMPLETED', 'EXPIRED', 'CANCELLED')"
+        $game = $this->gameRepo->findById($gameId);
+if ($game !== null && isset($game['is_active']) && (int) $game['is_active'] !== 1) {
+    $game = null;
+}
+        if ($game === null) {
+            throw new NotFoundException('Kịch bản không tồn tại hoặc đã ngừng kinh doanh');
+        }
+
+        $activeRoomCount = $this->countHostActiveRooms($hostUserId);
+        if ($activeRoomCount >= self::MAX_ACTIVE_ROOMS) {
+            throw new HttpException('Bạn đã đạt giới hạn tối đa ' . self::MAX_ACTIVE_ROOMS . ' phòng đang hoạt động', 409);
+        }
+
+        $isEvening = (int) $scheduledAt->format('H') >= 18;
+        $ticketPrice = $isEvening ? (int) $game['price_evening_vnd'] : (int) $game['price_day_vnd'];
+        $depositVnd = max(50000, (int) round($ticketPrice * 0.3));
+
+        $snapshot = [
+            'game_id' => (int) $game['id'],
+            'title' => (string) $game['title'],
+            'min_players' => (int) $game['min_players'],
+            'max_players' => (int) $game['max_players'],
+            'duration_minutes' => (int) $game['duration_minutes'],
+            'is_18_plus' => (bool) $game['is_18_plus'],
+            'slot_type' => $isEvening ? 'EVENING' : 'DAY',
+            'ticket_price_vnd' => $ticketPrice,
+            'deposit_vnd' => $depositVnd,
+        ];
+
+        $formationDeadline = $now->add(new DateInterval('PT' . self::FORMATION_HOURS . 'H'));
+        if ($formationDeadline > $scheduledAt) {
+            $formationDeadline = $scheduledAt;
+        }
+
+        $roomCode = 'KBS-' . strtoupper(bin2hex(random_bytes(3)));
+
+        $this->pdo->beginTransaction();
+        try {
+            $insRoom = $this->pdo->prepare(
+                "INSERT INTO game_rooms
+                    (room_code, game_id, host_user_id, scheduled_start_at, status, formation_deadline_at, reopen_count, snapshot_game_rule)
+                 VALUES
+                    (:room_code, :game_id, :host_user_id, :scheduled_start_at, 'FORMING', :formation_deadline_at, 0, :snapshot)"
             );
-            $countStmt->execute([':uid' => $hostUserId]);
-            if ((int) $countStmt->fetchColumn() >= self::MAX_ACTIVE_ROOMS) {
-                throw new HttpException('Mỗi tài khoản chỉ được tạo tối đa 3 phòng đang hoạt động', 409);
-            }
-
-            $formationDeadline = $now->add(new DateInterval('PT' . self::FORMATION_HOURS . 'H'));
-            $roomCode = 'KBS-' . strtoupper(substr(bin2hex(random_bytes(3)), 0, 6));
-
-            $snapshot = [
-                'min_players' => (int) $game['min_players'],
-                'max_players' => (int) $game['max_players'],
-                'duration_minutes' => (int) $game['duration_minutes'],
-                'price_day_vnd' => (int) $game['price_day_vnd'],
-                'price_evening_vnd' => (int) $game['price_evening_vnd'],
-                'deposit_vnd' => (int) $game['deposit_vnd'],
-            ];
-
-            $insertRoom = $pdo->prepare(
-                "INSERT INTO game_rooms (room_code, game_id, host_user_id, scheduled_start_at, status, formation_deadline_at, snapshot_game_rule)
-                 VALUES (:code, :game_id, :host_id, :start_at, 'FORMING', :deadline, :snapshot)"
-            );
-            $insertRoom->execute([
-                ':code' => $roomCode,
-                ':game_id' => $game['id'],
-                ':host_id' => $hostUserId,
-                ':start_at' => $startAt->format('Y-m-d H:i:s'),
-                ':deadline' => $formationDeadline->format('Y-m-d H:i:s'),
+            $insRoom->execute([
+                ':room_code' => $roomCode,
+                ':game_id' => $gameId,
+                ':host_user_id' => $hostUserId,
+                ':scheduled_start_at' => $scheduledAt->format('Y-m-d H:i:s'),
+                ':formation_deadline_at' => $formationDeadline->format('Y-m-d H:i:s'),
                 ':snapshot' => json_encode($snapshot, JSON_UNESCAPED_UNICODE),
             ]);
 
-            $newRoomId = (int) $pdo->lastInsertId();
+            $roomId = (int) $this->pdo->lastInsertId();
 
-            $insertPart = $pdo->prepare(
-                "INSERT INTO room_participants (room_id, user_id, status) VALUES (:room_id, :user_id, 'PENDING_DEPOSIT')"
+            $insPart = $this->pdo->prepare(
+                "INSERT INTO room_participants (room_id, user_id, status, joined_at)
+                 VALUES (:room_id, :user_id, 'JOINED', :joined_at)"
             );
-            $insertPart->execute([':room_id' => $newRoomId, ':user_id' => $hostUserId]);
+            $insPart->execute([
+                ':room_id' => $roomId,
+                ':user_id' => $hostUserId,
+                ':joined_at' => $now->format('Y-m-d H:i:s'),
+            ]);
 
-            return $newRoomId;
-        }, $this->pdo);
+            $this->pdo->commit();
+        } catch (\Throwable $e) {
+            if ($this->pdo->inTransaction()) {
+                $this->pdo->rollBack();
+            }
+            throw $e;
+        }
 
         return $this->getRoomDetail($roomId);
     }
 
+    /** @return array<string, mixed> */
     public function joinRoom(int $roomId, int $userId): array
     {
-        DatabaseConnection::transaction(function (PDO $pdo) use ($roomId, $userId): void {
-            $lockStmt = $pdo->prepare('SELECT * FROM game_rooms WHERE id = :id FOR UPDATE');
-            $lockStmt->execute([':id' => $roomId]);
-            $room = $lockStmt->fetch();
+        $this->pdo->beginTransaction();
+        try {
+            $stmt = $this->pdo->prepare('SELECT * FROM game_rooms WHERE id = :id FOR UPDATE');
+            $stmt->execute([':id' => $roomId]);
+            $room = $stmt->fetch();
 
             if ($room === false) {
-                throw new NotFoundException('Không tìm thấy phòng chơi #' . $roomId);
+                throw new NotFoundException('Không tìm thấy phòng chơi');
             }
 
-            if (!in_array($room['status'], ['FORMING', 'REPLENISHING'], true)) {
-                throw new HttpException('Phòng hiện không mở nhận thêm người chơi (trạng thái: ' . $room['status'] . ')', 409);
+            $status = (string) $room['status'];
+            if (!in_array($status, ['FORMING', 'REPLENISHING'], true)) {
+                throw new HttpException("Phòng đang ở trạng thái {$status}, không thể tham gia", 409);
             }
 
-            $dupStmt = $pdo->prepare(
-                "SELECT COUNT(*) FROM room_participants
+            $checkStmt = $this->pdo->prepare(
+                "SELECT id, status FROM room_participants
                  WHERE room_id = :room_id AND user_id = :user_id
-                   AND status IN ('PENDING_DEPOSIT', 'DEPOSITED', 'LEAVE_REQUESTED')"
+                 LIMIT 1 FOR UPDATE"
             );
-            $dupStmt->execute([':room_id' => $roomId, ':user_id' => $userId]);
-            if ((int) $dupStmt->fetchColumn() > 0) {
+            $checkStmt->execute([':room_id' => $roomId, ':user_id' => $userId]);
+            $existing = $checkStmt->fetch();
+
+            if (is_array($existing) && in_array((string) $existing['status'], ['JOINED', 'DEPOSITED'], true)) {
                 throw new HttpException('Bạn đã ở trong phòng này rồi', 409);
             }
 
             $rule = json_decode((string) $room['snapshot_game_rule'], true);
-            $cntStmt = $pdo->prepare(
-                "SELECT COUNT(*) FROM room_participants
-                 WHERE room_id = :room_id AND status IN ('PENDING_DEPOSIT', 'DEPOSITED', 'LEAVE_REQUESTED')"
-            );
-            $cntStmt->execute([':room_id' => $roomId]);
-            $activeCount = (int) $cntStmt->fetchColumn();
+            $minPlayers = is_array($rule) ? (int) ($rule['min_players'] ?? 1) : 1;
+            $maxPlayers = is_array($rule) ? (int) ($rule['max_players'] ?? 8) : 8;
 
-            if ($activeCount >= (int) $rule['max_players']) {
-                throw new HttpException('Phòng đã đủ số lượng người chơi tối đa', 409);
+            $activeCount = $this->countActivePlayers($roomId);
+            if ($activeCount >= $maxPlayers) {
+                throw new HttpException('Phòng đã đủ số người chơi tối đa', 409);
             }
 
-            $insertPart = $pdo->prepare(
-                "INSERT INTO room_participants (room_id, user_id, status) VALUES (:room_id, :user_id, 'PENDING_DEPOSIT')"
-            );
-            $insertPart->execute([':room_id' => $roomId, ':user_id' => $userId]);
-
-            if ($room['status'] === 'FORMING' && ($activeCount + 1) >= (int) $rule['min_players']) {
-                $upd = $pdo->prepare("UPDATE game_rooms SET status = 'WAITING_FOR_DM' WHERE id = :id");
-                $upd->execute([':id' => $roomId]);
+            $nowStr = (new DateTimeImmutable())->format('Y-m-d H:i:s');
+            if (is_array($existing)) {
+                $updPart = $this->pdo->prepare(
+                    "UPDATE room_participants
+                     SET status = 'JOINED', joined_at = :joined_at, left_at = NULL
+                     WHERE id = :id"
+                );
+                $updPart->execute([
+                    ':id' => $existing['id'],
+                    ':joined_at' => $nowStr,
+                ]);
+            } else {
+                $insPart = $this->pdo->prepare(
+                    "INSERT INTO room_participants (room_id, user_id, status, joined_at)
+                     VALUES (:room_id, :user_id, 'JOINED', :joined_at)"
+                );
+                $insPart->execute([
+                    ':room_id' => $roomId,
+                    ':user_id' => $userId,
+                    ':joined_at' => $nowStr,
+                ]);
             }
-        }, $this->pdo);
+
+            $newCount = $this->countActivePlayers($roomId);
+            if ($status === 'FORMING' && $newCount >= $minPlayers) {
+                $updRoom = $this->pdo->prepare("UPDATE game_rooms SET status = 'WAITING_FOR_DM' WHERE id = :id");
+                $updRoom->execute([':id' => $roomId]);
+            }
+
+            $this->pdo->commit();
+        } catch (\Throwable $e) {
+            if ($this->pdo->inTransaction()) {
+                $this->pdo->rollBack();
+            }
+            throw $e;
+        }
 
         return $this->getRoomDetail($roomId);
     }
 
+    /** @return array<string, mixed> */
     public function leaveRoom(int $roomId, int $userId): array
     {
-        DatabaseConnection::transaction(function (PDO $pdo) use ($roomId, $userId): void {
-            $lockStmt = $pdo->prepare('SELECT * FROM game_rooms WHERE id = :id FOR UPDATE');
-            $lockStmt->execute([':id' => $roomId]);
-            $room = $lockStmt->fetch();
+        $this->pdo->beginTransaction();
+        try {
+            $stmt = $this->pdo->prepare('SELECT * FROM game_rooms WHERE id = :id FOR UPDATE');
+            $stmt->execute([':id' => $roomId]);
+            $room = $stmt->fetch();
 
             if ($room === false) {
-                throw new NotFoundException('Không tìm thấy phòng chơi #' . $roomId);
+                throw new NotFoundException('Không tìm thấy phòng chơi');
             }
 
-            if (in_array($room['status'], ['COMPLETED', 'EXPIRED', 'CANCELLED'], true)) {
-                throw new HttpException('Không thể rời phòng ở trạng thái ' . $room['status'], 409);
+            $status = (string) $room['status'];
+            if (in_array($status, ['CANCELLED', 'COMPLETED', 'EXPIRED'], true)) {
+                throw new HttpException("Phòng đã đóng ({$status}), không thể rời phòng", 409);
             }
 
-            $updPart = $pdo->prepare(
-                "UPDATE room_participants
-                 SET status = 'LEFT'
+            $partStmt = $this->pdo->prepare(
+                "SELECT id, status FROM room_participants
                  WHERE room_id = :room_id AND user_id = :user_id
-                   AND status IN ('PENDING_DEPOSIT', 'DEPOSITED', 'LEAVE_REQUESTED')"
+                 LIMIT 1 FOR UPDATE"
             );
-            $updPart->execute([':room_id' => $roomId, ':user_id' => $userId]);
+            $partStmt->execute([':room_id' => $roomId, ':user_id' => $userId]);
+            $participant = $partStmt->fetch();
 
-            if ($updPart->rowCount() === 0) {
-                throw new NotFoundException('Bạn không có trong danh sách người chơi đang hoạt động của phòng này');
+            if ($participant === false || !in_array((string) $participant['status'], ['JOINED', 'DEPOSITED'], true)) {
+                throw new NotFoundException('Bạn hiện không có mặt trong phòng này');
             }
+
+            $nowStr = (new DateTimeImmutable())->format('Y-m-d H:i:s');
+            $updPart = $this->pdo->prepare(
+                "UPDATE room_participants
+                 SET status = 'LEFT', left_at = :left_at
+                 WHERE id = :id"
+            );
+            $updPart->execute([
+                ':id' => $participant['id'],
+                ':left_at' => $nowStr,
+            ]);
 
             $rule = json_decode((string) $room['snapshot_game_rule'], true);
-            $cntStmt = $pdo->prepare(
-                "SELECT COUNT(*) FROM room_participants
-                 WHERE room_id = :room_id AND status IN ('PENDING_DEPOSIT', 'DEPOSITED', 'LEAVE_REQUESTED')"
-            );
-            $cntStmt->execute([':room_id' => $roomId]);
-            $activeCount = (int) $cntStmt->fetchColumn();
+            $minPlayers = is_array($rule) ? (int) ($rule['min_players'] ?? 1) : 1;
+            $newCount = $this->countActivePlayers($roomId);
 
-            if ($room['status'] === 'WAITING_FOR_DM' && $activeCount < (int) $rule['min_players']) {
-                $pdo->prepare("UPDATE game_rooms SET status = 'FORMING' WHERE id = :id")
-                    ->execute([':id' => $roomId]);
+            if ($status === 'WAITING_FOR_DM' && $newCount < $minPlayers) {
+                $updRoom = $this->pdo->prepare("UPDATE game_rooms SET status = 'FORMING' WHERE id = :id");
+                $updRoom->execute([':id' => $roomId]);
             }
-        }, $this->pdo);
+
+            $this->pdo->commit();
+        } catch (\Throwable $e) {
+            if ($this->pdo->inTransaction()) {
+                $this->pdo->rollBack();
+            }
+            throw $e;
+        }
 
         return $this->getRoomDetail($roomId);
     }
 
-    public function assignDmAndPhysicalRoom(int $roomId, int $dmUserId, int $physicalRoomId, int $assignedBy = 1): array
+    /** @return array<string, mixed> */
+    public function assignDmAndPhysicalRoom(int $roomId, int $dmUserId, int $physicalRoomId): array
     {
-        DatabaseConnection::transaction(function (PDO $pdo) use ($roomId, $dmUserId, $physicalRoomId, $assignedBy): void {
-            $lockStmt = $pdo->prepare('SELECT * FROM game_rooms WHERE id = :id FOR UPDATE');
-            $lockStmt->execute([':id' => $roomId]);
-            $room = $lockStmt->fetch();
+        $this->pdo->beginTransaction();
+        try {
+            $stmt = $this->pdo->prepare('SELECT * FROM game_rooms WHERE id = :id FOR UPDATE');
+            $stmt->execute([':id' => $roomId]);
+            $room = $stmt->fetch();
 
             if ($room === false) {
-                throw new NotFoundException('Không tìm thấy phòng chơi #' . $roomId);
+                throw new NotFoundException('Không tìm thấy phòng chơi');
             }
 
-            if (in_array((string) $room['status'], ['COMPLETED', 'EXPIRED', 'CANCELLED'], true)) {
-                throw new HttpException(
-                    'Không thể phân công DM cho phòng ở trạng thái ' . $room['status'],
-                    409
-                );
+            $status = (string) $room['status'];
+            if (!in_array($status, ['FORMING', 'WAITING_FOR_DM'], true)) {
+                throw new HttpException("Không thể phân công DM khi phòng đang ở trạng thái {$status}", 409);
             }
 
-            // 1. Kiểm tra DM hợp lệ (tồn tại, đúng role DM, đang hoạt động)
-            $dmStmt = $pdo->prepare(
-                "SELECT id FROM users WHERE id = :id AND role = 'DM' AND is_active = 1 LIMIT 1"
-            );
+            $dmStmt = $this->pdo->prepare("SELECT id, role, is_active FROM users WHERE id = :id LIMIT 1");
             $dmStmt->execute([':id' => $dmUserId]);
-            if ($dmStmt->fetch() === false) {
-                throw new BadRequestException('Tài khoản DM không tồn tại, không đúng vai trò hoặc đã bị khóa');
+            $dm = $dmStmt->fetch();
+            if ($dm === false || (string) $dm['role'] !== 'DM' || (int) $dm['is_active'] !== 1) {
+                throw new BadRequestException('Tài khoản DM không hợp lệ hoặc chưa kích hoạt');
             }
 
-            // 2. Kiểm tra phòng vật lý khả dụng
-            $physStmt = $pdo->prepare("SELECT id FROM physical_rooms WHERE id = :id AND status = 'AVAILABLE' LIMIT 1");
-            $physStmt->execute([':id' => $physicalRoomId]);
-            if ($physStmt->fetch() === false) {
+            $prStmt = $this->pdo->prepare("SELECT id, status FROM physical_rooms WHERE id = :id LIMIT 1");
+            $prStmt->execute([':id' => $physicalRoomId]);
+            $pr = $prStmt->fetch();
+            if ($pr === false || (string) $pr['status'] !== 'AVAILABLE') {
                 throw new BadRequestException('Phòng vật lý không tồn tại hoặc không khả dụng');
             }
 
             $rule = json_decode((string) $room['snapshot_game_rule'], true);
-            $duration = is_array($rule) && isset($rule['duration_minutes'])
-                ? (int) $rule['duration_minutes']
-                : 210;
+            $durationMinutes = is_array($rule) ? (int) ($rule['duration_minutes'] ?? 180) : 180;
 
             $startAt = new DateTimeImmutable((string) $room['scheduled_start_at']);
-            $endAt = $startAt->add(new DateInterval('PT' . $duration . 'M'));
+            $endAt = $startAt->add(new DateInterval('PT' . $durationMinutes . 'M'));
             $startStr = $startAt->format('Y-m-d H:i:s');
             $endStr = $endAt->format('Y-m-d H:i:s');
 
-            // 3. Kiểm tra trùng lịch phòng vật lý (loại trừ chính room hiện tại nếu đang phân công lại)
-            $physConflict = $pdo->prepare(
+            $conflictStmt = $this->pdo->prepare(
                 "SELECT id FROM game_sessions
-                 WHERE physical_room_id = :phys_id
-                   AND room_id <> :room_id
-                   AND status <> 'CANCELLED'
+                 WHERE room_id != :room_id
+                   AND status = 'SCHEDULED'
+                   AND (physical_room_id = :pr_id OR dm_user_id = :dm_id)
                    AND start_at < :end_at
                    AND end_at > :start_at
-                 LIMIT 1"
+                 LIMIT 1 FOR UPDATE"
             );
-            $physConflict->execute([
-                ':phys_id' => $physicalRoomId,
+            $conflictStmt->execute([
                 ':room_id' => $roomId,
+                ':pr_id' => $physicalRoomId,
+                ':dm_id' => $dmUserId,
                 ':start_at' => $startStr,
                 ':end_at' => $endStr,
             ]);
-            if ($physConflict->fetch() !== false) {
-                throw new HttpException('Phòng vật lý đã có lịch trùng trong khung giờ này', 409);
+            if ($conflictStmt->fetch() !== false) {
+                throw new HttpException('Phòng vật lý hoặc DM đã bị trùng khung giờ', 409);
             }
 
-            // 4. Kiểm tra trùng lịch DM
-            $dmConflict = $pdo->prepare(
-                "SELECT id FROM game_sessions
-                 WHERE dm_user_id = :dm_id
-                   AND room_id <> :room_id
-                   AND status <> 'CANCELLED'
-                   AND start_at < :end_at
-                   AND end_at > :start_at
-                 LIMIT 1"
+            $insAssign = $this->pdo->prepare(
+                "INSERT INTO dm_assignments (room_id, dm_user_id, status)
+                 VALUES (:room_id, :dm_user_id, 'ACCEPTED')"
             );
-            $dmConflict->execute([
-                ':dm_id' => $dmUserId,
+            $insAssign->execute([
                 ':room_id' => $roomId,
-                ':start_at' => $startStr,
-                ':end_at' => $endStr,
-            ]);
-            if ($dmConflict->fetch() !== false) {
-                throw new HttpException('DM đã có lịch dẫn trận khác trùng khung giờ này', 409);
-            }
-
-            $insDm = $pdo->prepare(
-                "INSERT INTO dm_assignments (room_id, dm_user_id, assigned_by, status)
-                 VALUES (:room_id, :dm_id, :assigned_by, 'ASSIGNED')"
-            );
-            $insDm->execute([
-                ':room_id' => $roomId,
-                ':dm_id' => $dmUserId,
-                ':assigned_by' => $assignedBy,
+                ':dm_user_id' => $dmUserId,
             ]);
 
-            $insSession = $pdo->prepare(
+            $insSession = $this->pdo->prepare(
                 "INSERT INTO game_sessions (room_id, dm_user_id, physical_room_id, start_at, end_at, status)
-                 VALUES (:room_id, :dm_id, :phys_id, :start_at, :end_at, 'SCHEDULED')
-                 ON DUPLICATE KEY UPDATE
-                     dm_user_id = VALUES(dm_user_id),
-                     physical_room_id = VALUES(physical_room_id),
-                     start_at = VALUES(start_at),
-                     end_at = VALUES(end_at)"
+                 VALUES (:room_id, :dm_user_id, :pr_id, :start_at, :end_at, 'SCHEDULED')"
             );
             $insSession->execute([
                 ':room_id' => $roomId,
-                ':dm_id' => $dmUserId,
-                ':phys_id' => $physicalRoomId,
+                ':dm_user_id' => $dmUserId,
+                ':pr_id' => $physicalRoomId,
                 ':start_at' => $startStr,
                 ':end_at' => $endStr,
             ]);
 
-            $deadline = (new DateTimeImmutable())->add(new DateInterval('PT2H'))->format('Y-m-d H:i:s');
-
-            $pdo->prepare("UPDATE game_rooms SET status = 'CONFIRMED' WHERE id = :room_id")
-                ->execute([':room_id' => $roomId]);
-
-            $pdo->prepare(
+            $depositDeadline = (new DateTimeImmutable())->add(new DateInterval('PT2H'))->format('Y-m-d H:i:s');
+            $updPart = $this->pdo->prepare(
                 "UPDATE room_participants
                  SET deposit_deadline_at = :deadline
-                 WHERE room_id = :room_id AND status = 'PENDING_DEPOSIT'"
-            )->execute([':deadline' => $deadline, ':room_id' => $roomId]);
-        }, $this->pdo);
+                 WHERE room_id = :room_id AND status IN ('JOINED', 'DEPOSITED')"
+            );
+            $updPart->execute([
+                ':deadline' => $depositDeadline,
+                ':room_id' => $roomId,
+            ]);
+
+            $updRoom = $this->pdo->prepare("UPDATE game_rooms SET status = 'CONFIRMED' WHERE id = :id");
+            $updRoom->execute([':id' => $roomId]);
+
+            $this->pdo->commit();
+        } catch (\Throwable $e) {
+            if ($this->pdo->inTransaction()) {
+                $this->pdo->rollBack();
+            }
+            throw $e;
+        }
 
         return $this->getRoomDetail($roomId);
     }
 
+    /** @return array<string, mixed> */
     public function deposit(int $roomId, int $userId, string $method = 'VNPAY'): array
     {
-        $nowStr = (new DateTimeImmutable())->format('Y-m-d H:i:s');
+        $now = new DateTimeImmutable();
+        $nowStr = $now->format('Y-m-d H:i:s');
 
-        DatabaseConnection::transaction(function (PDO $pdo) use ($roomId, $userId, $method, $nowStr): void {
-            $roomStmt = $pdo->prepare('SELECT * FROM game_rooms WHERE id = :id FOR UPDATE');
-            $roomStmt->execute([':id' => $roomId]);
-            $room = $roomStmt->fetch();
+        $this->pdo->beginTransaction();
+        try {
+            $stmt = $this->pdo->prepare('SELECT * FROM game_rooms WHERE id = :id FOR UPDATE');
+            $stmt->execute([':id' => $roomId]);
+            $room = $stmt->fetch();
 
             if ($room === false) {
-                throw new NotFoundException('Không tìm thấy phòng chơi #' . $roomId);
+                throw new NotFoundException('Không tìm thấy phòng chơi');
             }
 
-            if (in_array((string) $room['status'], ['COMPLETED', 'EXPIRED', 'CANCELLED'], true)) {
-                throw new HttpException(
-                    'Không thể đặt cọc cho phòng ở trạng thái ' . $room['status'],
-                    409
-                );
+            $status = (string) $room['status'];
+            if (in_array($status, ['CANCELLED', 'COMPLETED', 'EXPIRED'], true)) {
+                throw new HttpException("Phòng đang ở trạng thái {$status}, không thể đặt cọc", 409);
             }
 
-            $partStmt = $pdo->prepare(
-                "SELECT * FROM room_participants
+            $partStmt = $this->pdo->prepare(
+                "SELECT id, status, deposit_deadline_at FROM room_participants
                  WHERE room_id = :room_id AND user_id = :user_id
-                   AND status IN ('PENDING_DEPOSIT', 'DEPOSITED')
-                 FOR UPDATE"
+                 LIMIT 1 FOR UPDATE"
             );
             $partStmt->execute([':room_id' => $roomId, ':user_id' => $userId]);
             $participant = $partStmt->fetch();
@@ -422,7 +491,7 @@ class GameRoomService
 
             if (!empty($participant['deposit_deadline_at'])) {
                 $deadline = DateTimeImmutable::createFromFormat('Y-m-d H:i:s', (string) $participant['deposit_deadline_at']);
-                if ($deadline !== false && new DateTimeImmutable() > $deadline) {
+                if ($deadline !== false && $now > $deadline) {
                     throw new HttpException('Đã quá hạn đặt cọc cho phòng này', 409);
                 }
             }
@@ -437,7 +506,7 @@ class GameRoomService
             }
 
             $txKey = 'DEP-' . $roomId . '-' . $userId . '-' . bin2hex(random_bytes(4));
-            $insTx = $pdo->prepare(
+            $insTx = $this->pdo->prepare(
                 "INSERT INTO payment_transactions (room_id, participant_id, user_id, idempotency_key, payment_type, amount_vnd, status, note, paid_at)
                  VALUES (:room_id, :part_id, :user_id, :idem_key, 'DEPOSIT', :amount, 'SUCCESS', :note, :paid_at)"
             );
@@ -451,20 +520,30 @@ class GameRoomService
                 ':paid_at' => $nowStr,
             ]);
 
-            $updPart = $pdo->prepare("UPDATE room_participants SET status = 'DEPOSITED' WHERE id = :id");
+            $updPart = $this->pdo->prepare("UPDATE room_participants SET status = 'DEPOSITED' WHERE id = :id");
             $updPart->execute([':id' => $participant['id']]);
-        }, $this->pdo);
+
+            $this->pdo->commit();
+        } catch (\Throwable $e) {
+            if ($this->pdo->inTransaction()) {
+                $this->pdo->rollBack();
+            }
+            throw $e;
+        }
 
         return $this->getRoomDetail($roomId);
     }
+
+    /** @return array<string, mixed> */
     public function cancelRoom(int $roomId, int $actorUserId, string $actorRole, ?string $reason = null): array
     {
         $cleanReason = ($reason !== null && $reason !== '')
             ? mb_substr($reason, 0, 500)
-            : (($actorRole === 'ADMIN') ? 'Hủy bởi quản trị viên' : 'Chủ phòng hủy phòng');
+            : ((strtoupper($actorRole) === 'ADMIN') ? 'Hủy bởi quản trị viên' : 'Chủ phòng hủy phòng');
 
-        DatabaseTransaction::run(function (PDO $pdo) use ($roomId, $actorUserId, $actorRole, $cleanReason): void {
-            $stmt = $pdo->prepare('SELECT * FROM game_rooms WHERE id = :id FOR UPDATE');
+        $this->pdo->beginTransaction();
+        try {
+            $stmt = $this->pdo->prepare('SELECT * FROM game_rooms WHERE id = :id FOR UPDATE');
             $stmt->execute([':id' => $roomId]);
             $room = $stmt->fetch();
 
@@ -489,7 +568,7 @@ class GameRoomService
                 }
             }
 
-            $updRoom = $pdo->prepare(
+            $updRoom = $this->pdo->prepare(
                 "UPDATE game_rooms
                  SET status = 'CANCELLED', cancel_reason = :reason
                  WHERE id = :id"
@@ -499,7 +578,7 @@ class GameRoomService
                 ':reason' => $cleanReason,
             ]);
 
-            $updSession = $pdo->prepare(
+            $updSession = $this->pdo->prepare(
                 "UPDATE game_sessions
                  SET status = 'CANCELLED', cancel_reason = :reason
                  WHERE room_id = :room_id AND status = 'SCHEDULED'"
@@ -508,15 +587,24 @@ class GameRoomService
                 ':room_id' => $roomId,
                 ':reason' => $cleanReason,
             ]);
-        }, $this->pdo);
+
+            $this->pdo->commit();
+        } catch (\Throwable $e) {
+            if ($this->pdo->inTransaction()) {
+                $this->pdo->rollBack();
+            }
+            throw $e;
+        }
 
         return $this->getRoomDetail($roomId);
     }
 
+    /** @return array<string, mixed> */
     public function completeRoom(int $roomId, int $actorUserId, string $actorRole): array
     {
-        DatabaseTransaction::run(function (PDO $pdo) use ($roomId, $actorUserId, $actorRole): void {
-            $stmt = $pdo->prepare('SELECT * FROM game_rooms WHERE id = :id FOR UPDATE');
+        $this->pdo->beginTransaction();
+        try {
+            $stmt = $this->pdo->prepare('SELECT * FROM game_rooms WHERE id = :id FOR UPDATE');
             $stmt->execute([':id' => $roomId]);
             $room = $stmt->fetch();
 
@@ -528,7 +616,7 @@ class GameRoomService
                 throw new HttpException('Chỉ có thể hoàn thành phòng đang ở trạng thái CONFIRMED', 409);
             }
 
-            $sessionStmt = $pdo->prepare('SELECT id, dm_user_id, status FROM game_sessions WHERE room_id = :room_id LIMIT 1');
+            $sessionStmt = $this->pdo->prepare('SELECT id, dm_user_id, status FROM game_sessions WHERE room_id = :room_id LIMIT 1');
             $sessionStmt->execute([':room_id' => $roomId]);
             $session = $sessionStmt->fetch();
 
@@ -539,15 +627,69 @@ class GameRoomService
                 throw new HttpException('Chỉ quản trị viên hoặc DM được phân công mới có quyền hoàn thành trận', 403);
             }
 
-            $updRoom = $pdo->prepare("UPDATE game_rooms SET status = 'COMPLETED' WHERE id = :id");
+            $updRoom = $this->pdo->prepare("UPDATE game_rooms SET status = 'COMPLETED' WHERE id = :id");
             $updRoom->execute([':id' => $roomId]);
 
             if (is_array($session)) {
-                $updSession = $pdo->prepare("UPDATE game_sessions SET status = 'COMPLETED' WHERE id = :id");
+                $updSession = $this->pdo->prepare("UPDATE game_sessions SET status = 'COMPLETED' WHERE id = :id");
                 $updSession->execute([':id' => $session['id']]);
             }
-        }, $this->pdo);
+
+            $this->pdo->commit();
+        } catch (\Throwable $e) {
+            if ($this->pdo->inTransaction()) {
+                $this->pdo->rollBack();
+            }
+            throw $e;
+        }
 
         return $this->getRoomDetail($roomId);
+    }
+
+    private function countActivePlayers(int $roomId): int
+    {
+        $stmt = $this->pdo->prepare(
+            "SELECT COUNT(*) FROM room_participants
+             WHERE room_id = :room_id AND status IN ('JOINED', 'DEPOSITED')"
+        );
+        $stmt->execute([':room_id' => $roomId]);
+
+        return (int) $stmt->fetchColumn();
+    }
+
+    private function countHostActiveRooms(int $hostUserId): int
+    {
+        $stmt = $this->pdo->prepare(
+            "SELECT COUNT(*) FROM game_rooms
+             WHERE host_user_id = :host_id
+               AND status NOT IN ('CANCELLED', 'COMPLETED', 'EXPIRED')"
+        );
+        $stmt->execute([':host_id' => $hostUserId]);
+
+        return (int) $stmt->fetchColumn();
+    }
+
+    /**
+     * @param array<string, mixed> $room
+     * @return array<string, mixed>
+     */
+    private function formatRoomSummary(array $room, int $activePlayers): array
+    {
+        $decodedRule = json_decode((string) $room['snapshot_game_rule'], true);
+
+        return [
+            'id' => (int) $room['id'],
+            'room_code' => (string) $room['room_code'],
+            'game_id' => (int) $room['game_id'],
+            'host_user_id' => (int) $room['host_user_id'],
+            'scheduled_start_at' => (string) $room['scheduled_start_at'],
+            'status' => (string) $room['status'],
+            'formation_deadline_at' => (string) $room['formation_deadline_at'],
+            'reopen_count' => (int) $room['reopen_count'],
+            'cancel_reason' => $room['cancel_reason'] !== null ? (string) $room['cancel_reason'] : null,
+            'active_players' => $activePlayers,
+            'snapshot_game_rule' => is_array($decodedRule) ? $decodedRule : [],
+            'created_at' => (string) $room['created_at'],
+        ];
     }
 }
