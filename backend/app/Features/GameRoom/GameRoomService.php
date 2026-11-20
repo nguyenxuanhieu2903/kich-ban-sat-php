@@ -457,4 +457,97 @@ class GameRoomService
 
         return $this->getRoomDetail($roomId);
     }
+    public function cancelRoom(int $roomId, int $actorUserId, string $actorRole, ?string $reason = null): array
+    {
+        $cleanReason = ($reason !== null && $reason !== '')
+            ? mb_substr($reason, 0, 500)
+            : (($actorRole === 'ADMIN') ? 'Hủy bởi quản trị viên' : 'Chủ phòng hủy phòng');
+
+        DatabaseTransaction::run(function (PDO $pdo) use ($roomId, $actorUserId, $actorRole, $cleanReason): void {
+            $stmt = $pdo->prepare('SELECT * FROM game_rooms WHERE id = :id FOR UPDATE');
+            $stmt->execute([':id' => $roomId]);
+            $room = $stmt->fetch();
+
+            if ($room === false) {
+                throw new NotFoundException('Không tìm thấy phòng chơi');
+            }
+
+            $status = (string) $room['status'];
+            if (in_array($status, ['CANCELLED', 'COMPLETED', 'EXPIRED'], true)) {
+                throw new HttpException("Không thể hủy phòng đang ở trạng thái {$status}", 409);
+            }
+
+            $isAdmin = strtoupper($actorRole) === 'ADMIN';
+            $isHost = (int) $room['host_user_id'] === $actorUserId;
+
+            if (!$isAdmin) {
+                if (!$isHost) {
+                    throw new HttpException('Chỉ chủ phòng hoặc quản trị viên mới có quyền hủy phòng', 403);
+                }
+                if (!in_array($status, ['FORMING', 'WAITING_FOR_DM'], true)) {
+                    throw new HttpException('Phòng đã chốt lịch, vui lòng liên hệ quản trị viên để hủy', 409);
+                }
+            }
+
+            $updRoom = $pdo->prepare(
+                "UPDATE game_rooms
+                 SET status = 'CANCELLED', cancel_reason = :reason
+                 WHERE id = :id"
+            );
+            $updRoom->execute([
+                ':id' => $roomId,
+                ':reason' => $cleanReason,
+            ]);
+
+            $updSession = $pdo->prepare(
+                "UPDATE game_sessions
+                 SET status = 'CANCELLED', cancel_reason = :reason
+                 WHERE room_id = :room_id AND status = 'SCHEDULED'"
+            );
+            $updSession->execute([
+                ':room_id' => $roomId,
+                ':reason' => $cleanReason,
+            ]);
+        }, $this->pdo);
+
+        return $this->getRoomDetail($roomId);
+    }
+
+    public function completeRoom(int $roomId, int $actorUserId, string $actorRole): array
+    {
+        DatabaseTransaction::run(function (PDO $pdo) use ($roomId, $actorUserId, $actorRole): void {
+            $stmt = $pdo->prepare('SELECT * FROM game_rooms WHERE id = :id FOR UPDATE');
+            $stmt->execute([':id' => $roomId]);
+            $room = $stmt->fetch();
+
+            if ($room === false) {
+                throw new NotFoundException('Không tìm thấy phòng chơi');
+            }
+
+            if ((string) $room['status'] !== 'CONFIRMED') {
+                throw new HttpException('Chỉ có thể hoàn thành phòng đang ở trạng thái CONFIRMED', 409);
+            }
+
+            $sessionStmt = $pdo->prepare('SELECT id, dm_user_id, status FROM game_sessions WHERE room_id = :room_id LIMIT 1');
+            $sessionStmt->execute([':room_id' => $roomId]);
+            $session = $sessionStmt->fetch();
+
+            $isAdmin = strtoupper($actorRole) === 'ADMIN';
+            $isAssignedDm = is_array($session) && (int) ($session['dm_user_id'] ?? 0) === $actorUserId;
+
+            if (!$isAdmin && !$isAssignedDm) {
+                throw new HttpException('Chỉ quản trị viên hoặc DM được phân công mới có quyền hoàn thành trận', 403);
+            }
+
+            $updRoom = $pdo->prepare("UPDATE game_rooms SET status = 'COMPLETED' WHERE id = :id");
+            $updRoom->execute([':id' => $roomId]);
+
+            if (is_array($session)) {
+                $updSession = $pdo->prepare("UPDATE game_sessions SET status = 'COMPLETED' WHERE id = :id");
+                $updSession->execute([':id' => $session['id']]);
+            }
+        }, $this->pdo);
+
+        return $this->getRoomDetail($roomId);
+    }
 }

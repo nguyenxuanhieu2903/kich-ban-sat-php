@@ -117,6 +117,38 @@ class GameRoomController
         ]);
     }
 
+    public function cancel(Request $request, string $id): Response
+    {
+        $auth = $this->requireRole(['ADMIN', 'PLAYER']);
+        $roomId = $this->parsePositiveInt($id, 'id');
+        $body = $request->getBodyParams();
+        $reason = isset($body['reason']) && is_string($body['reason']) ? trim($body['reason']) : null;
+
+        $room = $this->service->cancelRoom($roomId, $auth['user_id'], $auth['role'], $reason);
+
+        return Response::json([
+            'success' => true,
+            'message' => 'Hủy phòng thành công',
+            'data' => $room,
+            'serverTime' => date('c'),
+        ]);
+    }
+
+    public function complete(Request $request, string $id): Response
+    {
+        $auth = $this->requireRole(['ADMIN', 'DM']);
+        $roomId = $this->parsePositiveInt($id, 'id');
+
+        $room = $this->service->completeRoom($roomId, $auth['user_id'], $auth['role']);
+
+        return Response::json([
+            'success' => true,
+            'message' => 'Hoàn thành trận chơi thành công',
+            'data' => $room,
+            'serverTime' => date('c'),
+        ]);
+    }
+
     /** @return array{user_id: int, role: string} */
     private function requireAuth(): array
     {

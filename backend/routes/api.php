@@ -41,3 +41,5 @@ $router->post('/api/rooms/{id}/join', [GameRoomController::class, 'join']);
 $router->post('/api/rooms/{id}/leave', [GameRoomController::class, 'leave']);
 $router->post('/api/rooms/{id}/assign-dm', [GameRoomController::class, 'assignDm']);
 $router->post('/api/rooms/{id}/deposit', [GameRoomController::class, 'deposit']);
+$router->post('/api/rooms/{id}/cancel', [GameRoomController::class, 'cancel']);
+$router->post('/api/rooms/{id}/complete', [GameRoomController::class, 'complete']);
