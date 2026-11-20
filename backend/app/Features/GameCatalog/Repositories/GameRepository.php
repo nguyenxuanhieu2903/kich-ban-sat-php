@@ -18,7 +18,10 @@ class GameRepository extends BaseRepository
     {
         return $this->executeQuery(function () use ($id): ?array {
             $stmt = $this->pdo->prepare(
-                'SELECT `id`, `title`, `slug`, `description`, `min_players`, `max_players`, `duration_minutes`, `is_active`, `created_at`, `updated_at`
+                'SELECT `id`, `name` AS `title`, `name`, `slug`, `description`, `image_url`,
+                        `min_players`, `max_players`, `duration_minutes`, `status`,
+                        (CASE WHEN `status` = \'ACTIVE\' THEN 1 ELSE 0 END) AS `is_active`,
+                        `display_order`, `created_at`, `updated_at`
                  FROM `games`
                  WHERE `id` = :id
                  LIMIT 1'
@@ -40,7 +43,10 @@ class GameRepository extends BaseRepository
     {
         return $this->executeQuery(function () use ($slug): ?array {
             $stmt = $this->pdo->prepare(
-                'SELECT `id`, `title`, `slug`, `description`, `min_players`, `max_players`, `duration_minutes`, `is_active`, `created_at`, `updated_at`
+                'SELECT `id`, `name` AS `title`, `name`, `slug`, `description`, `image_url`,
+                        `min_players`, `max_players`, `duration_minutes`, `status`,
+                        (CASE WHEN `status` = \'ACTIVE\' THEN 1 ELSE 0 END) AS `is_active`,
+                        `display_order`, `created_at`, `updated_at`
                  FROM `games`
                  WHERE `slug` = :slug
                  LIMIT 1'
@@ -62,10 +68,12 @@ class GameRepository extends BaseRepository
     {
         return $this->executeQuery(function () use ($limit, $offset): array {
             $stmt = $this->pdo->prepare(
-                'SELECT `id`, `title`, `slug`, `description`, `min_players`, `max_players`, `duration_minutes`, `is_active`, `created_at`, `updated_at`
+                'SELECT `id`, `name` AS `title`, `name`, `slug`, `description`, `image_url`,
+                        `min_players`, `max_players`, `duration_minutes`, `status`,
+                        1 AS `is_active`, `display_order`, `created_at`, `updated_at`
                  FROM `games`
-                 WHERE `is_active` = 1
-                 ORDER BY `title` ASC
+                 WHERE `status` = \'ACTIVE\'
+                 ORDER BY `display_order` ASC, `name` ASC
                  LIMIT :limit OFFSET :offset'
             );
             $stmt->bindValue(':limit', max(1, $limit), PDO::PARAM_INT);
@@ -87,11 +95,14 @@ class GameRepository extends BaseRepository
     {
         return $this->executeQuery(function () use ($gameId): array {
             $stmt = $this->pdo->prepare(
-                'SELECT `id`, `game_id`, `price_tier_name`, `day_type`, `time_from`, `time_to`,
-                        `base_price_per_player`, `is_active`, `created_at`, `updated_at`
+                'SELECT `id`, `game_id`, `price_per_person` AS `base_price_per_player`, `price_per_person`,
+                        `start_time` AS `time_from`, `end_time` AS `time_to`, `start_time`, `end_time`,
+                        `effective_from`, `effective_until`, `status`,
+                        (CASE WHEN `status` = \'ACTIVE\' THEN 1 ELSE 0 END) AS `is_active`,
+                        `created_at`, `updated_at`
                  FROM `game_prices`
-                 WHERE `game_id` = :game_id AND `is_active` = 1
-                 ORDER BY `price_tier_name` ASC'
+                 WHERE `game_id` = :game_id AND `status` = \'ACTIVE\'
+                 ORDER BY `start_time` ASC'
             );
             $stmt->bindValue(':game_id', $gameId, PDO::PARAM_INT);
             $stmt->execute();
@@ -106,30 +117,35 @@ class GameRepository extends BaseRepository
      * Create a new game.
      *
      * @param array{
-     *     title: string,
+     *     name?: string,
+     *     title?: string,
      *     slug: string,
      *     description?: string|null,
      *     min_players?: int,
      *     max_players?: int,
      *     duration_minutes?: int,
+     *     status?: string,
      *     is_active?: bool
      * } $data
      */
     public function create(array $data): int
     {
         return $this->executeQuery(function () use ($data): int {
+            $name = $data['name'] ?? $data['title'] ?? 'Kịch bản mới';
+            $status = $data['status'] ?? (($data['is_active'] ?? true) ? 'ACTIVE' : 'INACTIVE');
+
             $stmt = $this->pdo->prepare(
-                'INSERT INTO `games` (`title`, `slug`, `description`, `min_players`, `max_players`, `duration_minutes`, `is_active`, `created_at`, `updated_at`)
-                 VALUES (:title, :slug, :description, :min_players, :max_players, :duration_minutes, :is_active, NOW(), NOW())'
+                'INSERT INTO `games` (`name`, `slug`, `description`, `min_players`, `max_players`, `duration_minutes`, `status`, `created_at`, `updated_at`)
+                 VALUES (:name, :slug, :description, :min_players, :max_players, :duration_minutes, :status, NOW(), NOW())'
             );
 
-            $stmt->bindValue(':title', $data['title'], PDO::PARAM_STR);
+            $stmt->bindValue(':name', $name, PDO::PARAM_STR);
             $stmt->bindValue(':slug', $data['slug'], PDO::PARAM_STR);
             $stmt->bindValue(':description', $data['description'] ?? null, ($data['description'] ?? null) === null ? PDO::PARAM_NULL : PDO::PARAM_STR);
             $stmt->bindValue(':min_players', $data['min_players'] ?? 4, PDO::PARAM_INT);
             $stmt->bindValue(':max_players', $data['max_players'] ?? 8, PDO::PARAM_INT);
             $stmt->bindValue(':duration_minutes', $data['duration_minutes'] ?? 240, PDO::PARAM_INT);
-            $stmt->bindValue(':is_active', ($data['is_active'] ?? true) ? 1 : 0, PDO::PARAM_INT);
+            $stmt->bindValue(':status', $status, PDO::PARAM_STR);
 
             $stmt->execute();
 

@@ -18,12 +18,13 @@ class PromotionRepository extends BaseRepository
     {
         return $this->executeQuery(function () use ($code): ?array {
             $stmt = $this->pdo->prepare(
-                'SELECT `id`, `code`, `name`, `discount_type`, `discount_value`, `min_participants`,
-                        `valid_from`, `valid_to`, `non_stackable`, `is_active`, `created_at`, `updated_at`
+                'SELECT `id`, `code`, `name`, `promotion_type`, `discount_type`, `discount_value`,
+                        `start_at` AS `valid_from`, `end_at` AS `valid_to`, `start_at`, `end_at`,
+                        `rules`, `is_active`, `created_at`, `updated_at`
                  FROM `promotions`
                  WHERE `code` = :code AND `is_active` = 1
-                   AND (`valid_from` IS NULL OR `valid_from` <= NOW())
-                   AND (`valid_to` IS NULL OR `valid_to` >= NOW())
+                   AND (`start_at` <= NOW())
+                   AND (`end_at` >= NOW())
                  LIMIT 1'
             );
             $stmt->bindValue(':code', $code, PDO::PARAM_STR);
@@ -43,8 +44,9 @@ class PromotionRepository extends BaseRepository
     {
         return $this->executeQuery(function () use ($id): ?array {
             $stmt = $this->pdo->prepare(
-                'SELECT `id`, `code`, `name`, `discount_type`, `discount_value`, `min_participants`,
-                        `valid_from`, `valid_to`, `non_stackable`, `is_active`, `created_at`, `updated_at`
+                'SELECT `id`, `code`, `name`, `promotion_type`, `discount_type`, `discount_value`,
+                        `start_at` AS `valid_from`, `end_at` AS `valid_to`, `start_at`, `end_at`,
+                        `rules`, `is_active`, `created_at`, `updated_at`
                  FROM `promotions`
                  WHERE `id` = :id
                  LIMIT 1'

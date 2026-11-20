@@ -31,7 +31,7 @@ class RepositoryIntegrationTest extends TestCase
 
         $host = Config::get('DB_HOST', '127.0.0.1');
         $port = (int) Config::get('DB_PORT', 3306);
-        $db = Config::get('DB_TEST_DATABASE', 'booking_project_php_test');
+        $db = Config::get('DB_DATABASE', 'kich_ban_sat_v3');
         $user = Config::get('DB_USERNAME', 'root');
         $pass = Config::get('DB_PASSWORD', '');
 
@@ -86,11 +86,11 @@ class RepositoryIntegrationTest extends TestCase
         $slug = 'test-repo-game-' . uniqid();
 
         $stmt = self::$pdo->prepare(
-            'INSERT INTO `games` (`title`, `slug`, `description`, `min_players`, `max_players`, `duration_minutes`, `is_active`)
-             VALUES (:title, :slug, :desc, 4, 8, 240, 1)'
+            'INSERT INTO `games` (`name`, `slug`, `description`, `min_players`, `max_players`, `duration_minutes`, `status`)
+             VALUES (:name, :slug, :desc, 4, 8, 240, \'ACTIVE\')'
         );
         $stmt->execute([
-            ':title' => 'Test Repo Game',
+            ':name' => 'Test Repo Game',
             ':slug' => $slug,
             ':desc' => 'Test Description',
         ]);
@@ -114,13 +114,13 @@ class RepositoryIntegrationTest extends TestCase
         $code = 'TEST_PROMO_' . strtoupper(uniqid());
 
         $stmt = self::$pdo->prepare(
-            'INSERT INTO `promotions` (`code`, `name`, `discount_type`, `discount_value`, `is_active`, `valid_from`, `valid_to`)
-             VALUES (:code, :name, :type, :val, 1, NOW() - INTERVAL 1 DAY, NOW() + INTERVAL 7 DAY)'
+            'INSERT INTO `promotions` (`code`, `name`, `promotion_type`, `discount_type`, `discount_value`, `is_active`, `start_at`, `end_at`)
+             VALUES (:code, :name, \'SPECIAL\', :type, :val, 1, NOW() - INTERVAL 1 DAY, NOW() + INTERVAL 7 DAY)'
         );
         $stmt->execute([
             ':code' => $code,
             ':name' => 'Special Test Discount',
-            ':type' => 'FIXED_AMOUNT',
+            ':type' => 'FIXED',
             ':val' => 20000,
         ]);
         $promoId = (int) self::$pdo->lastInsertId();

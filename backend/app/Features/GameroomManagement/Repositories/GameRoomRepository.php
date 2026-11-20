@@ -18,8 +18,13 @@ class GameRoomRepository extends BaseRepository
     {
         return $this->executeQuery(function () use ($id): ?array {
             $stmt = $this->pdo->prepare(
-                'SELECT `id`, `room_code`, `creator_id`, `game_id`, `title`, `min_players`, `max_players`,
-                        `status`, `is_active`, `formation_deadline`, `notes`, `cancel_reason`, `version`,
+                'SELECT `id`, CONCAT(\'ROOM_\', `id`) AS `room_code`, `creator_id`, `game_id`, `game_configuration_id`,
+                        `title`, `description`, `min_players`, `max_players`,
+                        `status`, 1 AS `is_active`,
+                        `formation_deadline_at` AS `formation_deadline`, `formation_deadline_at`,
+                        `description` AS `notes`, `cancel_reason`, `cancelled_at`,
+                        `replacement_opened_by`, `replacement_status`, `replacement_deadline_at`,
+                        `price_final_amount`, `price_deposit_total`, `price_remaining_total`,
                         `created_at`, `updated_at`
                  FROM `game_rooms`
                  WHERE `id` = :id
@@ -34,65 +39,70 @@ class GameRoomRepository extends BaseRepository
     }
 
     /**
-     * Find room by unique room code.
+     * Find room by room code (or room ID).
      *
      * @return array<string, mixed>|null
      */
     public function findByRoomCode(string $roomCode): ?array
     {
-        return $this->executeQuery(function () use ($roomCode): ?array {
-            $stmt = $this->pdo->prepare(
-                'SELECT `id`, `room_code`, `creator_id`, `game_id`, `title`, `min_players`, `max_players`,
-                        `status`, `is_active`, `formation_deadline`, `notes`, `cancel_reason`, `version`,
-                        `created_at`, `updated_at`
-                 FROM `game_rooms`
-                 WHERE `room_code` = :room_code
-                 LIMIT 1'
-            );
-            $stmt->bindValue(':room_code', $roomCode, PDO::PARAM_STR);
-            $stmt->execute();
-
-            $result = $stmt->fetch(PDO::FETCH_ASSOC);
-            return $result !== false ? $result : null;
-        });
+        $id = (int) preg_replace('/[^0-9]/', '', $roomCode);
+        if ($id <= 0) {
+            return null;
+        }
+        return $this->findById($id);
     }
 
     /**
      * Create a new game room.
      *
      * @param array{
-     *     room_code: string,
-     *     creator_id: int,
      *     game_id: int,
+     *     game_configuration_id?: int,
+     *     creator_id: int,
      *     title: string,
+     *     description?: string|null,
      *     min_players?: int,
      *     max_players?: int,
      *     status?: string,
-     *     formation_deadline: string,
+     *     formation_deadline?: string,
+     *     formation_deadline_at?: string,
      *     notes?: string|null
      * } $data
      */
     public function create(array $data): int
     {
         return $this->executeQuery(function () use ($data): int {
+            $gameId = (int) $data['game_id'];
+            $configId = $data['game_configuration_id'] ?? null;
+            if ($configId === null) {
+                $cfgStmt = $this->pdo->prepare('SELECT `id` FROM `game_configurations` WHERE `game_id` = :game_id AND `is_active` = 1 ORDER BY `version` DESC LIMIT 1');
+                $cfgStmt->bindValue(':game_id', $gameId, PDO::PARAM_INT);
+                $cfgStmt->execute();
+                $resolved = $cfgStmt->fetchColumn();
+                $configId = $resolved !== false ? (int) $resolved : 1;
+            }
+
+            $deadline = $data['formation_deadline_at'] ?? $data['formation_deadline'] ?? date('Y-m-d H:i:s', strtotime('+3 days'));
+            $desc = $data['description'] ?? $data['notes'] ?? null;
+
             $stmt = $this->pdo->prepare(
-                'INSERT INTO `game_rooms` (`room_code`, `creator_id`, `game_id`, `title`, `min_players`,
-                                           `max_players`, `status`, `is_active`, `formation_deadline`, `notes`,
-                                           `version`, `created_at`, `updated_at`)
-                 VALUES (:room_code, :creator_id, :game_id, :title, :min_players,
-                         :max_players, :status, 1, :formation_deadline, :notes,
-                         0, NOW(), NOW())'
+                'INSERT INTO `game_rooms` (`game_id`, `game_configuration_id`, `creator_id`, `title`,
+                                           `description`, `min_players`, `max_players`, `status`,
+                                           `formation_deadline_at`, `created_at`, `updated_at`)
+                 VALUES (:game_id, :game_configuration_id, :creator_id, :title,
+                         :description, :min_players, :max_players, :status,
+                         :formation_deadline_at, NOW(), NOW())'
             );
 
-            $stmt->bindValue(':room_code', $data['room_code'], PDO::PARAM_STR);
+            $stmt->bindValue(':game_id', $gameId, PDO::PARAM_INT);
+            $stmt->bindValue(':game_configuration_id', $configId, PDO::PARAM_INT);
             $stmt->bindValue(':creator_id', $data['creator_id'], PDO::PARAM_INT);
-            $stmt->bindValue(':game_id', $data['game_id'], PDO::PARAM_INT);
             $stmt->bindValue(':title', $data['title'], PDO::PARAM_STR);
+            $stmt->bindValue(':description', $desc, $desc === null ? PDO::PARAM_NULL : PDO::PARAM_STR);
             $stmt->bindValue(':min_players', $data['min_players'] ?? 4, PDO::PARAM_INT);
             $stmt->bindValue(':max_players', $data['max_players'] ?? 8, PDO::PARAM_INT);
             $stmt->bindValue(':status', $data['status'] ?? 'FORMING', PDO::PARAM_STR);
-            $stmt->bindValue(':formation_deadline', $data['formation_deadline'], PDO::PARAM_STR);
-            $stmt->bindValue(':notes', $data['notes'] ?? null, ($data['notes'] ?? null) === null ? PDO::PARAM_NULL : PDO::PARAM_STR);
+            $stmt->bindValue(':formation_deadline_at', $deadline, PDO::PARAM_STR);
 
             $stmt->execute();
 
@@ -101,24 +111,23 @@ class GameRoomRepository extends BaseRepository
     }
 
     /**
-     * Update room status with optimistic locking.
+     * Update room status.
      */
-    public function updateStatus(int $id, string $newStatus, int $expectedVersion, ?string $cancelReason = null): bool
+    public function updateStatus(int $id, string $newStatus, int $expectedVersion = 0, ?string $cancelReason = null): bool
     {
-        return $this->executeQuery(function () use ($id, $newStatus, $expectedVersion, $cancelReason): bool {
+        return $this->executeQuery(function () use ($id, $newStatus, $cancelReason): bool {
             $stmt = $this->pdo->prepare(
                 'UPDATE `game_rooms`
                  SET `status` = :status,
                      `cancel_reason` = :cancel_reason,
-                     `version` = `version` + 1,
+                     `cancelled_at` = CASE WHEN :status = \'CANCELLED\' THEN NOW() ELSE `cancelled_at` END,
                      `updated_at` = NOW()
-                 WHERE `id` = :id AND `version` = :expected_version'
+                 WHERE `id` = :id'
             );
 
             $stmt->bindValue(':status', $newStatus, PDO::PARAM_STR);
             $stmt->bindValue(':cancel_reason', $cancelReason, $cancelReason === null ? PDO::PARAM_NULL : PDO::PARAM_STR);
             $stmt->bindValue(':id', $id, PDO::PARAM_INT);
-            $stmt->bindValue(':expected_version', $expectedVersion, PDO::PARAM_INT);
 
             $stmt->execute();
 
@@ -131,16 +140,14 @@ class GameRoomRepository extends BaseRepository
      */
     public function addParticipant(int $gameRoomId, int $userId, string $roleInRoom = 'PLAYER', int $depositAmount = 50000): int
     {
-        return $this->executeQuery(function () use ($gameRoomId, $userId, $roleInRoom, $depositAmount): int {
+        return $this->executeQuery(function () use ($gameRoomId, $userId): int {
             $stmt = $this->pdo->prepare(
-                'INSERT INTO `room_participants` (`game_room_id`, `user_id`, `role_in_room`, `status`, `deposit_amount`, `joined_at`, `version`, `created_at`, `updated_at`)
-                 VALUES (:game_room_id, :user_id, :role_in_room, \'JOINED\', :deposit_amount, NOW(), 0, NOW(), NOW())'
+                'INSERT INTO `room_participants` (`game_room_id`, `user_id`, `status`, `joined_at`, `created_at`, `updated_at`)
+                 VALUES (:game_room_id, :user_id, \'PENDING_DEPOSIT\', NOW(), NOW(), NOW())'
             );
 
             $stmt->bindValue(':game_room_id', $gameRoomId, PDO::PARAM_INT);
             $stmt->bindValue(':user_id', $userId, PDO::PARAM_INT);
-            $stmt->bindValue(':role_in_room', $roleInRoom, PDO::PARAM_STR);
-            $stmt->bindValue(':deposit_amount', $depositAmount, PDO::PARAM_INT);
 
             $stmt->execute();
 
@@ -157,10 +164,9 @@ class GameRoomRepository extends BaseRepository
     {
         return $this->executeQuery(function () use ($gameRoomId): array {
             $stmt = $this->pdo->prepare(
-                'SELECT rp.`id`, rp.`game_room_id`, rp.`user_id`, rp.`role_in_room`, rp.`status`,
-                        rp.`deposit_amount`, rp.`remaining_amount`, rp.`deposit_deadline`,
-                        rp.`joined_at`, rp.`left_at`, rp.`version`,
-                        u.`name` AS `user_name`, u.`email` AS `user_email`
+                'SELECT rp.`id`, rp.`game_room_id`, rp.`user_id`, rp.`status`,
+                        rp.`joined_at`, rp.`deposit_deadline_at`, rp.`deposited_at`, rp.`left_at`,
+                        u.`full_name` AS `user_name`, u.`full_name`, u.`email` AS `user_email`
                  FROM `room_participants` rp
                  INNER JOIN `users` u ON u.`id` = rp.`user_id`
                  WHERE rp.`game_room_id` = :game_room_id

@@ -11,7 +11,7 @@ Config::load($basePath);
 
 $host = Config::get('DB_HOST', '127.0.0.1');
 $port = (int) Config::get('DB_PORT', 3306);
-$database = Config::get('DB_DATABASE', 'booking_project_php');
+$database = Config::get('DB_DATABASE', 'kich_ban_sat_v3');
 $username = Config::get('DB_USERNAME', 'root');
 $password = Config::get('DB_PASSWORD', '');
 $charset = Config::get('DB_CHARSET', 'utf8mb4');
@@ -32,17 +32,17 @@ return [
             'pass' => $password,
             'port' => $port,
             'charset' => $charset,
-            'collation' => 'utf8mb4_unicode_ci',
+            'collation' => 'utf8mb4_0900_ai_ci',
         ],
         'testing' => [
             'adapter' => 'mysql',
             'host' => $host,
-            'name' => Config::get('DB_TEST_DATABASE', 'booking_project_php_test'),
+            'name' => Config::get('DB_TEST_DATABASE', 'kich_ban_sat_v3_test'),
             'user' => $username,
             'pass' => $password,
             'port' => $port,
             'charset' => $charset,
-            'collation' => 'utf8mb4_unicode_ci',
+            'collation' => 'utf8mb4_0900_ai_ci',
         ],
     ],
     'version_order' => 'creation',

@@ -18,9 +18,12 @@ class SchedulingRepository extends BaseRepository
     {
         return $this->executeQuery(function () use ($id): ?array {
             $stmt = $this->pdo->prepare(
-                'SELECT `id`, `game_room_id`, `dm_assignment_id`, `session_code`, `scheduled_date`,
-                        `start_time`, `end_time`, `actual_start_time`, `actual_end_time`,
-                        `status`, `cancellation_reason`, `version`, `created_at`, `updated_at`
+                'SELECT `id`, `game_room_id`, `schedule_proposal_id`, `dm_assignment_id`,
+                        `venue_id`, `physical_room_id`, CONCAT(\'SESS_\', `id`) AS `session_code`,
+                        DATE(`start_at`) AS `scheduled_date`, TIME(`start_at`) AS `start_time`, TIME(`end_at`) AS `end_time`,
+                        `start_at`, `end_at`, `status`, `started_at` AS `actual_start_time`,
+                        `completed_at` AS `actual_end_time`, `cancel_reason` AS `cancellation_reason`,
+                        `created_at`, `updated_at`
                  FROM `sessions`
                  WHERE `id` = :id
                  LIMIT 1'
@@ -34,66 +37,17 @@ class SchedulingRepository extends BaseRepository
     }
 
     /**
-     * Find session by session code.
+     * Find session by session code or ID.
      *
      * @return array<string, mixed>|null
      */
     public function findSessionByCode(string $sessionCode): ?array
     {
-        return $this->executeQuery(function () use ($sessionCode): ?array {
-            $stmt = $this->pdo->prepare(
-                'SELECT `id`, `game_room_id`, `dm_assignment_id`, `session_code`, `scheduled_date`,
-                        `start_time`, `end_time`, `actual_start_time`, `actual_end_time`,
-                        `status`, `cancellation_reason`, `version`, `created_at`, `updated_at`
-                 FROM `sessions`
-                 WHERE `session_code` = :session_code
-                 LIMIT 1'
-            );
-            $stmt->bindValue(':session_code', $sessionCode, PDO::PARAM_STR);
-            $stmt->execute();
-
-            $result = $stmt->fetch(PDO::FETCH_ASSOC);
-            return $result !== false ? $result : null;
-        });
-    }
-
-    /**
-     * Create a scheduled play session.
-     *
-     * @param array{
-     *     game_room_id: int,
-     *     dm_assignment_id?: int|null,
-     *     session_code: string,
-     *     scheduled_date: string,
-     *     start_time: string,
-     *     end_time: string,
-     *     status?: string
-     * } $data
-     */
-    public function createSession(array $data): int
-    {
-        return $this->executeQuery(function () use ($data): int {
-            $stmt = $this->pdo->prepare(
-                'INSERT INTO `sessions` (`game_room_id`, `dm_assignment_id`, `session_code`,
-                                        `scheduled_date`, `start_time`, `end_time`, `status`,
-                                        `version`, `created_at`, `updated_at`)
-                 VALUES (:game_room_id, :dm_assignment_id, :session_code,
-                         :scheduled_date, :start_time, :end_time, :status,
-                         0, NOW(), NOW())'
-            );
-
-            $stmt->bindValue(':game_room_id', $data['game_room_id'], PDO::PARAM_INT);
-            $stmt->bindValue(':dm_assignment_id', $data['dm_assignment_id'] ?? null, ($data['dm_assignment_id'] ?? null) === null ? PDO::PARAM_NULL : PDO::PARAM_INT);
-            $stmt->bindValue(':session_code', $data['session_code'], PDO::PARAM_STR);
-            $stmt->bindValue(':scheduled_date', $data['scheduled_date'], PDO::PARAM_STR);
-            $stmt->bindValue(':start_time', $data['start_time'], PDO::PARAM_STR);
-            $stmt->bindValue(':end_time', $data['end_time'], PDO::PARAM_STR);
-            $stmt->bindValue(':status', $data['status'] ?? 'SCHEDULED', PDO::PARAM_STR);
-
-            $stmt->execute();
-
-            return (int) $this->pdo->lastInsertId();
-        });
+        $id = (int) preg_replace('/[^0-9]/', '', $sessionCode);
+        if ($id <= 0) {
+            return null;
+        }
+        return $this->findSessionById($id);
     }
 
     /**
@@ -105,9 +59,9 @@ class SchedulingRepository extends BaseRepository
     {
         return $this->executeQuery(function () use ($minCapacity): array {
             $stmt = $this->pdo->prepare(
-                'SELECT `id`, `code`, `name`, `capacity`, `status`, `description`
+                'SELECT `id`, CONCAT(\'ROOM_\', `id`) AS `code`, `name`, `capacity`, `status`, `description`
                  FROM `physical_rooms`
-                 WHERE `status` = \'AVAILABLE\' AND `capacity` >= :min_capacity
+                 WHERE `status` = \'ACTIVE\' AND `capacity` >= :min_capacity
                  ORDER BY `capacity` ASC, `name` ASC'
             );
             $stmt->bindValue(':min_capacity', max(1, $minCapacity), PDO::PARAM_INT);
@@ -120,64 +74,26 @@ class SchedulingRepository extends BaseRepository
     }
 
     /**
-     * Create reservation for physical room.
-     */
-    public function reservePhysicalRoom(
-        int $physicalRoomId,
-        int $sessionId,
-        string $reservationDate,
-        string $startTime,
-        string $endTime
-    ): int {
-        return $this->executeQuery(function () use (
-            $physicalRoomId,
-            $sessionId,
-            $reservationDate,
-            $startTime,
-            $endTime
-        ): int {
-            $stmt = $this->pdo->prepare(
-                'UPDATE `sessions`
-                 SET `physical_room_id` = :physical_room_id,
-                     `scheduled_date` = :reservation_date,
-                     `start_time` = :start_time,
-                     `end_time` = :end_time,
-                     `updated_at` = NOW()
-                 WHERE `id` = :session_id'
-            );
-
-            $stmt->bindValue(':physical_room_id', $physicalRoomId, PDO::PARAM_INT);
-            $stmt->bindValue(':session_id', $sessionId, PDO::PARAM_INT);
-            $stmt->bindValue(':reservation_date', $reservationDate, PDO::PARAM_STR);
-            $stmt->bindValue(':start_time', $startTime, PDO::PARAM_STR);
-            $stmt->bindValue(':end_time', $endTime, PDO::PARAM_STR);
-
-            $stmt->execute();
-
-            return $sessionId;
-        });
-    }
-
-    /**
      * Check if a physical room has conflicting reservations.
      */
     public function hasPhysicalRoomConflict(int $physicalRoomId, string $date, string $startTime, string $endTime): bool
     {
         return $this->executeQuery(function () use ($physicalRoomId, $date, $startTime, $endTime): bool {
+            $startAt = $date . ' ' . $startTime;
+            $endAt = $date . ' ' . $endTime;
+
             $stmt = $this->pdo->prepare(
                 'SELECT COUNT(*) AS conflict_count
                  FROM `sessions`
                  WHERE `physical_room_id` = :physical_room_id
-                   AND `scheduled_date` = :reservation_date
                    AND `status` IN (\'SCHEDULED\', \'IN_PROGRESS\')
-                   AND `start_time` < :end_time
-                   AND `end_time` > :start_time'
+                   AND `start_at` < :end_at
+                   AND `end_at` > :start_at'
             );
 
             $stmt->bindValue(':physical_room_id', $physicalRoomId, PDO::PARAM_INT);
-            $stmt->bindValue(':reservation_date', $date, PDO::PARAM_STR);
-            $stmt->bindValue(':start_time', $startTime, PDO::PARAM_STR);
-            $stmt->bindValue(':end_time', $endTime, PDO::PARAM_STR);
+            $stmt->bindValue(':start_at', $startAt, PDO::PARAM_STR);
+            $stmt->bindValue(':end_at', $endAt, PDO::PARAM_STR);
             $stmt->execute();
 
             $result = $stmt->fetch(PDO::FETCH_ASSOC);

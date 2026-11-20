@@ -10,7 +10,7 @@ use PDO;
 class DMRepository extends BaseRepository
 {
     /**
-     * Find DM profile by DM profile ID.
+     * Find DM profile by DM user ID.
      *
      * @return array<string, mixed>|null
      */
@@ -18,9 +18,8 @@ class DMRepository extends BaseRepository
     {
         return $this->executeQuery(function () use ($id): ?array {
             $stmt = $this->pdo->prepare(
-                'SELECT u.`id`, u.`id` AS `user_id`, u.`name`, u.`email`,
-                        u.`dm_experience_years` AS `experience_years`, u.`bio`,
-                        u.`dm_rating_avg` AS `rating_avg`, u.`status`,
+                'SELECT u.`id`, u.`id` AS `user_id`, u.`full_name` AS `name`, u.`full_name`, u.`email`,
+                        u.`phone`, u.`avatar_url`, u.`status`,
                         u.`created_at`, u.`updated_at`
                  FROM `users` u
                  WHERE u.`id` = :id
@@ -41,22 +40,7 @@ class DMRepository extends BaseRepository
      */
     public function findByUserId(int $userId): ?array
     {
-        return $this->executeQuery(function () use ($userId): ?array {
-            $stmt = $this->pdo->prepare(
-                'SELECT u.`id`, u.`id` AS `user_id`, u.`name`, u.`email`,
-                        u.`dm_experience_years` AS `experience_years`, u.`bio`,
-                        u.`dm_rating_avg` AS `rating_avg`, u.`status`,
-                        u.`created_at`, u.`updated_at`
-                 FROM `users` u
-                 WHERE u.`id` = :user_id
-                 LIMIT 1'
-            );
-            $stmt->bindValue(':user_id', $userId, PDO::PARAM_INT);
-            $stmt->execute();
-
-            $result = $stmt->fetch(PDO::FETCH_ASSOC);
-            return $result !== false ? $result : null;
-        });
+        return $this->findById($userId);
     }
 
     /**
@@ -72,16 +56,17 @@ class DMRepository extends BaseRepository
     /**
      * Assign a DM to a game room.
      */
-    public function assignToRoom(int $gameRoomId, int $dmProfileId, ?string $notes = null): int
+    public function assignToRoom(int $gameRoomId, int $dmUserId, ?string $reason = null, int $assignedBy = 1): int
     {
-        return $this->executeQuery(function () use ($gameRoomId, $dmProfileId, $notes): int {
+        return $this->executeQuery(function () use ($gameRoomId, $dmUserId, $reason, $assignedBy): int {
             $stmt = $this->pdo->prepare(
-                'INSERT INTO `dm_assignments` (`game_room_id`, `dm_user_id`, `status`, `notes`, `assigned_at`, `created_at`, `updated_at`)
-                 VALUES (:game_room_id, :dm_user_id, \'ASSIGNED\', :notes, NOW(), NOW(), NOW())'
+                'INSERT INTO `dm_assignments` (`game_room_id`, `dm_user_id`, `assigned_by`, `status`, `reason`, `assigned_at`, `created_at`, `updated_at`)
+                 VALUES (:game_room_id, :dm_user_id, :assigned_by, \'PENDING\', :reason, NOW(), NOW(), NOW())'
             );
             $stmt->bindValue(':game_room_id', $gameRoomId, PDO::PARAM_INT);
-            $stmt->bindValue(':dm_user_id', $dmProfileId, PDO::PARAM_INT);
-            $stmt->bindValue(':notes', $notes, $notes === null ? PDO::PARAM_NULL : PDO::PARAM_STR);
+            $stmt->bindValue(':dm_user_id', $dmUserId, PDO::PARAM_INT);
+            $stmt->bindValue(':assigned_by', $assignedBy, PDO::PARAM_INT);
+            $stmt->bindValue(':reason', $reason, $reason === null ? PDO::PARAM_NULL : PDO::PARAM_STR);
             $stmt->execute();
 
             return (int) $this->pdo->lastInsertId();
@@ -98,18 +83,11 @@ class DMRepository extends BaseRepository
         return $this->executeQuery(function () use ($gameRoomId): ?array {
             $stmt = $this->pdo->prepare(
                 'SELECT `id`, `game_room_id`, `dm_user_id`, `dm_user_id` AS `dm_profile_id`,
-                        `status`, `assigned_at`, `responded_at`, `notes`, `created_at`, `updated_at`
+                        `status`, `assigned_at`, `responded_at`, `reason` AS `notes`, `created_at`, `updated_at`
                  FROM `dm_assignments`
-                 WHERE `game_room_id` = :game_room_id AND `status` IN (\'ASSIGNED\', \'ACCEPTED\')
+                 WHERE `game_room_id` = :game_room_id AND `status` IN (\'PENDING\', \'ACCEPTED\')
                  LIMIT 1'
             );
-            $stmt->bindValue(':game_room_id', $gameRoomId, PDO::PARAM_INT);
-            $stmt->execute();
-
-            $result = $stmt->fetch(PDO::FETCH_ASSOC);
-            return $result !== false ? $result : null;
-        });
-    }
             $stmt->bindValue(':game_room_id', $gameRoomId, PDO::PARAM_INT);
             $stmt->execute();
 

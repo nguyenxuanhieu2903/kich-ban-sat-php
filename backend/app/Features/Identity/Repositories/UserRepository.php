@@ -18,9 +18,9 @@ class UserRepository extends BaseRepository
     {
         return $this->executeQuery(function () use ($id): ?array {
             $stmt = $this->pdo->prepare(
-                'SELECT u.`id`, u.`role_id`, r.`name` AS `role_name`, u.`name`, u.`email`, u.`password_hash`,
-                        u.`phone`, u.`avatar_url`, u.`bio`, u.`student_card_verified`,
-                        u.`dm_experience_years`, u.`dm_rating_avg`, u.`status`, u.`email_verified_at`,
+                'SELECT u.`id`, u.`role_id`, r.`code` AS `role_code`, r.`name` AS `role_name`,
+                        u.`full_name` AS `name`, u.`full_name`, u.`email`, u.`password_hash`,
+                        u.`phone`, u.`avatar_url`, u.`status`, u.`email_verified_at`, u.`last_login_at`,
                         u.`created_at`, u.`updated_at`
                  FROM `users` u
                  LEFT JOIN `roles` r ON r.`id` = u.`role_id`
@@ -44,9 +44,9 @@ class UserRepository extends BaseRepository
     {
         return $this->executeQuery(function () use ($email): ?array {
             $stmt = $this->pdo->prepare(
-                'SELECT u.`id`, u.`role_id`, r.`name` AS `role_name`, u.`name`, u.`email`, u.`password_hash`,
-                        u.`phone`, u.`avatar_url`, u.`bio`, u.`student_card_verified`,
-                        u.`dm_experience_years`, u.`dm_rating_avg`, u.`status`, u.`email_verified_at`,
+                'SELECT u.`id`, u.`role_id`, r.`code` AS `role_code`, r.`name` AS `role_name`,
+                        u.`full_name` AS `name`, u.`full_name`, u.`email`, u.`password_hash`,
+                        u.`phone`, u.`avatar_url`, u.`status`, u.`email_verified_at`, u.`last_login_at`,
                         u.`created_at`, u.`updated_at`
                  FROM `users` u
                  LEFT JOIN `roles` r ON r.`id` = u.`role_id`
@@ -66,7 +66,8 @@ class UserRepository extends BaseRepository
      *
      * @param array{
      *     role_id?: int,
-     *     name: string,
+     *     name?: string,
+     *     full_name?: string,
      *     email: string,
      *     password_hash: string,
      *     phone?: string|null,
@@ -79,23 +80,25 @@ class UserRepository extends BaseRepository
         return $this->executeQuery(function () use ($data): int {
             $roleId = $data['role_id'] ?? null;
             if ($roleId === null) {
-                $roleStmt = $this->pdo->query("SELECT `id` FROM `roles` WHERE `name` = 'PLAYER' LIMIT 1");
+                $roleStmt = $this->pdo->query("SELECT `id` FROM `roles` WHERE `code` = 'PLAYER' OR `name` = 'PLAYER' LIMIT 1");
                 $resolved = $roleStmt !== false ? $roleStmt->fetchColumn() : false;
                 if ($resolved !== false && $resolved !== null) {
                     $roleId = (int) $resolved;
                 } else {
-                    $this->pdo->exec("INSERT INTO `roles` (`name`, `label`, `description`) VALUES ('PLAYER', 'Player', 'Standard Player Role')");
+                    $this->pdo->exec("INSERT INTO `roles` (`code`, `name`, `description`) VALUES ('PLAYER', 'Player', 'Nguoi choi')");
                     $roleId = (int) $this->pdo->lastInsertId();
                 }
             }
 
+            $fullName = $data['full_name'] ?? $data['name'] ?? 'User';
+
             $stmt = $this->pdo->prepare(
-                'INSERT INTO `users` (`role_id`, `name`, `email`, `password_hash`, `phone`, `status`, `created_at`, `updated_at`)
-                 VALUES (:role_id, :name, :email, :password_hash, :phone, :status, NOW(), NOW())'
+                'INSERT INTO `users` (`role_id`, `full_name`, `email`, `password_hash`, `phone`, `status`, `created_at`, `updated_at`)
+                 VALUES (:role_id, :full_name, :email, :password_hash, :phone, :status, NOW(), NOW())'
             );
 
             $stmt->bindValue(':role_id', $roleId, PDO::PARAM_INT);
-            $stmt->bindValue(':name', $data['name'], PDO::PARAM_STR);
+            $stmt->bindValue(':full_name', $fullName, PDO::PARAM_STR);
             $stmt->bindValue(':email', $data['email'], PDO::PARAM_STR);
             $stmt->bindValue(':password_hash', $data['password_hash'], PDO::PARAM_STR);
             $stmt->bindValue(':phone', $data['phone'] ?? null, ($data['phone'] ?? null) === null ? PDO::PARAM_NULL : PDO::PARAM_STR);
@@ -115,7 +118,12 @@ class UserRepository extends BaseRepository
     public function update(int $id, array $data): bool
     {
         return $this->executeQuery(function () use ($id, $data): bool {
-            $allowedColumns = ['name', 'email', 'password_hash', 'phone', 'status', 'email_verified_at'];
+            $allowedColumns = ['full_name', 'email', 'password_hash', 'phone', 'status', 'email_verified_at', 'avatar_url'];
+            if (isset($data['name']) && !isset($data['full_name'])) {
+                $data['full_name'] = $data['name'];
+                unset($data['name']);
+            }
+
             $setParts = [];
             $bindings = [':id' => [$id, PDO::PARAM_INT]];
 
@@ -159,7 +167,7 @@ class UserRepository extends BaseRepository
     {
         return $this->executeQuery(function () use ($userId): array {
             $stmt = $this->pdo->prepare(
-                'SELECT r.`id`, r.`name`, r.`label`, r.`description`, u.`created_at` AS `assigned_at`
+                'SELECT r.`id`, r.`code`, r.`name`, r.`description`, u.`created_at` AS `assigned_at`
                  FROM `roles` r
                  INNER JOIN `users` u ON u.`role_id` = r.`id`
                  WHERE u.`id` = :user_id
@@ -202,7 +210,7 @@ class UserRepository extends BaseRepository
             // Revert back to PLAYER role if target role matches
             $stmt = $this->pdo->prepare(
                 "UPDATE `users`
-                 SET `role_id` = (SELECT `id` FROM `roles` WHERE `name` = 'PLAYER' LIMIT 1), `updated_at` = NOW()
+                 SET `role_id` = (SELECT `id` FROM `roles` WHERE `code` = 'PLAYER' OR `name` = 'PLAYER' LIMIT 1), `updated_at` = NOW()
                  WHERE `id` = :user_id AND `role_id` = :role_id"
             );
             $stmt->bindValue(':user_id', $userId, PDO::PARAM_INT);

@@ -18,9 +18,12 @@ class BookingRepository extends BaseRepository
     {
         return $this->executeQuery(function () use ($sessionId): ?array {
             $stmt = $this->pdo->prepare(
-                'SELECT `id`, `game_room_id`, `dm_assignment_id`, `session_code`, `scheduled_date`,
-                        `start_time`, `end_time`, `actual_start_time`, `actual_end_time`,
-                        `status`, `cancellation_reason`, `version`, `created_at`, `updated_at`
+                'SELECT `id`, `game_room_id`, `schedule_proposal_id`, `dm_assignment_id`,
+                        `venue_id`, `physical_room_id`, CONCAT(\'SESS_\', `id`) AS `session_code`,
+                        DATE(`start_at`) AS `scheduled_date`, TIME(`start_at`) AS `start_time`, TIME(`end_at`) AS `end_time`,
+                        `start_at`, `end_at`, `status`, `started_at` AS `actual_start_time`,
+                        `completed_at` AS `actual_end_time`, `cancel_reason` AS `cancellation_reason`,
+                        `created_at`, `updated_at`
                  FROM `sessions`
                  WHERE `id` = :id
                  LIMIT 1'
@@ -42,8 +45,11 @@ class BookingRepository extends BaseRepository
     {
         return $this->executeQuery(function () use ($gameRoomId): ?array {
             $stmt = $this->pdo->prepare(
-                'SELECT `id`, `game_room_id`, `dm_assignment_id`, `session_code`, `scheduled_date`,
-                        `start_time`, `end_time`, `status`, `cancellation_reason`, `version`, `created_at`, `updated_at`
+                'SELECT `id`, `game_room_id`, `schedule_proposal_id`, `dm_assignment_id`,
+                        `venue_id`, `physical_room_id`, CONCAT(\'SESS_\', `id`) AS `session_code`,
+                        DATE(`start_at`) AS `scheduled_date`, TIME(`start_at`) AS `start_time`, TIME(`end_at`) AS `end_time`,
+                        `start_at`, `end_at`, `status`, `cancel_reason` AS `cancellation_reason`,
+                        `created_at`, `updated_at`
                  FROM `sessions`
                  WHERE `game_room_id` = :game_room_id
                    AND `status` IN (\'SCHEDULED\', \'IN_PROGRESS\')
@@ -69,12 +75,14 @@ class BookingRepository extends BaseRepository
         ?int $excludeReservationId = null
     ): bool {
         return $this->executeQuery(function () use ($physicalRoomId, $reservationDate, $startTime, $endTime, $excludeReservationId): bool {
+            $startAt = $reservationDate . ' ' . $startTime;
+            $endAt = $reservationDate . ' ' . $endTime;
+
             $sql = 'SELECT COUNT(1)
                     FROM `sessions`
                     WHERE `physical_room_id` = :physical_room_id
-                      AND `scheduled_date` = :reservation_date
                       AND `status` IN (\'SCHEDULED\', \'IN_PROGRESS\')
-                      AND (`start_time` < :end_time AND `end_time` > :start_time)';
+                      AND (`start_at` < :end_at AND `end_at` > :start_at)';
 
             if ($excludeReservationId !== null) {
                 $sql .= ' AND `id` != :exclude_id';
@@ -82,9 +90,8 @@ class BookingRepository extends BaseRepository
 
             $stmt = $this->pdo->prepare($sql);
             $stmt->bindValue(':physical_room_id', $physicalRoomId, PDO::PARAM_INT);
-            $stmt->bindValue(':reservation_date', $reservationDate, PDO::PARAM_STR);
-            $stmt->bindValue(':start_time', $startTime, PDO::PARAM_STR);
-            $stmt->bindValue(':end_time', $endTime, PDO::PARAM_STR);
+            $stmt->bindValue(':start_at', $startAt, PDO::PARAM_STR);
+            $stmt->bindValue(':end_at', $endAt, PDO::PARAM_STR);
 
             if ($excludeReservationId !== null) {
                 $stmt->bindValue(':exclude_id', $excludeReservationId, PDO::PARAM_INT);
