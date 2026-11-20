@@ -131,9 +131,9 @@ class GameRoomService
         }
 
         $game = $this->gameRepo->findById($gameId);
-if ($game !== null && isset($game['is_active']) && (int) $game['is_active'] !== 1) {
-    $game = null;
-}
+        if ($game !== null && isset($game['is_active']) && (int) $game['is_active'] !== 1) {
+            $game = null;
+        }
         if ($game === null) {
             throw new NotFoundException('Kịch bản không tồn tại hoặc đã ngừng kinh doanh');
         }
@@ -209,9 +209,10 @@ if ($game !== null && isset($game['is_active']) && (int) $game['is_active'] !== 
     /** @return array<string, mixed> */
     public function joinRoom(int $roomId, int $userId): array
     {
+        $lockSql = $this->getRowLockSql();
         $this->pdo->beginTransaction();
         try {
-            $stmt = $this->pdo->prepare('SELECT * FROM game_rooms WHERE id = :id FOR UPDATE');
+            $stmt = $this->pdo->prepare("SELECT * FROM game_rooms WHERE id = :id{$lockSql}");
             $stmt->execute([':id' => $roomId]);
             $room = $stmt->fetch();
 
@@ -227,7 +228,7 @@ if ($game !== null && isset($game['is_active']) && (int) $game['is_active'] !== 
             $checkStmt = $this->pdo->prepare(
                 "SELECT id, status FROM room_participants
                  WHERE room_id = :room_id AND user_id = :user_id
-                 LIMIT 1 FOR UPDATE"
+                 LIMIT 1{$lockSql}"
             );
             $checkStmt->execute([':room_id' => $roomId, ':user_id' => $userId]);
             $existing = $checkStmt->fetch();
@@ -288,9 +289,10 @@ if ($game !== null && isset($game['is_active']) && (int) $game['is_active'] !== 
     /** @return array<string, mixed> */
     public function leaveRoom(int $roomId, int $userId): array
     {
+        $lockSql = $this->getRowLockSql();
         $this->pdo->beginTransaction();
         try {
-            $stmt = $this->pdo->prepare('SELECT * FROM game_rooms WHERE id = :id FOR UPDATE');
+            $stmt = $this->pdo->prepare("SELECT * FROM game_rooms WHERE id = :id{$lockSql}");
             $stmt->execute([':id' => $roomId]);
             $room = $stmt->fetch();
 
@@ -306,7 +308,7 @@ if ($game !== null && isset($game['is_active']) && (int) $game['is_active'] !== 
             $partStmt = $this->pdo->prepare(
                 "SELECT id, status FROM room_participants
                  WHERE room_id = :room_id AND user_id = :user_id
-                 LIMIT 1 FOR UPDATE"
+                 LIMIT 1{$lockSql}"
             );
             $partStmt->execute([':room_id' => $roomId, ':user_id' => $userId]);
             $participant = $partStmt->fetch();
@@ -349,9 +351,10 @@ if ($game !== null && isset($game['is_active']) && (int) $game['is_active'] !== 
     /** @return array<string, mixed> */
     public function assignDmAndPhysicalRoom(int $roomId, int $dmUserId, int $physicalRoomId): array
     {
+        $lockSql = $this->getRowLockSql();
         $this->pdo->beginTransaction();
         try {
-            $stmt = $this->pdo->prepare('SELECT * FROM game_rooms WHERE id = :id FOR UPDATE');
+            $stmt = $this->pdo->prepare("SELECT * FROM game_rooms WHERE id = :id{$lockSql}");
             $stmt->execute([':id' => $roomId]);
             $room = $stmt->fetch();
 
@@ -393,7 +396,7 @@ if ($game !== null && isset($game['is_active']) && (int) $game['is_active'] !== 
                    AND (physical_room_id = :pr_id OR dm_user_id = :dm_id)
                    AND start_at < :end_at
                    AND end_at > :start_at
-                 LIMIT 1 FOR UPDATE"
+                 LIMIT 1{$lockSql}"
             );
             $conflictStmt->execute([
                 ':room_id' => $roomId,
@@ -457,10 +460,11 @@ if ($game !== null && isset($game['is_active']) && (int) $game['is_active'] !== 
     {
         $now = new DateTimeImmutable();
         $nowStr = $now->format('Y-m-d H:i:s');
+        $lockSql = $this->getRowLockSql();
 
         $this->pdo->beginTransaction();
         try {
-            $stmt = $this->pdo->prepare('SELECT * FROM game_rooms WHERE id = :id FOR UPDATE');
+            $stmt = $this->pdo->prepare("SELECT * FROM game_rooms WHERE id = :id{$lockSql}");
             $stmt->execute([':id' => $roomId]);
             $room = $stmt->fetch();
 
@@ -476,7 +480,7 @@ if ($game !== null && isset($game['is_active']) && (int) $game['is_active'] !== 
             $partStmt = $this->pdo->prepare(
                 "SELECT id, status, deposit_deadline_at FROM room_participants
                  WHERE room_id = :room_id AND user_id = :user_id
-                 LIMIT 1 FOR UPDATE"
+                 LIMIT 1{$lockSql}"
             );
             $partStmt->execute([':room_id' => $roomId, ':user_id' => $userId]);
             $participant = $partStmt->fetch();
@@ -541,9 +545,10 @@ if ($game !== null && isset($game['is_active']) && (int) $game['is_active'] !== 
             ? mb_substr($reason, 0, 500)
             : ((strtoupper($actorRole) === 'ADMIN') ? 'Hủy bởi quản trị viên' : 'Chủ phòng hủy phòng');
 
+        $lockSql = $this->getRowLockSql();
         $this->pdo->beginTransaction();
         try {
-            $stmt = $this->pdo->prepare('SELECT * FROM game_rooms WHERE id = :id FOR UPDATE');
+            $stmt = $this->pdo->prepare("SELECT * FROM game_rooms WHERE id = :id{$lockSql}");
             $stmt->execute([':id' => $roomId]);
             $room = $stmt->fetch();
 
@@ -602,9 +607,10 @@ if ($game !== null && isset($game['is_active']) && (int) $game['is_active'] !== 
     /** @return array<string, mixed> */
     public function completeRoom(int $roomId, int $actorUserId, string $actorRole): array
     {
+        $lockSql = $this->getRowLockSql();
         $this->pdo->beginTransaction();
         try {
-            $stmt = $this->pdo->prepare('SELECT * FROM game_rooms WHERE id = :id FOR UPDATE');
+            $stmt = $this->pdo->prepare("SELECT * FROM game_rooms WHERE id = :id{$lockSql}");
             $stmt->execute([':id' => $roomId]);
             $room = $stmt->fetch();
 
@@ -644,6 +650,11 @@ if ($game !== null && isset($game['is_active']) && (int) $game['is_active'] !== 
         }
 
         return $this->getRoomDetail($roomId);
+    }
+
+    private function getRowLockSql(): string
+    {
+        return $this->pdo->getAttribute(PDO::ATTR_DRIVER_NAME) === 'mysql' ? ' FOR UPDATE' : '';
     }
 
     private function countActivePlayers(int $roomId): int
