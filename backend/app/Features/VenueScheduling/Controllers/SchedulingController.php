@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Features\VenueScheduling\Controllers;
 
+use App\Core\Middleware\AuthMiddleware;
 use App\Core\Request;
 use App\Core\Response;
 use App\Infrastructure\Database\DatabaseConnection;
@@ -23,7 +24,7 @@ class SchedulingController
     }
 
     /**
-     * GET /api/venues
+     * GET /api/v1/venues
      * Lấy danh sách chi nhánh và phòng chơi vật lý
      */
     public function venues(Request $request): Response
@@ -38,26 +39,20 @@ class SchedulingController
             $v['rooms'] = $rStmt->fetchAll(PDO::FETCH_ASSOC);
         }
 
-        return Response::json([
-            'success' => true,
-            'data' => [
-                'venues' => $venues,
-            ],
-        ]);
+        return Response::success([
+            'venues' => $venues,
+        ], 'Danh sách chi nhánh và phòng chơi vật lý');
     }
 
     /**
-     * POST /api/rooms/{id}/proposals
+     * POST /api/v1/rooms/{id}/proposals
      * Tạo đề xuất mốc thời gian chơi
      */
     public function propose(Request $request, string $id): Response
     {
         $userId = $this->resolveCurrentUserId($request);
         if ($userId === null) {
-            return Response::json([
-                'success' => false,
-                'message' => 'Bạn cần đăng nhập để đề xuất lịch chơi',
-            ], 401);
+            return Response::fail('Bạn cần đăng nhập để đề xuất lịch chơi', 'UNAUTHORIZED', 401);
         }
 
         $roomId = (int) $id;
@@ -67,17 +62,11 @@ class SchedulingController
         $endAt = trim((string) ($body['proposed_end_at'] ?? ''));
 
         if ($startAt === '' || $endAt === '') {
-            return Response::json([
-                'success' => false,
-                'message' => 'Vui lòng chọn thời gian bắt đầu và kết thúc',
-            ], 422);
+            return Response::fail('Vui lòng chọn thời gian bắt đầu và kết thúc', 'VALIDATION_ERROR', 422);
         }
 
         if (strtotime($startAt) >= strtotime($endAt)) {
-            return Response::json([
-                'success' => false,
-                'message' => 'Thời gian bắt đầu phải trước thời gian kết thúc',
-            ], 422);
+            return Response::fail('Thời gian bắt đầu phải trước thời gian kết thúc', 'VALIDATION_ERROR', 422);
         }
 
         // Kiểm tra xem user có phải là thành viên active trong phòng không
@@ -93,10 +82,7 @@ class SchedulingController
         $participantId = $partStmt->fetchColumn();
 
         if ($participantId === false) {
-            return Response::json([
-                'success' => false,
-                'message' => 'Chỉ thành viên trong phòng mới có thể đề xuất lịch',
-            ], 403);
+            return Response::fail('Chỉ thành viên trong phòng mới có thể đề xuất lịch', 'FORBIDDEN', 403);
         }
 
         // Kiểm tra xem phòng có đề xuất nào đang mở không (PROPOSED)
@@ -137,22 +123,18 @@ class SchedulingController
         $insVote->bindValue(':part_id', (int) $participantId, PDO::PARAM_INT);
         $insVote->execute();
 
-        return Response::json([
-            'success' => true,
-            'message' => 'Đã tạo đề xuất lịch chơi và mở biểu quyết cho thành viên phòng',
-            'data' => [
-                'proposal_id' => $proposalId,
-                'game_room_id' => $roomId,
-                'proposed_start_at' => $startAt,
-                'proposed_end_at' => $endAt,
-                'status' => 'PROPOSED',
-                'expires_at' => $expiresAt,
-            ],
-        ], 201);
+        return Response::success([
+            'proposal_id' => $proposalId,
+            'game_room_id' => $roomId,
+            'proposed_start_at' => $startAt,
+            'proposed_end_at' => $endAt,
+            'status' => 'PROPOSED',
+            'expires_at' => $expiresAt,
+        ], 'Đã tạo đề xuất lịch chơi và mở biểu quyết cho thành viên phòng', null, 201);
     }
 
     /**
-     * GET /api/proposals/{id}
+     * GET /api/v1/proposals/{id}
      * Xem chi tiết đề xuất lịch và các phiếu bầu
      */
     public function showProposal(Request $request, string $id): Response
@@ -172,10 +154,7 @@ class SchedulingController
         $proposal = $stmt->fetch(PDO::FETCH_ASSOC);
 
         if ($proposal === false) {
-            return Response::json([
-                'success' => false,
-                'message' => 'Không tìm thấy đề xuất lịch chơi',
-            ], 404);
+            return Response::fail('Không tìm thấy đề xuất lịch chơi', 'PROPOSAL_NOT_FOUND', 404);
         }
 
         // Lấy danh sách phiếu bầu
@@ -191,26 +170,20 @@ class SchedulingController
         $vStmt->execute();
         $proposal['votes'] = $vStmt->fetchAll(PDO::FETCH_ASSOC);
 
-        return Response::json([
-            'success' => true,
-            'data' => [
-                'proposal' => $proposal,
-            ],
-        ]);
+        return Response::success([
+            'proposal' => $proposal,
+        ], 'Chi tiết đề xuất lịch chơi');
     }
 
     /**
-     * POST /api/proposals/{id}/vote
+     * POST /api/v1/proposals/{id}/vote
      * Thành viên biểu quyết đề xuất lịch
      */
     public function vote(Request $request, string $id): Response
     {
         $userId = $this->resolveCurrentUserId($request);
         if ($userId === null) {
-            return Response::json([
-                'success' => false,
-                'message' => 'Bạn cần đăng nhập để biểu quyết',
-            ], 401);
+            return Response::fail('Bạn cần đăng nhập để biểu quyết', 'UNAUTHORIZED', 401);
         }
 
         $proposalId = (int) $id;
@@ -218,10 +191,7 @@ class SchedulingController
         $responseVote = strtoupper(trim((string) ($body['response'] ?? 'ACCEPTED')));
 
         if (!in_array($responseVote, ['ACCEPTED', 'REJECTED'], true)) {
-            return Response::json([
-                'success' => false,
-                'message' => 'Lựa chọn biểu quyết không hợp lệ (phải là ACCEPTED hoặc REJECTED)',
-            ], 422);
+            return Response::fail('Lựa chọn biểu quyết không hợp lệ (phải là ACCEPTED hoặc REJECTED)', 'VALIDATION_ERROR', 422);
         }
 
         // Lấy thông tin proposal
@@ -231,17 +201,11 @@ class SchedulingController
         $proposal = $pStmt->fetch(PDO::FETCH_ASSOC);
 
         if ($proposal === false) {
-            return Response::json([
-                'success' => false,
-                'message' => 'Đề xuất lịch chơi không tồn tại',
-            ], 404);
+            return Response::fail('Đề xuất lịch chơi không tồn tại', 'PROPOSAL_NOT_FOUND', 404);
         }
 
         if ($proposal['status'] !== 'PROPOSED') {
-            return Response::json([
-                'success' => false,
-                'message' => 'Đề xuất lịch này đã kết thúc hoặc bị hủy (Trạng thái: ' . $proposal['status'] . ')',
-            ], 400);
+            return Response::fail('Đề xuất lịch này đã kết thúc hoặc bị hủy (Trạng thái: ' . $proposal['status'] . ')', 'PROPOSAL_CLOSED', 400);
         }
 
         $roomId = (int) $proposal['game_room_id'];
@@ -259,10 +223,7 @@ class SchedulingController
         $participantId = $partStmt->fetchColumn();
 
         if ($participantId === false) {
-            return Response::json([
-                'success' => false,
-                'message' => 'Bạn không phải là thành viên hợp lệ trong phòng để biểu quyết',
-            ], 403);
+            return Response::fail('Bạn không phải là thành viên hợp lệ trong phòng để biểu quyết', 'FORBIDDEN', 403);
         }
 
         $participantId = (int) $participantId;
@@ -286,13 +247,9 @@ class SchedulingController
             $rejStmt->bindValue(':id', $proposalId, PDO::PARAM_INT);
             $rejStmt->execute();
 
-            return Response::json([
-                'success' => true,
-                'message' => 'Bạn đã từ chối mốc thời gian này. Đề xuất lịch đã được đánh dấu REJECTED để thành viên đề xuất mốc khác.',
-                'data' => [
-                    'proposal_status' => 'REJECTED',
-                ],
-            ]);
+            return Response::success([
+                'proposal_status' => 'REJECTED',
+            ], 'Bạn đã từ chối mốc thời gian này. Đề xuất lịch đã được đánh dấu REJECTED để thành viên đề xuất mốc khác.');
         }
 
         // Kiểm tra xem tất cả thành viên trong phòng đã vote ACCEPTED chưa
@@ -362,17 +319,13 @@ class SchedulingController
             }
         }
 
-        return Response::json([
-            'success' => true,
-            'message' => 'Đã ghi nhận biểu quyết của bạn',
-            'data' => [
-                'proposal_id' => $proposalId,
-                'accepted_votes' => $acceptedCount,
-                'total_required' => count($activeParticipantIds),
-                'proposal_confirmed' => $sessionCreated,
-                'session_id' => $sessionId,
-            ],
-        ]);
+        return Response::success([
+            'proposal_id' => $proposalId,
+            'accepted_votes' => $acceptedCount,
+            'total_required' => count($activeParticipantIds),
+            'proposal_confirmed' => $sessionCreated,
+            'session_id' => $sessionId,
+        ], 'Đã ghi nhận biểu quyết của bạn');
     }
 
     /**
@@ -380,15 +333,11 @@ class SchedulingController
      */
     protected function resolveCurrentUserId(Request $request): ?int
     {
-        if (!empty($_SESSION['user_id'])) {
-            return (int) $_SESSION['user_id'];
+        $auth = AuthMiddleware::authenticate($request);
+        if ($auth instanceof Response) {
+            return null;
         }
 
-        $authHeader = $request->getHeader('authorization');
-        if ($authHeader !== null && preg_match('/Bearer\s+(\d+)/i', $authHeader, $matches)) {
-            return (int) $matches[1];
-        }
-
-        return null;
+        return (int) $auth['id'];
     }
 }

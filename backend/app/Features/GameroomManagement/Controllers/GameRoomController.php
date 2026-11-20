@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Features\GameroomManagement\Controllers;
 
+use App\Core\Middleware\AuthMiddleware;
 use App\Core\Request;
 use App\Core\Response;
 use App\Features\GameCatalog\Repositories\GameRepository;
@@ -32,7 +33,7 @@ class GameRoomController
     }
 
     /**
-     * GET /api/rooms
+     * GET /api/v1/rooms
      * Lấy danh sách các phòng đang tuyển người (FORMING)
      */
     public function index(Request $request): Response
@@ -80,17 +81,14 @@ class GameRoomController
 
         $rooms = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-        return Response::json([
-            'success' => true,
-            'data' => [
-                'rooms' => $rooms,
-                'count' => count($rooms),
-            ],
-        ]);
+        return Response::success([
+            'rooms' => $rooms,
+            'count' => count($rooms),
+        ], 'Danh sách phòng chơi');
     }
 
     /**
-     * GET /api/rooms/{id}
+     * GET /api/v1/rooms/{id}
      * Chi tiết phòng chơi và danh sách người tham gia
      */
     public function show(Request $request, string $id): Response
@@ -99,10 +97,7 @@ class GameRoomController
         $room = $this->roomRepo->findById($roomId);
 
         if ($room === null) {
-            return Response::json([
-                'success' => false,
-                'message' => 'Không tìm thấy phòng chơi yêu cầu',
-            ], 404);
+            return Response::fail('Không tìm thấy phòng chơi yêu cầu', 'ROOM_NOT_FOUND', 404);
         }
 
         // Lấy kịch bản game
@@ -130,26 +125,20 @@ class GameRoomController
         $propStmt->execute();
         $room['proposals'] = $propStmt->fetchAll(PDO::FETCH_ASSOC);
 
-        return Response::json([
-            'success' => true,
-            'data' => [
-                'room' => $room,
-            ],
-        ]);
+        return Response::success([
+            'room' => $room,
+        ], 'Chi tiết phòng chơi');
     }
 
     /**
-     * POST /api/rooms
+     * POST /api/v1/rooms
      * Tạo phòng ghép người chơi mới
      */
     public function create(Request $request): Response
     {
         $userId = $this->resolveCurrentUserId($request);
         if ($userId === null) {
-            return Response::json([
-                'success' => false,
-                'message' => 'Bạn cần đăng nhập để tạo phòng chơi',
-            ], 401);
+            return Response::fail('Bạn cần đăng nhập để tạo phòng chơi', 'UNAUTHORIZED', 401);
         }
 
         $body = $request->getBodyParams();
@@ -159,18 +148,12 @@ class GameRoomController
         $formationDeadline = $body['formation_deadline_at'] ?? $body['formation_deadline'] ?? null;
 
         if ($gameId <= 0) {
-            return Response::json([
-                'success' => false,
-                'message' => 'Vui lòng chọn kịch bản game hợp lệ',
-            ], 422);
+            return Response::fail('Vui lòng chọn kịch bản game hợp lệ', 'VALIDATION_ERROR', 422);
         }
 
         $game = $this->gameRepo->findById($gameId);
         if ($game === null) {
-            return Response::json([
-                'success' => false,
-                'message' => 'Kịch bản game không tồn tại trên hệ thống',
-            ], 404);
+            return Response::fail('Kịch bản game không tồn tại trên hệ thống', 'NOT_FOUND', 404);
         }
 
         if ($title === '') {
@@ -209,43 +192,30 @@ class GameRoomController
 
         $createdRoom = $this->roomRepo->findById($roomId);
 
-        return Response::json([
-            'success' => true,
-            'message' => 'Tạo phòng chơi thành công',
-            'data' => [
-                'room' => $createdRoom,
-            ],
-        ], 201);
+        return Response::success([
+            'room' => $createdRoom,
+        ], 'Tạo phòng chơi thành công', null, 201);
     }
 
     /**
-     * POST /api/rooms/{id}/join
+     * POST /api/v1/rooms/{id}/join
      * Tham gia vào phòng chơi
      */
     public function join(Request $request, string $id): Response
     {
         $userId = $this->resolveCurrentUserId($request);
         if ($userId === null) {
-            return Response::json([
-                'success' => false,
-                'message' => 'Bạn cần đăng nhập để tham gia phòng',
-            ], 401);
+            return Response::fail('Bạn cần đăng nhập để tham gia phòng', 'UNAUTHORIZED', 401);
         }
 
         $roomId = (int) $id;
         $room = $this->roomRepo->findById($roomId);
         if ($room === null) {
-            return Response::json([
-                'success' => false,
-                'message' => 'Phòng chơi không tồn tại',
-            ], 404);
+            return Response::fail('Phòng chơi không tồn tại', 'ROOM_NOT_FOUND', 404);
         }
 
         if ($room['status'] !== 'FORMING') {
-            return Response::json([
-                'success' => false,
-                'message' => 'Phòng chơi hiện không trong giai đoạn nhận thành viên (Trạng thái: ' . $room['status'] . ')',
-            ], 400);
+            return Response::fail('Phòng chơi hiện không trong giai đoạn nhận thành viên (Trạng thái: ' . $room['status'] . ')', 'ROOM_NOT_FORMING', 400);
         }
 
         // Kiểm tra số lượng người hiện tại
@@ -257,54 +227,38 @@ class GameRoomController
         // Kiểm tra xem user này đã ở trong phòng chưa
         foreach ($activeParticipants as $part) {
             if ((int) $part['user_id'] === $userId) {
-                return Response::json([
-                    'success' => false,
-                    'message' => 'Bạn đã có tên trong phòng chơi này rồi',
-                ], 409);
+                return Response::fail('Bạn đã có tên trong phòng chơi này rồi', 'ALREADY_JOINED', 409);
             }
         }
 
         if (count($activeParticipants) >= (int) $room['max_players']) {
-            return Response::json([
-                'success' => false,
-                'message' => 'Phòng chơi đã đủ số lượng thành viên tối đa (' . $room['max_players'] . ' người)',
-            ], 400);
+            return Response::fail('Phòng chơi đã đủ số lượng thành viên tối đa (' . $room['max_players'] . ' người)', 'ROOM_FULL', 400);
         }
 
         $participantId = $this->roomRepo->addParticipant($roomId, $userId);
 
-        return Response::json([
-            'success' => true,
-            'message' => 'Tham gia phòng chơi thành công',
-            'data' => [
-                'room_id' => $roomId,
-                'participant_id' => $participantId,
-                'current_players' => count($activeParticipants) + 1,
-            ],
-        ]);
+        return Response::success([
+            'room_id' => $roomId,
+            'participant_id' => $participantId,
+            'current_players' => count($activeParticipants) + 1,
+        ], 'Tham gia phòng chơi thành công');
     }
 
     /**
-     * POST /api/rooms/{id}/leave
+     * POST /api/v1/rooms/{id}/leave
      * Rời phòng chơi hoặc mở cửa sổ tìm người thay thế
      */
     public function leave(Request $request, string $id): Response
     {
         $userId = $this->resolveCurrentUserId($request);
         if ($userId === null) {
-            return Response::json([
-                'success' => false,
-                'message' => 'Bạn cần đăng nhập để thực hiện thao tác này',
-            ], 401);
+            return Response::fail('Bạn cần đăng nhập để thực hiện thao tác này', 'UNAUTHORIZED', 401);
         }
 
         $roomId = (int) $id;
         $room = $this->roomRepo->findById($roomId);
         if ($room === null) {
-            return Response::json([
-                'success' => false,
-                'message' => 'Phòng chơi không tồn tại',
-            ], 404);
+            return Response::fail('Phòng chơi không tồn tại', 'ROOM_NOT_FOUND', 404);
         }
 
         // Tìm participant active của user trong room
@@ -320,10 +274,7 @@ class GameRoomController
         $part = $stmt->fetch(PDO::FETCH_ASSOC);
 
         if ($part === false) {
-            return Response::json([
-                'success' => false,
-                'message' => 'Bạn không phải là thành viên đang hoạt động trong phòng này',
-            ], 404);
+            return Response::fail('Bạn không phải là thành viên đang hoạt động trong phòng này', 'PARTICIPANT_NOT_FOUND', 404);
         }
 
         $partId = (int) $part['id'];
@@ -334,10 +285,7 @@ class GameRoomController
             $upStmt->bindValue(':id', $partId, PDO::PARAM_INT);
             $upStmt->execute();
 
-            return Response::json([
-                'success' => true,
-                'message' => 'Đã rời phòng chơi thành công',
-            ]);
+            return Response::success(null, 'Đã rời phòng chơi thành công');
         }
 
         // Nếu phòng đã chốt lịch/cọc: Mở cửa sổ tìm người thay thế (Replacement Window)
@@ -358,13 +306,9 @@ class GameRoomController
         $openRw->bindValue(':room_id', $roomId, PDO::PARAM_INT);
         $openRw->execute();
 
-        return Response::json([
-            'success' => true,
-            'message' => 'Yêu cầu rút phòng đã được ghi nhận. Đã mở cửa sổ tuyển người thay thế trong 24 giờ.',
-            'data' => [
-                'replacement_status' => 'OPEN',
-            ],
-        ]);
+        return Response::success([
+            'replacement_status' => 'OPEN',
+        ], 'Yêu cầu rút phòng đã được ghi nhận. Đã mở cửa sổ tuyển người thay thế trong 24 giờ.');
     }
 
     /**
@@ -372,15 +316,11 @@ class GameRoomController
      */
     protected function resolveCurrentUserId(Request $request): ?int
     {
-        if (!empty($_SESSION['user_id'])) {
-            return (int) $_SESSION['user_id'];
+        $auth = AuthMiddleware::authenticate($request);
+        if ($auth instanceof Response) {
+            return null;
         }
 
-        $authHeader = $request->getHeader('authorization');
-        if ($authHeader !== null && preg_match('/Bearer\s+(\d+)/i', $authHeader, $matches)) {
-            return (int) $matches[1];
-        }
-
-        return null;
+        return (int) $auth['id'];
     }
 }

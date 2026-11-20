@@ -38,10 +38,14 @@ class Response
         if ($encoded === false) {
             $encoded = json_encode([
                 'success' => false,
+                'message' => 'Failed to encode JSON response',
+                'data' => null,
                 'error' => [
                     'code' => 'JSON_ENCODE_ERROR',
                     'message' => 'Failed to encode JSON response',
+                    'details' => null,
                 ],
+                'meta' => null,
             ]);
             $statusCode = 500;
         }
@@ -50,7 +54,83 @@ class Response
     }
 
     /**
-     * Create a structured error response.
+     * Standard Success Response Envelope (Kịch Bản Sát V16 Convention).
+     */
+    public static function success(
+        mixed $data = null,
+        string $message = 'Request completed',
+        mixed $meta = null,
+        int $statusCode = 200,
+        array $headers = []
+    ): self {
+        return self::json([
+            'success' => true,
+            'message' => $message,
+            'data' => $data,
+            'error' => null,
+            'meta' => $meta,
+        ], $statusCode, $headers);
+    }
+
+    /**
+     * Standard Paginated Response Envelope (Kịch Bản Sát V16 Convention).
+     */
+    public static function paginated(
+        array $items,
+        int $page,
+        int $perPage,
+        int $total,
+        string $message = 'Retrieved successfully',
+        array $headers = []
+    ): self {
+        $totalPages = $perPage > 0 ? (int) ceil($total / $perPage) : 1;
+
+        return self::json([
+            'success' => true,
+            'message' => $message,
+            'data' => $items,
+            'error' => null,
+            'meta' => [
+                'pagination' => [
+                    'page' => $page,
+                    'per_page' => $perPage,
+                    'total' => $total,
+                    'total_pages' => $totalPages,
+                ],
+            ],
+        ], 200, $headers);
+    }
+
+    /**
+     * Standard Error Response Envelope (Kịch Bản Sát V16 Convention).
+     */
+    public static function fail(
+        string $message,
+        string $code = 'BAD_REQUEST',
+        int $statusCode = 400,
+        ?array $details = null,
+        mixed $meta = null,
+        array $headers = []
+    ): self {
+        $errorObj = [
+            'code' => $code,
+            'message' => $message,
+        ];
+        if ($details !== null) {
+            $errorObj['details'] = $details;
+        }
+
+        return self::json([
+            'success' => false,
+            'message' => $message,
+            'data' => null,
+            'error' => $errorObj,
+            'meta' => $meta,
+        ], $statusCode, $headers);
+    }
+
+    /**
+     * Backward-compatible structured error response.
      *
      * @param array<string, mixed> $errors
      * @param array<string, string> $headers
@@ -62,19 +142,10 @@ class Response
         ?string $code = null,
         array $headers = []
     ): self {
-        $body = [
-            'success' => false,
-            'error' => [
-                'code' => $code ?? self::getDefaultErrorCode($statusCode),
-                'message' => $message,
-            ],
-        ];
+        $errCode = $code ?? self::getDefaultErrorCode($statusCode);
+        $details = !empty($errors) ? $errors : null;
 
-        if (!empty($errors)) {
-            $body['error']['details'] = $errors;
-        }
-
-        return self::json($body, $statusCode, $headers);
+        return self::fail($message, $errCode, $statusCode, $details, null, $headers);
     }
 
     public function getStatusCode(): int
@@ -125,7 +196,7 @@ class Response
             404 => 'NOT_FOUND',
             405 => 'METHOD_NOT_ALLOWED',
             409 => 'CONFLICT',
-            422 => 'UNPROCESSABLE_ENTITY',
+            422 => 'VALIDATION_ERROR',
             429 => 'TOO_MANY_REQUESTS',
             default => 'INTERNAL_SERVER_ERROR',
         };

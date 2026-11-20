@@ -4,11 +4,12 @@ declare(strict_types=1);
 
 namespace App\Features\Identity\Controllers;
 
+use App\Core\Middleware\AuthMiddleware;
+use App\Core\Middleware\CsrfMiddleware;
 use App\Core\Request;
 use App\Core\Response;
 use App\Features\Identity\Repositories\UserRepository;
 use App\Infrastructure\Database\DatabaseConnection;
-use PDO;
 
 class AuthController
 {
@@ -25,7 +26,16 @@ class AuthController
     }
 
     /**
-     * POST /api/auth/register
+     * GET /api/v1/auth/csrf-token
+     */
+    public function csrfToken(Request $request): Response
+    {
+        $token = CsrfMiddleware::getToken();
+        return Response::success(['csrf_token' => $token], 'CSRF token retrieved successfully');
+    }
+
+    /**
+     * POST /api/v1/auth/register
      */
     public function register(Request $request): Response
     {
@@ -36,35 +46,27 @@ class AuthController
         $password = (string) ($body['password'] ?? '');
         $phone = isset($body['phone']) ? trim((string) $body['phone']) : null;
 
-        // Validation
+        $errors = [];
         if ($fullName === '') {
-            return Response::json([
-                'success' => false,
-                'message' => 'Họ và tên không được để trống',
-            ], 422);
+            $errors['full_name'] = ['Họ và tên không được để trống'];
         }
 
         if ($email === '' || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
-            return Response::json([
-                'success' => false,
-                'message' => 'Email không đúng định dạng',
-            ], 422);
+            $errors['email'] = ['Email không đúng định dạng'];
         }
 
         if (strlen($password) < 6) {
-            return Response::json([
-                'success' => false,
-                'message' => 'Mật khẩu phải có ít nhất 6 ký tự',
-            ], 422);
+            $errors['password'] = ['Mật khẩu phải có ít nhất 6 ký tự'];
+        }
+
+        if (!empty($errors)) {
+            return Response::fail('Dữ liệu không hợp lệ', 'VALIDATION_ERROR', 422, $errors);
         }
 
         // Check duplicate email
         $existing = $this->userRepo->findByEmail($email);
         if ($existing !== null) {
-            return Response::json([
-                'success' => false,
-                'message' => 'Email này đã được sử dụng trên hệ thống',
-            ], 409);
+            return Response::fail('Email này đã được sử dụng trên hệ thống', 'EMAIL_ALREADY_EXISTS', 409);
         }
 
         $passwordHash = password_hash($password, PASSWORD_BCRYPT);
@@ -82,19 +84,20 @@ class AuthController
             unset($user['password_hash']);
         }
 
+        if (session_status() === PHP_SESSION_ACTIVE) {
+            @session_regenerate_id(true);
+        }
         $_SESSION['user_id'] = $userId;
+        $_SESSION['role_id'] = $user['role_id'] ?? 1;
+        $_SESSION['role_code'] = $user['role_code'] ?? 'PLAYER';
 
-        return Response::json([
-            'success' => true,
-            'message' => 'Đăng ký tài khoản thành công',
-            'data' => [
-                'user' => $user,
-            ],
-        ], 201);
+        return Response::success([
+            'user' => $user,
+        ], 'Đăng ký tài khoản thành công', null, 201);
     }
 
     /**
-     * POST /api/auth/login
+     * POST /api/v1/auth/login
      */
     public function login(Request $request): Response
     {
@@ -104,32 +107,20 @@ class AuthController
         $password = (string) ($body['password'] ?? '');
 
         if ($email === '' || $password === '') {
-            return Response::json([
-                'success' => false,
-                'message' => 'Vui lòng nhập đầy đủ email và mật khẩu',
-            ], 422);
+            return Response::fail('Vui lòng nhập đầy đủ email và mật khẩu', 'VALIDATION_ERROR', 422);
         }
 
         $user = $this->userRepo->findByEmail($email);
         if ($user === null) {
-            return Response::json([
-                'success' => false,
-                'message' => 'Email hoặc mật khẩu không chính xác',
-            ], 401);
+            return Response::fail('Email hoặc mật khẩu không chính xác', 'INVALID_CREDENTIALS', 401);
         }
 
         if (($user['status'] ?? '') !== 'ACTIVE') {
-            return Response::json([
-                'success' => false,
-                'message' => 'Tài khoản của bạn đang bị tạm khóa hoặc chưa kích hoạt',
-            ], 403);
+            return Response::fail('Tài khoản của bạn đang bị tạm khóa hoặc chưa kích hoạt', 'ACCOUNT_INACTIVE', 403);
         }
 
         if (!password_verify($password, (string) $user['password_hash'])) {
-            return Response::json([
-                'success' => false,
-                'message' => 'Email hoặc mật khẩu không chính xác',
-            ], 401);
+            return Response::fail('Email hoặc mật khẩu không chính xác', 'INVALID_CREDENTIALS', 401);
         }
 
         // Update last login
@@ -137,83 +128,61 @@ class AuthController
             'email' => $user['email'],
         ]);
 
+        if (session_status() === PHP_SESSION_ACTIVE) {
+            @session_regenerate_id(true);
+        }
         $_SESSION['user_id'] = (int) $user['id'];
+        $_SESSION['role_id'] = (int) ($user['role_id'] ?? 1);
+        $_SESSION['role_code'] = (string) ($user['role_code'] ?? 'PLAYER');
+
         unset($user['password_hash']);
 
-        return Response::json([
-            'success' => true,
-            'message' => 'Đăng nhập thành công',
-            'data' => [
-                'user' => $user,
-            ],
-        ]);
+        return Response::success([
+            'user' => $user,
+        ], 'Đăng nhập thành công');
     }
 
     /**
-     * GET /api/auth/me
+     * GET /api/v1/auth/me
      */
     public function me(Request $request): Response
     {
-        $userId = $this->resolveCurrentUserId($request);
-
-        if ($userId === null) {
-            return Response::json([
-                'success' => false,
-                'message' => 'Chưa đăng nhập hoặc phiên làm việc đã hết hạn',
-            ], 401);
+        $authUser = AuthMiddleware::authenticate($request);
+        if ($authUser instanceof Response) {
+            return $authUser;
         }
 
-        $user = $this->userRepo->findById($userId);
-        if ($user === null) {
-            return Response::json([
-                'success' => false,
-                'message' => 'Người dùng không tồn tại',
-            ], 404);
-        }
+        unset($authUser['password_hash']);
 
-        unset($user['password_hash']);
-
-        return Response::json([
-            'success' => true,
-            'data' => [
-                'user' => $user,
-            ],
-        ]);
+        return Response::success([
+            'user' => $authUser,
+        ], 'Thông tin tài khoản');
     }
 
     /**
-     * POST /api/auth/logout
+     * POST /api/v1/auth/logout
      */
     public function logout(Request $request): Response
     {
-        if (isset($_SESSION['user_id'])) {
-            unset($_SESSION['user_id']);
+        $_SESSION = [];
+
+        if (ini_get('session.use_cookies') && !headers_sent()) {
+            $params = session_get_cookie_params();
+            setcookie(
+                session_name(),
+                '',
+                time() - 42000,
+                $params['path'],
+                $params['domain'],
+                $params['secure'],
+                $params['httponly']
+            );
         }
 
         if (session_status() === PHP_SESSION_ACTIVE) {
             @session_destroy();
         }
 
-        return Response::json([
-            'success' => true,
-            'message' => 'Đăng xuất thành công',
-        ]);
-    }
-
-    /**
-     * Resolve user ID from session or Authorization Bearer header.
-     */
-    protected function resolveCurrentUserId(Request $request): ?int
-    {
-        if (!empty($_SESSION['user_id'])) {
-            return (int) $_SESSION['user_id'];
-        }
-
-        $authHeader = $request->getHeader('authorization');
-        if ($authHeader !== null && preg_match('/Bearer\s+(\d+)/i', $authHeader, $matches)) {
-            return (int) $matches[1];
-        }
-
-        return null;
+        return Response::success(null, 'Đăng xuất thành công');
     }
 }

@@ -22,7 +22,7 @@ class GameController
     }
 
     /**
-     * GET /api/games
+     * GET /api/v1/games
      * Query: ?limit=20&offset=0&players=6
      */
     public function index(Request $request): Response
@@ -51,19 +51,16 @@ class GameController
             $games = $this->gameRepo->listActive($limit, $offset);
         }
 
-        return Response::json([
-            'success' => true,
-            'data' => [
-                'games' => $games,
-                'count' => count($games),
-                'limit' => $limit,
-                'offset' => $offset,
-            ],
-        ]);
+        return Response::success([
+            'games' => $games,
+            'count' => count($games),
+            'limit' => $limit,
+            'offset' => $offset,
+        ], 'Danh sách kịch bản');
     }
 
     /**
-     * GET /api/games/{id}
+     * GET /api/v1/games/{id}
      */
     public function show(Request $request, string $idOrSlug): Response
     {
@@ -74,10 +71,7 @@ class GameController
         }
 
         if ($game === null) {
-            return Response::json([
-                'success' => false,
-                'message' => 'Không tìm thấy kịch bản yêu cầu',
-            ], 404);
+            return Response::fail('Không tìm thấy kịch bản yêu cầu', 'GAME_NOT_FOUND', 404);
         }
 
         // Lấy cấu hình phiên bản mới nhất
@@ -100,16 +94,13 @@ class GameController
         // Kèm bảng giá
         $game['prices'] = $this->gameRepo->getActivePrices((int) $game['id']);
 
-        return Response::json([
-            'success' => true,
-            'data' => [
-                'game' => $game,
-            ],
-        ]);
+        return Response::success([
+            'game' => $game,
+        ], 'Chi tiết kịch bản');
     }
 
     /**
-     * GET /api/games/{id}/prices
+     * GET /api/v1/games/{id}/prices
      */
     public function prices(Request $request, string $id): Response
     {
@@ -117,21 +108,15 @@ class GameController
         $game = $this->gameRepo->findById($gameId);
 
         if ($game === null) {
-            return Response::json([
-                'success' => false,
-                'message' => 'Không tìm thấy kịch bản yêu cầu',
-            ], 404);
+            return Response::fail('Không tìm thấy kịch bản yêu cầu', 'GAME_NOT_FOUND', 404);
         }
 
         $prices = $this->gameRepo->getActivePrices($gameId);
 
-        return Response::json([
-            'success' => true,
-            'data' => [
-                'game_id' => $gameId,
-                'game_name' => $game['name'],
-                'prices' => $prices,
-            ],
-        ]);
+        return Response::success([
+            'game_id' => $gameId,
+            'game_name' => $game['name'],
+            'prices' => $prices,
+        ], 'Bảng giá kịch bản');
     }
 }
