@@ -10,8 +10,10 @@ use App\Features\Identity\Controllers\AdminUserController;
 use App\Features\DMManagement\Controllers\DMAssignmentController;
 use App\Features\GameCatalog\Controllers\GameController;
 use App\Features\GameroomManagement\Controllers\GameRoomController;
+use App\Features\GameroomManagement\Controllers\AdminGameRoomController;
 use App\Features\VenueScheduling\Controllers\SchedulingController;
 use App\Features\PaymentRefund\Controllers\PaymentController;
+use App\Features\PaymentRefund\Controllers\AdminRefundController;
 use App\Features\Notification\Controllers\NotificationController;
 use App\Features\Pricing\Controllers\PricingController;
 
@@ -62,6 +64,9 @@ $registerApiRoutes = function (string $prefix) use ($router): void {
     $router->post($prefix . '/rooms/{id}/calculate-price', [PricingController::class, 'calculate']);
     $router->get($prefix . '/rooms/{id}/price-snapshot', [PricingController::class, 'snapshot']);
 
+    // Admin GameRoom Cancel with 24-hour Cutoff
+    $router->post($prefix . '/admin/rooms/{id}/cancel', [AdminGameRoomController::class, 'cancel']);
+
     // =============================================================
     // DOMAIN 4 & 5: SCHEDULING, VOTING & VENUES API
     // =============================================================
@@ -78,10 +83,15 @@ $registerApiRoutes = function (string $prefix) use ($router): void {
     $router->post($prefix . '/dm/assignments/{id}/reject', [DMAssignmentController::class, 'reject']);
 
     // =============================================================
-    // DOMAIN 7: PAYMENT API
+    // DOMAIN 7: PAYMENT & REFUND API
     // =============================================================
     $router->post($prefix . '/payments/{paymentId}/deposit', [PaymentController::class, 'deposit']);
     $router->post($prefix . '/payments/{paymentId}/remaining', [PaymentController::class, 'remaining']);
+
+    // Admin Refunds Management
+    $router->get($prefix . '/admin/refunds', [AdminRefundController::class, 'index']);
+    $router->post($prefix . '/admin/refunds/{id}/approve', [AdminRefundController::class, 'approve']);
+    $router->post($prefix . '/admin/refunds/{id}/reject', [AdminRefundController::class, 'reject']);
 
     // =============================================================
     // DOMAIN 8: NOTIFICATION API
