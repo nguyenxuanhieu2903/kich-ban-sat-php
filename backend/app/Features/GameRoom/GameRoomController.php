@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Features\GameRoom;
 
+use App\Core\Exceptions\HttpException;
 use App\Core\Request;
 use App\Core\Response;
 
@@ -30,17 +31,19 @@ class GameRoomController
 
     public function show(Request $request, string $id): Response
     {
+        $roomId = $this->parsePositiveInt($id, 'id');
+
         return Response::json([
             'success' => true,
-            'data' => $this->service->getRoomDetail((int) $id),
+            'data' => $this->service->getRoomDetail($roomId),
             'serverTime' => date('c'),
         ]);
     }
 
     public function store(Request $request): Response
     {
-        $hostUserId = (int) ($_SESSION['user_id'] ?? $request->input('host_user_id', 1));
-        $room = $this->service->createRoom($hostUserId, $request->getBodyParams());
+        $auth = $this->requireAuth();
+        $room = $this->service->createRoom($auth['user_id'], $request->getBodyParams());
 
         return Response::json([
             'success' => true,
@@ -52,8 +55,9 @@ class GameRoomController
 
     public function join(Request $request, string $id): Response
     {
-        $userId = (int) ($_SESSION['user_id'] ?? $request->input('user_id', 1));
-        $room = $this->service->joinRoom((int) $id, $userId);
+        $auth = $this->requireAuth();
+        $roomId = $this->parsePositiveInt($id, 'id');
+        $room = $this->service->joinRoom($roomId, $auth['user_id']);
 
         return Response::json([
             'success' => true,
@@ -62,10 +66,12 @@ class GameRoomController
             'serverTime' => date('c'),
         ]);
     }
+
     public function leave(Request $request, string $id): Response
     {
-        $userId = (int) ($_SESSION['user_id'] ?? $request->input('user_id', 1));
-        $room = $this->service->leaveRoom((int) $id, $userId);
+        $auth = $this->requireAuth();
+        $roomId = $this->parsePositiveInt($id, 'id');
+        $room = $this->service->leaveRoom($roomId, $auth['user_id']);
 
         return Response::json([
             'success' => true,
@@ -77,11 +83,14 @@ class GameRoomController
 
     public function assignDm(Request $request, string $id): Response
     {
-        $body = $request->getBodyParams();
-        $dmUserId = (int) ($body['dm_user_id'] ?? 1);
-        $physicalRoomId = (int) ($body['physical_room_id'] ?? 1);
+        $this->requireRole(['ADMIN']);
 
-        $room = $this->service->assignDmAndPhysicalRoom((int) $id, $dmUserId, $physicalRoomId);
+        $roomId = $this->parsePositiveInt($id, 'id');
+        $body = $request->getBodyParams();
+        $dmUserId = $this->parsePositiveInt($body['dm_user_id'] ?? null, 'dm_user_id');
+        $physicalRoomId = $this->parsePositiveInt($body['physical_room_id'] ?? null, 'physical_room_id');
+
+        $room = $this->service->assignDmAndPhysicalRoom($roomId, $dmUserId, $physicalRoomId);
 
         return Response::json([
             'success' => true,
@@ -93,11 +102,12 @@ class GameRoomController
 
     public function deposit(Request $request, string $id): Response
     {
+        $auth = $this->requireAuth();
+        $roomId = $this->parsePositiveInt($id, 'id');
         $body = $request->getBodyParams();
-        $userId = (int) ($_SESSION['user_id'] ?? $body['user_id'] ?? 1);
         $method = (string) ($body['provider'] ?? 'VNPAY');
 
-        $room = $this->service->deposit((int) $id, $userId, $method);
+        $room = $this->service->deposit($roomId, $auth['user_id'], $method);
 
         return Response::json([
             'success' => true,
@@ -105,5 +115,46 @@ class GameRoomController
             'data' => $room,
             'serverTime' => date('c'),
         ]);
+    }
+
+    /** @return array{user_id: int, role: string} */
+    private function requireAuth(): array
+    {
+        $userId = (int) ($_SESSION['user_id'] ?? 0);
+        $role = strtoupper((string) ($_SESSION['role'] ?? ''));
+
+        if ($userId <= 0 || $role === '') {
+            throw new HttpException('Bạn cần đăng nhập để thực hiện thao tác này', 401);
+        }
+
+        return [
+            'user_id' => $userId,
+            'role' => $role,
+        ];
+    }
+
+    /**
+     * @param string[] $allowedRoles
+     * @return array{user_id: int, role: string}
+     */
+    private function requireRole(array $allowedRoles): array
+    {
+        $auth = $this->requireAuth();
+
+        if (!in_array($auth['role'], $allowedRoles, true)) {
+            throw new HttpException('Bạn không có quyền thực hiện thao tác này', 403);
+        }
+
+        return $auth;
+    }
+
+    private function parsePositiveInt(mixed $value, string $field): int
+    {
+        $parsed = filter_var($value, FILTER_VALIDATE_INT);
+        if ($parsed === false || $parsed <= 0) {
+            throw new HttpException("Tham số {$field} phải là số nguyên dương", 400);
+        }
+
+        return (int) $parsed;
     }
 }

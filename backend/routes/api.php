@@ -5,6 +5,7 @@ declare(strict_types=1);
 use App\Core\Request;
 use App\Core\Response;
 use App\Core\Router;
+use App\Features\Auth\AuthController;
 use App\Features\Game\GameController;
 use App\Features\GameRoom\GameRoomController;
 
@@ -20,6 +21,12 @@ $router->get('/api/health', function (Request $request): Response {
         ],
     ]);
 });
+
+// Module 0: Auth
+$router->post('/api/auth/register', [AuthController::class, 'register']);
+$router->post('/api/auth/login', [AuthController::class, 'login']);
+$router->post('/api/auth/logout', [AuthController::class, 'logout']);
+$router->get('/api/auth/me', [AuthController::class, 'me']);
 
 // Module 1: Games
 $router->get('/api/games', [GameController::class, 'index']);

@@ -14,6 +14,20 @@ if (file_exists($autoloader)) {
 // Initialize environment configuration
 App\Infrastructure\Config\Config::load($basePath);
 
+// Bật PHP Session an toàn cho HTTP request (bỏ qua khi chạy CLI / PHPUnit)
+if (PHP_SAPI !== 'cli' && session_status() === PHP_SESSION_NONE && !headers_sent()) {
+    $isHttps = !empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off';
+    session_set_cookie_params([
+        'lifetime' => 0,
+        'path' => '/',
+        'domain' => '',
+        'secure' => $isHttps,
+        'httponly' => true,
+        'samesite' => 'Lax',
+    ]);
+    session_start();
+}
+
 // Instantiate application
 $app = new App\Core\Application($basePath);
 
