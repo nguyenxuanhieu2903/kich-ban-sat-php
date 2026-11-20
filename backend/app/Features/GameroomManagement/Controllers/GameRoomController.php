@@ -214,7 +214,9 @@ class GameRoomController
             return Response::fail('Phòng chơi không tồn tại', 'ROOM_NOT_FOUND', 404);
         }
 
-        if ($room['status'] !== 'FORMING') {
+        $isReplacementOpen = ($room['replacement_status'] ?? '') === 'OPEN';
+
+        if ($room['status'] !== 'FORMING' && !$isReplacementOpen) {
             return Response::fail('Phòng chơi hiện không trong giai đoạn nhận thành viên (Trạng thái: ' . $room['status'] . ')', 'ROOM_NOT_FORMING', 400);
         }
 
@@ -231,6 +233,85 @@ class GameRoomController
             }
         }
 
+        // TRƯỜNG HỢP 1: Vào thay thế (Replacement Slot Takeover)
+        if ($isReplacementOpen) {
+            $leavePartStmt = $this->pdo->prepare(
+                'SELECT `id`, `user_id` FROM `room_participants`
+                 WHERE `game_room_id` = :room_id AND `status` = \'LEAVE_REQUESTED\'
+                 ORDER BY `id` ASC LIMIT 1'
+            );
+            $leavePartStmt->bindValue(':room_id', $roomId, PDO::PARAM_INT);
+            $leavePartStmt->execute();
+            $leavingPart = $leavePartStmt->fetch(PDO::FETCH_ASSOC);
+
+            if ($leavingPart === false) {
+                return Response::fail('Hiện không còn slot tìm người thay thế trong phòng này', 'NO_REPLACEMENT_SLOT', 400);
+            }
+
+            $leavingPartId = (int) $leavingPart['id'];
+            $leavingUserId = (int) $leavingPart['user_id'];
+
+            $this->pdo->beginTransaction();
+            try {
+                // 1. Cho người cũ rời phòng: cập nhật status thành 'LEFT'
+                $upOld = $this->pdo->prepare(
+                    'UPDATE `room_participants`
+                     SET `status` = \'LEFT\', `left_at` = NOW(), `cancel_reason` = \'Đã có người chơi khác nhận thay thế slot\'
+                     WHERE `id` = :id'
+                );
+                $upOld->bindValue(':id', $leavingPartId, PDO::PARAM_INT);
+                $upOld->execute();
+
+                // 2. Thêm người mới vào slot thay thế
+                $newPartId = $this->roomRepo->addParticipant($roomId, $userId);
+
+                // 3. Kiểm tra xem còn ai LEAVE_REQUESTED không
+                $checkLeftStmt = $this->pdo->prepare(
+                    'SELECT COUNT(*) FROM `room_participants`
+                     WHERE `game_room_id` = :room_id AND `status` = \'LEAVE_REQUESTED\''
+                );
+                $checkLeftStmt->bindValue(':room_id', $roomId, PDO::PARAM_INT);
+                $checkLeftStmt->execute();
+                $remainingReplacements = (int) $checkLeftStmt->fetchColumn();
+
+                if ($remainingReplacements === 0) {
+                    $closeRw = $this->pdo->prepare(
+                        'UPDATE `game_rooms`
+                         SET `replacement_status` = \'CLOSED\', `replacement_closed_at` = NOW()
+                         WHERE `id` = :room_id'
+                    );
+                    $closeRw->bindValue(':room_id', $roomId, PDO::PARAM_INT);
+                    $closeRw->execute();
+                }
+
+                $this->pdo->commit();
+
+                // Gửi thông báo cho người cũ
+                $notiRepo = new \App\Features\Notification\Repositories\NotificationRepository($this->pdo);
+                $notiRepo->createNotification(
+                    'Đã có người thay thế slot',
+                    "Yêu cầu rút phòng của bạn tại phòng '{$room['title']}' đã hoàn tất nhờ có người chơi khác thế chỗ.",
+                    'ROOM',
+                    null,
+                    [$leavingUserId]
+                );
+
+                return Response::success([
+                    'room_id' => $roomId,
+                    'participant_id' => $newPartId,
+                    'is_replacement' => true,
+                    'replaced_participant_id' => $leavingPartId,
+                    'replacement_window_closed' => $remainingReplacements === 0,
+                ], 'Bạn đã tham gia thế chỗ thành công vào phòng chơi');
+            } catch (\Throwable $e) {
+                if ($this->pdo->inTransaction()) {
+                    $this->pdo->rollBack();
+                }
+                throw $e;
+            }
+        }
+
+        // TRƯỜNG HỢP 2: Vào phòng FORMING bình thường
         if (count($activeParticipants) >= (int) $room['max_players']) {
             return Response::fail('Phòng chơi đã đủ số lượng thành viên tối đa (' . $room['max_players'] . ' người)', 'ROOM_FULL', 400);
         }
