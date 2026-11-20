@@ -8,6 +8,7 @@ use App\Core\Router;
 use App\Features\Identity\Controllers\AuthController;
 use App\Features\GameCatalog\Controllers\GameController;
 use App\Features\GameroomManagement\Controllers\GameRoomController;
+use App\Features\VenueScheduling\Controllers\SchedulingController;
 
 /** @var Router $router */
 
@@ -46,3 +47,11 @@ $router->post('/api/rooms', [GameRoomController::class, 'create']);
 $router->get('/api/rooms/{id}', [GameRoomController::class, 'show']);
 $router->post('/api/rooms/{id}/join', [GameRoomController::class, 'join']);
 $router->post('/api/rooms/{id}/leave', [GameRoomController::class, 'leave']);
+
+// =============================================================
+// DOMAIN 4 & 5: SCHEDULING, VOTING & VENUES API
+// =============================================================
+$router->get('/api/venues', [SchedulingController::class, 'venues']);
+$router->post('/api/rooms/{id}/proposals', [SchedulingController::class, 'propose']);
+$router->get('/api/proposals/{id}', [SchedulingController::class, 'showProposal']);
+$router->post('/api/proposals/{id}/vote', [SchedulingController::class, 'vote']);
