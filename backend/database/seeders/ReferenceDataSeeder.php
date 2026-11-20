@@ -9,34 +9,58 @@ class ReferenceDataSeeder extends AbstractSeed
     /**
      * Run Method.
      *
-     * Idempotent seeding of reference categories and venue physical rooms.
+     * Idempotent seeding of essential reference venue and physical rooms.
      */
     public function run(): void
     {
-        // 1. Categories
-        $categories = [
-            ['name' => 'Trinh thám / Suy luận', 'slug' => 'trinh-tham-suy-luan', 'description' => 'Tập trung tìm manh mối, giải mã án mạng logic'],
-            ['name' => 'Kinh dị / Giật gân', 'slug' => 'kinh-di-giat-gan', 'description' => 'Không khí u ám, yếu tố tâm linh hoặc rùng rợn'],
-            ['name' => 'Cổ trang / Cung đấu', 'slug' => 'co-trang-cung-dau', 'description' => 'Bối cảnh hoàng cung, gia tộc lịch sử'],
-            ['name' => 'Tình cảm / Tâm lý', 'slug' => 'tinh-cam-tam-ly', 'description' => 'Chiều sâu nhân vật, câu chuyện xúc động'],
-            ['name' => 'Hài hước / Giải trí', 'slug' => 'hai-huoc-giai-tri', 'description' => 'Không khí vui vẻ, tương tác đồng đội nhẹ nhàng'],
-        ];
+        // 1. Primary Venue
+        $venueCode = 'VENUE_01';
+        $existingVenue = $this->fetchRow(
+            sprintf("SELECT id FROM `venues` WHERE `code` = '%s' LIMIT 1", $venueCode)
+        );
 
-        foreach ($categories as $cat) {
-            $existing = $this->fetchRow(
-                sprintf("SELECT id FROM `categories` WHERE `slug` = '%s' LIMIT 1", $cat['slug'])
-            );
-
-            if (!$existing) {
-                $this->table('categories')->insert([$cat])->saveData();
-            }
+        if (!$existingVenue) {
+            $this->table('venues')->insert([
+                [
+                    'code' => $venueCode,
+                    'name' => 'Kịch Bản Sát Station - Chi nhánh Trung Tâm',
+                    'address' => '123 Nguyễn Huệ, P. Bến Nghé, Quận 1, TP. Hồ Chí Minh',
+                    'phone' => '0901234567',
+                    'opening_hours' => '09:00 - 23:00',
+                    'is_active' => 1,
+                ]
+            ])->saveData();
+            $venueId = (int) $this->getAdapter()->getConnection()->lastInsertId();
+        } else {
+            $venueId = (int) $existingVenue['id'];
         }
 
         // 2. Physical Rooms at Store Venue
         $rooms = [
-            ['code' => 'ROOM_01', 'name' => 'Phòng Án Mạng 01', 'capacity' => 8, 'status' => 'AVAILABLE', 'description' => 'Phòng chơi tiêu chuẩn phong cách cổ điển Châu Âu'],
-            ['code' => 'ROOM_02', 'name' => 'Phòng Án Mạng 02', 'capacity' => 8, 'status' => 'AVAILABLE', 'description' => 'Phòng chơi phong cách Á Đông truyền thống'],
-            ['code' => 'ROOM_VIP', 'name' => 'Phòng VIP Hoàng Gia', 'capacity' => 10, 'status' => 'AVAILABLE', 'description' => 'Phòng lớn chuyên dụng kịch bản đông người'],
+            [
+                'venue_id' => $venueId,
+                'code' => 'ROOM_01',
+                'name' => 'Phòng Án Mạng 01',
+                'capacity' => 8,
+                'status' => 'AVAILABLE',
+                'description' => 'Phòng chơi tiêu chuẩn phong cách cổ điển Châu Âu',
+            ],
+            [
+                'venue_id' => $venueId,
+                'code' => 'ROOM_02',
+                'name' => 'Phòng Án Mạng 02',
+                'capacity' => 8,
+                'status' => 'AVAILABLE',
+                'description' => 'Phòng chơi phong cách Á Đông truyền thống',
+            ],
+            [
+                'venue_id' => $venueId,
+                'code' => 'ROOM_VIP',
+                'name' => 'Phòng VIP Hoàng Gia',
+                'capacity' => 10,
+                'status' => 'AVAILABLE',
+                'description' => 'Phòng lớn chuyên dụng kịch bản đông người',
+            ],
         ];
 
         foreach ($rooms as $room) {

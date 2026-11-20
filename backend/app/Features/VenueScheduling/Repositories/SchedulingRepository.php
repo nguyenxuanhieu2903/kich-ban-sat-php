@@ -137,8 +137,13 @@ class SchedulingRepository extends BaseRepository
             $endTime
         ): int {
             $stmt = $this->pdo->prepare(
-                'INSERT INTO `physical_room_reservations` (`physical_room_id`, `session_id`, `reservation_date`, `start_time`, `end_time`, `status`, `created_at`, `updated_at`)
-                 VALUES (:physical_room_id, :session_id, :reservation_date, :start_time, :end_time, \'RESERVED\', NOW(), NOW())'
+                'UPDATE `sessions`
+                 SET `physical_room_id` = :physical_room_id,
+                     `scheduled_date` = :reservation_date,
+                     `start_time` = :start_time,
+                     `end_time` = :end_time,
+                     `updated_at` = NOW()
+                 WHERE `id` = :session_id'
             );
 
             $stmt->bindValue(':physical_room_id', $physicalRoomId, PDO::PARAM_INT);
@@ -149,7 +154,7 @@ class SchedulingRepository extends BaseRepository
 
             $stmt->execute();
 
-            return (int) $this->pdo->lastInsertId();
+            return $sessionId;
         });
     }
 
@@ -161,10 +166,10 @@ class SchedulingRepository extends BaseRepository
         return $this->executeQuery(function () use ($physicalRoomId, $date, $startTime, $endTime): bool {
             $stmt = $this->pdo->prepare(
                 'SELECT COUNT(*) AS conflict_count
-                 FROM `physical_room_reservations`
+                 FROM `sessions`
                  WHERE `physical_room_id` = :physical_room_id
-                   AND `reservation_date` = :reservation_date
-                   AND `status` IN (\'RESERVED\', \'CONFIRMED\')
+                   AND `scheduled_date` = :reservation_date
+                   AND `status` IN (\'SCHEDULED\', \'IN_PROGRESS\')
                    AND `start_time` < :end_time
                    AND `end_time` > :start_time'
             );

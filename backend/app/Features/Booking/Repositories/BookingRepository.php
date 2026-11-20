@@ -70,10 +70,10 @@ class BookingRepository extends BaseRepository
     ): bool {
         return $this->executeQuery(function () use ($physicalRoomId, $reservationDate, $startTime, $endTime, $excludeReservationId): bool {
             $sql = 'SELECT COUNT(1)
-                    FROM `physical_room_reservations`
+                    FROM `sessions`
                     WHERE `physical_room_id` = :physical_room_id
-                      AND `reservation_date` = :reservation_date
-                      AND `status` IN (\'RESERVED\', \'CONFIRMED\')
+                      AND `scheduled_date` = :reservation_date
+                      AND `status` IN (\'SCHEDULED\', \'IN_PROGRESS\')
                       AND (`start_time` < :end_time AND `end_time` > :start_time)';
 
             if ($excludeReservationId !== null) {

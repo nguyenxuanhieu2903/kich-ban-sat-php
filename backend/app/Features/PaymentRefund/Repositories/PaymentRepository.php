@@ -78,12 +78,14 @@ class PaymentRepository extends BaseRepository
     {
         return $this->executeQuery(function () use ($playerPaymentId, $idempotencyKey, $amount, $paymentMethod): int {
             $stmt = $this->pdo->prepare(
-                'INSERT INTO `payment_attempts` (`player_payment_id`, `attempt_number`, `idempotency_key`,
-                                                `payment_method`, `amount`, `status`, `created_at`, `updated_at`)
-                 VALUES (:player_payment_id, 1, :idempotency_key, :payment_method, :amount, \'INITIATED\', NOW(), NOW())'
+                'INSERT INTO `payment_transactions` (`player_payment_id`, `transaction_reference`, `idempotency_key`,
+                                                    `payment_method`, `amount`, `currency`, `status`, `transacted_at`, `created_at`)
+                 VALUES (:player_payment_id, :tx_ref, :idempotency_key, :payment_method, :amount, \'VND\', \'SUCCESS\', NOW(), NOW())'
             );
 
+            $txRef = 'TX_' . strtoupper(bin2hex(random_bytes(8)));
             $stmt->bindValue(':player_payment_id', $playerPaymentId, PDO::PARAM_INT);
+            $stmt->bindValue(':tx_ref', $txRef, PDO::PARAM_STR);
             $stmt->bindValue(':idempotency_key', $idempotencyKey, PDO::PARAM_STR);
             $stmt->bindValue(':payment_method', $paymentMethod, PDO::PARAM_STR);
             $stmt->bindValue(':amount', $amount, PDO::PARAM_INT);
@@ -103,12 +105,19 @@ class PaymentRepository extends BaseRepository
     {
         return $this->executeQuery(function () use ($idempotencyKey): ?array {
             $stmt = $this->pdo->prepare(
-                'SELECT `id`, `player_payment_id`, `attempt_number`, `idempotency_key`,
-                        `payment_method`, `amount`, `status`, `created_at`, `updated_at`
-                 FROM `payment_attempts`
+                'SELECT `id`, `player_payment_id`, `transaction_reference`, `idempotency_key`,
+                        `payment_method`, `amount`, `currency`, `status`, `transacted_at`, `created_at`
+                 FROM `payment_transactions`
                  WHERE `idempotency_key` = :idempotency_key
                  LIMIT 1'
             );
+            $stmt->bindValue(':idempotency_key', $idempotencyKey, PDO::PARAM_STR);
+            $stmt->execute();
+
+            $result = $stmt->fetch(PDO::FETCH_ASSOC);
+            return $result !== false ? $result : null;
+        });
+    }
             $stmt->bindValue(':idempotency_key', $idempotencyKey, PDO::PARAM_STR);
             $stmt->execute();
 

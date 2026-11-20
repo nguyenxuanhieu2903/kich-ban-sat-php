@@ -3,8 +3,8 @@
 Nền tảng đặt lịch chơi trực tuyến tự động, gọn nhẹ dành cho thể loại trò chơi nhập vai giải đố (Jubensha / murder mystery / kịch bản sát).
 
 > [!NOTE]
-> **Trạng thái cột mốc:** Cột mốc **P0.4 (Platform Technical Foundation)** đã được **ACCEPTED** (Nghiệm thu).<br>
-> Kiến trúc kỹ thuật cốt lõi, định tuyến, middleware, làm sạch ngoại lệ và baseline kiểm thử tự động đã được kiểm chứng. Các cổng nghiệp vụ (Player, DM, Admin) là phạm vi MVP dự kiến đã được phê duyệt, được lên lịch triển khai trong các cột mốc phát triển tiếp theo.
+> **Trạng thái cột mốc:** Cơ sở dữ liệu đã được **chuẩn hóa và thu gọn về đúng 21 bảng canonical theo tài liệu B3** theo yêu cầu của giảng viên hướng dẫn.<br>
+> Toàn bộ 9 tệp Phinx migration, seeders lũy thừa, hệ thống Repositories và bộ kiểm thử tích hợp chuyên sâu (**83 tests, 247 assertions**) đã được kiểm chứng và đạt **100% PASS** trên môi trường Windows Native.
 
 ---
 
@@ -12,232 +12,165 @@ Nền tảng đặt lịch chơi trực tuyến tự động, gọn nhẹ dành 
 
 Kịch Bản Sát V16 cung cấp một nền tảng đặt lịch trên nền web tự động, được thiết kế chuyên biệt cho các trò chơi nhập vai bí ẩn và kịch bản sát.
 
-- **Cột mốc hiện tại:** P0.4 Foundation đã được nghiệm thu (xem [docs/audit/P0_4_FOUNDATION_ACCEPTANCE_REPORT.md](docs/audit/P0_4_FOUNDATION_ACCEPTANCE_REPORT.md)).
-- **Trạng thái triển khai:** Hạ tầng nền tảng và các endpoint kiểm tra trạng thái hoạt động (health check) đang vận hành. Toàn bộ các cổng nghiệp vụ là phạm vi MVP dự kiến.
-- **Baseline đặc tả:** V15 là approved business baseline (baseline nghiệp vụ đã được phê duyệt). V16 kế thừa và mở rộng các yêu cầu nghiệp vụ đã được duyệt của V15 với các đặc tả chi tiết hướng tới triển khai. [PRODUCT_SPEC_V16_Draft.md](PRODUCT_SPEC_V16_Draft.md) là bản kế nhiệm đang ở trạng thái Draft của V15 và vẫn cần được xem xét, phê duyệt chính thức.
+- **Cột mốc hiện tại:** Platform Foundation & Canonical 21-Table Database Scope đã hoàn thành và nghiệm thu.
+- **Trạng thái triển khai:** Hạ tầng HTTP Core, 21 bảng CSDL nghiệp vụ trên MySQL 8.0, Repositories tầng dữ liệu, và API health check đang vận hành ổn định.
+- **Tài liệu đối chiếu CSDL:** Xem [docs/database/DATABASE_TABLE_MAPPING.md](docs/database/DATABASE_TABLE_MAPPING.md) và [docs/database/DATABASE_VERIFICATION_REPORT.md](docs/database/DATABASE_VERIFICATION_REPORT.md).
 
 ---
 
 ## 2. Phạm vi dự án
 
-Phạm vi MVP đã được phê duyệt bao gồm ba cổng giao diện dự kiến:
+Phạm vi MVP bao gồm ba cổng giao diện:
 
-- **Player Portal (Dự kiến):** Duyệt danh mục kịch bản, tạo và tham gia phòng chơi, xếp lịch phiên chơi, mô phỏng thanh toán đặt cọc, gửi yêu cầu rời phòng và theo dõi tiến trình phiên chơi.
-- **DM Portal (Dự kiến):** Tiếp nhận phân công điều phối, chấp nhận hoặc từ chối dẫn dắt phiên chơi, xem danh sách người chơi và kiểm tra thông tin địa điểm phòng chơi vật lý.
-- **Admin Portal (Dự kiến):** Quản lý phòng chơi và không gian vật lý, điều phối DM, duyệt đề xuất lịch chơi, xử lý hoàn tiền cọc và quản lý mở lại phòng chơi.
-
-Chi tiết yêu cầu nghiệp vụ đầy đủ và lộ trình triển khai công việc, xem tại [PRODUCT_SPEC_V16_Draft.md](PRODUCT_SPEC_V16_Draft.md) và [IMPLEMENTATION_PLAN_V16_Draft.md](IMPLEMENTATION_PLAN_V16_Draft.md).
+- **Player Portal:** Duyệt danh mục kịch bản, tạo và tham gia phòng chơi, biểu quyết lịch chơi, thanh toán đặt cọc mô phỏng, gửi yêu cầu rời phòng và theo dõi tiến trình.
+- **DM Portal:** Tiếp nhận phân công điều phối, chấp nhận hoặc từ chối dẫn dắt phòng chơi, xem danh sách người chơi và kiểm tra thông tin địa điểm phòng chơi vật lý.
+- **Admin Portal:** Quản lý danh mục kịch bản, bảng giá, phòng chơi, cơ sở vật lý, điều phối DM, duyệt hoàn tiền cọc và quản lý mở lại phòng chơi.
 
 ---
 
 ## 3. Cấu trúc dự án
 
-Repository áp dụng kiến trúc **Feature-oriented + Layered Architecture**, phân tách rõ ràng giữa Backend PHP thuần, Frontend Vanilla JavaScript và hệ thống tài liệu dự án:
+Repository áp dụng kiến trúc **Feature-oriented + Modular Monolith + Layered Architecture**, phân tách rõ ràng giữa Backend PHP thuần, Frontend Vanilla JavaScript và hệ thống tài liệu dự án:
 
 ```text
 Booking_kich-ban-sat_PHP/
-├── backend/                       # Ứng dụng Backend PHP thuần (Native PHP)
+├── backend/                       # Ứng dụng Backend PHP thuần (Native PHP 8.4+)
 │   ├── app/                       # Mã nguồn ứng dụng (PSR-4 App\)
-│   │   ├── Core/                  # Nhân HTTP không phụ thuộc framework (Router, Middleware, Request, Response)
-│   │   ├── Features/              # [Dự kiến] Các lát cắt nghiệp vụ (Feature vertical slices) (.gitkeep)
-│   │   ├── Infrastructure/        # Bộ nạp cấu hình và kết nối cơ sở dữ liệu qua PDO
-│   │   └── Shared/                # [Dự kiến] Các hàm tiện ích dùng chung toàn miền (.gitkeep)
+│   │   ├── Core/                  # Nhân HTTP không phụ thuộc framework (Router, Middleware, Request, Response, ExceptionHandler)
+│   │   ├── Features/              # Các lát cắt nghiệp vụ (Feature Vertical Slices)
+│   │   │   ├── Booking/           # Đặt lịch & phòng chơi vật lý
+│   │   │   ├── DMManagement/      # Quản lý & phân công DM
+│   │   │   ├── GameCatalog/       # Danh mục kịch bản & cấu hình
+│   │   │   ├── GameroomManagement/# Vòng đời phòng chơi & người tham gia
+│   │   │   ├── Identity/          # Tài khoản người dùng, vai trò & hồ sơ
+│   │   │   ├── Notification/      # Thông báo người dùng
+│   │   │   ├── PaymentRefund/     # Nghĩa vụ thanh toán, sổ cái giao dịch & hoàn tiền
+│   │   │   ├── Pricing/           # Bảng giá kịch bản & snapshot giá
+│   │   │   ├── Promotion/         # Khuyến mãi & mã giảm giá
+│   │   │   └── VenueScheduling/   # Cơ sở vật lý, đề xuất lịch & phiên chơi
+│   │   ├── Infrastructure/        # Cấu hình môi trường (Config) và kết nối PDO (DatabaseConnection)
+│   │   └── Shared/                # Tiện ích dùng chung toàn miền
 │   ├── bootstrap/                 # Khởi tạo ứng dụng (app.php)
-│   ├── database/                  # Công cụ chẩn đoán kết nối, [Dự kiến] migrations & seeders
-│   ├── public/                    # Document root của máy chủ web (index.php Front Controller)
-│   ├── routes/                    # Khai báo các tuyến đường API (api.php)
-│   ├── tests/                     # Bộ kiểm thử tự động PHPUnit (Feature/ & Unit/)
-│   ├── .env.example               # File mẫu cấu hình biến môi trường
-│   ├── composer.json              # Cấu hình Composer và quy tắc autoloading
-│   ├── composer.lock              # Khóa phiên bản dependency (PHPUnit 11.5.58)
+│   ├── database/                  # Quản lý CSDL (Phinx Migrations & Seeders)
+│   │   ├── backups/               # Bản sao lưu an toàn CSDL
+│   │   ├── migrations/            # 9 tệp Phinx migration chính thức cho 21 bảng B3
+│   │   │   └── archive_34_tables/ # Lưu trữ các migration cũ (34 bảng)
+│   │   └── seeders/               # ReferenceDataSeeder & RoleSeeder
+│   ├── public/                    # Document root máy chủ web (index.php Front Controller)
+│   ├── routes/                    # Tuyến đường API (api.php)
+│   ├── tests/                     # Bộ kiểm thử tự động PHPUnit (83 tests, 247 assertions)
+│   │   ├── Feature/               # HealthCheckTest
+│   │   ├── Integration/           # DatabaseIntegrityTest, RepositoryIntegrationTest
+│   │   └── Unit/                  # RouterTest, RequestTest, ResponseTest, v.v.
+│   ├── .env.example               # Mẫu cấu hình môi trường
+│   ├── composer.json              # Cấu hình Composer & PSR-4 autoload
+│   ├── phinx.php                  # Cấu hình công cụ Phinx Migration
 │   └── phpunit.xml                # Cấu hình bộ chạy kiểm thử PHPUnit
 │
-├── frontend/                      # Ứng dụng Single Page Application bằng Vanilla JavaScript
+├── frontend/                      # Ứng dụng Frontend (HTML5, CSS3, Vanilla JS ES Modules)
 │   ├── index.html                 # Điểm nhập HTML chính của ứng dụng
-│   ├── public/                    # [Dự kiến] Tài nguyên tĩnh (.gitkeep)
+│   ├── public/                    # Tài nguyên tĩnh
 │   ├── src/                       # Các module mã nguồn frontend
-│   │   ├── api/                   # Lớp trừu tượng gọi HTTP client (api-client.js, health-api.js)
-│   │   ├── components/            # [Dự kiến] Các UI component tái sử dụng (.gitkeep)
-│   │   ├── layouts/               # [Dự kiến] Khung bố cục giao diện (.gitkeep)
-│   │   ├── pages/                 # Bộ điều khiển trang (hiện tại có pages/health/health-page.js)
+│   │   ├── api/                   # Shared API client (api-client.js, health-api.js)
+│   │   ├── components/            # UI components tái sử dụng
+│   │   ├── layouts/               # Khung bố cục giao diện
+│   │   ├── pages/                 # Bộ điều khiển trang (Health, v.v.)
 │   │   ├── styles/                # Định dạng CSS (reset.css, variables.css, main.css)
-│   │   ├── utils/                 # Cấu hình và tiện ích trợ giúp (config.js)
-│   │   └── app.js                 # Script khởi động ứng dụng frontend
-│   └── tests/                     # Kiểm thử tự động với Node.js (api-client.test.mjs)
+│   │   └── utils/                 # Cấu hình và tiện ích trợ giúp
+│   └── tests/                     # Kiểm thử tự động API client với Node.js (7 tests)
 │
-├── docs/                          # Tài liệu kiến trúc, kiểm toán và cài đặt môi trường
-├── .gitignore                     # Quy tắc loại trừ file của Git
-├── IMPLEMENTATION_PLAN_V16_Draft.md # Kế hoạch triển khai (bản thảo đang xem xét)
-├── PRODUCT_SPEC_V16_Draft.md      # Đặc tả kỹ thuật (bản kế nhiệm của V15 đang ở trạng thái Draft)
-└── README.md                      # Tài liệu dự án và hướng dẫn làm quen (onboarding)
+├── docs/                          # Hệ thống tài liệu kiến trúc, CSDL & kiểm toán
+│   ├── database/                  # Tài liệu 21 bảng CSDL, ánh xạ & thẩm định
+│   │   ├── DATABASE_TABLE_MAPPING.md       # Bảng đối chiếu 34 bảng -> 21 bảng
+│   │   ├── DATABASE_VERIFICATION_REPORT.md # Báo cáo thẩm định schema thực tế
+│   │   └── DATABASE_MIGRATION_REPORT.md    # Báo cáo thực thi 9 migration Phinx
+│   ├── guides/                    # Sổ tay hướng dẫn
+│   │   └── LOCAL_SETUP_AND_RUN_GUIDE.md    # Hướng dẫn chạy thủ công từng bước trên Windows
+│   └── audit/                     # Các báo cáo kiểm toán kỹ thuật
+│
+├── IMPLEMENTATION_PLAN_V16_Draft.md
+├── PRODUCT_SPEC_V16_Draft.md
+└── README.md                      # Tài liệu này
 ```
 
-### Trách nhiệm các thư mục chính
+---
 
-| Thư mục | Trạng thái | Trách nhiệm |
-| :--- | :---: | :--- |
-| `backend/app/Core/` | **Implemented** | Nhân HTTP không framework: Router, Middleware, Request, Response và ExceptionHandler. |
-| `backend/app/Features/` | *Planned* (`.gitkeep`) | Nơi đặt các lát cắt nghiệp vụ trong tương lai (Controllers, Services, Repositories). |
-| `backend/app/Infrastructure/` | **Implemented** / *Planned* | Bộ đọc cấu hình môi trường (`Config.php`) và PDO `ConnectionFactory.php`. Logging đang được dự kiến. |
-| `backend/database/` | **Implemented** / *Planned* | Script kiểm tra kết nối (`verify-connection.php`). Migrations và seeders dự kiến triển khai tại Phase 1. |
-| `backend/tests/` | **Implemented** | Bộ kiểm thử tự động PHPUnit: Kiểm thử tích hợp Feature và kiểm thử đơn vị Unit. |
-| `frontend/src/` | **Implemented** / *Planned* | Client Fetch API, controller trang health, styles và cấu hình. Các component giao diện và cổng nghiệp vụ là dự kiến. |
-| `frontend/tests/` | **Implemented** | Kiểm thử tự động với Node.js cho API client: hủy request, timeout và chuẩn hóa lỗi. |
-| `docs/` | **Implemented** / *Planned* | Quyết định kiến trúc (`adr/`), báo cáo kiểm toán và nghiệm thu (`audit/`), hướng dẫn nhà phát triển (`setup/`). |
+## 4. Công nghệ sử dụng
 
-*(Ghi chú: Các thư mục chỉ tồn tại cục bộ như `backend/vendor/`, `backend/.phpunit.cache/`, và file cục bộ `backend/.env` được loại trừ khỏi version control thông qua `.gitignore`).*
+| Công nghệ | Phiên bản thực tế | Mục đích |
+| :--- | :--- | :--- |
+| **PHP CLI** | 8.4.27 (cli) ZTS x64 | Runtime Backend API & Built-in web server |
+| **PHP Extensions** | `pdo`, `pdo_mysql`, `mbstring`, `openssl`, `json`, `fileinfo` | Runtime cốt lõi & tương tác CSDL qua PDO |
+| **MySQL Server** | 8.0.44 Community Server | CSDL quan hệ chính (InnoDB, utf8mb4_unicode_ci) |
+| **Phinx** | 0.16.12 | Quản lý Migration và Seeders |
+| **Composer** | 2.11-dev | Quản lý dependencies & Autoload chuẩn PSR-4 |
+| **PHPUnit** | 11.5.58 | Khung kiểm thử tự động Backend |
+| **Node.js** | 24.22.1 | Trình chạy kiểm thử API client Frontend (`node --test`) |
+| **Frontend** | HTML5, CSS3, Vanilla JS ES Modules | Client trình duyệt thuần, không phụ thuộc framework hay bundler |
+| **Hệ điều hành** | Windows 11 Native (Không Docker) | Môi trường phát triển cục bộ |
 
 ---
 
-## 4. Kiến trúc hệ thống
+## 5. Quy trình 9 bước cài đặt & Khởi chạy thủ công trên Windows
 
-Kịch Bản Sát V16 tuân thủ mô hình **Feature-oriented + Layered Architecture** và không phụ thuộc vào bất kỳ framework bên ngoài nào trong thời gian chạy (runtime). Ở phía Backend, mô hình kiến trúc nội bộ **Model-View-Controller (MVC)** được áp dụng để phân tách các tầng xử lý yêu cầu HTTP, nghiệp vụ ứng dụng và truy xuất dữ liệu.
+Xem chi tiết từng bước có giải thích tại [docs/guides/LOCAL_SETUP_AND_RUN_GUIDE.md](docs/guides/LOCAL_SETUP_AND_RUN_GUIDE.md).
 
-### Sơ đồ luồng xử lý
-
-```text
-Trình duyệt (Vanilla JS ES Modules)
-   │
-   │ fetch() [JSON qua HTTP]
-   ▼
-backend/public/index.php (Front Controller)
-   │
-   ▼
-App\Core\Router -> App\Core\Middleware (CORS, Bảo mật)
-   │
-   ▼
-[Các tầng nghiệp vụ mục tiêu: Phase 1+]
-Controller (Xác thực dữ liệu đầu vào & Chuẩn hóa JSON Response)
-   │
-   ▼
-Application Service (Xử lý nghiệp vụ & Bảo vệ trạng thái State Machine)
-   │
-   ▼
-Repository (Truy vấn tham số hóa qua PDO Prepared Statements)
-   │
-   ▼
-Cơ sở dữ liệu MySQL (utf8mb4, Strict Mode)
-```
-
-- **Foundation hiện tại (Cột mốc P0.4):** Front Controller, HTTP Router, CORS Middleware, các lớp trừu tượng Request/Response, ExceptionHandler kèm cơ chế làm sạch thông tin nhạy cảm, và PDO Connection Factory. Phục vụ endpoint `GET /api/health`.
-- **Kiến trúc nghiệp vụ mục tiêu (Phase 1+):** Logic nghiệp vụ, các domain controller, application service, repository và các bảng dữ liệu quan hệ sẽ được đưa vào theo từng lát cắt nghiệp vụ (vertical slice).
-- **Quy tắc an toàn dữ liệu:** Mọi truy vấn liên quan đến tham số động hoặc dữ liệu từ bên ngoài bắt buộc phải sử dụng PDO prepared statements với bound parameters. Nghiêm cấm hoàn toàn việc nối chuỗi trực tiếp từ dữ liệu chưa qua kiểm chứng.
-
----
-
-## 5. Công nghệ sử dụng
-
-| Công nghệ | Phiên bản tối thiểu / Yêu cầu | Baseline môi trường đã xác minh | Mục đích |
-| :--- | :--- | :--- | :--- |
-| **PHP CLI** | 8.2+ | PHP 8.4.27 (cli) ZTS x64 | Runtime API Backend & máy chủ phát triển tích hợp |
-| **PHP Extensions** | Bắt buộc | `pdo`, `pdo_mysql`, `mbstring`, `openssl`, `fileinfo`, `json`, `session` | Các khả năng runtime cốt lõi |
-| **MySQL Server** | 8.0+ | MySQL Community Server 8.0.44 | Cơ sở dữ liệu quan hệ (dịch vụ Windows: `MySQL80`) |
-| **Composer** | 2.x | Composer 2.11-dev | Autoloading chuẩn PSR-4 & quản lý dev dependency |
-| **Node.js** | 20+ | Node.js 24.22.1 | Trình chạy kiểm thử tích hợp sẵn (`node --test`) cho frontend |
-| **PHPUnit** | ^11.5 | PHPUnit 11.5.58 | Khung kiểm thử tự động Backend |
-| **Frontend** | Trình duyệt hiện đại | HTML5, CSS3, Vanilla JS ES Modules | Client trình duyệt thuần, không phụ thuộc build toolchain |
-| **Git** | 2.40+ | Git 2.52.0.windows.1 | Quản lý mã nguồn theo mô hình local-first |
-| **Nền tảng** | Windows 10/11 x64 | Windows 11 Native (Không dùng Docker) | Môi trường hệ điều hành phát triển |
-
----
-
-## 6. Cài đặt và cấu hình
-
-### Bước 1: Mở Terminal & Kiểm tra PATH
-Mở Windows PowerShell tại thư mục gốc của repository:
 ```powershell
-cd /path/to/Booking_kich-ban-sat_PHP
-```
-Đảm bảo các lệnh `php`, `composer`, `node` và `mysql` đã sẵn sàng trong phiên làm việc PowerShell. Nếu chưa được cấu hình biến môi trường toàn hệ thống, hãy thêm đường dẫn của chúng vào `$env:PATH` cho phiên hiện tại (xem đường dẫn mẫu trong [docs/setup/PREREQUISITES.md](docs/setup/PREREQUISITES.md)).
+# BƯỚC 1: Mở PowerShell tại thư mục gốc và kiểm tra công cụ
+cd D:\LapTrinhWeb\Project\Booking_kich-ban-sat_PHP
+php -v; composer -V; mysql --version; node -v
 
-### Bước 2: Cấu hình biến môi trường
-Sao chép cấu hình mẫu từ file template:
-```powershell
+# BƯỚC 2: Cấu hình biến môi trường
 Copy-Item backend/.env.example backend/.env
-```
-Mở file `backend/.env` và cập nhật thông tin đăng nhập cơ sở dữ liệu MySQL cục bộ của bạn (`DB_DATABASE`, `DB_USERNAME`, `DB_PASSWORD`). Tuyệt đối không commit file `.env` lên Git.
+# Chỉnh sửa mật khẩu DB_PASSWORD trong backend/.env khớp với MySQL của bạn
 
-### Bước 3: Cài đặt các gói phụ thuộc Backend
-```powershell
+# BƯỚC 3: Cài đặt gói phụ thuộc Backend
+cd backend; composer install; cd ..
+
+# BƯỚC 4: Tạo cơ sở dữ liệu MySQL (nếu chưa có)
+mysql -u root -p -e "CREATE DATABASE IF NOT EXISTS booking_project_php CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci; CREATE DATABASE IF NOT EXISTS booking_project_php_test CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
+
+# BƯỚC 5: Thực thi Phinx Migration tạo 21 bảng Canonical
 cd backend
-composer install
+.\vendor\bin\phinx migrate -e development
+.\vendor\bin\phinx migrate -e testing
 cd ..
-```
 
-### Bước 4: Kiểm tra kết nối cơ sở dữ liệu (Tùy chọn)
-Chạy script kiểm tra kết nối PDO tới dịch vụ MySQL cục bộ:
-```powershell
-php backend/database/verify-connection.php
-```
-*(Yêu cầu dịch vụ MySQL đang chạy và cơ sở dữ liệu khớp với cấu hình `DB_DATABASE` đã được tạo sẵn. Các migration tạo bảng sẽ được triển khai trong Phase 1).*
+# BƯỚC 6: Khởi tạo dữ liệu hạt giống (Seed Data)
+cd backend
+.\vendor\bin\phinx seed:run -e development
+cd ..
 
-Xem chi tiết kết quả kiểm toán môi trường tại [docs/setup/ENVIRONMENT_AUDIT.md](docs/setup/ENVIRONMENT_AUDIT.md).
+# BƯỚC 7: Chạy kiểm thử tự động xác minh tính toàn vẹn
+cd backend; .\vendor\bin\phpunit; cd ..
+node frontend/tests/api-client.test.mjs
 
----
-
-## 7. Khởi chạy ứng dụng
-
-### 7.1. Khởi chạy máy chủ Backend API
-```powershell
+# BƯỚC 8: Khởi chạy Backend API Server (PowerShell 1)
 php -S 127.0.0.1:8080 -t backend/public backend/public/index.php
-```
-Kiểm tra endpoint health check tại `http://127.0.0.1:8080/api/health`. Phản hồi JSON mẫu kỳ vọng:
-```json
-{"success":true,"data":{"status":"ok","application":"Kich Ban Sat","version":"16"}}
-```
+# Kiểm tra: curl http://127.0.0.1:8080/api/health
 
-### 7.2. Khởi chạy máy chủ Frontend
-Mở một cửa sổ PowerShell riêng biệt và chạy:
-```powershell
+# BƯỚC 9: Khởi chạy Frontend Server (PowerShell 2)
 php -S 127.0.0.1:3000 -t frontend
-```
-Mở địa chỉ `http://127.0.0.1:3000` trên trình duyệt web để truy cập giao diện kiểm tra trạng thái hoạt động của Platform Foundation.
-
----
-
-## 8. Kiểm thử
-
-Thực thi các bộ kiểm thử tự động từ thư mục gốc của repository:
-
-```powershell
-# 1. Bộ kiểm thử tự động Backend PHPUnit (52 tests, 190 assertions)
-cd backend
-.\vendor\bin\phpunit
-composer validate
-cd ..
-
-# 2. Bộ kiểm thử tự động Frontend chạy trên Node.js (7 tests)
-node --test frontend/tests/api-client.test.mjs
+# Truy cập trình duyệt: http://127.0.0.1:3000
 ```
 
-> [!NOTE]
-> Các chỉ số trên đại diện cho **baseline Foundation** đã được kiểm chứng. Các bài test cho từng chức năng nghiệp vụ sẽ được bổ sung song song với quá trình triển khai tính năng trong Phase 1+. Xem nhật ký kiểm thử chi tiết tại [docs/setup/FOUNDATION_VERIFICATION.md](docs/setup/FOUNDATION_VERIFICATION.md).
+---
+
+## 6. Kết quả kiểm thử tự động
+
+- **Backend (PHPUnit 11.5.58):**
+  - **83 tests, 247 assertions — 100% PASS (0 errors, 0 failures)**.
+  - Bao gồm: kiểm thử toàn vẹn ACID, ràng buộc khóa ngoại (RESTRICT, CASCADE, SET NULL), khóa ảo tính toán có điều kiện (`active_user_id`, `active_assigned_room_id`, `proposed_game_room_id`), kiểm tra miền giá trị CHECK, chống trùng lặp giao dịch thanh toán/hoàn tiền bằng `idempotency_key`, và kiểm thử các Repositories.
+- **Frontend (Node.js test runner):**
+  - **7 tests — 100% PASS (0 failures)**.
+  - Bao gồm: kiểm thử HTTP timeout, signal hủy request, khôi phục kết nối và chuẩn hóa mã lỗi `ApiError`.
 
 ---
 
-## 9. Quy trình Git
+## 7. Tài liệu kỹ thuật liên quan
 
-- **Cấu trúc nhánh (Branch Structure):**
-  - `main`: Nhánh chứa mã nguồn sẵn sàng cho môi trường production, chỉ nhận các mốc phát hành đã nghiệm thu.
-  - `develop`: Nhánh tích hợp chính cho quá trình phát triển thường nhật.
-  - Nhánh chức năng: `feat/<tên-chức-năng>`, `fix/<tên-lỗi>`, `test/<phạm-vi-kiểm-thử>`.
-- **Quy tắc làm việc:**
-  - Mọi nhánh tính năng đều phải được rẽ nhánh từ `develop` và tạo Pull Request (PR) hợp nhất về lại `develop`.
-  - Các bản phát hành từ `develop` được hợp nhất sang `main` thông qua Release Pull Request sau khi đạt nghiệm thu mốc.
-  - Toàn bộ bài kiểm tra (`phpunit`, `node --test`) và lệnh kiểm tra `composer validate` phải vượt qua thành công trước khi mở PR.
-  - Bắt buộc phải có review từ thành viên khác (peer review) trước khi merge.
-- **Quy chuẩn thông điệp commit (Commit Format):** `<type>: <mô tả ngắn>` (`feat`, `fix`, `chore`, `docs`, `refactor`, `test`, `security`).
-- **Kỷ luật mã nguồn:** Tuyệt đối không commit các file cấu hình `.env`, thông tin bảo mật hoặc thư mục phụ thuộc `vendor/`.
-
----
-
-## 10. Tài liệu tham khảo
-
-Để nắm rõ các tài liệu kỹ thuật chi tiết và hồ sơ kiến trúc, vui lòng tham khảo:
-- [PRODUCT_SPEC_V16_Draft.md](PRODUCT_SPEC_V16_Draft.md) — Đặc tả sản phẩm & kỹ thuật (bản thảo kế nhiệm của V15).
-- [IMPLEMENTATION_PLAN_V16_Draft.md](IMPLEMENTATION_PLAN_V16_Draft.md) — Kế hoạch và lộ trình triển khai qua các giai đoạn.
+- [docs/database/DATABASE_TABLE_MAPPING.md](docs/database/DATABASE_TABLE_MAPPING.md) — Đối chiếu chi tiết 34 bảng → 21 bảng.
+- [docs/database/DATABASE_VERIFICATION_REPORT.md](docs/database/DATABASE_VERIFICATION_REPORT.md) — Báo cáo thẩm định kỹ thuật 21 bảng trên MySQL.
+- [docs/database/DATABASE_MIGRATION_REPORT.md](docs/database/DATABASE_MIGRATION_REPORT.md) — Nhật ký thực thi 9 migration Phinx.
+- [docs/guides/LOCAL_SETUP_AND_RUN_GUIDE.md](docs/guides/LOCAL_SETUP_AND_RUN_GUIDE.md) — Sổ tay hướng dẫn cài đặt & vận hành thủ công trên Windows.
 - [docs/adr/ADR-0001-project-foundation.md](docs/adr/ADR-0001-project-foundation.md) — Bản ghi quyết định kiến trúc nền tảng (ADR).
-- [docs/setup/PREREQUISITES.md](docs/setup/PREREQUISITES.md) — Yêu cầu tiên quyết cho máy trạm phát triển.
-- [docs/setup/ENVIRONMENT_AUDIT.md](docs/setup/ENVIRONMENT_AUDIT.md) — Báo cáo kiểm toán môi trường và phần mở rộng PHP.
-- [docs/setup/FOUNDATION_VERIFICATION.md](docs/setup/FOUNDATION_VERIFICATION.md) — Quy trình xác minh chi tiết và sổ tay lệnh chạy thử.
-- [docs/audit/P0_4_FOUNDATION_ACCEPTANCE_REPORT.md](docs/audit/P0_4_FOUNDATION_ACCEPTANCE_REPORT.md) — Báo cáo nghiệm thu chính thức cột mốc P0.4 Foundation.

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Integration;
 
+use App\Infrastructure\Config\Config;
 use PDO;
 use PDOException;
 use PHPUnit\Framework\TestCase;
@@ -11,10 +12,10 @@ use PHPUnit\Framework\TestCase;
 /**
  * Class DatabaseIntegrityTest
  *
- * Exhaustive database verification test suite for Task 3.4.
+ * Exhaustive database verification test suite for the canonical 21-table schema.
  * Tests against MySQL 8.0/8.4 InnoDB schema (booking_project_php_test).
  * Validates ACID properties, referential integrity, check constraints,
- * virtual generated conditional unique constraints, and transaction rollback.
+ * virtual generated conditional unique constraints, idempotency keys, and transaction rollback.
  */
 class DatabaseIntegrityTest extends TestCase
 {
@@ -22,11 +23,14 @@ class DatabaseIntegrityTest extends TestCase
 
     public static function setUpBeforeClass(): void
     {
-        $host = getenv('DB_HOST') ?: '127.0.0.1';
-        $port = getenv('DB_PORT') ?: '3306';
-        $db = 'booking_project_php_test';
-        $user = getenv('DB_USERNAME') ?: 'root';
-        $pass = getenv('DB_PASSWORD') ?: 'Hieu29032006@';
+        $basePath = dirname(__DIR__, 2);
+        Config::load($basePath);
+
+        $host = Config::get('DB_HOST', '127.0.0.1');
+        $port = (int) Config::get('DB_PORT', 3306);
+        $db = Config::get('DB_TEST_DATABASE', 'booking_project_php_test');
+        $user = Config::get('DB_USERNAME', 'root');
+        $pass = Config::get('DB_PASSWORD', 'Hieu29032006@');
 
         self::$pdo = new PDO("mysql:host={$host};port={$port};dbname={$db};charset=utf8mb4", $user, $pass, [
             PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
@@ -47,16 +51,27 @@ class DatabaseIntegrityTest extends TestCase
     {
         self::$pdo->exec("SET FOREIGN_KEY_CHECKS = 0;");
         $tables = [
-            'audit_logs', 'booking_price_snapshots', 'categories', 'dm_assignments',
-            'dm_availabilities', 'dm_profiles', 'game_category_assignments',
-            'game_configurations', 'game_prices', 'game_room_status_histories',
-            'game_rooms', 'game_rules', 'games', 'notification_recipient_states',
-            'notifications', 'participant_leave_requests', 'participant_status_histories',
-            'payment_attempts', 'payment_transactions', 'physical_room_reservations',
-            'physical_rooms', 'player_payments', 'promotions', 'refund_attempts',
-            'refunds', 'replacement_windows', 'roles', 'room_participants',
-            'schedule_proposals', 'schedule_responses', 'sessions', 'user_profiles',
-            'user_roles', 'users'
+            'notifications',
+            'refunds',
+            'payment_transactions',
+            'player_payments',
+            'participant_price_snapshots',
+            'booking_price_snapshots',
+            'promotions',
+            'game_prices',
+            'sessions',
+            'schedule_responses',
+            'schedule_proposals',
+            'physical_rooms',
+            'venues',
+            'dm_assignments',
+            'replacement_windows',
+            'room_participants',
+            'game_rooms',
+            'game_configurations',
+            'games',
+            'users',
+            'roles',
         ];
         foreach ($tables as $t) {
             self::$pdo->exec("DELETE FROM `{$t}`");
@@ -70,21 +85,7 @@ class DatabaseIntegrityTest extends TestCase
 
     public function testA01ValidUserAndRoleInsert(): void
     {
-        // 1. Insert User
-        $stmt = self::$pdo->prepare("
-            INSERT INTO users (name, email, password_hash, phone, status) 
-            VALUES (:name, :email, :hash, :phone, 'ACTIVE')
-        ");
-        $stmt->execute([
-            'name' => 'Alice Nguyen',
-            'email' => 'alice@example.com',
-            'hash' => password_hash('Secret123!', PASSWORD_BCRYPT),
-            'phone' => '0901234567',
-        ]);
-        $userId = (int) self::$pdo->lastInsertId();
-        $this->assertGreaterThan(0, $userId);
-
-        // 2. Insert Role
+        // 1. Insert Role
         $stmt = self::$pdo->prepare("
             INSERT INTO roles (name, label, description) 
             VALUES ('PLAYER', 'Standard Player', 'Default role for booked players')
@@ -93,52 +94,39 @@ class DatabaseIntegrityTest extends TestCase
         $roleId = (int) self::$pdo->lastInsertId();
         $this->assertGreaterThan(0, $roleId);
 
-        // 3. Insert User Profile (1:1)
+        // 2. Insert User with role_id
         $stmt = self::$pdo->prepare("
-            INSERT INTO user_profiles (user_id, display_name, phone, gender) 
-            VALUES (:uid, 'AliceInWonderland', '0901234567', 'FEMALE')
+            INSERT INTO users (role_id, name, email, password_hash, phone, status) 
+            VALUES (:role_id, :name, :email, :hash, :phone, 'ACTIVE')
         ");
-        $stmt->execute(['uid' => $userId]);
-        $this->assertGreaterThan(0, (int) self::$pdo->lastInsertId());
-
-        // 4. Insert User Role Pivot (N:M)
-        $stmt = self::$pdo->prepare("
-            INSERT INTO user_roles (user_id, role_id) 
-            VALUES (:uid, :rid)
-        ");
-        $stmt->execute(['uid' => $userId, 'rid' => $roleId]);
-        $this->assertGreaterThan(0, (int) self::$pdo->lastInsertId());
+        $stmt->execute([
+            'role_id' => $roleId,
+            'name' => 'Alice Nguyen',
+            'email' => 'alice@example.com',
+            'hash' => password_hash('Secret123!', PASSWORD_BCRYPT),
+            'phone' => '0901234567',
+        ]);
+        $userId = (int) self::$pdo->lastInsertId();
+        $this->assertGreaterThan(0, $userId);
     }
 
     public function testA02ValidGameCatalogInsert(): void
     {
-        // Category
-        $stmt = self::$pdo->prepare("INSERT INTO categories (name, slug, description) VALUES ('Horror Mystery', 'horror-mystery', 'Creepy mystery scripts')");
-        $stmt->execute();
-        $catId = (int) self::$pdo->lastInsertId();
-
         // Game
         $stmt = self::$pdo->prepare("
-            INSERT INTO games (title, slug, min_players, max_players, duration_minutes, is_active) 
-            VALUES ('Nightmare at the Manor', 'nightmare-manor', 6, 8, 240, 1)
+            INSERT INTO games (title, slug, category, min_players, max_players, duration_minutes, is_active) 
+            VALUES ('Nightmare at the Manor', 'nightmare-manor', 'Horror Mystery', 6, 8, 240, 1)
         ");
         $stmt->execute();
         $gameId = (int) self::$pdo->lastInsertId();
 
-        // Game Rule
-        $stmt = self::$pdo->prepare("INSERT INTO game_rules (game_id, rule_name, rule_content) VALUES (:gid, 'General', 'No looking at others clue sheets.')");
-        $stmt->execute(['gid' => $gameId]);
-
         // Game Config
         $stmt = self::$pdo->prepare("INSERT INTO game_configurations (game_id, config_key, config_value) VALUES (:gid, 'soundtrack_url', 'https://music.example.com/spooky')");
         $stmt->execute(['gid' => $gameId]);
-
-        // Game Category Pivot
-        $stmt = self::$pdo->prepare("INSERT INTO game_category_assignments (game_id, category_id) VALUES (:gid, :cid)");
-        $stmt->execute(['gid' => $gameId, 'cid' => $catId]);
+        $configId = (int) self::$pdo->lastInsertId();
 
         $this->assertGreaterThan(0, $gameId);
-        $this->assertGreaterThan(0, $catId);
+        $this->assertGreaterThan(0, $configId);
     }
 
     public function testA03ValidPricingAndPromotionInsert(): void
@@ -150,9 +138,21 @@ class DatabaseIntegrityTest extends TestCase
         $priceId = (int) self::$pdo->lastInsertId();
         $this->assertGreaterThan(0, $priceId);
 
-        self::$pdo->exec("INSERT INTO promotions (code, name, discount_type, discount_value, valid_from, valid_to, is_active) VALUES ('SUMMER2026', 'Summer Promo', 'PERCENTAGE', 10.00, '2026-06-01', '2026-08-31', 1)");
+        self::$pdo->exec("INSERT INTO promotions (code, name, discount_type, discount_value, valid_from, valid_to, is_active) VALUES ('SUMMER2026', 'Summer Promo', 'FIXED_AMOUNT', 20000.00, '2026-06-01 00:00:00', '2026-08-31 23:59:59', 1)");
         $promoId = (int) self::$pdo->lastInsertId();
         $this->assertGreaterThan(0, $promoId);
+    }
+
+    public function testA04ValidVenueAndPhysicalRoomInsert(): void
+    {
+        self::$pdo->exec("INSERT INTO venues (name, code, address, is_active) VALUES ('Cyber Hub', 'CYBER_HUB', '123 Nguyen Hue', 1)");
+        $venueId = (int) self::$pdo->lastInsertId();
+
+        self::$pdo->exec("INSERT INTO physical_rooms (venue_id, name, code, capacity, status) VALUES ({$venueId}, 'Room 101', 'R101', 8, 'AVAILABLE')");
+        $roomId = (int) self::$pdo->lastInsertId();
+
+        $this->assertGreaterThan(0, $venueId);
+        $this->assertGreaterThan(0, $roomId);
     }
 
     // =========================================================================
@@ -161,16 +161,19 @@ class DatabaseIntegrityTest extends TestCase
 
     public function testB01NotNullConstraintViolation(): void
     {
+        self::$pdo->exec("INSERT INTO roles (name, label) VALUES ('PLAYER', 'Player')");
+        $roleId = (int) self::$pdo->lastInsertId();
+
         $this->expectException(PDOException::class);
-        // Column 'email' cannot be null (HY000 / 1048)
-        self::$pdo->exec("INSERT INTO users (name, email, password_hash) VALUES ('Bob', NULL, 'hash123')");
+        // Column 'email' cannot be null
+        self::$pdo->exec("INSERT INTO users (role_id, name, email, password_hash) VALUES ({$roleId}, 'Bob', NULL, 'hash123')");
     }
 
     public function testB02ForeignKeyViolationOnInsert(): void
     {
         $this->expectException(PDOException::class);
-        // user_roles referencing non-existent user_id=999999 (23000 / 1452)
-        self::$pdo->exec("INSERT INTO user_roles (user_id, role_id) VALUES (999999, 1)");
+        // users referencing non-existent role_id=999999
+        self::$pdo->exec("INSERT INTO users (role_id, name, email, password_hash) VALUES (999999, 'Bob', 'bob@example.com', 'hash123')");
     }
 
     public function testB03CheckConstraintViolationOnGamesPlayerCount(): void
@@ -185,7 +188,6 @@ class DatabaseIntegrityTest extends TestCase
 
     public function testB04CheckConstraintViolationOnGamePricesTimes(): void
     {
-        // Create prerequisite game
         self::$pdo->exec("INSERT INTO games (title, slug, min_players, max_players, duration_minutes) VALUES ('Valid Game', 'valid-game', 4, 6, 120)");
         $gameId = (int) self::$pdo->lastInsertId();
 
@@ -197,43 +199,62 @@ class DatabaseIntegrityTest extends TestCase
         ");
     }
 
-    public function testB05CheckConstraintViolationOnDmAvailableDay(): void
+    public function testB05CheckConstraintViolationOnScheduleProposalsTimes(): void
     {
-        // Prerequisite user and DM profile
-        self::$pdo->exec("INSERT INTO users (name, email, password_hash) VALUES ('DM Dan', 'dan@example.com', 'hash')");
+        self::$pdo->exec("INSERT INTO roles (name, label) VALUES ('PLAYER', 'Player')");
+        $roleId = (int) self::$pdo->lastInsertId();
+        self::$pdo->exec("INSERT INTO users (role_id, name, email, password_hash) VALUES ({$roleId}, 'Proposer', 'prop@example.com', 'h')");
         $uid = (int) self::$pdo->lastInsertId();
-        self::$pdo->exec("INSERT INTO dm_profiles (user_id, experience_years, status) VALUES ({$uid}, 3, 'ACTIVE')");
-        $dmId = (int) self::$pdo->lastInsertId();
+
+        self::$pdo->exec("INSERT INTO games (title, slug, min_players, max_players, duration_minutes) VALUES ('Game Prop', 'game-prop', 4, 6, 120)");
+        $gid = (int) self::$pdo->lastInsertId();
+        self::$pdo->exec("INSERT INTO game_rooms (creator_id, game_id, title, room_code, min_players, max_players, formation_deadline, status) VALUES ({$uid}, {$gid}, 'Room Prop', 'ROOM_PROP', 4, 6, '2026-12-01 12:00:00', 'FORMING')");
+        $roomId = (int) self::$pdo->lastInsertId();
 
         $this->expectException(PDOException::class);
-        // chk_dm_avail_day: day_of_week BETWEEN 0 AND 6 (Violated: day_of_week = 7)
+        // chk_schedule_proposals_times: start_time < end_time (Violated: 18:00:00 < 14:00:00)
         self::$pdo->exec("
-            INSERT INTO dm_availabilities (dm_profile_id, day_of_week, start_time, end_time) 
-            VALUES ({$dmId}, 7, '09:00:00', '12:00:00')
+            INSERT INTO schedule_proposals (game_room_id, proposed_by_user_id, proposed_date, start_time, end_time, deadline) 
+            VALUES ({$roomId}, {$uid}, '2026-12-01', '18:00:00', '14:00:00', '2026-11-30 12:00:00')
         ");
     }
 
     public function testB06UniqueConstraintViolationSingleColumn(): void
     {
-        self::$pdo->exec("INSERT INTO users (name, email, password_hash) VALUES ('User 1', 'unique@example.com', 'h1')");
+        self::$pdo->exec("INSERT INTO roles (name, label) VALUES ('PLAYER', 'Player')");
+        $roleId = (int) self::$pdo->lastInsertId();
+
+        self::$pdo->exec("INSERT INTO users (role_id, name, email, password_hash) VALUES ({$roleId}, 'User 1', 'unique@example.com', 'h1')");
 
         $this->expectException(PDOException::class);
-        // Duplicate entry 'unique@example.com' for key 'users.uq_users_email' (23000 / 1062)
-        self::$pdo->exec("INSERT INTO users (name, email, password_hash) VALUES ('User 2', 'unique@example.com', 'h2')");
+        // Duplicate entry 'unique@example.com' for key 'users.uq_users_email'
+        self::$pdo->exec("INSERT INTO users (role_id, name, email, password_hash) VALUES ({$roleId}, 'User 2', 'unique@example.com', 'h2')");
     }
 
     public function testB07UniqueConstraintViolationComposite(): void
     {
-        self::$pdo->exec("INSERT INTO games (title, slug, min_players, max_players, duration_minutes) VALUES ('Game A', 'game-a', 4, 6, 120)");
-        $gid = (int) self::$pdo->lastInsertId();
-        self::$pdo->exec("INSERT INTO categories (name, slug) VALUES ('Cat A', 'cat-a')");
-        $cid = (int) self::$pdo->lastInsertId();
+        self::$pdo->exec("INSERT INTO roles (name, label) VALUES ('PLAYER', 'Player')");
+        $roleId = (int) self::$pdo->lastInsertId();
+        self::$pdo->exec("INSERT INTO users (role_id, name, email, password_hash) VALUES ({$roleId}, 'User Vote', 'vote@example.com', 'h')");
+        $uid = (int) self::$pdo->lastInsertId();
 
-        self::$pdo->exec("INSERT INTO game_category_assignments (game_id, category_id) VALUES ({$gid}, {$cid})");
+        self::$pdo->exec("INSERT INTO games (title, slug, min_players, max_players, duration_minutes) VALUES ('Game V', 'game-v', 4, 6, 120)");
+        $gid = (int) self::$pdo->lastInsertId();
+        self::$pdo->exec("INSERT INTO game_rooms (creator_id, game_id, title, room_code, min_players, max_players, formation_deadline, status) VALUES ({$uid}, {$gid}, 'Room V', 'ROOM_V', 4, 6, '2026-12-01 12:00:00', 'FORMING')");
+        $roomId = (int) self::$pdo->lastInsertId();
+
+        self::$pdo->exec("INSERT INTO room_participants (game_room_id, user_id, status) VALUES ({$roomId}, {$uid}, 'JOINED')");
+        $partId = (int) self::$pdo->lastInsertId();
+
+        self::$pdo->exec("INSERT INTO schedule_proposals (game_room_id, proposed_by_user_id, proposed_date, start_time, end_time, deadline) VALUES ({$roomId}, {$uid}, '2026-12-01', '14:00:00', '18:00:00', '2026-11-30 12:00:00')");
+        $propId = (int) self::$pdo->lastInsertId();
+
+        // First vote
+        self::$pdo->exec("INSERT INTO schedule_responses (schedule_proposal_id, room_participant_id, response) VALUES ({$propId}, {$partId}, 'ACCEPTED')");
 
         $this->expectException(PDOException::class);
-        // Duplicate entry for composite key uq_game_category_assignments (game_id, category_id)
-        self::$pdo->exec("INSERT INTO game_category_assignments (game_id, category_id) VALUES ({$gid}, {$cid})");
+        // Duplicate vote on composite key uq_schedule_responses_vote (schedule_proposal_id, room_participant_id)
+        self::$pdo->exec("INSERT INTO schedule_responses (schedule_proposal_id, room_participant_id, response) VALUES ({$propId}, {$partId}, 'DECLINED')");
     }
 
     // =========================================================================
@@ -252,8 +273,11 @@ class DatabaseIntegrityTest extends TestCase
 
     public function testC02UniqueConstraintViolationOnUpdate(): void
     {
-        self::$pdo->exec("INSERT INTO users (name, email, password_hash) VALUES ('User 1', 'one@example.com', 'h1')");
-        self::$pdo->exec("INSERT INTO users (name, email, password_hash) VALUES ('User 2', 'two@example.com', 'h2')");
+        self::$pdo->exec("INSERT INTO roles (name, label) VALUES ('PLAYER', 'Player')");
+        $roleId = (int) self::$pdo->lastInsertId();
+
+        self::$pdo->exec("INSERT INTO users (role_id, name, email, password_hash) VALUES ({$roleId}, 'User 1', 'one@example.com', 'h1')");
+        self::$pdo->exec("INSERT INTO users (role_id, name, email, password_hash) VALUES ({$roleId}, 'User 2', 'two@example.com', 'h2')");
         $u2Id = (int) self::$pdo->lastInsertId();
 
         $this->expectException(PDOException::class);
@@ -263,7 +287,10 @@ class DatabaseIntegrityTest extends TestCase
 
     public function testC03ForeignKeyViolationOnUpdate(): void
     {
-        self::$pdo->exec("INSERT INTO users (name, email, password_hash) VALUES ('User 1', 'one@example.com', 'h1')");
+        self::$pdo->exec("INSERT INTO roles (name, label) VALUES ('PLAYER', 'Player')");
+        $roleId = (int) self::$pdo->lastInsertId();
+
+        self::$pdo->exec("INSERT INTO users (role_id, name, email, password_hash) VALUES ({$roleId}, 'User 1', 'one@example.com', 'h1')");
         $uid = (int) self::$pdo->lastInsertId();
         self::$pdo->exec("INSERT INTO games (title, slug, min_players, max_players, duration_minutes) VALUES ('Game C', 'game-c', 4, 6, 120)");
         $gid = (int) self::$pdo->lastInsertId();
@@ -282,24 +309,27 @@ class DatabaseIntegrityTest extends TestCase
 
     public function testD01ForeignKeyOnDeleteCascade(): void
     {
-        // 1. users -> user_profiles (ON DELETE CASCADE)
-        self::$pdo->exec("INSERT INTO users (name, email, password_hash) VALUES ('Cascade User', 'cascade@example.com', 'h')");
-        $uid = (int) self::$pdo->lastInsertId();
-        self::$pdo->exec("INSERT INTO user_profiles (user_id, display_name) VALUES ({$uid}, 'CasProfile')");
+        // games -> game_configurations (ON DELETE CASCADE)
+        self::$pdo->exec("INSERT INTO games (title, slug, min_players, max_players, duration_minutes) VALUES ('Game Cascade', 'game-casc', 4, 6, 120)");
+        $gid = (int) self::$pdo->lastInsertId();
+        self::$pdo->exec("INSERT INTO game_configurations (game_id, config_key, config_value) VALUES ({$gid}, 'clue_count', '12')");
 
-        $this->assertSame(1, (int) self::$pdo->query("SELECT COUNT(*) FROM user_profiles WHERE user_id = {$uid}")->fetchColumn());
+        $this->assertSame(1, (int) self::$pdo->query("SELECT COUNT(*) FROM game_configurations WHERE game_id = {$gid}")->fetchColumn());
 
-        // Delete parent user
-        self::$pdo->exec("DELETE FROM users WHERE id = {$uid}");
+        // Delete parent game
+        self::$pdo->exec("DELETE FROM games WHERE id = {$gid}");
 
-        // Child user_profile must be cascaded away
-        $this->assertSame(0, (int) self::$pdo->query("SELECT COUNT(*) FROM user_profiles WHERE user_id = {$uid}")->fetchColumn());
+        // Child configuration must be cascaded away
+        $this->assertSame(0, (int) self::$pdo->query("SELECT COUNT(*) FROM game_configurations WHERE game_id = {$gid}")->fetchColumn());
     }
 
     public function testD02ForeignKeyOnDeleteRestrict(): void
     {
         // users -> game_rooms (creator_id ON DELETE RESTRICT)
-        self::$pdo->exec("INSERT INTO users (name, email, password_hash) VALUES ('Creator User', 'creator@example.com', 'h')");
+        self::$pdo->exec("INSERT INTO roles (name, label) VALUES ('PLAYER', 'Player')");
+        $roleId = (int) self::$pdo->lastInsertId();
+
+        self::$pdo->exec("INSERT INTO users (role_id, name, email, password_hash) VALUES ({$roleId}, 'Creator User', 'creator@example.com', 'h')");
         $uid = (int) self::$pdo->lastInsertId();
         self::$pdo->exec("INSERT INTO games (title, slug, min_players, max_players, duration_minutes) VALUES ('Game D', 'game-d', 4, 6, 120)");
         $gid = (int) self::$pdo->lastInsertId();
@@ -313,9 +343,15 @@ class DatabaseIntegrityTest extends TestCase
     public function testD03ForeignKeyOnDeleteSetNull(): void
     {
         // users -> notifications (sender_id ON DELETE SET NULL)
-        self::$pdo->exec("INSERT INTO users (name, email, password_hash) VALUES ('Sender User', 'sender@example.com', 'h')");
+        self::$pdo->exec("INSERT INTO roles (name, label) VALUES ('PLAYER', 'Player')");
+        $roleId = (int) self::$pdo->lastInsertId();
+
+        self::$pdo->exec("INSERT INTO users (role_id, name, email, password_hash) VALUES ({$roleId}, 'Sender User', 'sender@example.com', 'h')");
         $senderId = (int) self::$pdo->lastInsertId();
-        self::$pdo->exec("INSERT INTO notifications (sender_id, title, message, notification_type) VALUES ({$senderId}, 'Welcome', 'Hello world', 'BROADCAST')");
+        self::$pdo->exec("INSERT INTO users (role_id, name, email, password_hash) VALUES ({$roleId}, 'Recipient User', 'recipient@example.com', 'h')");
+        $recipId = (int) self::$pdo->lastInsertId();
+
+        self::$pdo->exec("INSERT INTO notifications (user_id, sender_id, title, message, notification_type) VALUES ({$recipId}, {$senderId}, 'Welcome', 'Hello world', 'ROOM_EVENT')");
         $notifId = (int) self::$pdo->lastInsertId();
 
         // Delete sender user
@@ -332,16 +368,19 @@ class DatabaseIntegrityTest extends TestCase
 
     public function testE01GeneratedColumnActiveDmAssignment(): void
     {
-        // dm_assignments.active_assigned_room_id = CASE WHEN status IN ('ASSIGNED', 'CONFIRMED') THEN game_room_id ELSE NULL END
+        // dm_assignments.active_assigned_room_id = CASE WHEN status IN ('ASSIGNED', 'ACCEPTED') THEN game_room_id ELSE NULL END
         // UNIQUE (active_assigned_room_id) prevents room having >1 active DM
-        self::$pdo->exec("INSERT INTO users (name, email, password_hash) VALUES ('Creator', 'c@example.com', 'h'), ('DM1', 'dm1@example.com', 'h'), ('DM2', 'dm2@example.com', 'h')");
+        self::$pdo->exec("INSERT INTO roles (name, label) VALUES ('PLAYER', 'Player'), ('DM', 'Dungeon Master')");
+        $playerRole = (int) self::$pdo->query("SELECT id FROM roles WHERE name='PLAYER'")->fetchColumn();
+        $dmRole = (int) self::$pdo->query("SELECT id FROM roles WHERE name='DM'")->fetchColumn();
+
+        self::$pdo->exec("INSERT INTO users (role_id, name, email, password_hash) VALUES 
+            ({$playerRole}, 'Creator', 'c@example.com', 'h'), 
+            ({$dmRole}, 'DM1', 'dm1@example.com', 'h'), 
+            ({$dmRole}, 'DM2', 'dm2@example.com', 'h')");
         $cid = (int) self::$pdo->query("SELECT id FROM users WHERE email='c@example.com'")->fetchColumn();
         $dm1User = (int) self::$pdo->query("SELECT id FROM users WHERE email='dm1@example.com'")->fetchColumn();
         $dm2User = (int) self::$pdo->query("SELECT id FROM users WHERE email='dm2@example.com'")->fetchColumn();
-
-        self::$pdo->exec("INSERT INTO dm_profiles (user_id, experience_years, status) VALUES ({$dm1User}, 2, 'ACTIVE'), ({$dm2User}, 5, 'ACTIVE')");
-        $dm1Id = (int) self::$pdo->query("SELECT id FROM dm_profiles WHERE user_id={$dm1User}")->fetchColumn();
-        $dm2Id = (int) self::$pdo->query("SELECT id FROM dm_profiles WHERE user_id={$dm2User}")->fetchColumn();
 
         self::$pdo->exec("INSERT INTO games (title, slug, min_players, max_players, duration_minutes) VALUES ('Game DM', 'game-dm', 4, 6, 120)");
         $gid = (int) self::$pdo->lastInsertId();
@@ -349,28 +388,33 @@ class DatabaseIntegrityTest extends TestCase
         $roomId = (int) self::$pdo->lastInsertId();
 
         // 1. First DM assignment active (ASSIGNED)
-        self::$pdo->exec("INSERT INTO dm_assignments (game_room_id, dm_profile_id, status) VALUES ({$roomId}, {$dm1Id}, 'ASSIGNED')");
+        self::$pdo->exec("INSERT INTO dm_assignments (game_room_id, dm_user_id, status) VALUES ({$roomId}, {$dm1User}, 'ASSIGNED')");
 
-        // 2. Second DM assignment for same room active (CONFIRMED) must fail due to uq_active_dm_assignment
+        // 2. Second DM assignment for same room active (ACCEPTED) must fail due to uq_active_dm_assignment
         $failed = false;
         try {
-            self::$pdo->exec("INSERT INTO dm_assignments (game_room_id, dm_profile_id, status) VALUES ({$roomId}, {$dm2Id}, 'CONFIRMED')");
+            self::$pdo->exec("INSERT INTO dm_assignments (game_room_id, dm_user_id, status) VALUES ({$roomId}, {$dm2User}, 'ACCEPTED')");
         } catch (PDOException $e) {
             $failed = true;
             $this->assertStringContainsString('uq_active_dm_assignment', $e->getMessage());
         }
         $this->assertTrue($failed, 'Expected duplicate key error on uq_active_dm_assignment');
 
-        // 3. But if first DM is REJECTED or CANCELLED, active_assigned_room_id becomes NULL, allowing a new assignment!
-        self::$pdo->exec("UPDATE dm_assignments SET status = 'CANCELLED' WHERE dm_profile_id = {$dm1Id}");
-        self::$pdo->exec("INSERT INTO dm_assignments (game_room_id, dm_profile_id, status) VALUES ({$roomId}, {$dm2Id}, 'CONFIRMED')");
+        // 3. But if first DM is CANCELLED or REJECTED, active_assigned_room_id becomes NULL, allowing a new assignment!
+        self::$pdo->exec("UPDATE dm_assignments SET status = 'CANCELLED' WHERE dm_user_id = {$dm1User}");
+        self::$pdo->exec("INSERT INTO dm_assignments (game_room_id, dm_user_id, status) VALUES ({$roomId}, {$dm2User}, 'ACCEPTED')");
         $this->assertSame(2, (int) self::$pdo->query("SELECT COUNT(*) FROM dm_assignments WHERE game_room_id = {$roomId}")->fetchColumn());
     }
 
     public function testE02GeneratedColumnActiveRoomParticipant(): void
     {
         // room_participants: active_user_id conditional unique per room
-        self::$pdo->exec("INSERT INTO users (name, email, password_hash) VALUES ('CreatorP', 'cp@example.com', 'h'), ('Player 1', 'p1@example.com', 'h')");
+        self::$pdo->exec("INSERT INTO roles (name, label) VALUES ('PLAYER', 'Player')");
+        $roleId = (int) self::$pdo->lastInsertId();
+
+        self::$pdo->exec("INSERT INTO users (role_id, name, email, password_hash) VALUES 
+            ({$roleId}, 'CreatorP', 'cp@example.com', 'h'), 
+            ({$roleId}, 'Player 1', 'p1@example.com', 'h')");
         $cid = (int) self::$pdo->query("SELECT id FROM users WHERE email='cp@example.com'")->fetchColumn();
         $p1 = (int) self::$pdo->query("SELECT id FROM users WHERE email='p1@example.com'")->fetchColumn();
 
@@ -385,7 +429,7 @@ class DatabaseIntegrityTest extends TestCase
         // 2. Cannot join same room again while active
         $failed = false;
         try {
-            self::$pdo->exec("INSERT INTO room_participants (game_room_id, user_id, status) VALUES ({$roomId}, {$p1}, 'DEPOSIT_PENDING')");
+            self::$pdo->exec("INSERT INTO room_participants (game_room_id, user_id, status) VALUES ({$roomId}, {$p1}, 'CONFIRMED')");
         } catch (PDOException $e) {
             $failed = true;
             $this->assertStringContainsString('uq_room_active_participant', $e->getMessage());
@@ -398,37 +442,12 @@ class DatabaseIntegrityTest extends TestCase
         $this->assertSame(2, (int) self::$pdo->query("SELECT COUNT(*) FROM room_participants WHERE user_id = {$p1}")->fetchColumn());
     }
 
-    public function testE03GeneratedColumnPendingParticipantLeaveRequest(): void
+    public function testE03GeneratedColumnProposedSchedule(): void
     {
-        self::$pdo->exec("INSERT INTO users (name, email, password_hash) VALUES ('CreatorL', 'cl@example.com', 'h'), ('Player L', 'pl@example.com', 'h')");
-        $cid = (int) self::$pdo->query("SELECT id FROM users WHERE email='cl@example.com'")->fetchColumn();
-        $pl = (int) self::$pdo->query("SELECT id FROM users WHERE email='pl@example.com'")->fetchColumn();
+        self::$pdo->exec("INSERT INTO roles (name, label) VALUES ('PLAYER', 'Player')");
+        $roleId = (int) self::$pdo->lastInsertId();
 
-        self::$pdo->exec("INSERT INTO games (title, slug, min_players, max_players, duration_minutes) VALUES ('Game L', 'game-l', 4, 6, 120)");
-        $gid = (int) self::$pdo->lastInsertId();
-        self::$pdo->exec("INSERT INTO game_rooms (creator_id, game_id, title, room_code, min_players, max_players, formation_deadline, status) VALUES ({$cid}, {$gid}, 'Room L', 'ROOM_L', 4, 6, '2026-12-01 12:00:00', 'FORMING')");
-        $roomId = (int) self::$pdo->lastInsertId();
-
-        self::$pdo->exec("INSERT INTO room_participants (game_room_id, user_id, status) VALUES ({$roomId}, {$pl}, 'JOINED')");
-        $partId = (int) self::$pdo->lastInsertId();
-
-        // 1. Submit PENDING leave request
-        self::$pdo->exec("INSERT INTO participant_leave_requests (game_room_id, room_participant_id, reason, status) VALUES ({$roomId}, {$partId}, 'Need to leave', 'PENDING')");
-
-        // 2. Second PENDING request for same participant must be blocked by uq_pending_leave_request
-        $failed = false;
-        try {
-            self::$pdo->exec("INSERT INTO participant_leave_requests (game_room_id, room_participant_id, reason, status) VALUES ({$roomId}, {$partId}, 'Second request', 'PENDING')");
-        } catch (PDOException $e) {
-            $failed = true;
-            $this->assertStringContainsString('uq_pending_leave_request', $e->getMessage());
-        }
-        $this->assertTrue($failed, 'Expected duplicate key error on uq_pending_leave_request');
-    }
-
-    public function testE04GeneratedColumnProposedSchedule(): void
-    {
-        self::$pdo->exec("INSERT INTO users (name, email, password_hash) VALUES ('CreatorS', 'cs@example.com', 'h')");
+        self::$pdo->exec("INSERT INTO users (role_id, name, email, password_hash) VALUES ({$roleId}, 'CreatorS', 'cs@example.com', 'h')");
         $cid = (int) self::$pdo->lastInsertId();
         self::$pdo->exec("INSERT INTO games (title, slug, min_players, max_players, duration_minutes) VALUES ('Game S', 'game-s', 4, 6, 120)");
         $gid = (int) self::$pdo->lastInsertId();
@@ -449,44 +468,16 @@ class DatabaseIntegrityTest extends TestCase
         $this->assertTrue($failed, 'Expected duplicate key error on uq_active_proposed_schedule');
     }
 
-    public function testE05GeneratedColumnActivePhysicalRoomReservation(): void
-    {
-        // Setup room, game, session, physical room
-        self::$pdo->exec("INSERT INTO users (name, email, password_hash) VALUES ('CreatorRes', 'cres@example.com', 'h')");
-        $cid = (int) self::$pdo->lastInsertId();
-        self::$pdo->exec("INSERT INTO games (title, slug, min_players, max_players, duration_minutes) VALUES ('Game Res', 'game-res', 4, 6, 120)");
-        $gid = (int) self::$pdo->lastInsertId();
-        self::$pdo->exec("INSERT INTO game_rooms (creator_id, game_id, title, room_code, min_players, max_players, formation_deadline, status) VALUES ({$cid}, {$gid}, 'Room Res', 'ROOM_RES', 4, 6, '2026-12-01 12:00:00', 'FORMING')");
-        $roomId = (int) self::$pdo->lastInsertId();
-
-        self::$pdo->exec("INSERT INTO sessions (game_room_id, session_code, scheduled_date, start_time, end_time, status) VALUES ({$roomId}, 'SESS001', '2026-12-01', '14:00:00', '18:00:00', 'SCHEDULED')");
-        $sessId = (int) self::$pdo->lastInsertId();
-
-        self::$pdo->exec("INSERT INTO physical_rooms (name, code, capacity) VALUES ('Room Alpha', 'ALPHA', 8)");
-        $prId = (int) self::$pdo->lastInsertId();
-
-        // 1. Create RESERVED reservation for session
-        self::$pdo->exec("INSERT INTO physical_room_reservations (physical_room_id, session_id, reservation_date, start_time, end_time, status) VALUES ({$prId}, {$sessId}, '2026-12-01', '14:00:00', '18:00:00', 'RESERVED')");
-
-        // 2. Second RESERVED or CONFIRMED reservation for same session blocked by uq_session_active_reservation
-        $failed = false;
-        try {
-            self::$pdo->exec("INSERT INTO physical_room_reservations (physical_room_id, session_id, reservation_date, start_time, end_time, status) VALUES ({$prId}, {$sessId}, '2026-12-01', '14:00:00', '18:00:00', 'CONFIRMED')");
-        } catch (PDOException $e) {
-            $failed = true;
-            $this->assertStringContainsString('uq_session_active_reservation', $e->getMessage());
-        }
-        $this->assertTrue($failed, 'Expected duplicate key error on uq_session_active_reservation');
-    }
-
     // =========================================================================
     // SECTION F: IDEMPOTENCY KEY ENFORCEMENT
     // =========================================================================
 
-    public function testF01PaymentAttemptIdempotencyKey(): void
+    public function testF01PaymentTransactionIdempotencyKey(): void
     {
-        // Setup participant and payment
-        self::$pdo->exec("INSERT INTO users (name, email, password_hash) VALUES ('PayUser', 'pay@example.com', 'h')");
+        self::$pdo->exec("INSERT INTO roles (name, label) VALUES ('PLAYER', 'Player')");
+        $roleId = (int) self::$pdo->lastInsertId();
+
+        self::$pdo->exec("INSERT INTO users (role_id, name, email, password_hash) VALUES ({$roleId}, 'PayUser', 'pay@example.com', 'h')");
         $uid = (int) self::$pdo->lastInsertId();
         self::$pdo->exec("INSERT INTO games (title, slug, min_players, max_players, duration_minutes) VALUES ('Game Pay', 'game-pay', 4, 6, 120)");
         $gid = (int) self::$pdo->lastInsertId();
@@ -497,22 +488,24 @@ class DatabaseIntegrityTest extends TestCase
         self::$pdo->exec("INSERT INTO sessions (game_room_id, session_code, scheduled_date, start_time, end_time, status) VALUES ({$roomId}, 'SESS_PAY', '2026-12-01', '14:00:00', '18:00:00', 'SCHEDULED')");
         $sessId = (int) self::$pdo->lastInsertId();
 
-        self::$pdo->exec("INSERT INTO player_payments (session_id, room_participant_id, payment_type, amount_due, amount_paid, status) VALUES ({$sessId}, {$partId}, 'FULL', 200000.00, 0, 'PENDING')");
+        self::$pdo->exec("INSERT INTO player_payments (session_id, room_participant_id, payment_type, amount_due, amount_paid, status) VALUES ({$sessId}, {$partId}, 'FULL', 200000, 0, 'PENDING')");
         $payId = (int) self::$pdo->lastInsertId();
 
-        // 1. Payment attempt with idempotency key
-        $idempKey = 'pay_attempt_uuid_99999_xyz';
-        self::$pdo->exec("INSERT INTO payment_attempts (player_payment_id, idempotency_key, payment_method, amount, status) VALUES ({$payId}, '{$idempKey}', 'VNPAY', 200000.00, 'INITIATED')");
+        // 1. Payment transaction with idempotency key
+        $idempKey = 'pay_tx_uuid_99999_xyz';
+        self::$pdo->exec("INSERT INTO payment_transactions (player_payment_id, transaction_reference, idempotency_key, payment_method, amount, status) VALUES ({$payId}, 'TX_REF_001', '{$idempKey}', 'SIMULATED', 200000, 'SUCCESS')");
 
-        // 2. Duplicate attempt with same idempotency key must be rejected by uq_payment_attempts_idempotency
+        // 2. Duplicate transaction with same idempotency key must be rejected by uq_payment_transactions_idempotency
         $this->expectException(PDOException::class);
-        self::$pdo->exec("INSERT INTO payment_attempts (player_payment_id, idempotency_key, payment_method, amount, status) VALUES ({$payId}, '{$idempKey}', 'VNPAY', 200000.00, 'INITIATED')");
+        self::$pdo->exec("INSERT INTO payment_transactions (player_payment_id, transaction_reference, idempotency_key, payment_method, amount, status) VALUES ({$payId}, 'TX_REF_002', '{$idempKey}', 'SIMULATED', 200000, 'SUCCESS')");
     }
 
-    public function testF02RefundAttemptIdempotencyKey(): void
+    public function testF02RefundIdempotencyKey(): void
     {
-        // Setup participant, session, payment, refund
-        self::$pdo->exec("INSERT INTO users (name, email, password_hash) VALUES ('RefUser', 'ref@example.com', 'h')");
+        self::$pdo->exec("INSERT INTO roles (name, label) VALUES ('PLAYER', 'Player')");
+        $roleId = (int) self::$pdo->lastInsertId();
+
+        self::$pdo->exec("INSERT INTO users (role_id, name, email, password_hash) VALUES ({$roleId}, 'RefUser', 'ref@example.com', 'h')");
         $uid = (int) self::$pdo->lastInsertId();
         self::$pdo->exec("INSERT INTO games (title, slug, min_players, max_players, duration_minutes) VALUES ('Game Ref', 'game-ref', 4, 6, 120)");
         $gid = (int) self::$pdo->lastInsertId();
@@ -523,19 +516,16 @@ class DatabaseIntegrityTest extends TestCase
         self::$pdo->exec("INSERT INTO sessions (game_room_id, session_code, scheduled_date, start_time, end_time, status) VALUES ({$roomId}, 'SESS_REF', '2026-12-01', '14:00:00', '18:00:00', 'SCHEDULED')");
         $sessId = (int) self::$pdo->lastInsertId();
 
-        self::$pdo->exec("INSERT INTO player_payments (session_id, room_participant_id, payment_type, amount_due, amount_paid, status) VALUES ({$sessId}, {$partId}, 'FULL', 200000.00, 200000.00, 'PAID')");
+        self::$pdo->exec("INSERT INTO player_payments (session_id, room_participant_id, payment_type, amount_due, amount_paid, status) VALUES ({$sessId}, {$partId}, 'FULL', 200000, 200000, 'PAID')");
         $payId = (int) self::$pdo->lastInsertId();
 
-        self::$pdo->exec("INSERT INTO refunds (player_payment_id, room_participant_id, reason, refund_amount, status) VALUES ({$payId}, {$partId}, 'Session cancelled', 200000.00, 'PENDING')");
-        $refId = (int) self::$pdo->lastInsertId();
+        // 1. Refund with idempotency key
+        $idempKey = 'ref_uuid_11111_abc';
+        self::$pdo->exec("INSERT INTO refunds (player_payment_id, room_participant_id, idempotency_key, reason, refund_amount, status) VALUES ({$payId}, {$partId}, '{$idempKey}', 'Session cancelled', 200000, 'PENDING')");
 
-        // 1. Refund attempt with idempotency key
-        $idempKey = 'ref_attempt_uuid_11111_abc';
-        self::$pdo->exec("INSERT INTO refund_attempts (refund_id, idempotency_key, amount, status) VALUES ({$refId}, '{$idempKey}', 200000.00, 'INITIATED')");
-
-        // 2. Duplicate refund attempt with same idempotency key must fail
+        // 2. Duplicate refund with same idempotency key must fail
         $this->expectException(PDOException::class);
-        self::$pdo->exec("INSERT INTO refund_attempts (refund_id, idempotency_key, amount, status) VALUES ({$refId}, '{$idempKey}', 200000.00, 'INITIATED')");
+        self::$pdo->exec("INSERT INTO refunds (player_payment_id, room_participant_id, idempotency_key, reason, refund_amount, status) VALUES ({$payId}, {$partId}, '{$idempKey}', 'Duplicate request', 200000, 'PENDING')");
     }
 
     // =========================================================================
@@ -547,10 +537,12 @@ class DatabaseIntegrityTest extends TestCase
         self::$pdo->beginTransaction();
 
         try {
-            self::$pdo->exec("INSERT INTO users (name, email, password_hash) VALUES ('RollbackUser', 'rb@example.com', 'h')");
-            $uid = (int) self::$pdo->lastInsertId();
+            self::$pdo->exec("INSERT INTO roles (name, label) VALUES ('TMP_ROLE', 'Temporary')");
+            $rid = (int) self::$pdo->lastInsertId();
 
-            // Trigger failure (violating NOT NULL or check constraint)
+            self::$pdo->exec("INSERT INTO users (role_id, name, email, password_hash) VALUES ({$rid}, 'RollbackUser', 'rb@example.com', 'h')");
+
+            // Trigger failure (violating NOT NULL constraint on roles.name)
             self::$pdo->exec("INSERT INTO roles (name, label) VALUES (NULL, 'Invalid Role')");
 
             self::$pdo->commit();
@@ -569,54 +561,57 @@ class DatabaseIntegrityTest extends TestCase
     // =========================================================================
 
     /**
-     * Demonstrates Business Integrity Analysis A: Physical Room Overlap.
+     * Demonstrates Business Integrity Analysis: Physical Room Overlap in sessions.
      * MySQL schema only checks session reservation uniqueness, NOT interval overlap [start_time, end_time).
-     * Two different sessions CAN reserve the same physical room at overlapping times unless application locks!
+     * Application-level check (BookingRepository::isPhysicalRoomBooked) with transaction is mandatory!
      */
-    public function testH01PhysicalRoomOverlapVulnerabilityDemonstration(): void
+    public function testH01PhysicalRoomOverlapInSessionsDemonstration(): void
     {
-        // Prerequisite setup
-        self::$pdo->exec("INSERT INTO users (name, email, password_hash) VALUES ('CreatorH1', 'ch1@example.com', 'h')");
+        // Setup room, game, physical room
+        self::$pdo->exec("INSERT INTO roles (name, label) VALUES ('PLAYER', 'Player')");
+        $roleId = (int) self::$pdo->lastInsertId();
+
+        self::$pdo->exec("INSERT INTO users (role_id, name, email, password_hash) VALUES ({$roleId}, 'CreatorH1', 'ch1@example.com', 'h')");
         $cid = (int) self::$pdo->lastInsertId();
         self::$pdo->exec("INSERT INTO games (title, slug, min_players, max_players, duration_minutes) VALUES ('Game H1', 'game-h1', 4, 6, 120)");
         $gid = (int) self::$pdo->lastInsertId();
         self::$pdo->exec("INSERT INTO game_rooms (creator_id, game_id, title, room_code, min_players, max_players, formation_deadline, status) VALUES ({$cid}, {$gid}, 'Room H1', 'ROOM_H1', 4, 6, '2026-12-01 12:00:00', 'FORMING')");
         $roomId = (int) self::$pdo->lastInsertId();
 
-        self::$pdo->exec("INSERT INTO sessions (game_room_id, session_code, scheduled_date, start_time, end_time, status) VALUES ({$roomId}, 'SESS_A', '2026-12-05', '14:00:00', '18:00:00', 'SCHEDULED')");
-        $sessA = (int) self::$pdo->lastInsertId();
-        self::$pdo->exec("INSERT INTO sessions (game_room_id, session_code, scheduled_date, start_time, end_time, status) VALUES ({$roomId}, 'SESS_B', '2026-12-05', '16:00:00', '20:00:00', 'SCHEDULED')");
-        $sessB = (int) self::$pdo->lastInsertId();
-
-        self::$pdo->exec("INSERT INTO physical_rooms (name, code, capacity) VALUES ('VIP Room 1', 'VIP1', 10)");
+        self::$pdo->exec("INSERT INTO venues (name, code, address) VALUES ('Venue Main', 'VMAIN', '456 Le Loi')");
+        $venueId = (int) self::$pdo->lastInsertId();
+        self::$pdo->exec("INSERT INTO physical_rooms (venue_id, name, code, capacity) VALUES ({$venueId}, 'VIP Room 1', 'VIP1', 10)");
         $vipRoomId = (int) self::$pdo->lastInsertId();
 
         // Session A reserves VIP1 from 14:00 to 18:00
-        self::$pdo->exec("INSERT INTO physical_room_reservations (physical_room_id, session_id, reservation_date, start_time, end_time, status) VALUES ({$vipRoomId}, {$sessA}, '2026-12-05', '14:00:00', '18:00:00', 'CONFIRMED')");
+        self::$pdo->exec("INSERT INTO sessions (game_room_id, physical_room_id, session_code, scheduled_date, start_time, end_time, status) VALUES ({$roomId}, {$vipRoomId}, 'SESS_A', '2026-12-05', '14:00:00', '18:00:00', 'SCHEDULED')");
 
-        // Session B attempts to reserve VIP1 from 16:00 to 20:00 (OVERLAP: 16:00 - 18:00)
-        // In MySQL schema, there is NO temporal exclusion constraint!
-        self::$pdo->exec("INSERT INTO physical_room_reservations (physical_room_id, session_id, reservation_date, start_time, end_time, status) VALUES ({$vipRoomId}, {$sessB}, '2026-12-05', '16:00:00', '20:00:00', 'CONFIRMED')");
+        // Session B reserves VIP1 from 16:00 to 20:00 (OVERLAP: 16:00 - 18:00)
+        self::$pdo->exec("INSERT INTO sessions (game_room_id, physical_room_id, session_code, scheduled_date, start_time, end_time, status) VALUES ({$roomId}, {$vipRoomId}, 'SESS_B', '2026-12-05', '16:00:00', '20:00:00', 'SCHEDULED')");
 
         // BOTH rows exist in the DB!
-        $count = (int) self::$pdo->query("SELECT COUNT(*) FROM physical_room_reservations WHERE physical_room_id = {$vipRoomId} AND status = 'CONFIRMED'")->fetchColumn();
-        $this->assertSame(2, $count, 'Schema allows temporal overlap. Application-level pessimistic locking (SELECT FOR UPDATE) is MANDATORY to prevent double-booking!');
+        $count = (int) self::$pdo->query("SELECT COUNT(*) FROM sessions WHERE physical_room_id = {$vipRoomId} AND status = 'SCHEDULED'")->fetchColumn();
+        $this->assertSame(2, $count, 'Schema allows temporal overlap. Application-level check (BookingRepository::isPhysicalRoomBooked) is MANDATORY to prevent double-booking!');
     }
 
     /**
-     * Demonstrates Business Integrity Analysis B: DM Concurrent Scheduling Conflict.
+     * Demonstrates Business Integrity Analysis: DM Concurrent Scheduling Conflict.
      * Schema has uq_active_dm_assignment on active_assigned_room_id (preventing >1 DM in same room),
      * but does NOT prevent 1 DM from being assigned to 2 different rooms with overlapping sessions!
      */
     public function testH02DmOverlappingAssignmentDemonstration(): void
     {
-        self::$pdo->exec("INSERT INTO users (name, email, password_hash) VALUES ('DM Busy', 'busy@example.com', 'h'), ('Creator 1', 'cr1@example.com', 'h'), ('Creator 2', 'cr2@example.com', 'h')");
+        self::$pdo->exec("INSERT INTO roles (name, label) VALUES ('PLAYER', 'Player'), ('DM', 'Dungeon Master')");
+        $playerRole = (int) self::$pdo->query("SELECT id FROM roles WHERE name='PLAYER'")->fetchColumn();
+        $dmRole = (int) self::$pdo->query("SELECT id FROM roles WHERE name='DM'")->fetchColumn();
+
+        self::$pdo->exec("INSERT INTO users (role_id, name, email, password_hash) VALUES 
+            ({$dmRole}, 'DM Busy', 'busy@example.com', 'h'), 
+            ({$playerRole}, 'Creator 1', 'cr1@example.com', 'h'), 
+            ({$playerRole}, 'Creator 2', 'cr2@example.com', 'h')");
         $dmUser = (int) self::$pdo->query("SELECT id FROM users WHERE email='busy@example.com'")->fetchColumn();
         $cr1 = (int) self::$pdo->query("SELECT id FROM users WHERE email='cr1@example.com'")->fetchColumn();
         $cr2 = (int) self::$pdo->query("SELECT id FROM users WHERE email='cr2@example.com'")->fetchColumn();
-
-        self::$pdo->exec("INSERT INTO dm_profiles (user_id, experience_years, status) VALUES ({$dmUser}, 3, 'ACTIVE')");
-        $dmProfileId = (int) self::$pdo->lastInsertId();
 
         self::$pdo->exec("INSERT INTO games (title, slug, min_players, max_players, duration_minutes) VALUES ('Game H2', 'game-h2', 4, 6, 120)");
         $gid = (int) self::$pdo->lastInsertId();
@@ -627,20 +622,22 @@ class DatabaseIntegrityTest extends TestCase
         $room2 = (int) self::$pdo->lastInsertId();
 
         // Assign same DM to Room 1 and Room 2 simultaneously
-        self::$pdo->exec("INSERT INTO dm_assignments (game_room_id, dm_profile_id, status) VALUES ({$room1}, {$dmProfileId}, 'CONFIRMED')");
-        self::$pdo->exec("INSERT INTO dm_assignments (game_room_id, dm_profile_id, status) VALUES ({$room2}, {$dmProfileId}, 'CONFIRMED')");
+        self::$pdo->exec("INSERT INTO dm_assignments (game_room_id, dm_user_id, status) VALUES ({$room1}, {$dmUser}, 'ACCEPTED')");
+        self::$pdo->exec("INSERT INTO dm_assignments (game_room_id, dm_user_id, status) VALUES ({$room2}, {$dmUser}, 'ACCEPTED')");
 
-        $dmAssignedCount = (int) self::$pdo->query("SELECT COUNT(*) FROM dm_assignments WHERE dm_profile_id = {$dmProfileId} AND status = 'CONFIRMED'")->fetchColumn();
+        $dmAssignedCount = (int) self::$pdo->query("SELECT COUNT(*) FROM dm_assignments WHERE dm_user_id = {$dmUser} AND status = 'ACCEPTED'")->fetchColumn();
         $this->assertSame(2, $dmAssignedCount, 'Schema allows DM assigned to multiple rooms. Application service layer must query schedule overlap before assigning DM!');
     }
 
     /**
-     * Demonstrates Business Integrity Analysis D: Payment amount_paid exceeding amount_due.
+     * Demonstrates Business Integrity Analysis: Payment amount_paid exceeding amount_due.
      */
     public function testH03OverpaymentProtectionConstraintScope(): void
     {
-        // Setup
-        self::$pdo->exec("INSERT INTO users (name, email, password_hash) VALUES ('Payer', 'payer@example.com', 'h')");
+        self::$pdo->exec("INSERT INTO roles (name, label) VALUES ('PLAYER', 'Player')");
+        $roleId = (int) self::$pdo->lastInsertId();
+
+        self::$pdo->exec("INSERT INTO users (role_id, name, email, password_hash) VALUES ({$roleId}, 'Payer', 'payer@example.com', 'h')");
         $uid = (int) self::$pdo->lastInsertId();
         self::$pdo->exec("INSERT INTO games (title, slug, min_players, max_players, duration_minutes) VALUES ('Game P3', 'game-p3', 4, 6, 120)");
         $gid = (int) self::$pdo->lastInsertId();
@@ -651,13 +648,12 @@ class DatabaseIntegrityTest extends TestCase
         self::$pdo->exec("INSERT INTO sessions (game_room_id, session_code, scheduled_date, start_time, end_time, status) VALUES ({$roomId}, 'SESS_P3', '2026-12-01', '14:00:00', '18:00:00', 'SCHEDULED')");
         $sessId = (int) self::$pdo->lastInsertId();
 
-        // Insert player payment where amount_paid (500000) > amount_due (200000)
-        // chk_player_payments_amounts only checks: amount_due >= 0 AND amount_paid >= 0.
-        // It does NOT check amount_paid <= amount_due!
-        self::$pdo->exec("INSERT INTO player_payments (session_id, room_participant_id, payment_type, amount_due, amount_paid, status) VALUES ({$sessId}, {$partId}, 'FULL', 200000.00, 500000.00, 'PAID')");
-        $paid = (float) self::$pdo->query("SELECT amount_paid FROM player_payments WHERE session_id = {$sessId}")->fetchColumn();
-        $due = (float) self::$pdo->query("SELECT amount_due FROM player_payments WHERE session_id = {$sessId}")->fetchColumn();
+        // chk_player_payments_amounts checks: amount_due >= 0 AND amount_paid >= 0.
+        // It does NOT restrict amount_paid <= amount_due (to accommodate tips/overpayments).
+        self::$pdo->exec("INSERT INTO player_payments (session_id, room_participant_id, payment_type, amount_due, amount_paid, status) VALUES ({$sessId}, {$partId}, 'FULL', 200000, 500000, 'PAID')");
+        $paid = (int) self::$pdo->query("SELECT amount_paid FROM player_payments WHERE session_id = {$sessId}")->fetchColumn();
+        $due = (int) self::$pdo->query("SELECT amount_due FROM player_payments WHERE session_id = {$sessId}")->fetchColumn();
 
-        $this->assertGreaterThan($due, $paid, 'Schema does NOT enforce amount_paid <= amount_due (to accommodate potential tips/overpayments). Service layer must validate exact payment match!');
+        $this->assertGreaterThan($due, $paid, 'Schema does NOT enforce amount_paid <= amount_due (to accommodate tips/overpayments). Service layer must validate exact payment match!');
     }
 }
