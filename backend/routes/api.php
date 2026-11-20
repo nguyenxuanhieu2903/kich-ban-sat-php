@@ -13,6 +13,7 @@ use App\Features\GameroomManagement\Controllers\GameRoomController;
 use App\Features\VenueScheduling\Controllers\SchedulingController;
 use App\Features\PaymentRefund\Controllers\PaymentController;
 use App\Features\Notification\Controllers\NotificationController;
+use App\Features\Pricing\Controllers\PricingController;
 
 /** @var Router $router */
 
@@ -49,13 +50,17 @@ $registerApiRoutes = function (string $prefix) use ($router): void {
     $router->get($prefix . '/games/{id}/prices', [GameController::class, 'prices']);
 
     // =============================================================
-    // DOMAIN 3: GAMEROOM MANAGEMENT API
+    // DOMAIN 3: GAMEROOM MANAGEMENT & PRICING SNAPSHOT API
     // =============================================================
     $router->get($prefix . '/rooms', [GameRoomController::class, 'index']);
     $router->post($prefix . '/rooms', [GameRoomController::class, 'create']);
     $router->get($prefix . '/rooms/{id}', [GameRoomController::class, 'show']);
     $router->post($prefix . '/rooms/{id}/join', [GameRoomController::class, 'join']);
     $router->post($prefix . '/rooms/{id}/leave', [GameRoomController::class, 'leave']);
+
+    // Pricing calculation & snapshot
+    $router->post($prefix . '/rooms/{id}/calculate-price', [PricingController::class, 'calculate']);
+    $router->get($prefix . '/rooms/{id}/price-snapshot', [PricingController::class, 'snapshot']);
 
     // =============================================================
     // DOMAIN 4 & 5: SCHEDULING, VOTING & VENUES API
