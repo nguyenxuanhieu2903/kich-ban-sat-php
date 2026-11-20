@@ -1,0 +1,34 @@
+/* src/styles/tokens.css */
+:root {
+  /* Bảng màu đặc trưng Kịch Bản Sát (Noir & Vintage Mystery) */
+  --bg-primary: #0d0c0b;
+  --bg-surface: #181614;
+  --bg-elevated: #23201d;
+  --bg-paper: #f3ead8;          /* Nền kem giấy cũ của tấm vé */
+  --bg-paper-dark: #e4d5b7;
+
+  --color-crimson: #8b1e1e;     /* Đỏ rượu vang / Dấu mộc sáp */
+  --color-crimson-hover: #a82424;
+  --color-gold: #c9a25e;        /* Vàng đồng cổ điển */
+  --color-gold-light: #e2c285;
+
+  --text-light: #f4efe6;
+  --text-muted: #9e9589;
+  --text-ink: #1e1a16;          /* Chữ mực đen trên nền giấy vé */
+
+  /* Màu trạng thái nghiệp vụ */
+  --status-open: #2e7d32;       /* Đang tuyển người */
+  --status-hold: #d97706;       /* Giữ chỗ 4h */
+  --status-locked: #8b1e1e;     /* Đã chốt / Cảnh báo 18+ */
+
+  /* Typography */
+  --font-serif: 'Playfair Display', Georgia, serif;
+  --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+
+  /* Spacing & Radius */
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --shadow-ticket: 0 10px 30px rgba(0, 0, 0, 0.65);
+  --transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
