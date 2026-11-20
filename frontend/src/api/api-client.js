@@ -11,58 +11,103 @@ export class ApiError extends Error {
 }
 
 /**
- * Native Fetch API wrapper providing uniform JSON request handling,
- * error normalization, cancellation, and lifecycle states.
+ * Standard API Client with automatic CSRF token management and PHP Session support.
  */
-class ApiClient {
+export class ApiClient {
   constructor(baseUrl = config.apiBaseUrl) {
-    this.baseUrl = baseUrl.replace(/\/+$/, '');
+    this.baseUrl = (baseUrl || '').replace(/\/+$/, '');
+    this.csrfToken = null;
+    this.csrfPromise = null;
+  }
+
+  /**
+   * Fetch and cache CSRF token from backend
+   */
+  async ensureCsrfToken() {
+    if (this.csrfToken) {
+      return this.csrfToken;
+    }
+
+    if (!this.csrfPromise) {
+      this.csrfPromise = (async () => {
+        try {
+          const res = await fetch(`${this.baseUrl}/auth/csrf-token`, {
+            credentials: 'include',
+            headers: { 'Accept': 'application/json' },
+          });
+          const data = await res.json();
+          if (data && data.success && data.data && data.data.csrf_token) {
+            this.csrfToken = data.data.csrf_token;
+            return this.csrfToken;
+          }
+        } catch {
+          // Ignore prefetch error in non-browser or disconnected environment
+        } finally {
+          this.csrfPromise = null;
+        }
+        return null;
+      })();
+    }
+
+    return this.csrfPromise;
   }
 
   async request(endpoint, options = {}) {
     const url = `${this.baseUrl}/${endpoint.replace(/^\/+/, '')}`;
+    const method = (options.method || 'GET').toUpperCase();
+
+    // Immediate check if caller already aborted
+    if (options.signal && options.signal.aborted) {
+      const reason = typeof options.signal.reason === 'string' ? options.signal.reason : 'Request aborted by caller';
+      throw new ApiError(reason, 0, 'REQUEST_ABORTED');
+    }
+
+    // Attach CSRF token for mutations
+    if (['POST', 'PUT', 'PATCH', 'DELETE'].includes(method)) {
+      await this.ensureCsrfToken();
+    }
+
     const headers = {
       'Accept': 'application/json',
       ...(options.body ? { 'Content-Type': 'application/json' } : {}),
-      ...(options.headers || {}),
+      ...(this.csrfToken ? { 'X-CSRF-Token': this.csrfToken } : {}),
+      ...(options.headers || {})
     };
 
     const controller = new AbortController();
     const timeoutMs = options.timeout || config.defaultTimeoutMs;
     let isTimeout = false;
-    let abortListener = null;
 
-    const timeout = setTimeout(() => {
+    // Propagate caller signal abort to internal controller
+    let abortListener = null;
+    if (options.signal) {
+      abortListener = () => {
+        controller.abort(options.signal.reason);
+      };
+      options.signal.addEventListener('abort', abortListener);
+    }
+
+    const timer = setTimeout(() => {
       isTimeout = true;
       controller.abort();
     }, timeoutMs);
 
-    // Compose caller signal with internal timeout controller to preserve cancellation
-    if (options.signal) {
-      if (options.signal.aborted) {
-        controller.abort(options.signal.reason);
-      } else {
-        abortListener = () => {
-          controller.abort(options.signal.reason);
-        };
-        options.signal.addEventListener('abort', abortListener, { once: true });
-      }
-    }
-
     try {
       const response = await fetch(url, {
-        credentials: options.credentials || 'same-origin',
+        credentials: 'include', // Always transmit PHP session cookie
         ...options,
         headers,
         signal: controller.signal,
       });
+
+      clearTimeout(timer);
 
       let data = null;
       const contentType = response.headers.get('content-type') || '';
       if (contentType.includes('application/json')) {
         try {
           data = await response.json();
-        } catch (jsonErr) {
+        } catch {
           throw new ApiError('Failed to parse server response as JSON', response.status, 'INVALID_JSON_RESPONSE');
         }
       } else {
@@ -71,7 +116,7 @@ class ApiClient {
 
       if (!response.ok) {
         const errorInfo = (typeof data === 'object' && data?.error) ? data.error : null;
-        const message = errorInfo?.message || `HTTP Request failed with status ${response.status}`;
+        const message = errorInfo?.message || data?.message || `HTTP error ${response.status}`;
         const code = errorInfo?.code || `HTTP_${response.status}`;
         const details = errorInfo?.details || null;
 
@@ -80,6 +125,8 @@ class ApiClient {
 
       return data;
     } catch (err) {
+      clearTimeout(timer);
+
       if (err instanceof ApiError) {
         throw err;
       }
@@ -88,24 +135,13 @@ class ApiClient {
         if (isTimeout) {
           throw new ApiError(`Request timed out after ${timeoutMs}ms`, 0, 'REQUEST_TIMEOUT');
         }
-
         const reason = options.signal?.reason;
-        const message = typeof reason === 'string'
-          ? reason
-          : (reason instanceof Error ? reason.message : 'Request was aborted by caller');
-
-        throw new ApiError(message, 0, 'REQUEST_ABORTED', { reason });
+        const msg = typeof reason === 'string' ? reason : 'Request aborted by caller';
+        throw new ApiError(msg, 0, 'REQUEST_ABORTED');
       }
 
-      // Network unreachable, DNS failure, CORS blocked
-      throw new ApiError(
-        'Unable to reach backend service. Please verify that the API server is running.',
-        0,
-        'NETWORK_FAILURE',
-        { originalError: err.message }
-      );
+      throw new ApiError('Failed to fetch', 0, 'NETWORK_FAILURE', { originalError: err.message });
     } finally {
-      clearTimeout(timeout);
       if (options.signal && abortListener) {
         options.signal.removeEventListener('abort', abortListener);
       }
@@ -132,9 +168,18 @@ class ApiClient {
     });
   }
 
+  patch(endpoint, body = {}, options = {}) {
+    return this.request(endpoint, {
+      ...options,
+      method: 'PATCH',
+      body: JSON.stringify(body),
+    });
+  }
+
   delete(endpoint, options = {}) {
     return this.request(endpoint, { ...options, method: 'DELETE' });
   }
 }
 
-export const apiClient = new ApiClient();
+export const api = new ApiClient();
+export const apiClient = api;

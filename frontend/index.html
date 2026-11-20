@@ -3,32 +3,194 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Kịch Bản Sát V16 — Platform Foundation</title>
+  <title>Kịch Bản Sát V16 — Nền Tảng Đặt Lịch & Ghép Phòng Chơi</title>
   <link rel="stylesheet" href="./src/styles/reset.css">
   <link rel="stylesheet" href="./src/styles/variables.css">
   <link rel="stylesheet" href="./src/styles/main.css">
   <link rel="stylesheet" href="./src/styles/components.css">
   <link rel="stylesheet" href="./src/styles/pages.css">
+  <style>
+    /* Global layout enhancements */
+    body {
+      background-color: var(--color-bg-app);
+      color: var(--color-text-main);
+      margin: 0;
+      font-family: var(--font-sans);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .navbar-container {
+      background: rgba(30, 41, 59, 0.85);
+      backdrop-filter: blur(8px);
+      border-bottom: 1px solid var(--color-border);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .navbar-inner {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 0 1.5rem;
+      height: 64px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+    }
+
+    .brand-logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      text-decoration: none;
+      color: var(--color-text-main);
+    }
+
+    .brand-icon {
+      font-size: 1.6rem;
+    }
+
+    .brand-text {
+      font-size: 1.2rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      background: linear-gradient(135deg, #60a5fa 0%, #a855f7 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .nav-links {
+      display: flex;
+      gap: 4px;
+      align-items: center;
+    }
+
+    .nav-actions {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .notif-btn {
+      position: relative;
+      background: transparent;
+      border: 1px solid var(--color-border);
+      color: var(--color-text-main);
+      border-radius: var(--radius-sm);
+      padding: 8px 12px;
+      cursor: pointer;
+      font-size: 1.1rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s;
+    }
+
+    .notif-btn:hover {
+      background: rgba(255, 255, 255, 0.05);
+    }
+
+    .notif-badge {
+      position: absolute;
+      top: -4px;
+      right: -4px;
+      background: var(--color-error);
+      color: white;
+      font-size: 0.65rem;
+      font-weight: 700;
+      padding: 2px 5px;
+      border-radius: 9999px;
+      min-width: 16px;
+      text-align: center;
+    }
+
+    .user-pill {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: rgba(15, 23, 42, 0.6);
+      border: 1px solid var(--color-border);
+      padding: 6px 12px;
+      border-radius: 9999px;
+      font-size: 0.85rem;
+    }
+
+    .main-content {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 2rem 1.5rem;
+      width: 100%;
+      box-sizing: border-box;
+      flex: 1;
+    }
+
+    .app-footer {
+      border-top: 1px solid var(--color-border);
+      padding: 1.5rem;
+      text-align: center;
+      font-size: 0.85rem;
+      color: var(--color-text-muted);
+      background: rgba(15, 23, 42, 0.4);
+    }
+  </style>
 </head>
 <body>
-  <div class="app-container">
-    <header class="app-header">
-      <div>
-        <h1 class="brand-title">Kịch Bản Sát V16</h1>
-        <p class="brand-subtitle">Web-based Booking Platform — Technical Foundation</p>
-      </div>
-      <div>
-        <span style="font-size: 0.8rem; background: var(--color-bg-card); padding: 0.35rem 0.75rem; border-radius: var(--radius-sm); border: 1px solid var(--color-border); color: var(--color-text-muted);">
-          Architecture: PHP Native MVC + ES Modules
-        </span>
-      </div>
-    </header>
+  <!-- Header Navbar Sticky -->
+  <header class="navbar-container">
+    <div class="navbar-inner">
+      <a href="#games" class="brand-logo">
+        <span class="brand-icon">🎭</span>
+        <span class="brand-text">Kịch Bản Sát V16</span>
+      </a>
 
-    <main id="app-mount">
-      <!-- Mounted dynamically by ES Modules -->
-      <p style="color: var(--color-text-muted);">Initializing application modules...</p>
-    </main>
-  </div>
+      <!-- Navigation tabs -->
+      <nav class="nav-links">
+        <button id="nav-btn-games" class="nav-tab-btn active" data-tab="games">
+          <span>🎭</span> Kịch Bản
+        </button>
+        <button id="nav-btn-rooms" class="nav-tab-btn" data-tab="rooms">
+          <span>🎲</span> Sảnh Phòng
+        </button>
+        <button id="nav-btn-dm" class="nav-tab-btn" data-tab="dm">
+          <span>📜</span> Quản Trò (DM)
+        </button>
+        <button id="nav-btn-admin" class="nav-tab-btn" data-tab="admin">
+          <span>🛡️</span> Quản Trị (Admin)
+        </button>
+      </nav>
+
+      <!-- Right actions: Notifications & User profile -->
+      <div class="nav-actions">
+        <!-- Notification button -->
+        <button id="nav-btn-notif" class="notif-btn" title="Thông báo hệ thống">
+          <span>🔔</span>
+          <span id="notif-unread-count" class="notif-badge" style="display: none;">0</span>
+        </button>
+
+        <!-- User container -->
+        <div id="nav-user-container">
+          <button id="btn-open-login" class="btn btn-primary" style="padding: 7px 16px; font-size: 0.85rem;">
+            Đăng nhập / Đổi vai trò
+          </button>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main View Mount Point -->
+  <main class="main-content" id="app-mount">
+    <div style="text-align: center; padding: 60px 20px; color: var(--color-text-muted);">
+      <p>Khởi tạo ứng dụng Kịch Bản Sát V16...</p>
+    </div>
+  </main>
+
+  <footer class="app-footer">
+    <div><strong>Kịch Bản Sát V16 Platform Foundation</strong> &bull; PHP Native MVC + ES Modules &bull; MySQL 8.4</div>
+    <div style="margin-top: 4px; font-size: 0.75rem;">Tuân thủ API Convention V16 &bull; Idempotency Keys &bull; Cọc cố định 50k &bull; Quy tắc vàng 24 giờ</div>
+  </footer>
 
   <script type="module" src="./src/app.js"></script>
 </body>

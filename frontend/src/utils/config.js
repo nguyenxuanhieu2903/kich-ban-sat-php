@@ -1,10 +1,14 @@
 /**
  * Centralized Application Configuration
- * Allows runtime overrides via window.__APP_CONFIG__
+ * Compatible with same-origin and cross-port local dev
  */
 export const config = {
-  apiBaseUrl: window.__APP_CONFIG__?.apiBaseUrl || 'http://127.0.0.1:8080/api',
+  apiBaseUrl: window.__APP_CONFIG__?.apiBaseUrl || (
+    window.location.protocol.startsWith('http')
+      ? '/api/v1'
+      : 'http://127.0.0.1:8000/api/v1'
+  ),
   appTitle: 'Kịch Bản Sát V16',
-  version: '16.0.0-foundation',
-  defaultTimeoutMs: 10000,
+  version: '16.0.0-full',
+  defaultTimeoutMs: 15000,
 };

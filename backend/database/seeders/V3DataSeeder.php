@@ -22,7 +22,7 @@ class V3DataSeeder extends AbstractSeed
         ");
 
         // 2. Sample Users
-        $defaultHash = '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi'; // 'password123'
+        $defaultHash = password_hash('password123', PASSWORD_BCRYPT); // 'password123'
         $this->execute("
             INSERT INTO `users` (`id`, `role_id`, `full_name`, `email`, `password_hash`, `phone`, `avatar_url`, `status`, `email_verified_at`)
             VALUES
