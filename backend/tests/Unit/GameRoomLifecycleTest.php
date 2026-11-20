@@ -87,7 +87,6 @@ class GameRoomLifecycleTest extends TestCase
             );'
         );
 
-        // 1: Host (PLAYER), 2: Other Player, 3: DM, 4: Admin
         $this->pdo->exec(
             "INSERT INTO users (id, full_name, email, role, is_active) VALUES
                 (1, 'Host Player', 'host@kbs.local', 'PLAYER', 1),
@@ -106,9 +105,6 @@ class GameRoomLifecycleTest extends TestCase
             'duration_minutes' => 210,
         ]);
 
-        // Room 1: FORMING (host = 1)
-        // Room 2: CONFIRMED with session assigned to DM id=3
-        // Room 3: COMPLETED
         $stmt = $this->pdo->prepare(
             "INSERT INTO game_rooms (id, room_code, game_id, host_user_id, scheduled_start_at, status, formation_deadline_at, snapshot_game_rule)
              VALUES
@@ -125,7 +121,7 @@ class GameRoomLifecycleTest extends TestCase
         );
     }
 
-    public function testHostCanCancelFormingRoomAndCancelsScheduledSession(): void
+    public function testHostCanCancelFormingRoom(): void
     {
         $result = $this->service->cancelRoom(1, 1, 'PLAYER', 'Bận việc đột xuất');
 
@@ -139,6 +135,26 @@ class GameRoomLifecycleTest extends TestCase
         $this->expectExceptionCode(403);
 
         $this->service->cancelRoom(1, 2, 'PLAYER', 'Cố tình hủy');
+    }
+
+    public function testHostCannotCancelConfirmedRoom(): void
+    {
+        $this->expectException(HttpException::class);
+        $this->expectExceptionCode(409);
+
+        $this->service->cancelRoom(2, 1, 'PLAYER', 'Chủ phòng tự hủy phòng đã chốt');
+    }
+
+    public function testAdminCanCancelConfirmedRoomAndCancelsScheduledSession(): void
+    {
+        $result = $this->service->cancelRoom(2, 4, 'ADMIN', 'Bảo trì đột xuất');
+
+        $this->assertSame('CANCELLED', $result['status']);
+        $this->assertSame('Bảo trì đột xuất', $result['cancel_reason']);
+
+        $session = $this->pdo->query('SELECT status, cancel_reason FROM game_sessions WHERE id = 1')->fetch();
+        $this->assertSame('CANCELLED', $session['status']);
+        $this->assertSame('Bảo trì đột xuất', $session['cancel_reason']);
     }
 
     public function testCannotCancelAlreadyCompletedRoom(): void
@@ -159,6 +175,16 @@ class GameRoomLifecycleTest extends TestCase
     public function testAssignedDmCanCompleteConfirmedRoom(): void
     {
         $result = $this->service->completeRoom(2, 3, 'DM');
+
+        $this->assertSame('COMPLETED', $result['status']);
+
+        $sessionStatus = $this->pdo->query('SELECT status FROM game_sessions WHERE id = 1')->fetchColumn();
+        $this->assertSame('COMPLETED', $sessionStatus);
+    }
+
+    public function testAdminCanCompleteConfirmedRoom(): void
+    {
+        $result = $this->service->completeRoom(2, 4, 'ADMIN');
 
         $this->assertSame('COMPLETED', $result['status']);
 
