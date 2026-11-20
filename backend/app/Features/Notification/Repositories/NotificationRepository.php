@@ -66,4 +66,50 @@ class NotificationRepository extends BaseRepository
             return $stmt->fetchAll(PDO::FETCH_ASSOC);
         });
     }
+
+    /**
+     * Get all notifications for user (with option to filter unread only).
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    public function listByUserId(int $userId, int $limit = 50, bool $unreadOnly = false): array
+    {
+        return $this->executeQuery(function () use ($userId, $limit, $unreadOnly): array {
+            $sql = 'SELECT `id`, `user_id`, `type`, `title`, `content`, `reference_type`, `reference_id`, `is_read`, `read_at`, `created_at`
+                    FROM `notifications`
+                    WHERE `user_id` = :user_id';
+
+            if ($unreadOnly) {
+                $sql .= ' AND `is_read` = 0';
+            }
+
+            $sql .= ' ORDER BY `created_at` DESC LIMIT :limit';
+
+            $stmt = $this->pdo->prepare($sql);
+            $stmt->bindValue(':user_id', $userId, PDO::PARAM_INT);
+            $stmt->bindValue(':limit', max(1, min(100, $limit)), PDO::PARAM_INT);
+            $stmt->execute();
+
+            return $stmt->fetchAll(PDO::FETCH_ASSOC);
+        });
+    }
+
+    /**
+     * Mark a notification as read (with user ID IDOR guard).
+     */
+    public function markAsRead(int $notificationId, int $userId): bool
+    {
+        return $this->executeQuery(function () use ($notificationId, $userId): bool {
+            $stmt = $this->pdo->prepare(
+                'UPDATE `notifications`
+                 SET `is_read` = 1, `read_at` = NOW()
+                 WHERE `id` = :id AND `user_id` = :user_id'
+            );
+            $stmt->bindValue(':id', $notificationId, PDO::PARAM_INT);
+            $stmt->bindValue(':user_id', $userId, PDO::PARAM_INT);
+            $stmt->execute();
+
+            return $stmt->rowCount() > 0;
+        });
+    }
 }

@@ -11,6 +11,8 @@ use App\Features\DMManagement\Controllers\DMAssignmentController;
 use App\Features\GameCatalog\Controllers\GameController;
 use App\Features\GameroomManagement\Controllers\GameRoomController;
 use App\Features\VenueScheduling\Controllers\SchedulingController;
+use App\Features\PaymentRefund\Controllers\PaymentController;
+use App\Features\Notification\Controllers\NotificationController;
 
 /** @var Router $router */
 
@@ -69,6 +71,18 @@ $registerApiRoutes = function (string $prefix) use ($router): void {
     $router->get($prefix . '/dm/assignments', [DMAssignmentController::class, 'index']);
     $router->post($prefix . '/dm/assignments/{id}/accept', [DMAssignmentController::class, 'accept']);
     $router->post($prefix . '/dm/assignments/{id}/reject', [DMAssignmentController::class, 'reject']);
+
+    // =============================================================
+    // DOMAIN 7: PAYMENT API
+    // =============================================================
+    $router->post($prefix . '/payments/{paymentId}/deposit', [PaymentController::class, 'deposit']);
+    $router->post($prefix . '/payments/{paymentId}/remaining', [PaymentController::class, 'remaining']);
+
+    // =============================================================
+    // DOMAIN 8: NOTIFICATION API
+    // =============================================================
+    $router->get($prefix . '/notifications', [NotificationController::class, 'index']);
+    $router->post($prefix . '/notifications/{id}/read', [NotificationController::class, 'markAsRead']);
 };
 
 // Register for both standard V16 prefix (/api/v1) and legacy fallback (/api)
