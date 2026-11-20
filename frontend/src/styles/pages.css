@@ -1,0 +1,14 @@
+/**
+ * Portal Page Layouts & Specific Styles (Public, Player, DM, Admin)
+ */
+.page-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 1.5rem;
+}
+
+.page-header {
+  margin-bottom: 2rem;
+  border-bottom: 1px solid var(--color-border, #334155);
+  padding-bottom: 1rem;
+}

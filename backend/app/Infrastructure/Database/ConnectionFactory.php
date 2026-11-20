@@ -149,9 +149,9 @@ class ConnectionFactory
                 $sanitizedMsg
             );
 
-            // Wrap in DatabaseException preserving original PDOException as previous,
-            // while ensuring no plain-text passwords or credentials leak.
-            throw new DatabaseException($errorInfo, (int) $e->getCode(), $e);
+            // Wrap in DatabaseException WITHOUT chaining the original PDOException as previous,
+            // preventing plain-text credentials in PDO constructor arguments from leaking via getTrace() / exception chaining.
+            throw new DatabaseException($errorInfo, (int) $e->getCode());
         }
     }
 }

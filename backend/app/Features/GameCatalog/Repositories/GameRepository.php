@@ -87,10 +87,11 @@ class GameRepository extends BaseRepository
     {
         return $this->executeQuery(function () use ($gameId): array {
             $stmt = $this->pdo->prepare(
-                'SELECT `id`, `game_id`, `pricing_tier`, `standard_price`, `deposit_amount`, `is_active`, `created_at`, `updated_at`
+                'SELECT `id`, `game_id`, `price_tier_name`, `day_type`, `time_from`, `time_to`,
+                        `base_price_per_player`, `is_active`, `created_at`, `updated_at`
                  FROM `game_prices`
                  WHERE `game_id` = :game_id AND `is_active` = 1
-                 ORDER BY `pricing_tier` ASC'
+                 ORDER BY `price_tier_name` ASC'
             );
             $stmt->bindValue(':game_id', $gameId, PDO::PARAM_INT);
             $stmt->execute();
