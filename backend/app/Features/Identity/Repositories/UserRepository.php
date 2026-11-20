@@ -220,4 +220,99 @@ class UserRepository extends BaseRepository
             return true;
         });
     }
+
+    /**
+     * List users with pagination and filtering.
+     *
+     * @return array{items: list<array<string, mixed>>, total: int}
+     */
+    public function listUsers(
+        int $page = 1,
+        int $perPage = 20,
+        ?string $search = null,
+        ?string $roleCode = null,
+        ?string $status = null
+    ): array {
+        return $this->executeQuery(function () use ($page, $perPage, $search, $roleCode, $status): array {
+            $where = ['1 = 1'];
+            $params = [];
+
+            if ($search !== null && trim($search) !== '') {
+                $where[] = '(u.`full_name` LIKE :search OR u.`email` LIKE :search OR u.`phone` LIKE :search)';
+                $params[':search'] = '%' . trim($search) . '%';
+            }
+
+            if ($roleCode !== null && trim($roleCode) !== '') {
+                $where[] = 'r.`code` = :role_code';
+                $params[':role_code'] = strtoupper(trim($roleCode));
+            }
+
+            if ($status !== null && trim($status) !== '') {
+                $where[] = 'u.`status` = :status';
+                $params[':status'] = strtoupper(trim($status));
+            }
+
+            $whereSql = implode(' AND ', $where);
+
+            // Count total
+            $countStmt = $this->pdo->prepare(
+                "SELECT COUNT(*) FROM `users` u
+                 LEFT JOIN `roles` r ON r.`id` = u.`role_id`
+                 WHERE {$whereSql}"
+            );
+            foreach ($params as $k => $v) {
+                $countStmt->bindValue($k, $v, PDO::PARAM_STR);
+            }
+            $countStmt->execute();
+            $total = (int) $countStmt->fetchColumn();
+
+            // Fetch items
+            $offset = max(0, ($page - 1) * $perPage);
+            $stmt = $this->pdo->prepare(
+                "SELECT u.`id`, u.`role_id`, r.`code` AS `role_code`, r.`name` AS `role_name`,
+                        u.`full_name` AS `name`, u.`full_name`, u.`email`,
+                        u.`phone`, u.`avatar_url`, u.`status`, u.`email_verified_at`, u.`last_login_at`,
+                        u.`created_at`, u.`updated_at`
+                 FROM `users` u
+                 LEFT JOIN `roles` r ON r.`id` = u.`role_id`
+                 WHERE {$whereSql}
+                 ORDER BY u.`id` ASC
+                 LIMIT :limit OFFSET :offset"
+            );
+            foreach ($params as $k => $v) {
+                $stmt->bindValue($k, $v, PDO::PARAM_STR);
+            }
+            $stmt->bindValue(':limit', $perPage, PDO::PARAM_INT);
+            $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
+            $stmt->execute();
+
+            $items = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+            return [
+                'items' => $items,
+                'total' => $total,
+            ];
+        });
+    }
+
+    /**
+     * Find role by code or ID.
+     *
+     * @return array<string, mixed>|null
+     */
+    public function findRole(int|string $roleIdOrCode): ?array
+    {
+        return $this->executeQuery(function () use ($roleIdOrCode): ?array {
+            if (is_int($roleIdOrCode) || ctype_digit((string) $roleIdOrCode)) {
+                $stmt = $this->pdo->prepare('SELECT `id`, `code`, `name`, `description` FROM `roles` WHERE `id` = :id LIMIT 1');
+                $stmt->bindValue(':id', (int) $roleIdOrCode, PDO::PARAM_INT);
+            } else {
+                $stmt = $this->pdo->prepare('SELECT `id`, `code`, `name`, `description` FROM `roles` WHERE `code` = :code LIMIT 1');
+                $stmt->bindValue(':code', strtoupper((string) $roleIdOrCode), PDO::PARAM_STR);
+            }
+            $stmt->execute();
+            $result = $stmt->fetch(PDO::FETCH_ASSOC);
+            return $result !== false ? $result : null;
+        });
+    }
 }

@@ -6,6 +6,7 @@ use App\Core\Request;
 use App\Core\Response;
 use App\Core\Router;
 use App\Features\Identity\Controllers\AuthController;
+use App\Features\Identity\Controllers\AdminUserController;
 use App\Features\GameCatalog\Controllers\GameController;
 use App\Features\GameroomManagement\Controllers\GameRoomController;
 use App\Features\VenueScheduling\Controllers\SchedulingController;
@@ -30,6 +31,12 @@ $registerApiRoutes = function (string $prefix) use ($router): void {
     $router->post($prefix . '/auth/login', [AuthController::class, 'login']);
     $router->get($prefix . '/auth/me', [AuthController::class, 'me']);
     $router->post($prefix . '/auth/logout', [AuthController::class, 'logout']);
+
+    // Admin User & Role Management
+    $router->get($prefix . '/admin/users', [AdminUserController::class, 'index']);
+    $router->get($prefix . '/admin/users/{id}', [AdminUserController::class, 'show']);
+    $router->patch($prefix . '/admin/users/{id}', [AdminUserController::class, 'update']);
+    $router->put($prefix . '/admin/users/{id}/role', [AdminUserController::class, 'assignRole']);
 
     // =============================================================
     // DOMAIN 2: GAME CATALOG API
