@@ -7,6 +7,7 @@ use App\Core\Response;
 use App\Core\Router;
 use App\Features\Identity\Controllers\AuthController;
 use App\Features\Identity\Controllers\AdminUserController;
+use App\Features\DMManagement\Controllers\DMAssignmentController;
 use App\Features\GameCatalog\Controllers\GameController;
 use App\Features\GameroomManagement\Controllers\GameRoomController;
 use App\Features\VenueScheduling\Controllers\SchedulingController;
@@ -61,6 +62,13 @@ $registerApiRoutes = function (string $prefix) use ($router): void {
     $router->post($prefix . '/rooms/{id}/proposals', [SchedulingController::class, 'propose']);
     $router->get($prefix . '/proposals/{id}', [SchedulingController::class, 'showProposal']);
     $router->post($prefix . '/proposals/{id}/vote', [SchedulingController::class, 'vote']);
+
+    // =============================================================
+    // DOMAIN 6: DM ASSIGNMENT API
+    // =============================================================
+    $router->get($prefix . '/dm/assignments', [DMAssignmentController::class, 'index']);
+    $router->post($prefix . '/dm/assignments/{id}/accept', [DMAssignmentController::class, 'accept']);
+    $router->post($prefix . '/dm/assignments/{id}/reject', [DMAssignmentController::class, 'reject']);
 };
 
 // Register for both standard V16 prefix (/api/v1) and legacy fallback (/api)

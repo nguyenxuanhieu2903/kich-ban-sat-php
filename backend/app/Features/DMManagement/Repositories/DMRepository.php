@@ -95,4 +95,104 @@ class DMRepository extends BaseRepository
             return $result !== false ? $result : null;
         });
     }
+
+    /**
+     * Find assignment by ID with game and room details.
+     *
+     * @return array<string, mixed>|null
+     */
+    public function findAssignmentById(int $id): ?array
+    {
+        return $this->executeQuery(function () use ($id): ?array {
+            $stmt = $this->pdo->prepare(
+                'SELECT a.`id`, a.`game_room_id`, a.`dm_user_id`, a.`assigned_by`, a.`status`,
+                        a.`assigned_at`, a.`responded_at`, a.`revoked_at`, a.`reason`,
+                        a.`created_at`, a.`updated_at`,
+                        gr.`title` AS `room_title`, gr.`status` AS `room_status`,
+                        g.`id` AS `game_id`, g.`name` AS `game_name`,
+                        u.`full_name` AS `dm_name`, u.`email` AS `dm_email`
+                 FROM `dm_assignments` a
+                 INNER JOIN `game_rooms` gr ON gr.`id` = a.`game_room_id`
+                 INNER JOIN `games` g ON g.`id` = gr.`game_id`
+                 INNER JOIN `users` u ON u.`id` = a.`dm_user_id`
+                 WHERE a.`id` = :id
+                 LIMIT 1'
+            );
+            $stmt->bindValue(':id', $id, PDO::PARAM_INT);
+            $stmt->execute();
+
+            $result = $stmt->fetch(PDO::FETCH_ASSOC);
+            return $result !== false ? $result : null;
+        });
+    }
+
+    /**
+     * List assignments filtered by DM user ID or status.
+     *
+     * @return list<array<string, mixed>>
+     */
+    public function listAssignments(?int $dmUserId = null, ?string $status = null): array
+    {
+        return $this->executeQuery(function () use ($dmUserId, $status): array {
+            $where = ['1 = 1'];
+            $params = [];
+
+            if ($dmUserId !== null && $dmUserId > 0) {
+                $where[] = 'a.`dm_user_id` = :dm_user_id';
+                $params[':dm_user_id'] = [$dmUserId, PDO::PARAM_INT];
+            }
+
+            if ($status !== null && trim($status) !== '' && $status !== 'ALL') {
+                $where[] = 'a.`status` = :status';
+                $params[':status'] = [strtoupper(trim($status)), PDO::PARAM_STR];
+            }
+
+            $whereSql = implode(' AND ', $where);
+            $sql = "SELECT a.`id`, a.`game_room_id`, a.`dm_user_id`, a.`assigned_by`, a.`status`,
+                           a.`assigned_at`, a.`responded_at`, a.`revoked_at`, a.`reason`,
+                           a.`created_at`, a.`updated_at`,
+                           gr.`title` AS `room_title`, gr.`status` AS `room_status`,
+                           g.`id` AS `game_id`, g.`name` AS `game_name`,
+                           u.`full_name` AS `dm_name`
+                    FROM `dm_assignments` a
+                    INNER JOIN `game_rooms` gr ON gr.`id` = a.`game_room_id`
+                    INNER JOIN `games` g ON g.`id` = gr.`game_id`
+                    INNER JOIN `users` u ON u.`id` = a.`dm_user_id`
+                    WHERE {$whereSql}
+                    ORDER BY a.`id` DESC";
+
+            $stmt = $this->pdo->prepare($sql);
+            foreach ($params as $param => [$val, $type]) {
+                $stmt->bindValue($param, $val, $type);
+            }
+            $stmt->execute();
+
+            /** @var list<array<string, mixed>> $rows */
+            $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            return $rows;
+        });
+    }
+
+    /**
+     * Update DM assignment response status (ACCEPTED or REJECTED).
+     */
+    public function respondAssignment(int $id, string $status, ?string $reason = null): bool
+    {
+        return $this->executeQuery(function () use ($id, $status, $reason): bool {
+            $stmt = $this->pdo->prepare(
+                'UPDATE `dm_assignments`
+                 SET `status` = :status,
+                     `responded_at` = NOW(),
+                     `reason` = :reason,
+                     `updated_at` = NOW()
+                 WHERE `id` = :id'
+            );
+            $stmt->bindValue(':status', strtoupper($status), PDO::PARAM_STR);
+            $stmt->bindValue(':reason', $reason, $reason === null ? PDO::PARAM_NULL : PDO::PARAM_STR);
+            $stmt->bindValue(':id', $id, PDO::PARAM_INT);
+            $stmt->execute();
+
+            return $stmt->rowCount() > 0;
+        });
+    }
 }
