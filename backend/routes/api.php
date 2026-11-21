@@ -5,10 +5,13 @@ declare(strict_types=1);
 use App\Core\Request;
 use App\Core\Response;
 use App\Core\Router;
+use App\Features\Admin\AdminController;
+use App\Features\Audit\AuditLogController;
 use App\Features\Auth\AuthController;
 use App\Features\Game\GameController;
 use App\Features\GameRoom\GameRoomController;
 use App\Features\GameRoom\RoomWorkflowController;
+use App\Features\Notification\NotificationController;
 use App\Features\Payment\PaymentController;
 
 /** @var Router $router */
@@ -63,3 +66,17 @@ $router->post('/api/payments/{id}/fail', [PaymentController::class, 'fail']);
 $router->post('/api/payments/{id}/retry', [PaymentController::class, 'retry']);
 $router->post('/api/payments/{id}/refunds', [PaymentController::class, 'requestRefund']);
 $router->post('/api/refunds/{id}/process', [PaymentController::class, 'processRefund']);
+
+// Module 4: Notifications, Audit Logs & Admin Operations
+$router->get('/api/notifications', [NotificationController::class, 'index']);
+$router->post('/api/notifications/{id}/read', [NotificationController::class, 'markRead']);
+$router->post('/api/notifications/read-all', [NotificationController::class, 'markAllRead']);
+
+$router->get('/api/physical-rooms', [AdminController::class, 'listPhysicalRooms']);
+$router->post('/api/physical-rooms', [AdminController::class, 'createPhysicalRoom']);
+$router->post('/api/physical-rooms/{id}/update', [AdminController::class, 'updatePhysicalRoom']);
+
+$router->get('/api/admin/users', [AdminController::class, 'listUsers']);
+$router->post('/api/admin/users/{id}/status', [AdminController::class, 'updateUserStatus']);
+$router->post('/api/admin/users/{id}/role', [AdminController::class, 'updateUserRole']);
+$router->get('/api/admin/audit-logs', [AuditLogController::class, 'index']);
