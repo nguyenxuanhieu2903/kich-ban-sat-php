@@ -53,6 +53,20 @@ class GameApiTest extends TestCase
         }
     }
 
+    public function testCanSearchGamesByName(): void
+    {
+        $request = new Request('GET', '/api/games', ['search' => 'Tuyết']);
+        $response = $this->app->dispatch($request);
+
+        $this->assertSame(200, $response->getStatusCode());
+        $data = json_decode($response->getContent(), true);
+
+        $this->assertTrue($data['success']);
+        $this->assertNotEmpty($data['data']['games']);
+        $this->assertStringContainsString('Tuyết', $data['data']['games'][0]['name']);
+        $this->assertNotNull($data['data']['games'][0]['min_price']);
+    }
+
     public function testCanGetGameDetailById(): void
     {
         $request = new Request('GET', '/api/games/1');

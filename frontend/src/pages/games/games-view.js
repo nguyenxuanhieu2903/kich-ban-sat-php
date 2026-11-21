@@ -1,5 +1,6 @@
 import { api } from '../../api/api-client.js';
 import { toast } from '../../utils/toast.js';
+import { escapeHtml, sanitizeUrl } from '../../utils/sanitize.js';
 
 export class GamesView {
   constructor(container, onSelectGameToCreateRoom = () => {}) {
@@ -59,34 +60,37 @@ export class GamesView {
         return;
       }
 
-      grid.innerHTML = this.games.map(game => `
+      grid.innerHTML = this.games.map(game => {
+        const safeImg = sanitizeUrl(game.image_url);
+        return `
         <div class="card" style="display: flex; flex-direction: column; overflow: hidden; height: 100%;">
           <div style="height: 180px; background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); position: relative; overflow: hidden; display: flex; align-items: center; justify-content: center;">
-            ${game.image_url ? `<img src="${game.image_url}" alt="${game.name}" style="width: 100%; height: 100%; object-fit: cover;">` : `<div style="font-size: 3rem; opacity: 0.3;">🎭</div>`}
+            ${safeImg ? `<img src="${safeImg}" alt="${escapeHtml(game.name)}" style="width: 100%; height: 100%; object-fit: cover;">` : `<div style="font-size: 3rem; opacity: 0.3;">🎭</div>`}
             <span style="position: absolute; top: 12px; right: 12px; background: rgba(15, 23, 42, 0.85); backdrop-filter: blur(4px); font-size: 0.75rem; padding: 4px 8px; border-radius: 4px; border: 1px solid rgba(255, 255, 255, 0.1);">
-              ⏱️ ${game.duration_minutes || 240} phút
+              ⏱️ ${Number(game.duration_minutes) || 240} phút
             </span>
           </div>
           <div style="padding: 18px; display: flex; flex-direction: column; flex-grow: 1;">
-            <h3 style="font-size: 1.15rem; font-weight: 700; margin: 0 0 8px 0; color: #f8fafc;">${game.name}</h3>
+            <h3 style="font-size: 1.15rem; font-weight: 700; margin: 0 0 8px 0; color: #f8fafc;">${escapeHtml(game.name)}</h3>
             <p style="color: var(--color-text-muted); font-size: 0.85rem; line-height: 1.5; margin: 0 0 16px 0; flex-grow: 1; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;">
-              ${game.description || 'Kịch bản nhập vai trinh thám ly kỳ với cốt truyện hấp dẫn và bất ngờ.'}
+              ${escapeHtml(game.description || 'Kịch bản nhập vai trinh thám ly kỳ với cốt truyện hấp dẫn và bất ngờ.')}
             </p>
             <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.85rem; color: #94a3b8; border-top: 1px solid var(--color-border); padding-top: 12px; margin-bottom: 14px;">
-              <span>👥 ${game.min_players} - ${game.max_players} người chơi</span>
+              <span>👥 ${Number(game.min_players)} - ${Number(game.max_players)} người chơi</span>
               <span style="color: #10b981; font-weight: 600;">Cọc: 50.000đ/người</span>
             </div>
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
-              <button class="btn btn-secondary btn-prices" data-id="${game.id}" style="font-size: 0.85rem; padding: 8px;">
+              <button class="btn btn-secondary btn-prices" data-id="${Number(game.id)}" style="font-size: 0.85rem; padding: 8px;">
                 🏷️ Xem giá
               </button>
-              <button class="btn btn-primary btn-create-room" data-id="${game.id}" style="font-size: 0.85rem; padding: 8px;">
+              <button class="btn btn-primary btn-create-room" data-id="${Number(game.id)}" style="font-size: 0.85rem; padding: 8px;">
                 🚀 Tạo phòng
               </button>
             </div>
           </div>
         </div>
-      `).join('');
+      `;
+      }).join('');
 
       // Gắn sự kiện xem giá
       grid.querySelectorAll('.btn-prices').forEach(btn => {
@@ -125,7 +129,7 @@ export class GamesView {
 
       dialog.innerHTML = `
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
-          <h3 style="margin: 0; font-size: 1.2rem;">Bảng giá: ${gameName}</h3>
+          <h3 style="margin: 0; font-size: 1.2rem;">Bảng giá: ${escapeHtml(gameName)}</h3>
           <button style="background: none; border: none; color: #94a3b8; font-size: 1.4rem; cursor: pointer;">&times;</button>
         </div>
         <div style="font-size: 0.85rem; color: #94a3b8; margin-bottom: 14px;">
@@ -163,6 +167,10 @@ export class GamesView {
 
       dialog.querySelector('button').onclick = () => dialog.close();
       dialog.querySelector('.btn-secondary').onclick = () => dialog.close();
+      dialog.addEventListener('close', () => dialog.remove());
+      dialog.addEventListener('click', (e) => {
+        if (e.target === dialog) dialog.close();
+      });
       document.body.appendChild(dialog);
       dialog.showModal();
     } catch (err) {

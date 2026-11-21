@@ -12,11 +12,7 @@ class CsrfMiddleware implements MiddlewareInterface
 {
     /** @var string[] */
     protected array $excludedPaths = [
-        '/api/v1/auth/login',
-        '/api/v1/auth/register',
         '/api/v1/auth/csrf-token',
-        '/api/auth/login',
-        '/api/auth/register',
         '/api/auth/csrf-token',
         '/api/health',
     ];

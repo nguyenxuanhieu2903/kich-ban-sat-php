@@ -16,6 +16,7 @@ use App\Features\PaymentRefund\Controllers\PaymentController;
 use App\Features\PaymentRefund\Controllers\AdminRefundController;
 use App\Features\Notification\Controllers\NotificationController;
 use App\Features\Pricing\Controllers\PricingController;
+use App\Features\Promotion\Controllers\PromotionController;
 
 /** @var Router $router */
 
@@ -45,11 +46,12 @@ $registerApiRoutes = function (string $prefix) use ($router): void {
     $router->put($prefix . '/admin/users/{id}/role', [AdminUserController::class, 'assignRole']);
 
     // =============================================================
-    // DOMAIN 2: GAME CATALOG API
+    // DOMAIN 2: GAME CATALOG & PROMOTIONS API
     // =============================================================
     $router->get($prefix . '/games', [GameController::class, 'index']);
     $router->get($prefix . '/games/{id}', [GameController::class, 'show']);
     $router->get($prefix . '/games/{id}/prices', [GameController::class, 'prices']);
+    $router->get($prefix . '/promotions', [PromotionController::class, 'index']);
 
     // =============================================================
     // DOMAIN 3: GAMEROOM MANAGEMENT & PRICING SNAPSHOT API

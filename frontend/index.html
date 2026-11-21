@@ -141,23 +141,33 @@
   <!-- Header Navbar Sticky -->
   <header class="navbar-container">
     <div class="navbar-inner">
-      <a href="#games" class="brand-logo">
-        <span class="brand-icon">🎭</span>
-        <span class="brand-text">Kịch Bản Sát V16</span>
-      </a>
+      <div style="display: flex; align-items: center; gap: 12px;">
+        <!-- Mobile menu hamburger toggle -->
+        <button id="nav-hamburger-btn" class="mobile-nav-toggle" aria-label="Mở menu điều hướng">
+          <span id="nav-hamburger-icon">☰</span>
+        </button>
+
+        <a href="#home" class="brand-logo">
+          <span class="brand-icon">🎭</span>
+          <span class="brand-text">Kịch Bản Sát V16</span>
+        </a>
+      </div>
 
       <!-- Navigation tabs -->
       <nav class="nav-links">
-        <button id="nav-btn-games" class="nav-tab-btn active" data-tab="games">
+        <button id="nav-btn-home" class="nav-tab-btn active" data-tab="home">
+          <span>🏠</span> Trang Chủ
+        </button>
+        <button id="nav-btn-games" class="nav-tab-btn" data-tab="games">
           <span>🎭</span> Kịch Bản
         </button>
         <button id="nav-btn-rooms" class="nav-tab-btn" data-tab="rooms">
           <span>🎲</span> Sảnh Phòng
         </button>
-        <button id="nav-btn-dm" class="nav-tab-btn" data-tab="dm">
+        <button id="nav-btn-dm" class="nav-tab-btn" data-tab="dm" style="display: none;">
           <span>📜</span> Quản Trò (DM)
         </button>
-        <button id="nav-btn-admin" class="nav-tab-btn" data-tab="admin">
+        <button id="nav-btn-admin" class="nav-tab-btn" data-tab="admin" style="display: none;">
           <span>🛡️</span> Quản Trị (Admin)
         </button>
       </nav>
@@ -178,6 +188,25 @@
         </div>
       </div>
     </div>
+
+    <!-- Mobile Navigation Drawer -->
+    <div id="mobile-nav-drawer" class="mobile-nav-drawer">
+      <a href="#home" class="mobile-nav-link active" data-tab="home">
+        <span>🏠</span> Trang Chủ
+      </a>
+      <a href="#games" class="mobile-nav-link" data-tab="games">
+        <span>🎭</span> Khám Phá Kịch Bản
+      </a>
+      <a href="#rooms" class="mobile-nav-link" data-tab="rooms">
+        <span>🎲</span> Sảnh Phòng Chơi
+      </a>
+      <a href="#dm" id="mobile-nav-dm" class="mobile-nav-link" data-tab="dm" style="display: none;">
+        <span>📜</span> Dành Cho Quản Trò (DM)
+      </a>
+      <a href="#admin" id="mobile-nav-admin" class="mobile-nav-link" data-tab="admin" style="display: none;">
+        <span>🛡️</span> Cổng Quản Trị (Admin)
+      </a>
+    </div>
   </header>
 
   <!-- Main View Mount Point -->
@@ -187,9 +216,67 @@
     </div>
   </main>
 
+  <!-- Public Footer -->
   <footer class="app-footer">
-    <div><strong>Kịch Bản Sát V16 Platform Foundation</strong> &bull; PHP Native MVC + ES Modules &bull; MySQL 8.4</div>
-    <div style="margin-top: 4px; font-size: 0.75rem;">Tuân thủ API Convention V16 &bull; Idempotency Keys &bull; Cọc cố định 50k &bull; Quy tắc vàng 24 giờ</div>
+    <div class="footer-top">
+      <div class="footer-col">
+        <h4 style="display: flex; align-items: center; gap: 8px;">
+          <span>🎭</span> Kịch Bản Sát V16
+        </h4>
+        <p>
+          Nền tảng đặt lịch và ghép phòng chơi Kịch Bản Sát (Jubensha / Murder Mystery) chuyên nghiệp hàng đầu.
+          Mang đến không gian nhập vai phá án chân thực, kết nối thám tử và quy trình minh bạch tuyệt đối.
+        </p>
+        <p style="font-size: 0.8rem; color: #60a5fa;">
+          Chuẩn kiến trúc Monolithic MVC &bull; Clean Architecture &bull; MySQL 8.4
+        </p>
+      </div>
+
+      <div class="footer-col">
+        <h4>Chi Nhánh Hoạt Động</h4>
+        <p style="margin-bottom: 8px;">
+          <strong style="color: #f8fafc;">📍 Chi nhánh Quận 1:</strong><br>
+          123 Nguyễn Huệ, P. Bến Nghé, Q.1, TP.HCM<br>
+          <span style="color: #60a5fa;">Hotline: 0901 234 567</span>
+        </p>
+        <p>
+          <strong style="color: #f8fafc;">📍 Chi nhánh Bình Thạnh:</strong><br>
+          45 Điện Biên Phủ, P. 15, Q. Bình Thạnh, TP.HCM<br>
+          <span style="color: #60a5fa;">Hotline: 0907 654 321</span>
+        </p>
+      </div>
+
+      <div class="footer-col">
+        <h4>Điều Hướng Nhanh</h4>
+        <ul class="footer-links">
+          <li><a href="#home">Trang chủ Kịch Bản Sát</a></li>
+          <li><a href="#games">Danh mục kịch bản</a></li>
+          <li><a href="#rooms">Sảnh ghép phòng chơi</a></li>
+          <li><a href="#dm">Cổng Quản Trò (DM)</a></li>
+          <li><a href="#admin">Cổng Quản Trị (Admin)</a></li>
+        </ul>
+      </div>
+
+      <div class="footer-col">
+        <h4>Chính Sách & Quy Chuẩn V16</h4>
+        <ul class="footer-links">
+          <li><span style="color:#10b981;">✔</span> Cọc cố định: 50.000đ / người</li>
+          <li><span style="color:#10b981;">✔</span> Hoàn cọc 100% trước 24 giờ</li>
+          <li><span style="color:#10b981;">✔</span> Ưu đãi tính tự động tại Backend</li>
+          <li><span style="color:#10b981;">✔</span> Không cộng dồn khuyến mãi</li>
+          <li><span style="color:#10b981;">✔</span> Giờ mở cửa: 09:00 - 23:00</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="footer-bottom">
+      <div>
+        &copy; 2026 <strong>Kịch Bản Sát V16 Platform</strong>. Tất cả quyền được bảo lưu.
+      </div>
+      <div style="font-size: 0.75rem; color: var(--color-text-muted);">
+        Tuân thủ API Convention V16 &bull; Idempotency Keys &bull; Cọc cố định 50k &bull; Quy tắc vàng 24 giờ
+      </div>
+    </div>
   </footer>
 
   <script type="module" src="./src/app.js"></script>

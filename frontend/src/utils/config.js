@@ -3,8 +3,8 @@
  * Compatible with same-origin and cross-port local dev
  */
 export const config = {
-  apiBaseUrl: window.__APP_CONFIG__?.apiBaseUrl || (
-    window.location.protocol.startsWith('http')
+  apiBaseUrl: (typeof window !== 'undefined' ? window.__APP_CONFIG__?.apiBaseUrl : null) || (
+    typeof window !== 'undefined' && window.location?.protocol?.startsWith('http')
       ? '/api/v1'
       : 'http://127.0.0.1:8000/api/v1'
   ),

@@ -60,28 +60,55 @@ class GameRepository extends BaseRepository
     }
 
     /**
-     * List active games with pagination.
+     * List active games with pagination, optional player filtering and search.
      *
      * @return list<array<string, mixed>>
      */
-    public function listActive(int $limit = 20, int $offset = 0): array
+    public function listActive(int $limit = 20, int $offset = 0, ?int $players = null, ?string $search = null): array
     {
-        return $this->executeQuery(function () use ($limit, $offset): array {
-            $stmt = $this->pdo->prepare(
-                'SELECT `id`, `name` AS `title`, `name`, `slug`, `description`, `image_url`,
-                        `min_players`, `max_players`, `duration_minutes`, `status`,
-                        1 AS `is_active`, `display_order`, `created_at`, `updated_at`
-                 FROM `games`
-                 WHERE `status` = \'ACTIVE\'
-                 ORDER BY `display_order` ASC, `name` ASC
-                 LIMIT :limit OFFSET :offset'
-            );
+        return $this->executeQuery(function () use ($limit, $offset, $players, $search): array {
+            $where = ['g.`status` = \'ACTIVE\''];
+            $params = [];
+
+            if ($players !== null && $players > 0) {
+                $where[] = 'g.`min_players` <= :p1 AND g.`max_players` >= :p2';
+                $params[':p1'] = $players;
+                $params[':p2'] = $players;
+            }
+
+            if ($search !== null && trim($search) !== '') {
+                $where[] = '(g.`name` LIKE :s1 OR g.`description` LIKE :s2)';
+                $searchTerm = '%' . trim($search) . '%';
+                $params[':s1'] = $searchTerm;
+                $params[':s2'] = $searchTerm;
+            }
+
+            $sql = 'SELECT g.`id`, g.`name` AS `title`, g.`name`, g.`slug`, g.`description`, g.`image_url`,
+                           g.`min_players`, g.`max_players`, g.`duration_minutes`, g.`status`,
+                           1 AS `is_active`, g.`display_order`, g.`created_at`, g.`updated_at`,
+                           MIN(gp.`price_per_person`) AS `min_price`,
+                           MAX(gp.`price_per_person`) AS `max_price`
+                    FROM `games` g
+                    LEFT JOIN `game_prices` gp ON gp.`game_id` = g.`id` AND gp.`status` = \'ACTIVE\'
+                    WHERE ' . implode(' AND ', $where) . '
+                    GROUP BY g.`id`
+                    ORDER BY g.`display_order` ASC, g.`name` ASC
+                    LIMIT :limit OFFSET :offset';
+
+            $stmt = $this->pdo->prepare($sql);
+            foreach ($params as $param => $val) {
+                $stmt->bindValue($param, $val, is_int($val) ? PDO::PARAM_INT : PDO::PARAM_STR);
+            }
             $stmt->bindValue(':limit', max(1, $limit), PDO::PARAM_INT);
             $stmt->bindValue(':offset', max(0, $offset), PDO::PARAM_INT);
             $stmt->execute();
 
             /** @var list<array<string, mixed>> $rows */
             $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            foreach ($rows as &$row) {
+                $row['min_price'] = $row['min_price'] !== null ? (int) $row['min_price'] : null;
+                $row['max_price'] = $row['max_price'] !== null ? (int) $row['max_price'] : null;
+            }
             return $rows;
         });
     }

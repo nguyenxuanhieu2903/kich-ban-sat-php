@@ -77,6 +77,7 @@ class AuthState {
     try {
       await api.post('/auth/logout');
     } finally {
+      api.clearCsrfToken();
       this.user = null;
       this.notify();
     }

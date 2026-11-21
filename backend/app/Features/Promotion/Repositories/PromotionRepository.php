@@ -58,4 +58,35 @@ class PromotionRepository extends BaseRepository
             return $result !== false ? $result : null;
         });
     }
+
+    /**
+     * List all active promotions with decoded rules.
+     *
+     * @return list<array<string, mixed>>
+     */
+    public function listActive(): array
+    {
+        return $this->executeQuery(function (): array {
+            $stmt = $this->pdo->prepare(
+                'SELECT `id`, `code`, `name`, `promotion_type`, `discount_type`, `discount_value`,
+                        `start_at` AS `valid_from`, `end_at` AS `valid_to`, `start_at`, `end_at`,
+                        `rules`, `is_active`, `created_at`, `updated_at`
+                 FROM `promotions`
+                 WHERE `is_active` = 1
+                   AND (`start_at` IS NULL OR `start_at` <= NOW())
+                   AND (`end_at` IS NULL OR `end_at` >= NOW())
+                 ORDER BY `id` ASC'
+            );
+            $stmt->execute();
+
+            /** @var list<array<string, mixed>> $rows */
+            $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            foreach ($rows as &$row) {
+                if (!empty($row['rules']) && is_string($row['rules'])) {
+                    $row['rules'] = json_decode($row['rules'], true);
+                }
+            }
+            return $rows;
+        });
+    }
 }

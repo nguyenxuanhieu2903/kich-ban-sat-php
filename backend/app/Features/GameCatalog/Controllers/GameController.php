@@ -23,33 +23,17 @@ class GameController
 
     /**
      * GET /api/v1/games
-     * Query: ?limit=20&offset=0&players=6
+     * Query: ?limit=20&offset=0&players=6&search=an+mang
      */
     public function index(Request $request): Response
     {
         $limit = max(1, min(100, (int) $request->query('limit', 20)));
         $offset = max(0, (int) $request->query('offset', 0));
-        $players = $request->query('players') !== null ? (int) $request->query('players') : null;
+        $players = $request->query('players') !== null && $request->query('players') !== '' ? (int) $request->query('players') : null;
+        $search = $request->query('search', $request->query('q'));
+        $search = $search !== null ? trim((string) $search) : null;
 
-        if ($players !== null && $players > 0) {
-            $stmt = $this->pdo->prepare(
-                'SELECT `id`, `name`, `name` AS `title`, `slug`, `description`, `image_url`,
-                        `min_players`, `max_players`, `duration_minutes`, `status`,
-                        1 AS `is_active`, `display_order`, `created_at`, `updated_at`
-                 FROM `games`
-                 WHERE `status` = \'ACTIVE\' AND `min_players` <= :p1 AND `max_players` >= :p2
-                 ORDER BY `display_order` ASC, `name` ASC
-                 LIMIT :limit OFFSET :offset'
-            );
-            $stmt->bindValue(':p1', $players, PDO::PARAM_INT);
-            $stmt->bindValue(':p2', $players, PDO::PARAM_INT);
-            $stmt->bindValue(':limit', $limit, PDO::PARAM_INT);
-            $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
-            $stmt->execute();
-            $games = $stmt->fetchAll(PDO::FETCH_ASSOC);
-        } else {
-            $games = $this->gameRepo->listActive($limit, $offset);
-        }
+        $games = $this->gameRepo->listActive($limit, $offset, $players, $search);
 
         return Response::success([
             'games' => $games,

@@ -21,6 +21,14 @@ export class ApiClient {
   }
 
   /**
+   * Clear cached CSRF token (called upon logout or CSRF invalidation)
+   */
+  clearCsrfToken() {
+    this.csrfToken = null;
+    this.csrfPromise = null;
+  }
+
+  /**
    * Fetch and cache CSRF token from backend
    */
   async ensureCsrfToken() {
@@ -119,6 +127,10 @@ export class ApiClient {
         const message = errorInfo?.message || data?.message || `HTTP error ${response.status}`;
         const code = errorInfo?.code || `HTTP_${response.status}`;
         const details = errorInfo?.details || null;
+
+        if (code === 'CSRF_TOKEN_INVALID' || (typeof message === 'string' && message.includes('CSRF'))) {
+          this.clearCsrfToken();
+        }
 
         throw new ApiError(message, response.status, code, details);
       }
