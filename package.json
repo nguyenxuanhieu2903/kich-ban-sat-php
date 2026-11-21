@@ -1,0 +1,10 @@
+{
+  "name": "kich-ban-sat",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Kịch Bản Sát - 3 Portal Suite (Player, DM, Admin)",
+  "scripts": {
+    "start": "node frontend/serve.mjs",
+    "test": "node --test frontend/tests/api-client.test.mjs frontend/tests/utils.test.mjs"
+  }
+}

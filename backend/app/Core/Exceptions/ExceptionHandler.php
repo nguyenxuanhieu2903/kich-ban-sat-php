@@ -46,18 +46,6 @@ class ExceptionHandler
                 $errorCode = 'NOT_FOUND';
             } elseif ($e instanceof MethodNotAllowedException) {
                 $errorCode = 'METHOD_NOT_ALLOWED';
-            } else {
-                $errorCode = match ($statusCode) {
-                    400 => 'BAD_REQUEST',
-                    401 => 'UNAUTHORIZED',
-                    403 => 'FORBIDDEN',
-                    404 => 'NOT_FOUND',
-                    405 => 'METHOD_NOT_ALLOWED',
-                    409 => 'CONFLICT',
-                    422 => 'UNPROCESSABLE_ENTITY',
-                    429 => 'TOO_MANY_REQUESTS',
-                    default => 'INTERNAL_SERVER_ERROR',
-                };
             }
         } else {
             $isDebug = (bool) Config::get('APP_DEBUG', false);
@@ -142,6 +130,10 @@ class ExceptionHandler
         }
 
         // 4. Redact key-value pairs (JSON quoted, array dumps, key=val, key: val, or key val)
+        // Matches:
+        // - Prefix: optional [ or [' or [" then keyword then optional ] or '] or "]
+        // - Separator: => or : or is or = or whitespace
+        // - Value: single-quoted string, double-quoted string, or unquoted value up to delimiter/whitespace
         $pattern = '/(?P<prefix>\[?(?:\'|")?\b(?:password|pwd|token|client_secret|secret|api_?key|access_token|refresh_token|auth|credential)\b(?:\'|")?\]?)(?P<sep>\s*(?:=>|:|is|=|\s+)\s*)(?P<val>\'[^\']*\'|"[^"]*"|(?!(?:password|pwd|token|client_secret|secret|api_?key|access_token|refresh_token|auth|credential)\s*(?:=|:|=>))[^\s,\r\n]+)/i';
         $sanitized = preg_replace_callback($pattern, function (array $m): string {
             $val = $m['val'];

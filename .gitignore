@@ -4,7 +4,7 @@
 !.env.example
 
 # Composer Dependencies
-vendor/
+/vendor/
 
 # PHPUnit & Testing Caches
 .phpunit.cache/
@@ -26,3 +26,6 @@ desktop.ini
 # Temporary & Cache Files
 *.tmp
 *.cache
+
+# Nested extracted folder
+kich-ban-sat-php-main/

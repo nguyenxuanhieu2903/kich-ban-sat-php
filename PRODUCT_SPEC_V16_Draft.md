@@ -38,7 +38,7 @@ và kế hoạch triển khai, không phải một lần thiết kế lại sả
 ### 1.2. Baseline và repository
 
 -   Tài liệu baseline: `PRODUCT_SPEC_V15_Final.md`.
--   Repository phát triển chính thức: `nguyenxuanhieu2903/kich-ban-sat`.
+-   Repository phát triển chính thức: `nguyenxuanhieu2903/kich-ban-sat-php`.
 -   `Danh-K/FE_Kich_Ban_Sat` chỉ là repository tham khảo/audit, không
     phải source base.
 -   Không ghi đè V15 Final. V16 là tài liệu mới, có Change Log riêng.
