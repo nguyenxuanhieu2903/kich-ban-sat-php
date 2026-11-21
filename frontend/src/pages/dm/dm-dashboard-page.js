@@ -11,8 +11,6 @@ import { formatDateTime } from '../../utils/format.js';
 import { checkDmPrepBuffer } from '../../utils/rules.js';
 import { showReasonDialog } from '../../components/reason-dialog.js';
 import { showToast } from '../../components/toast.js';
-import { createPortal3DSeal } from '../../components/portal-3d-seal.js';
-import { renderQuickGuide } from '../../components/quick-guide.js';
 
 export class DmDashboardPage {
   constructor(mountPoint, { router }) {
@@ -30,57 +28,27 @@ export class DmDashboardPage {
       return;
     }
 
-    // 1. Clean Header with 3D Holographic Matrix Seal
-    const header = h('div', { className: 'dm-command-hero flex-between flex-align-center', style: 'flex-wrap: wrap; gap: 1.5rem;' },
+    // 1. Executive DM Operations Header
+    const header = h('div', { className: 'dm-command-hero flex-between flex-align-center', style: 'margin-bottom: 2rem; flex-wrap: wrap; gap: 1.5rem;' },
       h('div', { style: 'flex: 1; min-width: 280px;' },
-        h('span', { className: 'portal-role-pill' },
-          renderIcon('shield', 'text-gold'), ' DÀNH CHO QUẢN TRÒ (DM)'
+        h('span', { className: 'portal-role-pill', style: 'margin-bottom: 0.6rem;' },
+          renderIcon('shield', 'text-crimson'), ' QUẢN TRÒ (DM) CHÍNH THỨC'
         ),
-        h('h1', { className: 'dm-command-title' }, `Bàn Làm Việc DM: ${user.name}`),
-        h('p', { className: 'text-muted' },
+        h('h1', { className: 'dm-command-title' }, `Bàn Làm Việc: ${user.name}`),
+        h('p', { className: 'page-subtitle' },
           'Theo dõi các ca phân công dẫn dắt, mốc chuẩn bị kịch bản và vận hành phiên chơi tại quán.'
         )
       ),
-      h('div', { className: 'hero-side-block flex-align-center', style: 'gap: 1.5rem;' },
-        createPortal3DSeal('DM'),
-        h('div', { className: 'dashboard-header-actions', style: 'display: flex; flex-direction: column; gap: 0.6rem;' },
-          h('a', { className: 'btn btn-primary', href: '#/dm/assignments' },
-            renderIcon('shield'), ' Tiếp Nhận Phân Công'
-          ),
-          h('a', { className: 'btn btn-secondary', href: '#/dm/availability' },
-            renderIcon('calendar'), ' Đăng Ký Lịch Rảnh'
-          )
+      h('div', { className: 'dashboard-header-actions', style: 'display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap;' },
+        h('a', { className: 'btn btn-primary', href: '#/dm/assignments' },
+          renderIcon('shield'), ' Tiếp Nhận Phân Công'
+        ),
+        h('a', { className: 'btn btn-secondary', href: '#/dm/availability' },
+          renderIcon('calendar'), ' Đăng Ký Lịch Rảnh'
         )
       )
     );
     container.appendChild(header);
-
-    // 2. Interactive 3-Step Quick Guide
-    const dmGuide = renderQuickGuide({
-      role: 'dm',
-      title: 'Cẩm Nang Vận Hành 3 Bước Dành Cho Quản Trò (DM)',
-      steps: [
-        {
-          icon: 'calendar',
-          title: 'Đăng Ký Khung Lịch Rảnh',
-          desc: 'Đánh dấu các ca Sáng, Chiều hoặc Tối bạn có thể trực trong tuần để Admin phân công.',
-          action: { label: 'Điền Lịch Rảnh', href: '#/dm/availability', primary: false }
-        },
-        {
-          icon: 'shield',
-          title: 'Phản Hồi Nhận Ca Chơi',
-          desc: 'Kiểm tra kịch bản và xác nhận ca trực (đảm bảo đệm chuẩn bị ≥ 12 giờ trước giờ G).',
-          action: { label: 'Xem Phân Công', href: '#/dm/assignments', primary: true }
-        },
-        {
-          icon: 'users',
-          title: 'Vận Hành & Điểm Danh Tại Quán',
-          desc: 'Có mặt trước 30 phút kiểm tra mật thất, điểm danh người chơi và thu khoản phí còn lại.',
-          action: null
-        }
-      ]
-    });
-    container.appendChild(dmGuide);
 
     // 3. Integrated Metrics Strip
     this.metricsContainer = h('div', { className: 'dm-metrics-strip' },

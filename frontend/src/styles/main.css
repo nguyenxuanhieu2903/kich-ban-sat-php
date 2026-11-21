@@ -107,13 +107,13 @@ textarea:focus-visible,
   color: #F43F5E !important;
   font-weight: 700;
   padding: 0.2rem 0.55rem;
-  border-radius: 0 !important;
+  
   font-size: 0.72rem;
   letter-spacing: 1px;
   font-family: var(--font-mono);
   display: inline-flex;
   align-items: center;
-  clip-path: polygon(4px 0, 100% 0, 100% calc(100% - 4px), calc(100% - 4px) 100%, 0 100%, 0 4px);
+, calc(100% - 4px) 100%, 0 100%, 0 4px);
 }
 
 .three-status-badge {
@@ -128,7 +128,7 @@ textarea:focus-visible,
   font-weight: 700;
   padding: 0.2rem 0.55rem;
   letter-spacing: 0.8px;
-  clip-path: polygon(4px 0, 100% 0, 100% calc(100% - 4px), calc(100% - 4px) 100%, 0 100%, 0 4px);
+, calc(100% - 4px) 100%, 0 100%, 0 4px);
 }
 .three-status-badge::before {
   content: '';
@@ -167,7 +167,7 @@ textarea:focus-visible,
 .demo-role-btns {
   display: inline-flex;
   background: #050304;
-  border-radius: 0 !important;
+  
   padding: 2px;
   border: 1px solid rgba(255, 255, 255, 0.12);
   box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.8);
@@ -182,8 +182,8 @@ textarea:focus-visible,
   font-family: var(--font-mono);
   font-weight: 600;
   cursor: pointer;
-  border-radius: 0 !important;
-  clip-path: polygon(6px 0, 100% 0, 100% calc(100% - 6px), calc(100% - 6px) 100%, 0 100%, 0 6px);
+  
+, calc(100% - 6px) 100%, 0 100%, 0 6px);
   transition: all var(--md-sys-motion-duration-short, 150ms) var(--md-sys-motion-easing-standard);
   position: relative;
   outline: none;
@@ -224,8 +224,8 @@ textarea:focus-visible,
   font-size: 0.74rem;
   font-family: var(--font-mono);
   padding: 0.32rem 0.75rem;
-  border-radius: 0 !important;
-  clip-path: polygon(6px 0, 100% 0, 100% calc(100% - 6px), calc(100% - 6px) 100%, 0 100%, 0 6px);
+  
+, calc(100% - 6px) 100%, 0 100%, 0 6px);
   cursor: pointer;
   display: inline-flex;
   align-items: center;
@@ -271,8 +271,8 @@ textarea:focus-visible,
   height: 34px;
   background: linear-gradient(135deg, var(--color-accent-crimson), #58111A);
   border: 1px solid var(--color-accent-glow);
-  border-radius: 0 !important;
-  clip-path: polygon(6px 0, 100% 0, 100% calc(100% - 6px), calc(100% - 6px) 100%, 0 100%, 0 6px);
+  
+, calc(100% - 6px) 100%, 0 100%, 0 6px);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -343,14 +343,14 @@ textarea:focus-visible,
   position: relative;
   width: 34px;
   height: 34px;
-  border-radius: 0 !important;
+  
   background: var(--color-bg-surface-2);
   border: 1px solid var(--color-border-subtle);
   display: flex;
   align-items: center;
   justify-content: center;
   color: var(--color-text-secondary);
-  clip-path: polygon(4px 0, 100% 0, 100% calc(100% - 4px), calc(100% - 4px) 100%, 0 100%, 0 4px);
+, calc(100% - 4px) 100%, 0 100%, 0 4px);
   transition: all 0.2s ease;
 }
 .nav-bell-btn:hover {
@@ -370,7 +370,7 @@ textarea:focus-visible,
   font-weight: 700;
   font-family: var(--font-mono);
   padding: 1px 4px;
-  border-radius: 0 !important;
+  
   line-height: 1;
 }
 
@@ -380,10 +380,10 @@ textarea:focus-visible,
   gap: 0.6rem;
   background: var(--color-bg-surface-2);
   padding: 0.3rem 0.75rem;
-  border-radius: 0 !important;
+  
   border: 1px solid var(--color-border-subtle);
   border-left: 3px solid var(--color-accent-crimson);
-  clip-path: polygon(0 0, calc(100% - 6px) 0, 100% 6px, 100% 100%, 0 100%);
+ 0, 100% 6px, 100% 100%, 0 100%);
 }
 
 .user-info-text {
@@ -426,8 +426,8 @@ textarea:focus-visible,
   gap: 0.5rem;
   padding: 0.65rem 1.35rem;
   min-height: 42px;
-  border-radius: 0 !important;
-  clip-path: polygon(8px 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%, 0 8px);
+  
+, calc(100% - 8px) 100%, 0 100%, 0 8px);
   font-size: 0.88rem;
   font-weight: 700;
   font-family: var(--font-mono);
@@ -483,7 +483,7 @@ textarea:focus-visible,
 .beacon-dot {
   width: 8px;
   height: 8px;
-  border-radius: 0 !important;
+  
   background: #E11D48;
   display: inline-block;
   box-shadow: 0 0 10px rgba(225, 29, 72, 0.7);
@@ -563,8 +563,8 @@ textarea:focus-visible,
   background-color: #0F1117 !important;
   border: 1px solid rgba(255, 255, 255, 0.08) !important;
   border-left: 3px solid #E11D48 !important;
-  border-radius: 0 !important;
-  clip-path: polygon(0 0, calc(100% - 14px) 0, 100% 14px, 100% 100%, 14px 100%, 0 calc(100% - 14px));
+  
+ 0, 100% 14px, 100% 100%, 14px 100%, 0 calc(100% - 14px));
   box-shadow: var(--shadow-sm);
   position: relative;
 }
@@ -586,7 +586,7 @@ textarea:focus-visible,
   align-items: center;
   gap: 0.4rem;
   padding: 0.25rem 0.65rem;
-  border-radius: 0 !important;
+  
   font-size: 0.74rem;
   font-weight: 600;
   font-family: var(--font-mono);
@@ -600,7 +600,7 @@ textarea:focus-visible,
 .badge-dot {
   width: 6px;
   height: 6px;
-  border-radius: 0 !important;
+  
   flex-shrink: 0;
 }
 
@@ -653,11 +653,11 @@ textarea:focus-visible,
   font-size: 0.72rem;
   font-weight: 700;
   padding: 0.2rem 0.55rem;
-  border-radius: 0 !important;
+  
   font-family: var(--font-mono);
   letter-spacing: 1px;
   text-transform: uppercase;
-  clip-path: polygon(4px 0, 100% 0, 100% calc(100% - 4px), calc(100% - 4px) 100%, 0 100%, 0 4px);
+, calc(100% - 4px) 100%, 0 100%, 0 4px);
 }
 
 .badge-unverified {
@@ -666,7 +666,7 @@ textarea:focus-visible,
   border: 1px dashed rgba(255, 255, 255, 0.15) !important;
   font-size: 0.72rem;
   padding: 0.2rem 0.55rem;
-  border-radius: 0 !important;
+  
   font-family: var(--font-mono);
   letter-spacing: 0.5px;
   text-transform: uppercase;
@@ -679,7 +679,7 @@ textarea:focus-visible,
   font-size: 0.85rem;
   background: rgba(225, 29, 72, 0.1);
   padding: 0.2rem 0.5rem;
-  border-radius: 0 !important;
+  
   border: 1px solid rgba(225, 29, 72, 0.3);
   letter-spacing: 1px;
 }
@@ -694,7 +694,7 @@ textarea:focus-visible,
   background: #0F1117;
   border: 1px solid rgba(255, 255, 255, 0.08);
   padding: 0.25rem 0.65rem;
-  border-radius: 0 !important;
+  
   font-family: var(--font-mono);
   font-size: 0.8rem;
   color: var(--color-text-primary);
@@ -733,7 +733,7 @@ textarea:focus-visible,
   margin-bottom: 0.45rem;
 }
 .form-label::before {
-  content: '// ';
+  content: '';
   color: #F43F5E;
   font-weight: 700;
 }
@@ -757,7 +757,7 @@ textarea {
   background: #0F1117 !important;
   border: 1px solid rgba(255, 255, 255, 0.08) !important;
   border-left: 3px solid #E11D48 !important;
-  border-radius: 0 !important;
+  
   outline: none;
   box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.7);
   transition: all 0.2s cubic-bezier(0.2, 0, 0, 1);
@@ -844,14 +844,14 @@ select option {
   background: #0F1117 !important;
   border: 1px solid rgba(255, 255, 255, 0.08) !important;
   border-left: 3px solid #E11D48 !important;
-  border-radius: 0 !important;
-  clip-path: polygon(0 0, calc(100% - 16px) 0, 100% 16px, 100% 100%, 16px 100%, 0 calc(100% - 16px));
+  
+ 0, 100% 16px, 100% 100%, 16px 100%, 0 calc(100% - 16px));
   box-shadow: 0 16px 40px rgba(0, 0, 0, 0.9);
   position: relative;
 }
 
 .auth-card::before {
-  content: 'EVIDENCE // AUTH-GATEWAY';
+  content: '';
   position: absolute;
   top: 8px;
   right: 14px;
@@ -869,10 +869,10 @@ select option {
   height: 48px;
   background: rgba(225, 29, 72, 0.15);
   border: 1px solid rgba(225, 29, 72, 0.4);
-  border-radius: 0;
+  
   color: #F43F5E;
   margin-bottom: 1rem;
-  clip-path: polygon(6px 0, 100% 0, 100% calc(100% - 6px), calc(100% - 6px) 100%, 0 100%, 0 6px);
+, calc(100% - 6px) 100%, 0 100%, 0 6px);
 }
 
 .auth-title {
@@ -1067,7 +1067,7 @@ select option {
 .beacon-dot {
   width: 8px;
   height: 8px;
-  border-radius: 0 !important;
+  
   background-color: var(--color-accent-crimson, #E11D48);
   box-shadow: 0 0 8px rgba(225, 29, 72, 0.4);
   display: inline-block;
@@ -1206,8 +1206,8 @@ select option {
   box-shadow: 0 16px 40px rgba(0, 0, 0, 0.9), 0 0 32px rgba(139, 0, 0, 0.25);
   padding: 3.5rem;
   position: relative;
-  border-radius: 0 !important;
-  clip-path: polygon(0 0, calc(100% - 20px) 0, 100% 20px, 100% 100%, 20px 100%, 0 calc(100% - 20px));
+  
+ 0, 100% 20px, 100% 100%, 20px 100%, 0 calc(100% - 20px));
 }
 
 .charter-header {
@@ -1251,8 +1251,8 @@ select option {
   width: 52px;
   height: 52px;
   flex-shrink: 0;
-  border-radius: 0 !important;
-  clip-path: polygon(8px 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%, 0 8px);
+  
+, calc(100% - 8px) 100%, 0 100%, 0 8px);
   background: rgba(139, 0, 0, 0.25) !important;
   border: 1px solid rgba(225, 29, 72, 0.35) !important;
   color: #FFFFFF !important;
@@ -1362,8 +1362,8 @@ select option {
   border: 1px solid rgba(255, 255, 255, 0.08) !important;
   border-left: 3px solid #E11D48 !important;
   box-shadow: 0 20px 50px rgba(0, 0, 0, 0.95), 0 0 32px rgba(139, 0, 0, 0.3);
-  border-radius: 0 !important;
-  clip-path: polygon(0 0, calc(100% - 20px) 0, 100% 20px, 100% 100%, 20px 100%, 0 calc(100% - 20px));
+  
+ 0, 100% 20px, 100% 100%, 20px 100%, 0 calc(100% - 20px));
   overflow: hidden;
   align-items: center;
   position: relative;
@@ -1588,8 +1588,8 @@ select option {
   width: 44px;
   height: 44px;
   border: 1px solid rgba(225, 29, 72, 0.4);
-  border-radius: 0 !important;
-  clip-path: polygon(8px 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%, 0 8px);
+  
+, calc(100% - 8px) 100%, 0 100%, 0 8px);
   background: linear-gradient(135deg, #E11D48 0%, #9F1239 100%);
   display: flex;
   align-items: center;
@@ -1760,7 +1760,7 @@ select option {
   padding: 0.85rem 1.25rem 0.85rem 3.1rem;
   font-size: 0.95rem;
   font-family: var(--font-mono);
-  border-radius: 0 !important;
+  
   outline: none;
   box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.7);
   transition: all var(--md-sys-motion-duration-short, 150ms) var(--md-sys-motion-easing-standard);
@@ -1799,8 +1799,8 @@ select option {
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.5px;
-  border-radius: 0 !important;
-  clip-path: polygon(6px 0, 100% 0, 100% calc(100% - 6px), calc(100% - 6px) 100%, 0 100%, 0 6px);
+  
+, calc(100% - 6px) 100%, 0 100%, 0 6px);
   cursor: pointer;
   display: inline-flex;
   align-items: center;
@@ -1849,8 +1849,8 @@ select option {
   background: #0F1117 !important;
   border: 1px solid rgba(255, 255, 255, 0.08) !important;
   border-left: 3px solid #E11D48 !important;
-  border-radius: 0 !important;
-  clip-path: polygon(0 0, calc(100% - 14px) 0, 100% 14px, 100% 100%, 14px 100%, 0 calc(100% - 14px));
+  
+ 0, 100% 14px, 100% 100%, 14px 100%, 0 calc(100% - 14px));
   overflow: hidden;
   display: flex;
   flex-direction: column;
@@ -2030,8 +2030,8 @@ select option {
   border: 1px solid rgba(255, 255, 255, 0.08) !important;
   border-left: 3px solid #E11D48 !important;
   padding: 2rem;
-  border-radius: 0 !important;
-  clip-path: polygon(0 0, calc(100% - 16px) 0, 100% 16px, 100% 100%, 16px 100%, 0 calc(100% - 16px));
+  
+ 0, 100% 16px, 100% 100%, 16px 100%, 0 calc(100% - 16px));
   box-shadow: 0 16px 40px rgba(0, 0, 0, 0.7), 0 0 24px rgba(139, 0, 0, 0.25);
   position: sticky;
   top: 90px;
@@ -2059,7 +2059,7 @@ select option {
 .promo-rules-box {
   background: #0F1117 !important;
   border-left: 3px solid #E11D48 !important;
-  border-radius: 0 !important;
+  
   padding: 0.9rem 1.1rem;
   font-size: 0.85rem;
   color: #ECE7DE !important;
@@ -2073,7 +2073,7 @@ select option {
   border-left: 4px solid #E11D48 !important;
   color: #E5D6C5;
   padding: 1rem 1.25rem;
-  border-radius: 0 !important;
+  
   margin-bottom: 2rem;
   display: flex;
   align-items: flex-start;
@@ -2103,7 +2103,7 @@ select option {
   background: #0F1117;
   border: 1px solid rgba(225, 29, 72, 0.35);
   padding: 0.25rem 0.65rem;
-  border-radius: 0 !important;
+  
   letter-spacing: 1.8px;
   text-transform: uppercase;
   margin-bottom: 0.65rem;
@@ -2151,7 +2151,7 @@ select option {
   background: radial-gradient(circle at center, rgba(225, 29, 72, 0.15) 0%, rgba(15, 17, 23, 0.95) 75%);
   border: 1px solid rgba(225, 29, 72, 0.35);
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.8), 0 0 16px rgba(225, 29, 72, 0.2);
-  clip-path: polygon(12px 0, calc(100% - 12px) 0, 100% 12px, 100% calc(100% - 12px), calc(100% - 12px) 100%, 12px 100%, 0 calc(100% - 12px), 0 12px);
+ 0, 100% 12px, 100% calc(100% - 12px), calc(100% - 12px) 100%, 12px 100%, 0 calc(100% - 12px), 0 12px);
   cursor: pointer;
   transition: transform 0.28s cubic-bezier(0.2, 0, 0, 1), border-color 0.25s ease, box-shadow 0.25s ease;
   user-select: none;
@@ -2218,8 +2218,8 @@ select option {
   background: #0F1117 !important;
   border: 1px solid rgba(255, 255, 255, 0.08) !important;
   border-left: 3px solid #E11D48 !important;
-  border-radius: 0 !important;
-  clip-path: polygon(0 0, calc(100% - 14px) 0, 100% 14px, 100% 100%, 14px 100%, 0 calc(100% - 14px));
+  
+ 0, 100% 14px, 100% 100%, 14px 100%, 0 calc(100% - 14px));
   margin-bottom: 2.5rem;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5) !important;
   position: relative;
@@ -2334,8 +2334,8 @@ select option {
   background: #0F1117 !important;
   border: 1px solid rgba(255, 255, 255, 0.08) !important;
   border-left: 3px solid #E11D48 !important;
-  border-radius: 0 !important;
-  clip-path: polygon(0 0, calc(100% - 14px) 0, 100% 14px, 100% 100%, 14px 100%, 0 calc(100% - 14px));
+  
+ 0, 100% 14px, 100% 100%, 14px 100%, 0 calc(100% - 14px));
   padding: 1.35rem 1.6rem;
   margin-bottom: 1.25rem;
   transition: all 0.25s cubic-bezier(0.2, 0, 0, 1);
@@ -2418,8 +2418,8 @@ select option {
 .wizard-step-circle {
   width: 28px;
   height: 28px;
-  border-radius: 0 !important;
-  clip-path: polygon(4px 0, 100% 0, 100% calc(100% - 4px), calc(100% - 4px) 100%, 0 100%, 0 4px);
+  
+, calc(100% - 4px) 100%, 0 100%, 0 4px);
   border: 1px solid rgba(255, 255, 255, 0.1);
   display: flex;
   align-items: center;
@@ -2452,8 +2452,8 @@ select option {
   border: 1px solid rgba(255, 255, 255, 0.08) !important;
   color: var(--color-text-primary);
   padding: 0.75rem 0.5rem;
-  border-radius: 0 !important;
-  clip-path: polygon(6px 0, 100% 0, 100% calc(100% - 6px), calc(100% - 6px) 100%, 0 100%, 0 6px);
+  
+, calc(100% - 6px) 100%, 0 100%, 0 6px);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -2569,8 +2569,8 @@ select option {
 .step-indicator {
   width: 36px;
   height: 36px;
-  border-radius: 0 !important;
-  clip-path: polygon(6px 0, 100% 0, 100% calc(100% - 6px), calc(100% - 6px) 100%, 0 100%, 0 6px);
+  
+, calc(100% - 6px) 100%, 0 100%, 0 6px);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -2660,8 +2660,8 @@ select option {
   background: #0F1117 !important;
   border: 1px solid rgba(255, 255, 255, 0.08) !important;
   border-left: 3px solid #E11D48 !important;
-  border-radius: 0 !important;
-  clip-path: polygon(0 0, calc(100% - 14px) 0, 100% 14px, 100% 100%, 14px 100%, 0 calc(100% - 14px));
+  
+ 0, 100% 14px, 100% 100%, 14px 100%, 0 calc(100% - 14px));
   padding: 1.5rem;
   box-shadow: 0 10px 28px rgba(0, 0, 0, 0.8);
 }
@@ -2725,8 +2725,8 @@ select option {
   background: #0F1117 !important;
   border: 1px solid rgba(255, 255, 255, 0.08) !important;
   border-left: 3px solid #E11D48 !important;
-  border-radius: 0 !important;
-  clip-path: polygon(0 0, calc(100% - 14px) 0, 100% 14px, 100% 100%, 14px 100%, 0 calc(100% - 14px));
+  
+ 0, 100% 14px, 100% 100%, 14px 100%, 0 calc(100% - 14px));
   padding: 1.75rem;
 }
 
@@ -2756,7 +2756,7 @@ select option {
   align-items: center;
   gap: 0.35rem;
   padding: 0.2rem 0.6rem;
-  border-radius: 0 !important;
+  
   font-family: var(--font-mono);
   font-size: 0.75rem;
   font-weight: 600;
@@ -2779,8 +2779,8 @@ select option {
   background: #0F1117 !important;
   border: 1px solid rgba(255, 255, 255, 0.08) !important;
   border-left: 3px solid #E11D48 !important;
-  border-radius: 0 !important;
-  clip-path: polygon(0 0, calc(100% - 14px) 0, 100% 14px, 100% 100%, 14px 100%, 0 calc(100% - 14px));
+  
+ 0, 100% 14px, 100% 100%, 14px 100%, 0 calc(100% - 14px));
   padding: 1.5rem;
   margin-bottom: 1.25rem;
   transition: all var(--transition-fast);
@@ -2807,8 +2807,8 @@ select option {
   background: #0F1117 !important;
   border: 1px solid rgba(255, 255, 255, 0.08) !important;
   border-left: 3px solid #E11D48 !important;
-  border-radius: 0 !important;
-  clip-path: polygon(0 0, calc(100% - 14px) 0, 100% 14px, 100% 100%, 14px 100%, 0 calc(100% - 14px));
+  
+ 0, 100% 14px, 100% 100%, 14px 100%, 0 calc(100% - 14px));
   padding: 2rem;
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.8);
 }
@@ -2831,7 +2831,7 @@ select option {
 .matrix-day-col {
   background: #0F1117 !important;
   border: 1px solid rgba(255, 255, 255, 0.08) !important;
-  border-radius: 0 !important;
+  
   padding: 1rem 0.75rem;
   display: flex;
   flex-direction: column;
@@ -2851,8 +2851,8 @@ select option {
 .shift-cell-toggle {
   background: #0F1117 !important;
   border: 1px solid rgba(255, 255, 255, 0.08) !important;
-  border-radius: 0 !important;
-  clip-path: polygon(4px 0, 100% 0, 100% calc(100% - 4px), calc(100% - 4px) 100%, 0 100%, 0 4px);
+  
+, calc(100% - 4px) 100%, 0 100%, 0 4px);
   padding: 0.75rem 0.5rem;
   text-align: center;
   cursor: pointer;
@@ -3013,8 +3013,8 @@ select option {
   background: #0F1117 !important;
   border: 1px solid rgba(255, 255, 255, 0.08) !important;
   border-left: 3px solid #E11D48 !important;
-  border-radius: 0 !important;
-  clip-path: polygon(0 0, calc(100% - 16px) 0, 100% 16px, 100% 100%, 16px 100%, 0 calc(100% - 16px));
+  
+ 0, 100% 16px, 100% 100%, 16px 100%, 0 calc(100% - 16px));
   width: 100%;
   max-width: 520px;
   box-shadow: 0 20px 50px rgba(0, 0, 0, 0.95), 0 0 32px rgba(139, 0, 0, 0.45);
@@ -3079,11 +3079,11 @@ select option {
   background: #0F1117 !important;
   border: 1px solid rgba(255, 255, 255, 0.08) !important;
   border-left: 3px solid #E11D48 !important;
-  border-radius: 0 !important;
+  
   padding: 0.75rem 1rem;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.8), 0 2px 8px rgba(225, 29, 72, 0.15);
   animation: toastIn 0.25s ease forwards;
-  clip-path: polygon(0 0, calc(100% - 8px) 0, 100% 8px, 100% 100%, 8px 100%, 0 calc(100% - 8px));
+ 0, 100% 8px, 100% 100%, 8px 100%, 0 calc(100% - 8px));
 }
 
 .toast-item.toast-leaving {
@@ -3122,7 +3122,7 @@ select option {
    ========================================================================== */
 .table-scroll-wrapper {
   overflow-x: auto;
-  border-radius: 0 !important;
+  
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-left: 3px solid #E11D48;
   background: #0F1117;
@@ -3158,10 +3158,10 @@ select option {
   background: #0F1117 !important;
   border: 1px solid rgba(255, 255, 255, 0.08) !important;
   border-left: 3px solid #E11D48 !important;
-  border-radius: 0 !important;
+  
   padding: 1.25rem;
   margin-bottom: 2rem;
-  clip-path: polygon(0 0, calc(100% - 12px) 0, 100% 12px, 100% 100%, 12px 100%, 0 calc(100% - 12px));
+ 0, 100% 12px, 100% 100%, 12px 100%, 0 calc(100% - 12px));
 }
 .data-table-topbar {
   display: flex;
@@ -3207,7 +3207,7 @@ select option {
   background: rgba(225, 29, 72, 0.1) !important;
   border: 1px solid rgba(225, 29, 72, 0.3) !important;
   border-left: 3px solid #E11D48 !important;
-  border-radius: 0 !important;
+  
   padding: 0.5rem 0.75rem;
   font-family: var(--font-mono);
   font-size: 0.78rem;
@@ -3229,7 +3229,7 @@ select option {
   background: #080406 !important;
   border: 1px solid rgba(255, 255, 255, 0.12) !important;
   border-left: 3px solid #E11D48 !important;
-  border-radius: 0 !important;
+  
   padding: 0.75rem 1.25rem;
   display: flex;
   justify-content: space-between;
@@ -3251,7 +3251,7 @@ select option {
   display: inline-block;
   width: 8px;
   height: 8px;
-  border-radius: 0 !important;
+  
   background: #E11D48;
   box-shadow: 0 0 8px rgba(225, 29, 72, 0.4);
   animation: pulse-dot 2s infinite ease-in-out;
@@ -3267,8 +3267,8 @@ select option {
   background: #0F1117 !important;
   border: 1px solid rgba(255, 255, 255, 0.08) !important;
   border-left: 3px solid #E11D48 !important;
-  border-radius: 0 !important;
-  clip-path: polygon(0 0, calc(100% - 12px) 0, 100% 12px, 100% 100%, 12px 100%, 0 calc(100% - 12px));
+  
+ 0, 100% 12px, 100% 100%, 12px 100%, 0 calc(100% - 12px));
   margin-bottom: 2.5rem;
   box-shadow: 0 10px 28px rgba(0, 0, 0, 0.8);
 }
@@ -3318,8 +3318,8 @@ select option {
   font-family: var(--font-mono);
   font-size: 0.76rem;
   cursor: pointer;
-  border-radius: 0 !important;
-  clip-path: polygon(6px 0, 100% 0, 100% calc(100% - 6px), calc(100% - 6px) 100%, 0 100%, 0 6px);
+  
+, calc(100% - 6px) 100%, 0 100%, 0 6px);
   transition: all var(--transition-fast);
   text-transform: uppercase;
   letter-spacing: 0.5px;
@@ -3342,8 +3342,8 @@ select option {
   background: #0F1117 !important;
   border: 1px solid rgba(255, 255, 255, 0.08) !important;
   border-left: 3px solid #E11D48 !important;
-  border-radius: 0 !important;
-  clip-path: polygon(0 0, calc(100% - 14px) 0, 100% 14px, 100% 100%, 14px 100%, 0 calc(100% - 14px));
+  
+ 0, 100% 14px, 100% 100%, 14px 100%, 0 calc(100% - 14px));
   padding: 1.75rem;
   margin-bottom: 2rem;
   box-shadow: 0 10px 28px rgba(0, 0, 0, 0.8);
@@ -3356,7 +3356,7 @@ select option {
   font-family: var(--font-mono);
   font-size: 0.75rem;
   padding: 0.2rem 0.6rem;
-  border-radius: 0 !important;
+  
   font-weight: 600;
 }
 .buffer-pill.safe {
@@ -3384,7 +3384,7 @@ select option {
 .immutable-history-box {
   background: #0F1117 !important;
   border: 1px solid rgba(255, 255, 255, 0.08) !important;
-  border-radius: 0 !important;
+  
   padding: 1.25rem;
   margin-top: 1rem;
 }
@@ -3404,7 +3404,7 @@ select option {
   background: rgba(225, 29, 72, 0.08) !important;
   border: 1px solid rgba(225, 29, 72, 0.25) !important;
   border-left: 4px solid #E11D48 !important;
-  border-radius: 0 !important;
+  
   padding: 1.25rem 1.5rem;
   margin-bottom: 2rem;
   display: flex;
@@ -3442,8 +3442,8 @@ select option {
   background: #0F1117 !important;
   border: 1px solid rgba(255, 255, 255, 0.08) !important;
   border-left: 3px solid #E11D48 !important;
-  border-radius: 0 !important;
-  clip-path: polygon(0 0, calc(100% - 16px) 0, 100% 16px, 100% 100%, 16px 100%, 0 calc(100% - 16px));
+  
+ 0, 100% 16px, 100% 100%, 16px 100%, 0 calc(100% - 16px));
   width: 100%;
   max-width: 520px;
   box-shadow: 0 16px 50px rgba(0, 0, 0, 0.95), 0 0 32px rgba(139, 0, 0, 0.45);
@@ -3911,7 +3911,7 @@ select option {
   border-left: 4px solid #E11D48;
   padding: 1.25rem 1.5rem;
   margin-bottom: 2rem;
-  clip-path: polygon(0 0, calc(100% - 14px) 0, 100% 14px, 100% 100%, 14px 100%, 0 calc(100% - 14px));
+ 0, 100% 14px, 100% 100%, 14px 100%, 0 calc(100% - 14px));
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
   transition: all 0.3s ease;
 }
@@ -4172,7 +4172,7 @@ select option {
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-left: 3px solid #E11D48;
   padding: 1.25rem 1.5rem;
-  clip-path: polygon(0 0, calc(100% - 14px) 0, 100% 14px, 100% 100%, 14px 100%, 0 calc(100% - 14px));
+  border-radius: var(--radius-md, 8px);
 }
 
 .status-tag-urgent {
@@ -4204,4 +4204,255 @@ select option {
   padding: 0.2rem 0.6rem;
   border-radius: 9999px;
 }
+
+/* ==========================================================================
+   PRODUCTION-GRADE MODERN POLISH OVERRIDES
+   Ergonomic Radii, High-Legibility Typography, Crisp Clean Layouts
+   ========================================================================== */
+
+/* 1. Global Typography Reset & Polish */
+.page-title,
+.player-desk-title,
+.dm-command-title,
+.auth-title,
+.charter-title,
+.spotlight-title {
+  font-family: var(--font-display) !important;
+  font-weight: 700 !important;
+  letter-spacing: -0.025em !important;
+  line-height: 1.2 !important;
+  color: #FFFFFF !important;
+  text-shadow: none !important;
+  font-style: normal !important;
+}
+
+.page-subtitle {
+  color: #94A3B8 !important;
+  font-size: 0.95rem !important;
+  line-height: 1.6 !important;
+  margin-top: 0.4rem !important;
+  max-width: 680px;
+}
+
+/* 2. Unified Ergonomic Radii */
+.card-dark,
+.tactical-card,
+.auth-card,
+.sealed-charter,
+.spotlight-card,
+.game-folio-item,
+.dossier-sidebar-card,
+.matrix-board-container,
+.admin-metrics-strip,
+.assignment-dossier-card {
+  border-radius: 12px !important;
+  overflow: hidden;
+}
+
+.card-dark::before,
+.tactical-card::before {
+  display: none !important;
+}
+
+.btn,
+.btn-sm,
+.btn-lg,
+.form-control,
+input,
+select,
+textarea,
+.tactical-modal-dialog,
+.toast-item,
+.demo-quick-login-box,
+.spec-item,
+.btn-slot-choice,
+.shift-cell-toggle {
+  border-radius: 8px !important;
+}
+
+.status-badge,
+.demo-badge,
+.three-status-badge,
+.portal-role-pill,
+.tactical-badge-tag,
+.filter-pill-btn,
+.pill-noir,
+.buffer-pill,
+.dossier-badge-pill,
+.tactical-mono-tag,
+.badge-provisional-note {
+  border-radius: 9999px !important;
+}
+
+.table-scroll-wrapper {
+  border-radius: 10px !important;
+  overflow: hidden !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  border-left: 3px solid #E11D48 !important;
+}
+
+/* 3. Sleek Forensic Data Tables */
+.ui-data-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.ui-data-table th {
+  background: #161922 !important;
+  color: #F8FAFC !important;
+  font-family: var(--font-body) !important;
+  font-size: 0.78rem !important;
+  font-weight: 600 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.06em !important;
+  padding: 0.85rem 1.25rem !important;
+  border-bottom: 2px solid #E11D48 !important;
+}
+
+.ui-data-table td {
+  padding: 0.95rem 1.25rem !important;
+  color: #CBD5E1 !important;
+  font-size: 0.9rem !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06) !important;
+  vertical-align: middle;
+}
+
+.ui-data-table tbody tr {
+  transition: background 0.15s ease;
+}
+
+.ui-data-table tbody tr:hover {
+  background: rgba(255, 255, 255, 0.03) !important;
+}
+
+/* 4. Streamlined Demo Mode Toolbar */
+.demo-control-banner {
+  background: #0D0F16 !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
+  padding: 0.5rem 1.5rem !important;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.demo-role-btns {
+  display: inline-flex;
+  gap: 0.35rem;
+  background: transparent !important;
+  border: none !important;
+  padding: 0 !important;
+  box-shadow: none !important;
+}
+
+.btn-role-tab {
+  background: #161922 !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  color: #94A3B8 !important;
+  padding: 0.35rem 0.85rem !important;
+  font-family: var(--font-body) !important;
+  font-size: 0.78rem !important;
+  font-weight: 500 !important;
+  border-radius: 6px !important;
+  cursor: pointer;
+  transition: all 0.15s ease !important;
+}
+
+.btn-role-tab:hover {
+  background: #1F2432 !important;
+  color: #FFFFFF !important;
+}
+
+.btn-role-tab.active {
+  background: #E11D48 !important;
+  border-color: #E11D48 !important;
+  color: #FFFFFF !important;
+  font-weight: 600 !important;
+  box-shadow: 0 2px 8px rgba(225, 29, 72, 0.35) !important;
+}
+
+.btn-reset-demo {
+  background: #161922 !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  color: #94A3B8 !important;
+  padding: 0.35rem 0.75rem !important;
+  border-radius: 6px !important;
+  font-size: 0.78rem !important;
+  font-family: var(--font-body) !important;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  transition: all 0.15s ease;
+}
+
+.btn-reset-demo:hover {
+  background: #1F2432 !important;
+  color: #FFFFFF !important;
+}
+
+/* 5. Clean KPI Stat Metric Cards */
+.admin-metrics-strip {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)) !important;
+  background: #0F1117 !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  border-left: 3px solid #E11D48 !important;
+  border-radius: 12px !important;
+  margin-bottom: 2rem !important;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4) !important;
+}
+
+.metric-strip-item {
+  padding: 1.35rem 1.5rem !important;
+  border-right: 1px solid rgba(255, 255, 255, 0.06) !important;
+  border-bottom: none !important;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  transition: background 0.15s ease;
+}
+
+.metric-strip-item:last-child {
+  border-right: none !important;
+}
+
+.metric-strip-item:hover {
+  background: #161922 !important;
+}
+
+.metric-strip-label {
+  font-size: 0.78rem !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.06em !important;
+  color: #94A3B8 !important;
+  font-weight: 500 !important;
+  font-family: var(--font-body) !important;
+}
+
+.metric-strip-value strong {
+  font-family: var(--font-display) !important;
+  font-size: 2rem !important;
+  font-weight: 700 !important;
+  line-height: 1.1 !important;
+  color: #FFFFFF !important;
+  margin: 0.4rem 0 !important;
+  display: block;
+}
+
+.link-gold,
+.metric-strip-item a {
+  color: #F43F5E !important;
+  font-size: 0.82rem !important;
+  font-weight: 500 !important;
+  text-decoration: none !important;
+  transition: color 0.15s ease;
+}
+
+.link-gold:hover,
+.metric-strip-item a:hover {
+  color: #FB7185 !important;
+  text-decoration: underline !important;
+}
+
 

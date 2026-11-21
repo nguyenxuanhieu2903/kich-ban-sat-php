@@ -8,8 +8,6 @@ import { auth } from '../../utils/auth.js';
 import { renderStatusBadge } from '../../components/status-badge.js';
 import { renderCountdown } from '../../components/countdown.js';
 import { formatDateTime } from '../../utils/format.js';
-import { createPortal3DSeal } from '../../components/portal-3d-seal.js';
-import { renderQuickGuide } from '../../components/quick-guide.js';
 
 export class PlayerDashboardPage {
   constructor(mountPoint, { router }) {
@@ -27,54 +25,24 @@ export class PlayerDashboardPage {
       return;
     }
 
-    // 1. Clean Header with 3D Holographic Matrix Seal
-    const header = h('div', { className: 'player-dossier-hero flex-between flex-align-center', style: 'gap: 1.5rem; flex-wrap: wrap;' },
+    // 1. Executive Player Operations Header
+    const header = h('div', { className: 'player-dossier-hero flex-between flex-align-center', style: 'margin-bottom: 2rem; gap: 1.5rem; flex-wrap: wrap;' },
       h('div', { style: 'flex: 1; min-width: 280px;' },
-        h('span', { className: 'portal-role-pill' },
-          renderIcon('shield', 'text-gold'), ' DÀNH CHO NGƯỜI CHƠI'
+        h('span', { className: 'portal-role-pill', style: 'margin-bottom: 0.6rem;' },
+          renderIcon('shield', 'text-crimson'), ' THÁM TỬ / NGƯỜI CHƠI'
         ),
         h('h1', { className: 'player-desk-title' }, `Bàn Làm Việc: ${user.name}`),
-        h('p', { className: 'text-muted' },
+        h('p', { className: 'page-subtitle' },
           'Theo dõi tiến trình các vụ án đang tham gia, thời hạn gom nhóm và đồng hồ đếm ngược đặt cọc.'
         )
       ),
-      h('div', { className: 'hero-side-block flex-align-center', style: 'gap: 1.5rem;' },
-        createPortal3DSeal('PLAYER'),
-        h('div', { className: 'dashboard-header-actions' },
-          h('a', { className: 'btn btn-primary btn-lg', href: '#/player/create-room' },
-            renderIcon('plus'), ' Khởi Tạo Vụ Án Mới'
-          )
+      h('div', { className: 'dashboard-header-actions', style: 'display: flex; gap: 0.75rem; align-items: center;' },
+        h('a', { className: 'btn btn-primary', href: '#/player/create-room' },
+          renderIcon('plus'), ' Khởi Tạo Vụ Án Mới'
         )
       )
     );
     container.appendChild(header);
-
-    // 2. Interactive 3-Step Quick Guide
-    const playerGuide = renderQuickGuide({
-      role: 'player',
-      title: 'Cẩm Nang Bắt Đầu 3 Bước Cho Thám Tử',
-      steps: [
-        {
-          icon: 'search',
-          title: 'Chọn Kịch Bản Ưng Ý',
-          desc: 'Khám phá 42 hồ sơ án mạng: Kinh dị, Cổ trang, Trinh thám suy luận, Giật gân.',
-          action: { label: 'Xem 42 Kịch Bản', href: '#/games', primary: false }
-        },
-        {
-          icon: 'users',
-          title: 'Mở Phòng Hoặc Ghép Đội',
-          desc: 'Tự mở phòng mới để mời bạn bè, hoặc tham gia vào các phòng đang chiêu mộ.',
-          action: { label: 'Tìm Phòng Chơi', href: '#/rooms', primary: true }
-        },
-        {
-          icon: 'shield',
-          title: 'Đặt Cọc 50.000đ Giữ Chỗ',
-          desc: 'Sau khi phòng đủ người và chốt lịch, cọc 50k để giữ chỗ (trừ thẳng vào bill tại quán).',
-          action: null
-        }
-      ]
-    });
-    container.appendChild(playerGuide);
 
     // 3. Integrated Metrics Strip
     this.metricsContainer = h('div', { className: 'dossier-metrics-strip' },

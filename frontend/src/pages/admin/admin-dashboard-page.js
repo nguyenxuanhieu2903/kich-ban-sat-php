@@ -8,8 +8,6 @@ import { sharedStore } from '../../api/demo/shared-store.js';
 import { auth } from '../../utils/auth.js';
 import { renderStatusBadge } from '../../components/status-badge.js';
 import { formatDateTime, formatCurrency } from '../../utils/format.js';
-import { createPortal3DSeal } from '../../components/portal-3d-seal.js';
-import { renderQuickGuide } from '../../components/quick-guide.js';
 
 export class AdminDashboardPage {
   constructor(mountPoint, { router }) {
@@ -27,55 +25,25 @@ export class AdminDashboardPage {
       return;
     }
 
-    // 1. Clean Header with 3D Holographic Matrix Seal
+    // 1. Executive Operations Header
     container.appendChild(
-      h('div', { className: 'page-header flex-between flex-align-center', style: 'gap: 1.5rem; flex-wrap: wrap;' },
+      h('div', { className: 'page-header flex-between flex-align-center', style: 'margin-bottom: 2rem; gap: 1.5rem; flex-wrap: wrap;' },
         h('div', { style: 'flex: 1; min-width: 280px;' },
-          h('div', { className: 'portal-role-pill' },
-            renderIcon('shield', 'text-gold'),
-            ' BÀN ĐIỀU HÀNH QUẢN TRỊ VIÊN'
+          h('div', { className: 'portal-role-pill', style: 'margin-bottom: 0.6rem;' },
+            renderIcon('shield', 'text-crimson'),
+            ' BAN QUẢN TRỊ HỆ THỐNG'
           ),
           h('h1', { className: 'page-title' }, 'Trung Tâm Điều Hành Quản Trị'),
-          h('p', { className: 'page-subtitle text-muted' },
-            'Theo dõi và điều phối ca chơi thời gian thực: Phân công Quản trò, gán phòng quán, xử lý sự cố và kiểm soát hoàn cọc.'
+          h('p', { className: 'page-subtitle' },
+            'Theo dõi ca chơi thời gian thực, điều phối Quản trò (DM), xếp mật thất vật lý và kiểm soát hoàn cọc.'
           )
         ),
-        h('div', { className: 'hero-side-block flex-align-center', style: 'gap: 1.5rem;' },
-          createPortal3DSeal('ADMIN'),
-          h('div', { className: 'quick-nav-pills flex-column', style: 'display: flex; flex-direction: column; gap: 0.6rem;' },
-            h('a', { className: 'btn btn-primary btn-sm', href: '#/admin/dm-assignments' }, renderIcon('user'), ' Phân Công DM'),
-            h('a', { className: 'btn btn-secondary btn-sm', href: '#/admin/rooms' }, renderIcon('list'), ' Xem Tất Cả Phòng')
-          )
+        h('div', { className: 'dashboard-header-actions', style: 'display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap;' },
+          h('a', { className: 'btn btn-primary', href: '#/admin/dm-assignments' }, renderIcon('user'), ' Phân Công Quản Trò'),
+          h('a', { className: 'btn btn-secondary', href: '#/admin/rooms' }, renderIcon('list'), ' Danh Sách Phòng')
         )
       )
     );
-
-    // 2. Interactive 3-Step Quick Guide
-    const adminGuide = renderQuickGuide({
-      role: 'admin',
-      title: 'Quy Trình Điều Phối Nghiệp Vụ Quản Trị',
-      steps: [
-        {
-          icon: 'user',
-          title: 'Gán Quản Trò (DM)',
-          desc: 'Khi phòng đủ người, gán ngay DM có lịch rảnh và kịch bản phù hợp trước giờ chơi.',
-          action: { label: 'Xếp DM Ngay', href: '#/admin/dm-assignments', primary: true }
-        },
-        {
-          icon: 'door',
-          title: 'Chốt Phòng Quán Vật Lý',
-          desc: 'Sau khi DM nhận phòng, chốt phòng quán đủ sức chứa và đệm dọn dẹp 30 phút.',
-          action: { label: 'Xếp Phòng', href: '#/admin/venues', primary: false }
-        },
-        {
-          icon: 'shield',
-          title: 'Kiểm Soát Cọc & Hoàn Tiền',
-          desc: 'Xem xét và phê duyệt các yêu cầu hoàn cọc hợp lệ trước mốc 24.0h theo quy chế.',
-          action: { label: 'Duyệt Hoàn Cọc', href: '#/admin/refunds', primary: false }
-        }
-      ]
-    });
-    container.appendChild(adminGuide);
 
     const res = await apiService.getAdminQueue();
     const queue = res.data;

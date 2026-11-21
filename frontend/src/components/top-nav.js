@@ -17,8 +17,8 @@ export function renderTopNav(router) {
 
     const banner = h('div', { className: 'demo-control-banner' },
       h('div', { className: 'demo-banner-left' },
-        h('span', { className: 'demo-badge' }, 'CHẾ ĐỘ TRẢI NGHIỆM'),
-        h('span', { className: 'demo-text' }, 'Chuyển đổi vai trò để thử toàn bộ quy trình đặt lịch & quản lý:')
+        h('span', { className: 'demo-badge' }, 'DEMO PREVIEW'),
+        h('span', { className: 'demo-text' }, 'Chuyển đổi vai trò trải nghiệm:')
       ),
       h('div', { className: 'demo-banner-right' },
         h('div', { className: 'demo-role-btns' },
@@ -67,7 +67,7 @@ export function renderTopNav(router) {
             showToast('Đã khôi phục dữ liệu ban đầu.', 'success');
             router.handleRouting();
           },
-        }, renderIcon('refresh', 'reset-icon'), ' Làm mới')
+        }, renderIcon('refresh', 'reset-icon'), ' Khôi phục')
       )
     );
     container.appendChild(banner);
