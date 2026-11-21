@@ -51,7 +51,7 @@ class ApiClient {
 
     try {
       const response = await fetch(url, {
-        credentials: options.credentials || 'same-origin',
+        credentials: options.credentials || 'include',
         ...options,
         headers,
         signal: controller.signal,

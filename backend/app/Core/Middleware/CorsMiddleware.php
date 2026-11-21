@@ -65,7 +65,7 @@ class CorsMiddleware implements MiddlewareInterface
         if ($request->getMethod() === 'OPTIONS') {
             $headers = [
                 'Access-Control-Allow-Methods' => 'GET, POST, PUT, PATCH, DELETE, OPTIONS',
-                'Access-Control-Allow-Headers' => 'Content-Type, Authorization, X-Requested-With, Accept',
+                'Access-Control-Allow-Headers' => 'Content-Type, Authorization, X-Requested-With, Accept, Idempotency-Key',
                 'Access-Control-Max-Age' => '86400',
             ];
 
