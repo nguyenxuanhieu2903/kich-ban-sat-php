@@ -8,6 +8,7 @@ use App\Core\Router;
 use App\Features\Auth\AuthController;
 use App\Features\Game\GameController;
 use App\Features\GameRoom\GameRoomController;
+use App\Features\GameRoom\RoomWorkflowController;
 
 /** @var Router $router */
 
@@ -43,3 +44,11 @@ $router->post('/api/rooms/{id}/assign-dm', [GameRoomController::class, 'assignDm
 $router->post('/api/rooms/{id}/deposit', [GameRoomController::class, 'deposit']);
 $router->post('/api/rooms/{id}/cancel', [GameRoomController::class, 'cancel']);
 $router->post('/api/rooms/{id}/complete', [GameRoomController::class, 'complete']);
+
+// Module 2B: Room Workflow (Expire, Reopen, DM Proposal, Schedule Proposal)
+$router->post('/api/rooms/{id}/expire', [RoomWorkflowController::class, 'expire']);
+$router->post('/api/rooms/{id}/reopen', [RoomWorkflowController::class, 'reopen']);
+$router->post('/api/rooms/{id}/dm-proposals', [RoomWorkflowController::class, 'proposeDm']);
+$router->post('/api/dm-assignments/{id}/respond', [RoomWorkflowController::class, 'respondDm']);
+$router->post('/api/rooms/{id}/schedule-proposals', [RoomWorkflowController::class, 'proposeSchedule']);
+$router->post('/api/schedule-proposals/{id}/respond', [RoomWorkflowController::class, 'respondSchedule']);

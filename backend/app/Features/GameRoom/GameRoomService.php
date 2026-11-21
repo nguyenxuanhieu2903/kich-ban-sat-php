@@ -274,7 +274,7 @@ class GameRoomService
             }
 
             $newCount = $this->countActivePlayers($roomId);
-            if ($status === 'FORMING' && $newCount >= $minPlayers) {
+            if (in_array($status, ['FORMING', 'REPLENISHING'], true) && $newCount >= $minPlayers) {
                 $updRoom = $this->pdo->prepare("UPDATE game_rooms SET status = 'WAITING_FOR_DM' WHERE id = :id");
                 $updRoom->execute([':id' => $roomId]);
             }
