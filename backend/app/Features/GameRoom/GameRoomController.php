@@ -2,155 +2,96 @@
 
 declare(strict_types=1);
 
-namespace App\Features\GameRoom;
+namespace App\Features\Game;
 
+use App\Core\Exceptions\BadRequestException;
 use App\Core\Exceptions\HttpException;
+use App\Core\Exceptions\NotFoundException;
 use App\Core\Request;
 use App\Core\Response;
 
-class GameRoomController
+class GameController
 {
-    private GameRoomService $service;
+    private GameRepository $repo;
 
-    public function __construct(?GameRoomService $service = null)
+    public function __construct(?GameRepository $repo = null)
     {
-        $this->service = $service ?? new GameRoomService();
+        $this->repo = $repo ?? new GameRepository();
     }
 
     public function index(Request $request): Response
     {
-        $status = $request->query('status');
-        $rooms = $this->service->listRooms(is_string($status) ? $status : null);
+        $games = $this->repo->findAll([
+            'q' => $request->query('q'),
+            'category' => $request->query('category'),
+            'is_18_plus' => $request->query('is_18_plus'),
+        ]);
 
         return Response::json([
             'success' => true,
-            'data' => $rooms,
+            'data' => $games,
             'serverTime' => date('c'),
         ]);
     }
 
     public function show(Request $request, string $id): Response
     {
-        $roomId = $this->parsePositiveInt($id, 'id');
+        $game = $this->repo->findById((int) $id);
+        if ($game === null) {
+            throw new NotFoundException('Không tìm thấy kịch bản #' . $id);
+        }
 
         return Response::json([
             'success' => true,
-            'data' => $this->service->getRoomDetail($roomId),
+            'data' => $game,
             'serverTime' => date('c'),
         ]);
     }
 
     public function store(Request $request): Response
     {
-        $auth = $this->requireAuth();
-        $room = $this->service->createRoom($auth['user_id'], $request->getBodyParams());
+        $this->requireAdmin();
+
+        $body = $request->getBodyParams();
+        $errors = [];
+
+        if (empty($body['title'])) {
+            $errors['title'][] = 'Tên kịch bản không được để trống';
+        }
+        if (empty($body['min_players']) || empty($body['max_players']) || (int) $body['min_players'] > (int) $body['max_players']) {
+            $errors['players'][] = 'Số người chơi tối thiểu phải nhỏ hơn hoặc bằng tối đa';
+        }
+        if (empty($body['price_day_vnd']) || empty($body['price_evening_vnd'])) {
+            $errors['price'][] = 'Phải nhập đầy đủ giá khung ngày và khung tối (VND)';
+        }
+
+        if (!empty($errors)) {
+            throw new BadRequestException('Dữ liệu tạo kịch bản không hợp lệ', $errors);
+        }
+
+        $slug = strtolower(trim((string) preg_replace('/[^a-zA-Z0-9]+/', '-', (string) $body['title']), '-')) . '-' . time();
+
+        $id = $this->repo->create([
+            'title' => trim((string) $body['title']),
+            'slug' => $slug,
+            'category' => trim((string) ($body['category'] ?? 'Trinh thám')),
+            'description' => $body['description'] ?? null,
+            'min_players' => (int) $body['min_players'],
+            'max_players' => (int) $body['max_players'],
+            'duration_minutes' => (int) ($body['duration_minutes'] ?? 210),
+            'is_18_plus' => !empty($body['is_18_plus']),
+            'price_day_vnd' => (int) $body['price_day_vnd'],
+            'price_evening_vnd' => (int) $body['price_evening_vnd'],
+        ]);
 
         return Response::json([
             'success' => true,
-            'message' => 'Tạo phòng chơi thành công',
-            'data' => $room,
-            'serverTime' => date('c'),
+            'message' => 'Tạo kịch bản thành công',
+            'data' => $this->repo->findById($id),
         ], 201);
     }
 
-    public function join(Request $request, string $id): Response
-    {
-        $auth = $this->requireAuth();
-        $roomId = $this->parsePositiveInt($id, 'id');
-        $room = $this->service->joinRoom($roomId, $auth['user_id']);
-
-        return Response::json([
-            'success' => true,
-            'message' => 'Tham gia phòng thành công',
-            'data' => $room,
-            'serverTime' => date('c'),
-        ]);
-    }
-
-    public function leave(Request $request, string $id): Response
-    {
-        $auth = $this->requireAuth();
-        $roomId = $this->parsePositiveInt($id, 'id');
-        $room = $this->service->leaveRoom($roomId, $auth['user_id']);
-
-        return Response::json([
-            'success' => true,
-            'message' => 'Rời phòng thành công',
-            'data' => $room,
-            'serverTime' => date('c'),
-        ]);
-    }
-
-    public function assignDm(Request $request, string $id): Response
-    {
-        $this->requireRole(['ADMIN']);
-
-        $roomId = $this->parsePositiveInt($id, 'id');
-        $body = $request->getBodyParams();
-        $dmUserId = $this->parsePositiveInt($body['dm_user_id'] ?? null, 'dm_user_id');
-        $physicalRoomId = $this->parsePositiveInt($body['physical_room_id'] ?? null, 'physical_room_id');
-
-        $room = $this->service->assignDmAndPhysicalRoom($roomId, $dmUserId, $physicalRoomId);
-
-        return Response::json([
-            'success' => true,
-            'message' => 'Phân công DM và chốt phòng vật lý thành công',
-            'data' => $room,
-            'serverTime' => date('c'),
-        ]);
-    }
-
-    public function deposit(Request $request, string $id): Response
-    {
-        $auth = $this->requireAuth();
-        $roomId = $this->parsePositiveInt($id, 'id');
-        $body = $request->getBodyParams();
-        $method = (string) ($body['provider'] ?? 'VNPAY');
-
-        $room = $this->service->deposit($roomId, $auth['user_id'], $method);
-
-        return Response::json([
-            'success' => true,
-            'message' => 'Đặt cọc thành công',
-            'data' => $room,
-            'serverTime' => date('c'),
-        ]);
-    }
-
-    public function cancel(Request $request, string $id): Response
-    {
-        $auth = $this->requireRole(['ADMIN', 'PLAYER']);
-        $roomId = $this->parsePositiveInt($id, 'id');
-        $body = $request->getBodyParams();
-        $reason = isset($body['reason']) && is_string($body['reason']) ? trim($body['reason']) : null;
-
-        $room = $this->service->cancelRoom($roomId, $auth['user_id'], $auth['role'], $reason);
-
-        return Response::json([
-            'success' => true,
-            'message' => 'Hủy phòng thành công',
-            'data' => $room,
-            'serverTime' => date('c'),
-        ]);
-    }
-
-    public function complete(Request $request, string $id): Response
-    {
-        $auth = $this->requireRole(['ADMIN', 'DM']);
-        $roomId = $this->parsePositiveInt($id, 'id');
-
-        $room = $this->service->completeRoom($roomId, $auth['user_id'], $auth['role']);
-
-        return Response::json([
-            'success' => true,
-            'message' => 'Hoàn thành trận chơi thành công',
-            'data' => $room,
-            'serverTime' => date('c'),
-        ]);
-    }
-
-    /** @return array{user_id: int, role: string} */
-    private function requireAuth(): array
+    private function requireAdmin(): void
     {
         $userId = (int) ($_SESSION['user_id'] ?? 0);
         $role = strtoupper((string) ($_SESSION['role'] ?? ''));
@@ -159,34 +100,8 @@ class GameRoomController
             throw new HttpException('Bạn cần đăng nhập để thực hiện thao tác này', 401);
         }
 
-        return [
-            'user_id' => $userId,
-            'role' => $role,
-        ];
-    }
-
-    /**
-     * @param string[] $allowedRoles
-     * @return array{user_id: int, role: string}
-     */
-    private function requireRole(array $allowedRoles): array
-    {
-        $auth = $this->requireAuth();
-
-        if (!in_array($auth['role'], $allowedRoles, true)) {
-            throw new HttpException('Bạn không có quyền thực hiện thao tác này', 403);
+        if ($role !== 'ADMIN') {
+            throw new HttpException('Chỉ quản trị viên mới có quyền tạo kịch bản', 403);
         }
-
-        return $auth;
-    }
-
-    private function parsePositiveInt(mixed $value, string $field): int
-    {
-        $parsed = filter_var($value, FILTER_VALIDATE_INT);
-        if ($parsed === false || $parsed <= 0) {
-            throw new HttpException("Tham số {$field} phải là số nguyên dương", 400);
-        }
-
-        return (int) $parsed;
     }
 }

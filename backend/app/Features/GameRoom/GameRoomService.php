@@ -104,6 +104,8 @@ class GameRoomService
      */
     public function createRoom(int $hostUserId, array $input): array
     {
+        $this->requireActiveUser($hostUserId, ['PLAYER', 'ADMIN']);
+
         $gameId = (int) ($input['game_id'] ?? 0);
         $scheduledRaw = trim((string) ($input['scheduled_start_at'] ?? ''));
 
@@ -209,6 +211,8 @@ class GameRoomService
     /** @return array<string, mixed> */
     public function joinRoom(int $roomId, int $userId): array
     {
+        $this->requireActiveUser($userId, ['PLAYER', 'ADMIN']);
+
         $lockSql = $this->getRowLockSql();
         $this->pdo->beginTransaction();
         try {
@@ -289,6 +293,8 @@ class GameRoomService
     /** @return array<string, mixed> */
     public function leaveRoom(int $roomId, int $userId): array
     {
+        $this->requireActiveUser($userId, ['PLAYER', 'ADMIN']);
+
         $lockSql = $this->getRowLockSql();
         $this->pdo->beginTransaction();
         try {
@@ -301,6 +307,9 @@ class GameRoomService
             }
 
             $status = (string) $room['status'];
+            if ($status === 'CONFIRMED') {
+                throw new HttpException('Phòng đã chốt lịch (CONFIRMED), không thể tự rời phòng', 409);
+            }
             if (in_array($status, ['CANCELLED', 'COMPLETED', 'EXPIRED'], true)) {
                 throw new HttpException("Phòng đã đóng ({$status}), không thể rời phòng", 409);
             }
@@ -349,8 +358,10 @@ class GameRoomService
     }
 
     /** @return array<string, mixed> */
-    public function assignDmAndPhysicalRoom(int $roomId, int $dmUserId, int $physicalRoomId): array
+    public function assignDmAndPhysicalRoom(int $roomId, int $dmUserId, int $physicalRoomId, int $assignedBy): array
     {
+        $this->requireActiveUser($assignedBy, ['ADMIN']);
+
         $lockSql = $this->getRowLockSql();
         $this->pdo->beginTransaction();
         try {
@@ -367,22 +378,40 @@ class GameRoomService
                 throw new HttpException("Không thể phân công DM khi phòng đang ở trạng thái {$status}", 409);
             }
 
-            $dmStmt = $this->pdo->prepare("SELECT id, role, is_active FROM users WHERE id = :id LIMIT 1");
+            $rule = json_decode((string) $room['snapshot_game_rule'], true);
+            $minPlayers = is_array($rule) ? (int) ($rule['min_players'] ?? 1) : 1;
+            $durationMinutes = is_array($rule) ? (int) ($rule['duration_minutes'] ?? 180) : 180;
+
+            $activePlayers = $this->countActivePlayers($roomId);
+            if ($activePlayers < $minPlayers) {
+                throw new HttpException(
+                    "Phòng chưa đủ số người chơi tối thiểu ({$activePlayers}/{$minPlayers}) để phân công DM",
+                    409
+                );
+            }
+
+            $dmStmt = $this->pdo->prepare('SELECT id, role, is_active FROM users WHERE id = :id LIMIT 1');
             $dmStmt->execute([':id' => $dmUserId]);
             $dm = $dmStmt->fetch();
-            if ($dm === false || (string) $dm['role'] !== 'DM' || (int) $dm['is_active'] !== 1) {
+            if ($dm === false || strtoupper((string) $dm['role']) !== 'DM' || (int) $dm['is_active'] !== 1) {
                 throw new BadRequestException('Tài khoản DM không hợp lệ hoặc chưa kích hoạt');
             }
 
-            $prStmt = $this->pdo->prepare("SELECT id, status FROM physical_rooms WHERE id = :id LIMIT 1");
+            $prStmt = $this->pdo->prepare('SELECT id, status, capacity FROM physical_rooms WHERE id = :id LIMIT 1');
             $prStmt->execute([':id' => $physicalRoomId]);
             $pr = $prStmt->fetch();
             if ($pr === false || (string) $pr['status'] !== 'AVAILABLE') {
                 throw new BadRequestException('Phòng vật lý không tồn tại hoặc không khả dụng');
             }
 
-            $rule = json_decode((string) $room['snapshot_game_rule'], true);
-            $durationMinutes = is_array($rule) ? (int) ($rule['duration_minutes'] ?? 180) : 180;
+            $requiredCapacity = $activePlayers + 1;
+            $roomCapacity = (int) $pr['capacity'];
+            if ($roomCapacity < $requiredCapacity) {
+                throw new HttpException(
+                    "Phòng vật lý không đủ sức chứa (cần {$requiredCapacity} chỗ tính cả DM, phòng chỉ có {$roomCapacity} chỗ)",
+                    409
+                );
+            }
 
             $startAt = new DateTimeImmutable((string) $room['scheduled_start_at']);
             $endAt = $startAt->add(new DateInterval('PT' . $durationMinutes . 'M'));
@@ -410,12 +439,13 @@ class GameRoomService
             }
 
             $insAssign = $this->pdo->prepare(
-                "INSERT INTO dm_assignments (room_id, dm_user_id, status)
-                 VALUES (:room_id, :dm_user_id, 'ACCEPTED')"
+                "INSERT INTO dm_assignments (room_id, dm_user_id, assigned_by, status)
+                 VALUES (:room_id, :dm_user_id, :assigned_by, 'ACCEPTED')"
             );
             $insAssign->execute([
                 ':room_id' => $roomId,
                 ':dm_user_id' => $dmUserId,
+                ':assigned_by' => $assignedBy,
             ]);
 
             $insSession = $this->pdo->prepare(
@@ -458,6 +488,8 @@ class GameRoomService
     /** @return array<string, mixed> */
     public function deposit(int $roomId, int $userId, string $method = 'VNPAY'): array
     {
+        $this->requireActiveUser($userId, ['PLAYER', 'ADMIN']);
+
         $now = new DateTimeImmutable();
         $nowStr = $now->format('Y-m-d H:i:s');
         $lockSql = $this->getRowLockSql();
@@ -622,7 +654,7 @@ class GameRoomService
                 throw new HttpException('Chỉ có thể hoàn thành phòng đang ở trạng thái CONFIRMED', 409);
             }
 
-            $sessionStmt = $this->pdo->prepare('SELECT id, dm_user_id, status FROM game_sessions WHERE room_id = :room_id LIMIT 1');
+            $sessionStmt = $this->pdo->prepare("SELECT id, dm_user_id, status FROM game_sessions WHERE room_id = :room_id LIMIT 1{$lockSql}");
             $sessionStmt->execute([':room_id' => $roomId]);
             $session = $sessionStmt->fetch();
 
@@ -650,6 +682,30 @@ class GameRoomService
         }
 
         return $this->getRoomDetail($roomId);
+    }
+
+    /**
+     * @param string[]|null $allowedRoles
+     * @return array<string, mixed>
+     */
+    private function requireActiveUser(int $userId, ?array $allowedRoles = null): array
+    {
+        $stmt = $this->pdo->prepare('SELECT id, role, is_active FROM users WHERE id = :id LIMIT 1');
+        $stmt->execute([':id' => $userId]);
+        $user = $stmt->fetch();
+
+        if ($user === false || (int) $user['is_active'] !== 1) {
+            throw new HttpException('Tài khoản không tồn tại hoặc đã bị khóa', 403);
+        }
+
+        if ($allowedRoles !== null) {
+            $role = strtoupper((string) $user['role']);
+            if (!in_array($role, $allowedRoles, true)) {
+                throw new HttpException('Tài khoản không có quyền thực hiện thao tác này', 403);
+            }
+        }
+
+        return $user;
     }
 
     private function getRowLockSql(): string

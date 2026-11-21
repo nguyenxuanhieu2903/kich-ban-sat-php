@@ -6,6 +6,9 @@ namespace Tests\Unit;
 
 use App\Core\Exceptions\HttpException;
 use App\Core\Exceptions\NotFoundException;
+use App\Core\Request;
+use App\Features\Game\GameController;
+use App\Features\Game\GameRepository;
 use App\Features\GameRoom\GameRoomService;
 use PDO;
 use PHPUnit\Framework\TestCase;
@@ -28,6 +31,12 @@ class GameRoomLifecycleTest extends TestCase
         $this->service = new GameRoomService($this->pdo);
     }
 
+    protected function tearDown(): void
+    {
+        $_SESSION = [];
+        parent::tearDown();
+    }
+
     private function createSchemaAndSeed(): void
     {
         $this->pdo->exec(
@@ -41,17 +50,33 @@ class GameRoomLifecycleTest extends TestCase
             CREATE TABLE games (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 title TEXT NOT NULL,
+                slug TEXT NULL,
+                category TEXT NOT NULL DEFAULT "Trinh thám",
+                description TEXT NULL,
                 min_players INTEGER NOT NULL DEFAULT 5,
                 max_players INTEGER NOT NULL DEFAULT 6,
                 duration_minutes INTEGER NOT NULL DEFAULT 210,
+                is_18_plus INTEGER NOT NULL DEFAULT 0,
                 price_day_vnd INTEGER NOT NULL DEFAULT 150000,
                 price_evening_vnd INTEGER NOT NULL DEFAULT 180000,
-                is_active INTEGER NOT NULL DEFAULT 1
+                deposit_vnd INTEGER NOT NULL DEFAULT 50000,
+                is_active INTEGER NOT NULL DEFAULT 1,
+                menu_verified INTEGER NOT NULL DEFAULT 0
             );
             CREATE TABLE physical_rooms (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 name TEXT NOT NULL,
+                capacity INTEGER NOT NULL DEFAULT 8,
                 status TEXT NOT NULL DEFAULT "AVAILABLE"
+            );
+            CREATE TABLE dm_assignments (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                room_id INTEGER NOT NULL,
+                dm_user_id INTEGER NOT NULL,
+                assigned_by INTEGER NOT NULL,
+                status TEXT NOT NULL DEFAULT "PENDING",
+                reason TEXT NULL,
+                responded_at TEXT NULL
             );
             CREATE TABLE game_rooms (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -92,9 +117,15 @@ class GameRoomLifecycleTest extends TestCase
                 (1, 'Host Player', 'host@kbs.local', 'PLAYER', 1),
                 (2, 'Other Player', 'other@kbs.local', 'PLAYER', 1),
                 (3, 'Game Master', 'dm@kbs.local', 'DM', 1),
-                (4, 'Admin User', 'admin@kbs.local', 'ADMIN', 1);
-             INSERT INTO games (id, title) VALUES (1, 'Cô Gái Bên Cửa Sổ');
-             INSERT INTO physical_rooms (id, name, status) VALUES (1, 'Phòng VIP', 'AVAILABLE');"
+                (4, 'Admin User', 'admin@kbs.local', 'ADMIN', 1),
+                (5, 'Player 3', 'p3@kbs.local', 'PLAYER', 1),
+                (6, 'Player 4', 'p4@kbs.local', 'PLAYER', 1),
+                (7, 'Player 5', 'p5@kbs.local', 'PLAYER', 1),
+                (8, 'Locked Player', 'locked@kbs.local', 'PLAYER', 0);
+             INSERT INTO games (id, title, slug) VALUES (1, 'Cô Gái Bên Cửa Sổ', 'co-gai-ben-cua-so');
+             INSERT INTO physical_rooms (id, name, capacity, status) VALUES
+                (1, 'Phòng VIP', 8, 'AVAILABLE'),
+                (2, 'Phòng Nhỏ', 5, 'AVAILABLE');"
         );
 
         $snapshot = json_encode([
@@ -110,12 +141,20 @@ class GameRoomLifecycleTest extends TestCase
              VALUES
                 (1, 'KBS-001', 1, 1, '2026-12-10 19:00:00', 'FORMING', '2026-12-10 18:00:00', :snap),
                 (2, 'KBS-002', 1, 1, '2026-12-11 19:00:00', 'CONFIRMED', '2026-12-11 18:00:00', :snap),
-                (3, 'KBS-003', 1, 1, '2026-12-01 19:00:00', 'COMPLETED', '2026-12-01 18:00:00', :snap)"
+                (3, 'KBS-003', 1, 1, '2026-12-01 19:00:00', 'COMPLETED', '2026-12-01 18:00:00', :snap),
+                (4, 'KBS-004', 1, 1, '2026-12-12 19:00:00', 'WAITING_FOR_DM', '2026-12-12 18:00:00', :snap)"
         );
         $stmt->execute([':snap' => $snapshot]);
 
         $this->pdo->exec(
-            "INSERT INTO room_participants (room_id, user_id, status) VALUES (1, 1, 'JOINED'), (2, 1, 'JOINED');
+            "INSERT INTO room_participants (room_id, user_id, status) VALUES
+                (1, 1, 'JOINED'),
+                (2, 1, 'JOINED'),
+                (4, 1, 'JOINED'),
+                (4, 2, 'JOINED'),
+                (4, 5, 'JOINED'),
+                (4, 6, 'JOINED'),
+                (4, 7, 'JOINED');
              INSERT INTO game_sessions (id, room_id, dm_user_id, physical_room_id, start_at, end_at, status)
              VALUES (1, 2, 3, 1, '2026-12-11 19:00:00', '2026-12-11 22:30:00', 'SCHEDULED');"
         );
@@ -206,5 +245,86 @@ class GameRoomLifecycleTest extends TestCase
         $this->expectExceptionCode(409);
 
         $this->service->completeRoom(1, 4, 'ADMIN');
+    }
+
+    // --- Chặng 1: Vá lỗi lõi & Siết RBAC ---
+
+    public function testAssignDmRecordsAssignedByAndConfirmsRoom(): void
+    {
+        $result = $this->service->assignDmAndPhysicalRoom(4, 3, 1, 4);
+
+        $this->assertSame('CONFIRMED', $result['status']);
+
+        $assignment = $this->pdo->query('SELECT room_id, dm_user_id, assigned_by, status FROM dm_assignments WHERE room_id = 4')->fetch();
+        $this->assertSame(4, (int) $assignment['room_id']);
+        $this->assertSame(3, (int) $assignment['dm_user_id']);
+        $this->assertSame(4, (int) $assignment['assigned_by']);
+        $this->assertSame('ACCEPTED', $assignment['status']);
+    }
+
+    public function testAssignDmFailsWhenBelowMinPlayers(): void
+    {
+        $this->expectException(HttpException::class);
+        $this->expectExceptionCode(409);
+
+        // Phòng 1 mới có 1/5 người chơi
+        $this->service->assignDmAndPhysicalRoom(1, 3, 1, 4);
+    }
+
+    public function testAssignDmFailsWhenPhysicalRoomCapacityTooSmall(): void
+    {
+        $this->expectException(HttpException::class);
+        $this->expectExceptionCode(409);
+
+        // Phòng 4 có 5 người chơi + 1 DM = 6 chỗ, trong khi Phòng Nhỏ (id=2) chỉ có capacity = 5
+        $this->service->assignDmAndPhysicalRoom(4, 3, 2, 4);
+    }
+
+    public function testPlayerCannotLeaveConfirmedRoom(): void
+    {
+        $this->expectException(HttpException::class);
+        $this->expectExceptionCode(409);
+
+        $this->service->leaveRoom(2, 1);
+    }
+
+    public function testInactiveUserCannotJoinRoom(): void
+    {
+        $this->expectException(HttpException::class);
+        $this->expectExceptionCode(403);
+
+        $this->service->joinRoom(1, 8);
+    }
+
+    public function testDmRoleCannotJoinRoomAsPlayer(): void
+    {
+        $this->expectException(HttpException::class);
+        $this->expectExceptionCode(403);
+
+        $this->service->joinRoom(1, 3);
+    }
+
+    public function testCreateGameRequiresAdminAuthentication(): void
+    {
+        $_SESSION = [];
+        $controller = new GameController(new GameRepository($this->pdo));
+        $request = new Request('POST', '/api/games', [], ['title' => 'Test']);
+
+        $this->expectException(HttpException::class);
+        $this->expectExceptionCode(401);
+
+        $controller->store($request);
+    }
+
+    public function testCreateGameRejectsNonAdminRole(): void
+    {
+        $_SESSION = ['user_id' => 1, 'role' => 'PLAYER'];
+        $controller = new GameController(new GameRepository($this->pdo));
+        $request = new Request('POST', '/api/games', [], ['title' => 'Test']);
+
+        $this->expectException(HttpException::class);
+        $this->expectExceptionCode(403);
+
+        $controller->store($request);
     }
 }

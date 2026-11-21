@@ -10,9 +10,6 @@ class Config
     private static array $repository = [];
     private static bool $loaded = false;
 
-    /**
-     * Load environment configuration from .env file and environment variables.
-     */
     public static function load(?string $basePath = null): void
     {
         if (self::$loaded && $basePath === null) {
@@ -36,15 +33,14 @@ class Config
                         $name = trim($name);
                         $value = trim($value);
 
-                        // Strip outer quotes if present
                         if ((str_starts_with($value, '"') && str_ends_with($value, '"')) ||
                             (str_starts_with($value, "'") && str_ends_with($value, "'"))) {
                             $value = substr($value, 1, -1);
                         }
 
                         if (!array_key_exists($name, self::$repository)) {
-    self::$repository[$name] = $value;
-}
+                            self::$repository[$name] = $value;
+                        }
                         if (!array_key_exists($name, $_ENV)) {
                             $_ENV[$name] = $value;
                         }
@@ -56,9 +52,6 @@ class Config
         self::$loaded = true;
     }
 
-    /**
-     * Get an environment variable with a fallback default.
-     */
     public static function get(string $key, mixed $default = null): mixed
     {
         if (!self::$loaded) {
@@ -81,17 +74,11 @@ class Config
         return $default;
     }
 
-    /**
-     * Set a configuration value at runtime (useful for testing).
-     */
     public static function set(string $key, mixed $value): void
     {
         self::$repository[$key] = $value;
     }
 
-    /**
-     * Clear all stored configuration (useful for testing).
-     */
     public static function reset(): void
     {
         self::$repository = [];

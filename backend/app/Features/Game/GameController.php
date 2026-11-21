@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Features\Game;
 
 use App\Core\Exceptions\BadRequestException;
+use App\Core\Exceptions\HttpException;
 use App\Core\Exceptions\NotFoundException;
 use App\Core\Request;
 use App\Core\Response;
@@ -49,6 +50,8 @@ class GameController
 
     public function store(Request $request): Response
     {
+        $this->requireAdmin();
+
         $body = $request->getBodyParams();
         $errors = [];
 
@@ -86,5 +89,19 @@ class GameController
             'message' => 'Tạo kịch bản thành công',
             'data' => $this->repo->findById($id),
         ], 201);
+    }
+
+    private function requireAdmin(): void
+    {
+        $userId = (int) ($_SESSION['user_id'] ?? 0);
+        $role = strtoupper((string) ($_SESSION['role'] ?? ''));
+
+        if ($userId <= 0 || $role === '') {
+            throw new HttpException('Bạn cần đăng nhập để thực hiện thao tác này', 401);
+        }
+
+        if ($role !== 'ADMIN') {
+            throw new HttpException('Chỉ quản trị viên mới có quyền tạo kịch bản', 403);
+        }
     }
 }
