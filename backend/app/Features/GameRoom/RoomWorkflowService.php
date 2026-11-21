@@ -344,7 +344,7 @@ class RoomWorkflowService
             $updPart = $this->pdo->prepare(
                 "UPDATE room_participants
                  SET deposit_deadline_at = :deadline
-                 WHERE room_id = :room_id AND status IN ('JOINED', 'DEPOSITED')"
+                 WHERE room_id = :room_id AND status IN ('JOINED', 'DEPOSITED', 'PAID_FULL')"
             );
             $updPart->execute([':deadline' => $depositDeadline, ':room_id' => $roomId]);
 
@@ -600,7 +600,7 @@ class RoomWorkflowService
     {
         $stmt = $this->pdo->prepare(
             "SELECT COUNT(*) FROM room_participants
-             WHERE room_id = :room_id AND status IN ('JOINED', 'DEPOSITED')"
+             WHERE room_id = :room_id AND status IN ('JOINED', 'DEPOSITED', 'PAID_FULL')"
         );
         $stmt->execute([':room_id' => $roomId]);
 

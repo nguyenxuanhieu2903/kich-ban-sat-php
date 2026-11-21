@@ -77,7 +77,7 @@ class GameRoomService
 
         $activeCount = 0;
         foreach ($participants as $p) {
-            if (in_array((string) $p['status'], ['JOINED', 'DEPOSITED'], true)) {
+            if (in_array((string) $p['status'], ['JOINED', 'DEPOSITED', 'PAID_FULL'], true)) {
                 $activeCount++;
             }
         }
@@ -237,7 +237,7 @@ class GameRoomService
             $checkStmt->execute([':room_id' => $roomId, ':user_id' => $userId]);
             $existing = $checkStmt->fetch();
 
-            if (is_array($existing) && in_array((string) $existing['status'], ['JOINED', 'DEPOSITED'], true)) {
+            if (is_array($existing) && in_array((string) $existing['status'], ['JOINED', 'DEPOSITED', 'PAID_FULL'], true)) {
                 throw new HttpException('Bạn đã ở trong phòng này rồi', 409);
             }
 
@@ -322,7 +322,7 @@ class GameRoomService
             $partStmt->execute([':room_id' => $roomId, ':user_id' => $userId]);
             $participant = $partStmt->fetch();
 
-            if ($participant === false || !in_array((string) $participant['status'], ['JOINED', 'DEPOSITED'], true)) {
+            if ($participant === false || !in_array((string) $participant['status'], ['JOINED', 'DEPOSITED', 'PAID_FULL'], true)) {
                 throw new NotFoundException('Bạn hiện không có mặt trong phòng này');
             }
 
@@ -464,7 +464,7 @@ class GameRoomService
             $updPart = $this->pdo->prepare(
                 "UPDATE room_participants
                  SET deposit_deadline_at = :deadline
-                 WHERE room_id = :room_id AND status IN ('JOINED', 'DEPOSITED')"
+                 WHERE room_id = :room_id AND status IN ('JOINED', 'DEPOSITED', 'PAID_FULL')"
             );
             $updPart->execute([
                 ':deadline' => $depositDeadline,
@@ -717,7 +717,7 @@ class GameRoomService
     {
         $stmt = $this->pdo->prepare(
             "SELECT COUNT(*) FROM room_participants
-             WHERE room_id = :room_id AND status IN ('JOINED', 'DEPOSITED')"
+             WHERE room_id = :room_id AND status IN ('JOINED', 'DEPOSITED', 'PAID_FULL')"
         );
         $stmt->execute([':room_id' => $roomId]);
 

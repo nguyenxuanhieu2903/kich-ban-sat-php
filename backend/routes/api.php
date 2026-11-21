@@ -9,6 +9,7 @@ use App\Features\Auth\AuthController;
 use App\Features\Game\GameController;
 use App\Features\GameRoom\GameRoomController;
 use App\Features\GameRoom\RoomWorkflowController;
+use App\Features\Payment\PaymentController;
 
 /** @var Router $router */
 
@@ -52,3 +53,13 @@ $router->post('/api/rooms/{id}/dm-proposals', [RoomWorkflowController::class, 'p
 $router->post('/api/dm-assignments/{id}/respond', [RoomWorkflowController::class, 'respondDm']);
 $router->post('/api/rooms/{id}/schedule-proposals', [RoomWorkflowController::class, 'proposeSchedule']);
 $router->post('/api/schedule-proposals/{id}/respond', [RoomWorkflowController::class, 'respondSchedule']);
+
+// Module 3: Payments & Refunds
+$router->get('/api/rooms/{id}/payments', [PaymentController::class, 'listByRoom']);
+$router->post('/api/rooms/{id}/payments/deposit', [PaymentController::class, 'createDeposit']);
+$router->post('/api/rooms/{id}/payments/remaining', [PaymentController::class, 'payRemaining']);
+$router->post('/api/payments/{id}/confirm', [PaymentController::class, 'confirm']);
+$router->post('/api/payments/{id}/fail', [PaymentController::class, 'fail']);
+$router->post('/api/payments/{id}/retry', [PaymentController::class, 'retry']);
+$router->post('/api/payments/{id}/refunds', [PaymentController::class, 'requestRefund']);
+$router->post('/api/refunds/{id}/process', [PaymentController::class, 'processRefund']);
