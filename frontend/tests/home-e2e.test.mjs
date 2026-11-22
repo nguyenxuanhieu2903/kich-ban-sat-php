@@ -26,13 +26,15 @@ test('E2E: 1. Public Home Page HTML & Navigation structure', async () => {
   assert.ok(html.includes('src/styles/pages.css'), 'Loads pages.css');
   assert.ok(html.includes('src/app.js'), 'Loads app.js');
 
-  // 4. Public Footer multi-column & policies
-  assert.ok(html.includes('class="footer-top"'), 'Contains footer top grid');
-  assert.ok(html.includes('Chi Nhánh Hoạt Động'), 'Contains branches in footer');
-  assert.ok(html.includes('Chính Sách & Quy Chuẩn V16'), 'Contains V16 policies in footer');
-  assert.ok(html.includes('Cọc cố định: 50.000đ / người'), 'States 50k deposit rule');
-  assert.ok(html.includes('Hoàn cọc 100% trước 24 giờ'), 'States 24h refund rule');
-  assert.ok(html.includes('Không cộng dồn khuyến mãi'), 'States non-stacking rule');
+  // 4. Public Footer multi-column & shop contact details
+  assert.ok(html.includes('footer-top') || html.includes('kbs-footer-row'), 'Contains footer top grid');
+  assert.ok(html.includes('Liên Hệ Quán'), 'Contains shop contact in footer');
+  assert.ok(html.includes('36/52 Nguyễn Gia Trí, P.25, Q.Bình Thạnh, TP.HCM'), 'Contains address in footer');
+  assert.ok(html.includes('091.569.0033'), 'States hotline phone');
+  assert.ok(html.includes('Điều Hướng Nhanh'), 'Contains quick navigation in footer');
+  assert.ok(html.includes('Phòng đang ghép'), 'Contains room matching tab in footer');
+  assert.ok(html.includes('maps.google.com'), 'Contains real Google Maps embed');
+  assert.ok(html.includes('facebook.com/profile.php?id=61591144511514'), 'Contains real Facebook link');
 });
 
 test('E2E: 2. Game Catalog API (/api/v1/games)', async () => {

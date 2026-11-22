@@ -115,16 +115,21 @@ class App {
     });
 
     const pricingBtn = document.getElementById('nav-link-pricing');
+    const openPricingDialog = (e) => {
+      e.preventDefault();
+      const dialog = document.getElementById('home-price-dialog');
+      if (dialog && typeof dialog.showModal === 'function') {
+        dialog.showModal();
+      } else {
+        this.navigateTo('games');
+      }
+    };
     if (pricingBtn) {
-      pricingBtn.addEventListener('click', (e) => {
-        e.preventDefault();
-        const dialog = document.getElementById('home-price-dialog');
-        if (dialog && typeof dialog.showModal === 'function') {
-          dialog.showModal();
-        } else {
-          this.navigateTo('games');
-        }
-      });
+      pricingBtn.addEventListener('click', openPricingDialog);
+    }
+    const footerPricingBtn = document.getElementById('footer-link-pricing');
+    if (footerPricingBtn) {
+      footerPricingBtn.addEventListener('click', openPricingDialog);
     }
 
     const contactBtn = document.getElementById('nav-link-contact');

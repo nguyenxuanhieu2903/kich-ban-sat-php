@@ -235,72 +235,64 @@
   </main>
 
   <!-- Public Footer -->
-  <footer class="app-footer" id="app-footer">
-    <div class="footer-top" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 28px; margin-bottom: 32px;">
+  <footer class="app-footer kbs-footer-unified" id="app-footer">
+    <div class="footer-top kbs-footer-row">
+      <!-- CỘT 1: LOGO & MẠNG XÃ HỘI -->
       <div class="footer-col">
-        <h4 style="display: flex; align-items: center; gap: 8px; font-family: var(--font-display); font-size: 1.25rem; color: var(--gold); margin-bottom: 12px;">
-          <span>🎭</span> Kịch Bản Sát V16
-        </h4>
-        <p style="line-height: 1.6; margin-bottom: 12px;">
-          Nền tảng đặt lịch và ghép phòng chơi Kịch Bản Sát (Jubensha / Murder Mystery) chuyên nghiệp hàng đầu TP.HCM.
-          Mang đến không gian nhập vai phá án chân thực, kết nối thám tử và quy trình minh bạch tuyệt đối.
+        <a href="#home">
+          <img src="./src/images/logo.png" alt="Kịch Bản Sát" class="footer-logo-img" />
+        </a>
+        <p style="font-size: 0.88rem; line-height: 1.6; margin-bottom: 14px; color: var(--color-text-muted);">
+          Không gian nhập vai phá án Murder Mystery &amp; TTRPG chuyên nghiệp tại TP.HCM.
         </p>
-        <p style="font-size: 0.8rem; color: var(--gold);">
-          Chuẩn kiến trúc Monolithic MVC &bull; Clean Architecture &bull; MySQL 8.4
-        </p>
+        <div class="kbs-footer-socials">
+          <a href="https://www.facebook.com/profile.php?id=61591144511514" target="_blank" rel="noopener noreferrer" class="kbs-social-circle" title="Facebook">f</a>
+          <a href="https://www.instagram.com/cafex.kichbansat.vn?utm_source=ig_web_button_share_sheet&gwpx=ZDNlZDc0MzIxNw==" target="_blank" rel="noopener noreferrer" class="kbs-social-circle" title="Instagram">IG</a>
+          <a href="https://www.tiktok.com/@kichbansat.hcm?is_from_webapp=1&sender_device=pc" target="_blank" rel="noopener noreferrer" class="kbs-social-circle" title="TikTok">♪</a>
+        </div>
       </div>
 
+      <!-- CỘT 2: GOOGLE MAPS NHÚNG TRỰC TIẾP -->
       <div class="footer-col">
-        <h4 style="font-family: var(--font-display); font-size: 1.15rem; color: var(--gold); margin-bottom: 12px;">Chi Nhánh Hoạt Động</h4>
-        <p style="margin-bottom: 8px; line-height: 1.5;">
-          <strong style="color: #f8fafc;">📍 Chi nhánh Bình Thạnh:</strong><br>
-          36/52 Nguyễn Gia Trí, P. 25, Q. Bình Thạnh, TP.HCM<br>
-          <span style="color: var(--gold);">Hotline: 091.569.0033</span>
-        </p>
-        <p style="margin-bottom: 8px; line-height: 1.5;">
-          <strong style="color: #f8fafc;">📍 Chi nhánh Quận 1:</strong><br>
-          123 Nguyễn Huệ, P. Bến Nghé, Q.1, TP.HCM<br>
-          <span style="color: var(--gold);">Hotline: 0901 234 567</span>
-        </p>
-        <p style="line-height: 1.5;">
-          <strong style="color: #f8fafc;">📍 Cơ sở Điện Biên Phủ:</strong><br>
-          45 Điện Biên Phủ, P. 15, Q. Bình Thạnh, TP.HCM<br>
-          <span style="color: var(--gold);">Hotline: 0907 654 321</span>
-        </p>
+        <div class="kbs-footer-map">
+          <iframe
+            title="Bản đồ Kịch Bản Sát - 36/52 Nguyễn Gia Trí, Bình Thạnh"
+            src="https://maps.google.com/maps?q=36/52%20Nguy%E1%BB%85n%20Gia%20Tr%C3%AD,%20Ph%C6%B0%E1%BB%9Dng%2025,%20B%C3%ACnh%20Th%E1%BA%A1nh,%20H%E1%BB%93%20Ch%C3%AD%20Minh&t=&z=16&ie=UTF8&iwloc=&output=embed"
+            loading="lazy"
+            referrerpolicy="no-referrer-when-downgrade">
+          </iframe>
+        </div>
       </div>
 
+      <!-- CỘT 3: ĐIỀU HƯỚNG NHANH -->
       <div class="footer-col">
-        <h4 style="font-family: var(--font-display); font-size: 1.15rem; color: var(--gold); margin-bottom: 12px;">Điều Hướng Nhanh</h4>
-        <ul class="footer-links" style="list-style: none; padding: 0; margin: 0; line-height: 1.9;">
-          <li><a href="#home">Trang chủ Kịch Bản Sát</a></li>
-          <li><a href="#admin">Trang ADMIN (Quản trị hệ thống)</a></li>
-          <li><a href="#dm">Trang DM (Dành cho Quản trò)</a></li>
-          <li><a href="#rooms">Trang PLAYER (Hồ sơ & Sảnh phòng)</a></li>
-          <li><a href="#games">Danh mục kịch bản</a></li>
-          <li><a href="#rooms">Sảnh ghép phòng chơi</a></li>
-          <li><a href="#games">Lịch đặt phòng theo giờ</a></li>
-          <li><a href="#rooms">Tìm bạn ghép phòng</a></li>
+        <h4 class="kbs-footer-col-title">Điều Hướng Nhanh</h4>
+        <ul class="kbs-footer-links">
+          <li><a href="#home">Trang chủ</a></li>
+          <li><a href="#games">Kho kịch bản</a></li>
+          <li><a href="#rooms">Phòng đang ghép</a></li>
+          <li><a href="#home" id="footer-link-pricing">Quy định &amp; Giá vé</a></li>
         </ul>
       </div>
 
+      <!-- CỘT 4: LIÊN HỆ QUÁN (1 CHI NHÁNH DUY NHẤT) -->
       <div class="footer-col">
-        <h4 style="font-family: var(--font-display); font-size: 1.15rem; color: var(--gold); margin-bottom: 12px;">Chính Sách & Quy Chuẩn V16</h4>
-        <ul class="footer-links" style="list-style: none; padding: 0; margin: 0; line-height: 1.9;">
-          <li><span style="color:#5CD68D;">✔</span> Cọc cố định: 50.000đ / người</li>
-          <li><span style="color:#5CD68D;">✔</span> Hoàn cọc 100% trước 24 giờ</li>
-          <li><span style="color:#5CD68D;">✔</span> Ưu đãi tính tự động tại Backend</li>
-          <li><span style="color:#5CD68D;">✔</span> Không cộng dồn khuyến mãi</li>
-          <li><span style="color:#5CD68D;">✔</span> Giờ mở cửa: 09:00 - 23:00</li>
+        <h4 class="kbs-footer-col-title">Liên Hệ Quán</h4>
+        <ul class="kbs-footer-links">
+          <li>📍 36/52 Nguyễn Gia Trí, P.25, Q.Bình Thạnh, TP.HCM</li>
+          <li>🕒 Mở cửa: 09:00 – 23:00 mỗi ngày</li>
+          <li>📞 Hotline: <a href="tel:0915690033" style="color: var(--gold); font-weight: 700; text-decoration: none;">091.569.0033</a></li>
+          <li>🤝 Hợp tác: <a href="tel:0989896833" style="color: var(--gold); font-weight: 700; text-decoration: none;">0989.896.833 (Mrs Yến)</a></li>
         </ul>
       </div>
     </div>
 
-    <div class="footer-bottom" style="border-top: 1px solid rgba(255,255,255,0.08); padding-top: 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+    <div class="footer-bottom">
       <div>
-        &copy; 2026 <strong>Kịch Bản Sát V16 Platform</strong>. Tất cả quyền được bảo lưu.
+        &copy; 2026 <strong>KỊCH BẢN SÁT V16</strong> – 36/52 Nguyễn Gia Trí, Bình Thạnh, TP.HCM.
       </div>
-      <div style="font-size: 0.75rem; color: var(--color-text-muted);">
-        Tuân thủ API Convention V16 &bull; Idempotency Keys &bull; Cọc cố định 50k &bull; Quy tắc vàng 24 giờ
+      <div>
+        Đánh giá 100% đề xuất (59 lượt) &bull; 2,2K người theo dõi
       </div>
     </div>
   </footer>
