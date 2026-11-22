@@ -28,6 +28,10 @@ class GameRoomApiTest extends TestCase
         $pdo = \App\Infrastructure\Database\DatabaseConnection::getInstance();
         $pdo->exec("UPDATE `game_rooms` SET `status` = 'CANCELLED' WHERE `title` LIKE 'Phòng test%' AND `status` = 'FORMING'");
         $pdo->exec("UPDATE `game_rooms` SET `status` = 'FORMING', `formation_deadline_at` = DATE_ADD(NOW(), INTERVAL 4 HOUR) WHERE `id` = 1");
+        $pdo->exec("DELETE FROM `participant_price_snapshots` WHERE `game_room_id` = 1");
+        $pdo->exec("DELETE pt FROM `payment_transactions` pt JOIN `player_payments` pp ON pt.player_payment_id = pp.id JOIN `room_participants` rp ON pp.room_participant_id = rp.id WHERE rp.game_room_id = 1 AND rp.user_id != 3");
+        $pdo->exec("DELETE r FROM `refunds` r JOIN `player_payments` pp ON r.player_payment_id = pp.id JOIN `room_participants` rp ON pp.room_participant_id = rp.id WHERE rp.game_room_id = 1 AND rp.user_id != 3");
+        $pdo->exec("DELETE pp FROM `player_payments` pp JOIN `room_participants` rp ON pp.room_participant_id = rp.id WHERE rp.game_room_id = 1 AND rp.user_id != 3");
         $pdo->exec("DELETE FROM `room_participants` WHERE `game_room_id` = 1 AND `user_id` != 3");
         $pdo->exec("UPDATE `room_participants` SET `status` = 'PENDING_DEPOSIT' WHERE `game_room_id` = 1 AND `user_id` = 3");
     }

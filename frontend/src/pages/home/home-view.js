@@ -25,7 +25,61 @@ export class HomeView {
   }
 
   async render() {
+    const user = authState.getUser();
+    let roleBannerHtml = '';
+
+    if (user) {
+      if (user.role === 'ADMIN') {
+        roleBannerHtml = `
+          <div style="background: rgba(239, 68, 68, 0.12); border: 1px solid rgba(239, 68, 68, 0.4); border-radius: 12px; padding: 16px 20px; margin-bottom: 24px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 14px;">
+            <div style="display: flex; align-items: center; gap: 12px;">
+              <span style="font-size: 1.8rem;">🛡️</span>
+              <div>
+                <strong style="color: #fca5a5; font-size: 1rem;">Bạn đang đăng nhập: Quản Trị Viên (Admin) — ${escapeHtml(user.name)}</strong>
+                <p style="margin: 4px 0 0 0; font-size: 0.85rem; color: #cbd5e1;">Trang này là giao diện giới thiệu công cộng. Bạn có thể chuyển sang Cổng Quản Trị để điều hành hệ thống.</p>
+              </div>
+            </div>
+            <button id="btn-banner-go-role" class="btn" style="padding: 10px 18px; font-size: 0.9rem; background: #ef4444; color: white; font-weight: 600; border-radius: 8px;">
+              Vào Cổng Quản Trị (Admin) &rarr;
+            </button>
+          </div>
+        `;
+      } else if (user.role === 'DM') {
+        roleBannerHtml = `
+          <div style="background: rgba(245, 158, 11, 0.12); border: 1px solid rgba(245, 158, 11, 0.4); border-radius: 12px; padding: 16px 20px; margin-bottom: 24px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 14px;">
+            <div style="display: flex; align-items: center; gap: 12px;">
+              <span style="font-size: 1.8rem;">📜</span>
+              <div>
+                <strong style="color: #fbbf24; font-size: 1rem;">Bạn đang đăng nhập: Quản Trò (DM) — Host ${escapeHtml(user.name)}</strong>
+                <p style="margin: 4px 0 0 0; font-size: 0.85rem; color: #cbd5e1;">Trang này là giao diện giới thiệu công cộng. Bấm để truy cập danh sách ca trực và điều hành buổi chơi.</p>
+              </div>
+            </div>
+            <button id="btn-banner-go-role" class="btn" style="padding: 10px 18px; font-size: 0.9rem; background: #f59e0b; color: #1e293b; font-weight: 600; border-radius: 8px;">
+              Vào Cổng Quản Trò (DM) &rarr;
+            </button>
+          </div>
+        `;
+      } else {
+        roleBannerHtml = `
+          <div style="background: rgba(59, 130, 246, 0.12); border: 1px solid rgba(59, 130, 246, 0.4); border-radius: 12px; padding: 16px 20px; margin-bottom: 24px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 14px;">
+            <div style="display: flex; align-items: center; gap: 12px;">
+              <span style="font-size: 1.8rem;">🎲</span>
+              <div>
+                <strong style="color: #93c5fd; font-size: 1rem;">Chào mừng Người Chơi: ${escapeHtml(user.name)}</strong>
+                <p style="margin: 4px 0 0 0; font-size: 0.85rem; color: #cbd5e1;">Bạn đang xem Trang giới thiệu. Truy cập Sảnh Phòng để tạo phòng mới, ghép đội hoặc tiếp tục phòng đã tham gia.</p>
+              </div>
+            </div>
+            <button id="btn-banner-go-role" class="btn btn-primary" style="padding: 10px 18px; font-size: 0.9rem; font-weight: 600; border-radius: 8px;">
+              Vào Sảnh Phòng Của Bạn &rarr;
+            </button>
+          </div>
+        `;
+      }
+    }
+
     this.container.innerHTML = `
+      ${roleBannerHtml}
+
       <!-- 1. HERO SECTION -->
       <section class="home-hero-section">
         <div class="home-hero-badge">
@@ -47,9 +101,6 @@ export class HomeView {
           </button>
           <button id="hero-cta-rooms" class="btn btn-secondary" style="padding: 12px 24px; font-size: 1rem; border-radius: var(--radius-md); background: rgba(30, 41, 59, 0.8); border: 1px solid var(--color-border); color: #f8fafc;">
             🎲 Xem Sảnh Phòng Chờ
-          </button>
-          <button id="hero-cta-dm" class="btn" style="padding: 12px 20px; font-size: 0.95rem; border-radius: var(--radius-md); background: transparent; border: 1px solid rgba(245, 158, 11, 0.4); color: #fbbf24;">
-            📜 Dành Cho Quản Trò (DM)
           </button>
         </div>
 
@@ -256,15 +307,13 @@ export class HomeView {
       btnHeroRooms.onclick = () => this.onNavigate('rooms');
     }
 
-    const btnHeroDm = this.container.querySelector('#hero-cta-dm');
-    if (btnHeroDm) {
-      btnHeroDm.onclick = () => {
-        const user = authState.getUser();
-        if (user && (user.role === 'DM' || user.role === 'ADMIN')) {
-          this.onNavigate('dm');
-        } else {
-          this.onOpenAuth('DM');
-        }
+    const btnBannerGoRole = this.container.querySelector('#btn-banner-go-role');
+    if (btnBannerGoRole) {
+      btnBannerGoRole.onclick = () => {
+        const u = authState.getUser();
+        if (u?.role === 'ADMIN') this.onNavigate('admin');
+        else if (u?.role === 'DM') this.onNavigate('dm');
+        else this.onNavigate('rooms');
       };
     }
 

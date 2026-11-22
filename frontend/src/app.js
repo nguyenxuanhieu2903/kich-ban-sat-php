@@ -27,10 +27,13 @@ class App {
       this.renderUserNav();
       this.updateNotificationsCount();
       if (user) {
-        if (user.role === 'DM' && (this.currentTab === 'dm' || selectedRole === 'DM')) {
-          this.navigateTo('dm');
-        } else if (user.role === 'ADMIN' && (this.currentTab === 'admin' || selectedRole === 'ADMIN')) {
+        if (user.role === 'ADMIN') {
           this.navigateTo('admin');
+        } else if (user.role === 'DM') {
+          this.navigateTo('dm');
+        } else {
+          // PLAYER: Tách riêng, vào thẳng sảnh phòng chơi
+          this.navigateTo('rooms');
         }
       }
       this.refreshCurrentView();
@@ -72,6 +75,18 @@ class App {
     this.updateNavigationForRole(user);
     this.renderUserNav();
     this.updateNotificationsCount();
+
+    // Auto-redirect to role-specific portal on initial visit if logged in and at home/empty
+    const initialHash = (window.location.hash || '').replace('#', '').trim();
+    if (user && (!initialHash || initialHash === 'home')) {
+      if (user.role === 'ADMIN') {
+        window.location.hash = '#admin';
+      } else if (user.role === 'DM') {
+        window.location.hash = '#dm';
+      } else if (user.role === 'PLAYER') {
+        window.location.hash = '#rooms';
+      }
+    }
 
     // Handle hash change or default
     window.addEventListener('hashchange', () => this.handleRouting());
@@ -169,15 +184,15 @@ class App {
     if (hash === 'dm') {
       if (!user || (user.role !== 'DM' && user.role !== 'ADMIN')) {
         toast.warning('Khu vực dành cho Quản Trò (DM). Vui lòng đăng nhập với vai trò DM.');
-        this.navigateTo('home');
-        this.authModal.show(false, 'DM');
+        this.navigateTo(user ? 'rooms' : 'home');
+        if (!user) this.authModal.show(false, 'DM');
         return;
       }
     } else if (hash === 'admin') {
       if (!user || user.role !== 'ADMIN') {
         toast.warning('Khu vực dành cho Quản Trị Viên (Admin). Vui lòng đăng nhập với tài khoản Admin.');
-        this.navigateTo('home');
-        this.authModal.show(false, 'ADMIN');
+        this.navigateTo(user?.role === 'DM' ? 'dm' : (user ? 'rooms' : 'home'));
+        if (!user) this.authModal.show(false, 'ADMIN');
         return;
       }
     }
@@ -251,10 +266,8 @@ class App {
         try {
           await authState.logout();
           this.updateNavigationForRole(null);
-          toast.info('Đã đăng xuất!');
-          if (this.currentTab === 'dm' || this.currentTab === 'admin') {
-            this.navigateTo('home');
-          }
+          toast.info('Đã đăng xuất khỏi hệ thống!');
+          this.navigateTo('home');
         } catch (err) {
           toast.error(err.message || 'Lỗi đăng xuất');
         }
