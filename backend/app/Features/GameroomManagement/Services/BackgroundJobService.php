@@ -158,7 +158,7 @@ class BackgroundJobService
                     'UPDATE `game_rooms`
                      SET `replacement_status` = \'OPEN\',
                          `replacement_started_at` = NOW(),
-                         `replacement_deadline_at` = DATE_ADD(NOW(), INTERVAL 24 HOUR),
+                         `replacement_deadline_at` = DATE_ADD(NOW(), INTERVAL 4 HOUR),
                          `replacement_reason` = \'Có thành viên quá hạn đóng tiền cọc cần tìm người thay thế\',
                          `updated_at` = NOW()
                      WHERE `id` = :room_id'

@@ -275,47 +275,63 @@ class SchedulingController
 
         // Nếu tất cả active participants đều ACCEPTED -> Chốt thành công
         if ($acceptedCount >= count($activeParticipantIds) && count($activeParticipantIds) > 0) {
-            $confStmt = $this->pdo->prepare('UPDATE `schedule_proposals` SET `status` = \'CONFIRMED\', `confirmed_at` = NOW() WHERE `id` = :id');
-            $confStmt->bindValue(':id', $proposalId, PDO::PARAM_INT);
-            $confStmt->execute();
+            $this->pdo->beginTransaction();
+            try {
+                $confStmt = $this->pdo->prepare('UPDATE `schedule_proposals` SET `status` = \'CONFIRMED\', `confirmed_at` = NOW() WHERE `id` = :id');
+                $confStmt->bindValue(':id', $proposalId, PDO::PARAM_INT);
+                $confStmt->execute();
 
-            // Khởi tạo hoặc lấy DM assignment cho game room
-            $dmStmt = $this->pdo->prepare('SELECT `id` FROM `dm_assignments` WHERE `game_room_id` = :room_id LIMIT 1');
-            $dmStmt->bindValue(':room_id', $roomId, PDO::PARAM_INT);
-            $dmStmt->execute();
-            $dmAssignId = $dmStmt->fetchColumn();
+                // DEF-01: Đồng bộ trạng thái game_rooms sang SCHEDULED
+                $upRoom = $this->pdo->prepare('UPDATE `game_rooms` SET `status` = \'SCHEDULED\', `updated_at` = NOW() WHERE `id` = :room_id');
+                $upRoom->bindValue(':room_id', $roomId, PDO::PARAM_INT);
+                $upRoom->execute();
 
-            if ($dmAssignId === false) {
-                // Tạo DM assignment mặc định với DM user 2 (Host Hoàng Nam)
-                $insDm = $this->pdo->prepare('INSERT INTO `dm_assignments` (`game_room_id`, `dm_user_id`, `assigned_by`, `status`, `assigned_at`, `created_at`, `updated_at`) VALUES (:room_id, 2, 1, \'ACCEPTED\', NOW(), NOW(), NOW())');
-                $insDm->bindValue(':room_id', $roomId, PDO::PARAM_INT);
-                $insDm->execute();
-                $dmAssignId = (int) $this->pdo->lastInsertId();
-            } else {
-                $dmAssignId = (int) $dmAssignId;
-            }
+                // Khởi tạo hoặc lấy DM assignment cho game room
+                $dmStmt = $this->pdo->prepare('SELECT `id` FROM `dm_assignments` WHERE `game_room_id` = :room_id LIMIT 1');
+                $dmStmt->bindValue(':room_id', $roomId, PDO::PARAM_INT);
+                $dmStmt->execute();
+                $dmAssignId = $dmStmt->fetchColumn();
 
-            // Tạo buổi chơi chính thức (Session)
-            $sessCheck = $this->pdo->prepare('SELECT `id` FROM `sessions` WHERE `game_room_id` = :room_id LIMIT 1');
-            $sessCheck->bindValue(':room_id', $roomId, PDO::PARAM_INT);
-            $sessCheck->execute();
-            $existingSess = $sessCheck->fetchColumn();
+                if ($dmAssignId === false) {
+                    // Tạo DM assignment mặc định với DM user 2 (Host Hoàng Nam)
+                    $insDm = $this->pdo->prepare('INSERT INTO `dm_assignments` (`game_room_id`, `dm_user_id`, `assigned_by`, `status`, `assigned_at`, `created_at`, `updated_at`) VALUES (:room_id, 2, 1, \'ACCEPTED\', NOW(), NOW(), NOW())');
+                    $insDm->bindValue(':room_id', $roomId, PDO::PARAM_INT);
+                    $insDm->execute();
+                    $dmAssignId = (int) $this->pdo->lastInsertId();
+                } else {
+                    $dmAssignId = (int) $dmAssignId;
+                }
 
-            if ($existingSess === false) {
-                $insSess = $this->pdo->prepare(
-                    'INSERT INTO `sessions` (`game_room_id`, `schedule_proposal_id`, `dm_assignment_id`, `venue_id`, `physical_room_id`, `start_at`, `end_at`, `status`, `created_at`, `updated_at`)
-                     VALUES (:room_id, :proposal_id, :dm_id, 1, 1, :start_at, :end_at, \'SCHEDULED\', NOW(), NOW())'
-                );
-                $insSess->bindValue(':room_id', $roomId, PDO::PARAM_INT);
-                $insSess->bindValue(':proposal_id', $proposalId, PDO::PARAM_INT);
-                $insSess->bindValue(':dm_id', $dmAssignId, PDO::PARAM_INT);
-                $insSess->bindValue(':start_at', $proposal['proposed_start_at'], PDO::PARAM_STR);
-                $insSess->bindValue(':end_at', $proposal['proposed_end_at'], PDO::PARAM_STR);
-                $insSess->execute();
-                $sessionId = (int) $this->pdo->lastInsertId();
-                $sessionCreated = true;
-            } else {
-                $sessionId = (int) $existingSess;
+                // Tạo buổi chơi chính thức (Session)
+                $sessCheck = $this->pdo->prepare('SELECT `id` FROM `sessions` WHERE `game_room_id` = :room_id LIMIT 1');
+                $sessCheck->bindValue(':room_id', $roomId, PDO::PARAM_INT);
+                $sessCheck->execute();
+                $existingSess = $sessCheck->fetchColumn();
+
+                if ($existingSess === false) {
+                    $insSess = $this->pdo->prepare(
+                        'INSERT INTO `sessions` (`game_room_id`, `schedule_proposal_id`, `dm_assignment_id`, `venue_id`, `physical_room_id`, `start_at`, `end_at`, `status`, `created_at`, `updated_at`)
+                         VALUES (:room_id, :proposal_id, :dm_id, 1, 1, :start_at, :end_at, \'SCHEDULED\', NOW(), NOW())'
+                    );
+                    $insSess->bindValue(':room_id', $roomId, PDO::PARAM_INT);
+                    $insSess->bindValue(':proposal_id', $proposalId, PDO::PARAM_INT);
+                    $insSess->bindValue(':dm_id', $dmAssignId, PDO::PARAM_INT);
+                    $insSess->bindValue(':start_at', $proposal['proposed_start_at'], PDO::PARAM_STR);
+                    $insSess->bindValue(':end_at', $proposal['proposed_end_at'], PDO::PARAM_STR);
+                    $insSess->execute();
+                    $sessionId = (int) $this->pdo->lastInsertId();
+                    $sessionCreated = true;
+                } else {
+                    $sessionId = (int) $existingSess;
+                    $sessionCreated = true;
+                }
+
+                $this->pdo->commit();
+            } catch (\Throwable $e) {
+                if ($this->pdo->inTransaction()) {
+                    $this->pdo->rollBack();
+                }
+                throw $e;
             }
         }
 

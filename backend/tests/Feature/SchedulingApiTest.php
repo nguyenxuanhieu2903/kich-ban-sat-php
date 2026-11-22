@@ -24,6 +24,9 @@ class SchedulingApiTest extends TestCase
         $routesFile = $basePath . '/routes/api.php';
         $router = $this->app->getRouter();
         require $routesFile;
+
+        $pdo = \App\Infrastructure\Database\DatabaseConnection::getInstance();
+        $pdo->exec("UPDATE `game_rooms` SET `status` = 'CANCELLED' WHERE `title` LIKE 'Phòng test%' AND `status` = 'FORMING'");
     }
 
     public function testCanListVenuesAndPhysicalRooms(): void
@@ -119,5 +122,25 @@ class SchedulingApiTest extends TestCase
         $this->assertTrue($voteData['success']);
         $this->assertTrue($voteData['data']['proposal_confirmed']);
         $this->assertNotNull($voteData['data']['session_id']);
+
+        // 6. DEF-01: Đồng bộ trạng thái game_rooms sang SCHEDULED
+        $pdo = \App\Infrastructure\Database\DatabaseConnection::getInstance();
+        $roomStatus = $pdo->query("SELECT `status` FROM `game_rooms` WHERE `id` = {$roomId}")->fetchColumn();
+        $this->assertSame('SCHEDULED', $roomStatus);
+
+        // 7. DEF-01: Ngăn người ngoài tiếp tục Join GameRoom đã chốt lịch
+        $joinAfterScheduled = new Request(
+            method: 'POST',
+            path: "/api/rooms/{$roomId}/join",
+            queryParams: [],
+            bodyParams: [],
+            headers: [
+                'Authorization' => 'Bearer 1',
+            ]
+        );
+        $resAfterScheduled = $this->app->dispatch($joinAfterScheduled);
+        $this->assertSame(400, $resAfterScheduled->getStatusCode());
+        $bodyAfterScheduled = json_decode($resAfterScheduled->getContent(), true);
+        $this->assertSame('ROOM_NOT_FORMING', $bodyAfterScheduled['error']['code']);
     }
 }

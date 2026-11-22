@@ -82,7 +82,7 @@ class GameRoomRepository extends BaseRepository
                 $configId = $resolved !== false ? (int) $resolved : 1;
             }
 
-            $deadline = $data['formation_deadline_at'] ?? $data['formation_deadline'] ?? date('Y-m-d H:i:s', strtotime('+3 days'));
+            $deadline = $data['formation_deadline_at'] ?? $data['formation_deadline'] ?? date('Y-m-d H:i:s', strtotime('+4 hours'));
             $desc = $data['description'] ?? $data['notes'] ?? null;
 
             $stmt = $this->pdo->prepare(
