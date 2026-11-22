@@ -12,6 +12,7 @@ if (file_exists($autoloader)) {
 
 // Initialize environment configuration
 App\Infrastructure\Config\Config::load($basePath);
+date_default_timezone_set((string) App\Infrastructure\Config\Config::get('APP_TIMEZONE', 'Asia/Ho_Chi_Minh'));
 
 // Instantiate application
 $app = new App\Core\Application($basePath);

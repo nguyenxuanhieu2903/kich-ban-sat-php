@@ -56,7 +56,7 @@ class CsrfMiddleware implements MiddlewareInterface
         }
 
         // Skip in testing environment or test header
-        $isTesting = Config::get('APP_ENV') === 'testing' || $request->getHeader('x-testing') === '1';
+        $isTesting = Config::get('APP_ENV') === 'testing';
         if ($isTesting) {
             return $next($request);
         }

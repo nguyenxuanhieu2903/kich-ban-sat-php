@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Features\Pricing\Controllers;
 
+use App\Core\Middleware\AuthMiddleware;
 use App\Core\Request;
 use App\Core\Response;
 use App\Features\Pricing\Services\PricingService;
@@ -32,6 +33,11 @@ class PricingController
     public function calculate(Request $request, string $id): Response
     {
         $roomId = (int) $id;
+        $auth = AuthMiddleware::authenticate($request);
+        if ($auth instanceof Response) {
+            return $auth;
+        }
+
         $body = $request->getBodyParams();
 
         $playTime = isset($body['play_time']) ? trim((string) $body['play_time']) : null;

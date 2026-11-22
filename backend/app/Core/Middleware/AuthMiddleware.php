@@ -7,6 +7,7 @@ namespace App\Core\Middleware;
 use App\Core\Request;
 use App\Core\Response;
 use App\Features\Identity\Repositories\UserRepository;
+use App\Infrastructure\Config\Config;
 use App\Infrastructure\Database\DatabaseConnection;
 
 class AuthMiddleware implements MiddlewareInterface
@@ -43,7 +44,7 @@ class AuthMiddleware implements MiddlewareInterface
         }
 
         // Support Bearer token header in API/Testing environment (e.g. "Bearer {user_id}")
-        if ($userId === null) {
+        if ($userId === null && Config::get('APP_ENV') === 'testing') {
             $authHeader = $request->getHeader('authorization');
             if ($authHeader !== null && preg_match('/Bearer\s+(\d+)/i', $authHeader, $matches)) {
                 $userId = (int) $matches[1];

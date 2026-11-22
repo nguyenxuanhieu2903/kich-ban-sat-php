@@ -118,7 +118,7 @@ class UserRepository extends BaseRepository
     public function update(int $id, array $data): bool
     {
         return $this->executeQuery(function () use ($id, $data): bool {
-            $allowedColumns = ['full_name', 'email', 'password_hash', 'phone', 'status', 'email_verified_at', 'avatar_url'];
+            $allowedColumns = ['full_name', 'email', 'password_hash', 'phone', 'status', 'email_verified_at', 'avatar_url', 'last_login_at'];
             if (isset($data['name']) && !isset($data['full_name'])) {
                 $data['full_name'] = $data['name'];
                 unset($data['name']);

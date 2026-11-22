@@ -38,6 +38,7 @@ class ExceptionHandler
             $statusCode = $e->getStatusCode();
             $headers = $e->getHeaders();
             $message = $e->getMessage();
+            $errorCode = null;
 
             if ($e instanceof BadRequestException) {
                 $errorCode = 'BAD_REQUEST';

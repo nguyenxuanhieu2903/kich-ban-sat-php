@@ -125,7 +125,7 @@ class AuthController
 
         // Update last login
         $this->userRepo->update((int) $user['id'], [
-            'email' => $user['email'],
+            'last_login_at' => date('Y-m-d H:i:s'),
         ]);
 
         if (session_status() === PHP_SESSION_ACTIVE) {

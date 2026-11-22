@@ -11,7 +11,7 @@ return [
     'allowed_origins' => $allowedOrigins,
     'supports_credentials' => (bool) Config::get('CORS_SUPPORTS_CREDENTIALS', true),
     'allowed_methods' => ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    'allowed_headers' => ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept'],
+    'allowed_headers' => ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'X-CSRF-Token', 'X-Idempotency-Key', 'Idempotency-Key'],
     'exposed_headers' => [],
     'max_age' => 86400,
 ];

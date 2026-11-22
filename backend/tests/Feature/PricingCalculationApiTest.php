@@ -7,7 +7,6 @@ namespace Tests\Feature;
 use App\Core\Application;
 use App\Core\Request;
 use App\Infrastructure\Config\Config;
-use App\Infrastructure\Database\DatabaseConnection;
 use PHPUnit\Framework\TestCase;
 
 class PricingCalculationApiTest extends TestCase
@@ -27,8 +26,29 @@ class PricingCalculationApiTest extends TestCase
         require $routesFile;
     }
 
+    public function testUnauthenticatedUserCannotCalculatePrice(): void
+    {
+        $request = new Request(
+            method: 'POST',
+            path: '/api/v1/rooms/1/calculate-price',
+            queryParams: [],
+            bodyParams: [
+                'play_time' => '2026-11-25 14:00:00',
+            ]
+        );
+
+        $response = $this->app->dispatch($request);
+        $this->assertSame(401, $response->getStatusCode());
+
+        $data = json_decode($response->getContent(), true);
+        $this->assertFalse($data['success']);
+        $this->assertSame('UNAUTHORIZED', $data['error']['code']);
+    }
+
     public function testCanCalculateRoomPriceWithFixedDepositAndTimeSlot(): void
     {
+        $_SESSION['user_id'] = 3;
+
         // Tính giá cho Room 1 vào khung giờ ban ngày (14:00)
         $request = new Request(
             method: 'POST',
@@ -56,6 +76,8 @@ class PricingCalculationApiTest extends TestCase
 
     public function testTuesdayPromotionOnlyAppliesOnTuesday(): void
     {
+        $_SESSION['user_id'] = 3;
+
         // 1. Ngày Thứ Ba: 2026-11-24
         $tueReq = new Request(
             method: 'POST',
@@ -95,6 +117,8 @@ class PricingCalculationApiTest extends TestCase
 
     public function testCanGetPriceSnapshotAfterCalculation(): void
     {
+        $_SESSION['user_id'] = 3;
+
         // Gọi calculate trước
         $calcReq = new Request('POST', '/api/v1/rooms/1/calculate-price', [], ['play_time' => '2026-11-24 15:00:00']);
         $this->app->dispatch($calcReq);
