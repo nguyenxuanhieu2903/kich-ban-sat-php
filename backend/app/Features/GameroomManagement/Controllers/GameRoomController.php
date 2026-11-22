@@ -346,15 +346,25 @@ class GameRoomController
                 $upOld->bindValue(':id', $leavingPartId, PDO::PARAM_INT);
                 $upOld->execute();
 
-                // 2. Thêm người mới vào slot thay thế
+                // 2. Thêm người mới vào slot thay thế và gán hạn cọc 2 giờ kèm hóa đơn cọc
+                $repDepositDl = date('Y-m-d H:i:s', time() + (2 * 3600));
                 $insNewPart = $this->pdo->prepare(
-                    'INSERT INTO `room_participants` (`game_room_id`, `user_id`, `status`, `joined_at`, `created_at`, `updated_at`)
-                     VALUES (:game_room_id, :user_id, \'PENDING_DEPOSIT\', NOW(), NOW(), NOW())'
+                    'INSERT INTO `room_participants` (`game_room_id`, `user_id`, `status`, `deposit_deadline_at`, `joined_at`, `created_at`, `updated_at`)
+                     VALUES (:game_room_id, :user_id, \'PENDING_DEPOSIT\', :deadline_at, NOW(), NOW(), NOW())'
                 );
                 $insNewPart->bindValue(':game_room_id', $roomId, PDO::PARAM_INT);
                 $insNewPart->bindValue(':user_id', $userId, PDO::PARAM_INT);
+                $insNewPart->bindValue(':deadline_at', $repDepositDl, PDO::PARAM_STR);
                 $insNewPart->execute();
                 $newPartId = (int) $this->pdo->lastInsertId();
+
+                $insPay = $this->pdo->prepare(
+                    'INSERT INTO `player_payments` (`room_participant_id`, `payment_type`, `amount`, `paid_amount`, `status`, `deadline_at`, `created_at`, `updated_at`)
+                     VALUES (:part_id, \'DEPOSIT\', 50000, 0, \'PENDING\', :deadline_at, NOW(), NOW())'
+                );
+                $insPay->bindValue(':part_id', $newPartId, PDO::PARAM_INT);
+                $insPay->bindValue(':deadline_at', $repDepositDl, PDO::PARAM_STR);
+                $insPay->execute();
 
                 // 3. Kiểm tra xem còn ai LEAVE_REQUESTED không
                 $checkLeftStmt = $this->pdo->prepare(

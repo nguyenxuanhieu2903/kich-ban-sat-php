@@ -85,43 +85,103 @@ class SchedulingController
             return Response::fail('Chỉ thành viên trong phòng mới có thể đề xuất lịch', 'FORBIDDEN', 403);
         }
 
-        // Kiểm tra xem phòng có đề xuất nào đang mở không (PROPOSED)
-        $chkProp = $this->pdo->prepare('SELECT `id` FROM `schedule_proposals` WHERE `game_room_id` = :room_id AND `status` = \'PROPOSED\' LIMIT 1');
-        $chkProp->bindValue(':room_id', $roomId, PDO::PARAM_INT);
-        $chkProp->execute();
-        $existingProp = $chkProp->fetchColumn();
+        $this->pdo->beginTransaction();
+        try {
+            // Kiểm tra xem phòng có đề xuất nào đang mở không (PROPOSED)
+            $chkProp = $this->pdo->prepare('SELECT `id` FROM `schedule_proposals` WHERE `game_room_id` = :room_id AND `status` = \'PROPOSED\' LIMIT 1 FOR UPDATE');
+            $chkProp->bindValue(':room_id', $roomId, PDO::PARAM_INT);
+            $chkProp->execute();
+            $existingProp = $chkProp->fetchColumn();
 
-        if ($existingProp !== false) {
-            // Hủy đề xuất cũ nếu có
-            $cancelStmt = $this->pdo->prepare('UPDATE `schedule_proposals` SET `status` = \'CANCELLED\' WHERE `id` = :id');
-            $cancelStmt->bindValue(':id', (int) $existingProp, PDO::PARAM_INT);
-            $cancelStmt->execute();
+            if ($existingProp !== false) {
+                // Hủy đề xuất cũ nếu có
+                $cancelStmt = $this->pdo->prepare('UPDATE `schedule_proposals` SET `status` = \'CANCELLED\' WHERE `id` = :id');
+                $cancelStmt->bindValue(':id', (int) $existingProp, PDO::PARAM_INT);
+                $cancelStmt->execute();
+            }
+
+            $expiresAt = date('Y-m-d H:i:s', strtotime('+24 hours'));
+
+            $insProp = $this->pdo->prepare(
+                'INSERT INTO `schedule_proposals` (`game_room_id`, `proposed_by`, `proposed_start_at`, `proposed_end_at`, `status`, `expires_at`, `created_at`)
+                 VALUES (:room_id, :user_id, :start_at, :end_at, \'PROPOSED\', :expires_at, NOW())'
+            );
+            $insProp->bindValue(':room_id', $roomId, PDO::PARAM_INT);
+            $insProp->bindValue(':user_id', $userId, PDO::PARAM_INT);
+            $insProp->bindValue(':start_at', $startAt, PDO::PARAM_STR);
+            $insProp->bindValue(':end_at', $endAt, PDO::PARAM_STR);
+            $insProp->bindValue(':expires_at', $expiresAt, PDO::PARAM_STR);
+            $insProp->execute();
+
+            $proposalId = (int) $this->pdo->lastInsertId();
+
+            // Tự động ghi nhận vote ACCEPTED của người đề xuất
+            $insVote = $this->pdo->prepare(
+                'INSERT INTO `schedule_responses` (`game_room_id`, `schedule_proposal_id`, `room_participant_id`, `response`, `responded_at`, `created_at`)
+                 VALUES (:room_id, :proposal_id, :part_id, \'ACCEPTED\', NOW(), NOW())'
+            );
+            $insVote->bindValue(':room_id', $roomId, PDO::PARAM_INT);
+            $insVote->bindValue(':proposal_id', $proposalId, PDO::PARAM_INT);
+            $insVote->bindValue(':part_id', (int) $participantId, PDO::PARAM_INT);
+            $insVote->execute();
+
+            // DEC-01 (Option B): Tạo hóa đơn cọc (50.000 VNĐ) cho các thành viên active khi phòng bước vào giai đoạn biểu quyết lịch
+            $depositDeadline = date('Y-m-d H:i:s', time() + (2 * 3600)); // 2 giờ theo V16 baseline
+
+            $eligiblePartsStmt = $this->pdo->prepare(
+                'SELECT `id`, `user_id`, `deposit_deadline_at`
+                 FROM `room_participants`
+                 WHERE `game_room_id` = :room_id
+                   AND `status` = \'PENDING_DEPOSIT\'
+                 FOR UPDATE'
+            );
+            $eligiblePartsStmt->bindValue(':room_id', $roomId, PDO::PARAM_INT);
+            $eligiblePartsStmt->execute();
+            $eligibleParticipants = $eligiblePartsStmt->fetchAll(PDO::FETCH_ASSOC);
+
+            foreach ($eligibleParticipants as $elPart) {
+                $elPartId = (int) $elPart['id'];
+
+                // Kiểm tra xem đã có hóa đơn DEPOSIT chưa để tránh tạo trùng lặp
+                $chkPay = $this->pdo->prepare(
+                    'SELECT `id` FROM `player_payments`
+                     WHERE `room_participant_id` = :part_id AND `payment_type` = \'DEPOSIT\'
+                     LIMIT 1 FOR UPDATE'
+                );
+                $chkPay->bindValue(':part_id', $elPartId, PDO::PARAM_INT);
+                $chkPay->execute();
+                $existingPayId = $chkPay->fetchColumn();
+
+                if ($existingPayId === false) {
+                    $insPay = $this->pdo->prepare(
+                        'INSERT INTO `player_payments` (`room_participant_id`, `payment_type`, `amount`, `paid_amount`, `status`, `deadline_at`, `created_at`, `updated_at`)
+                         VALUES (:part_id, \'DEPOSIT\', 50000, 0, \'PENDING\', :deadline_at, NOW(), NOW())'
+                    );
+                    $insPay->bindValue(':part_id', $elPartId, PDO::PARAM_INT);
+                    $insPay->bindValue(':deadline_at', $depositDeadline, PDO::PARAM_STR);
+                    $insPay->execute();
+                }
+
+                // Gán deposit_deadline_at cho participant nếu chưa có
+                if (empty($elPart['deposit_deadline_at'])) {
+                    $upPartDl = $this->pdo->prepare(
+                        'UPDATE `room_participants`
+                         SET `deposit_deadline_at` = :deadline_at, `updated_at` = NOW()
+                         WHERE `id` = :part_id AND `deposit_deadline_at` IS NULL'
+                    );
+                    $upPartDl->bindValue(':deadline_at', $depositDeadline, PDO::PARAM_STR);
+                    $upPartDl->bindValue(':part_id', $elPartId, PDO::PARAM_INT);
+                    $upPartDl->execute();
+                }
+            }
+
+            $this->pdo->commit();
+        } catch (\Throwable $e) {
+            if ($this->pdo->inTransaction()) {
+                $this->pdo->rollBack();
+            }
+            throw $e;
         }
-
-        $expiresAt = date('Y-m-d H:i:s', strtotime('+24 hours'));
-
-        $insProp = $this->pdo->prepare(
-            'INSERT INTO `schedule_proposals` (`game_room_id`, `proposed_by`, `proposed_start_at`, `proposed_end_at`, `status`, `expires_at`, `created_at`)
-             VALUES (:room_id, :user_id, :start_at, :end_at, \'PROPOSED\', :expires_at, NOW())'
-        );
-        $insProp->bindValue(':room_id', $roomId, PDO::PARAM_INT);
-        $insProp->bindValue(':user_id', $userId, PDO::PARAM_INT);
-        $insProp->bindValue(':start_at', $startAt, PDO::PARAM_STR);
-        $insProp->bindValue(':end_at', $endAt, PDO::PARAM_STR);
-        $insProp->bindValue(':expires_at', $expiresAt, PDO::PARAM_STR);
-        $insProp->execute();
-
-        $proposalId = (int) $this->pdo->lastInsertId();
-
-        // Tự động ghi nhận vote ACCEPTED của người đề xuất
-        $insVote = $this->pdo->prepare(
-            'INSERT INTO `schedule_responses` (`game_room_id`, `schedule_proposal_id`, `room_participant_id`, `response`, `responded_at`, `created_at`)
-             VALUES (:room_id, :proposal_id, :part_id, \'ACCEPTED\', NOW(), NOW())'
-        );
-        $insVote->bindValue(':room_id', $roomId, PDO::PARAM_INT);
-        $insVote->bindValue(':proposal_id', $proposalId, PDO::PARAM_INT);
-        $insVote->bindValue(':part_id', (int) $participantId, PDO::PARAM_INT);
-        $insVote->execute();
 
         return Response::success([
             'proposal_id' => $proposalId,

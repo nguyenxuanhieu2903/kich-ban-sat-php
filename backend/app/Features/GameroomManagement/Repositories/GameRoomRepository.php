@@ -166,9 +166,12 @@ class GameRoomRepository extends BaseRepository
             $stmt = $this->pdo->prepare(
                 'SELECT rp.`id`, rp.`game_room_id`, rp.`user_id`, rp.`status`,
                         rp.`joined_at`, rp.`deposit_deadline_at`, rp.`deposited_at`, rp.`left_at`,
-                        u.`full_name` AS `user_name`, u.`full_name`, u.`email` AS `user_email`
+                        u.`full_name` AS `user_name`, u.`full_name`, u.`email` AS `user_email`,
+                        p.`id` AS `payment_id`, p.`amount` AS `payment_amount`, p.`paid_amount` AS `payment_paid_amount`,
+                        p.`status` AS `payment_status`, p.`deadline_at` AS `payment_deadline_at`
                  FROM `room_participants` rp
                  INNER JOIN `users` u ON u.`id` = rp.`user_id`
+                 LEFT JOIN `player_payments` p ON p.`room_participant_id` = rp.`id` AND p.`payment_type` = \'DEPOSIT\'
                  WHERE rp.`game_room_id` = :game_room_id
                  ORDER BY rp.`joined_at` ASC'
             );

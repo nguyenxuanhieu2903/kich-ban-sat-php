@@ -198,33 +198,82 @@ class PaymentRepository extends BaseRepository
     public function processPayment(int $paymentId, int $payAmount, string $idempotencyKey, string $method = 'SIMULATED'): array
     {
         return $this->executeQuery(function () use ($paymentId, $payAmount, $idempotencyKey, $method): array {
-            // Check existing idempotency key
-            $existingTx = $this->findAttemptByIdempotencyKey($idempotencyKey);
-            if ($existingTx !== null) {
-                $payment = $this->findPaymentWithDetails($paymentId);
-                return [
-                    'success' => $existingTx['status'] === 'SUCCESS',
-                    'payment' => $payment ?? [],
-                    'transaction' => $existingTx,
-                ];
-            }
-
-            $payment = $this->findPaymentWithDetails($paymentId);
-            if ($payment === null) {
-                throw new \InvalidArgumentException('Không tìm thấy thông tin khoản thanh toán');
-            }
-
-            $currentPaid = (int) $payment['paid_amount'];
-            $totalAmount = (int) $payment['amount'];
-            $newPaid = $currentPaid + $payAmount;
-
-            $newStatus = $newPaid >= $totalAmount ? 'PAID' : 'PARTIALLY_PAID';
-            $txRef = 'TX_' . strtoupper(bin2hex(random_bytes(8)));
-            $metadata = json_encode(['method' => $method, 'pay_amount' => $payAmount]);
-
             $this->pdo->beginTransaction();
             try {
-                // Insert transaction
+                // 1. Kiểm tra Idempotency Key trong transaction
+                $existingTx = $this->findAttemptByIdempotencyKey($idempotencyKey);
+                if ($existingTx !== null) {
+                    $payment = $this->findPaymentWithDetails($paymentId);
+                    $this->pdo->commit();
+                    return [
+                        'success' => $existingTx['status'] === 'SUCCESS',
+                        'payment' => $payment ?? [],
+                        'transaction' => $existingTx,
+                    ];
+                }
+
+                // 2. Khóa dòng bản ghi player_payments để bảo vệ concurrency
+                $lockStmt = $this->pdo->prepare(
+                    'SELECT `id`, `room_participant_id`, `payment_type`, `amount`, `paid_amount`, `status`, `deadline_at`
+                     FROM `player_payments`
+                     WHERE `id` = :id
+                     FOR UPDATE'
+                );
+                $lockStmt->bindValue(':id', $paymentId, PDO::PARAM_INT);
+                $lockStmt->execute();
+                $payment = $lockStmt->fetch(PDO::FETCH_ASSOC);
+
+                if ($payment === false) {
+                    throw new \InvalidArgumentException('Không tìm thấy thông tin khoản thanh toán');
+                }
+
+                if ($payment['status'] === 'PAID') {
+                    $this->pdo->commit();
+                    $fullPayment = $this->findPaymentWithDetails($paymentId);
+                    return [
+                        'success' => true,
+                        'payment' => $fullPayment ?? [],
+                        'transaction' => [
+                            'id' => 0,
+                            'transaction_reference' => 'TX_ALREADY_PAID',
+                            'amount' => 0,
+                            'status' => 'SUCCESS',
+                            'idempotency_key' => $idempotencyKey,
+                        ],
+                    ];
+                }
+
+                if ($payment['status'] === 'EXPIRED') {
+                    throw new \DomainException('Khoản thanh toán này đã hết hạn');
+                }
+
+                $currentPaid = (int) $payment['paid_amount'];
+                $totalAmount = (int) $payment['amount'];
+                $remainingToPay = max(0, $totalAmount - $currentPaid);
+                $actualPay = min($payAmount, $remainingToPay);
+
+                if ($actualPay <= 0) {
+                    $this->pdo->commit();
+                    $fullPayment = $this->findPaymentWithDetails($paymentId);
+                    return [
+                        'success' => true,
+                        'payment' => $fullPayment ?? [],
+                        'transaction' => [
+                            'id' => 0,
+                            'transaction_reference' => 'TX_ALREADY_PAID',
+                            'amount' => 0,
+                            'status' => 'SUCCESS',
+                            'idempotency_key' => $idempotencyKey,
+                        ],
+                    ];
+                }
+
+                $newPaid = $currentPaid + $actualPay;
+                $newStatus = $newPaid >= $totalAmount ? 'PAID' : 'PARTIALLY_PAID';
+                $txRef = 'TX_' . strtoupper(bin2hex(random_bytes(8)));
+                $metadata = json_encode(['method' => $method, 'pay_amount' => $actualPay]);
+
+                // 3. Ghi nhận giao dịch thanh toán
                 $txStmt = $this->pdo->prepare(
                     'INSERT INTO `payment_transactions` (`player_payment_id`, `idempotency_key`, `transaction_reference`,
                                                          `amount`, `status`, `provider_response`, `requested_at`, `processed_at`, `created_at`)
@@ -234,12 +283,12 @@ class PaymentRepository extends BaseRepository
                 $txStmt->bindValue(':payment_id', $paymentId, PDO::PARAM_INT);
                 $txStmt->bindValue(':idempotency_key', $idempotencyKey, PDO::PARAM_STR);
                 $txStmt->bindValue(':tx_ref', $txRef, PDO::PARAM_STR);
-                $txStmt->bindValue(':amount', $payAmount, PDO::PARAM_INT);
+                $txStmt->bindValue(':amount', $actualPay, PDO::PARAM_INT);
                 $txStmt->bindValue(':provider_response', $metadata, PDO::PARAM_STR);
                 $txStmt->execute();
                 $txId = (int) $this->pdo->lastInsertId();
 
-                // Update payment
+                // 4. Cập nhật player_payments
                 $upStmt = $this->pdo->prepare(
                     'UPDATE `player_payments`
                      SET `paid_amount` = :paid_amount,
@@ -254,15 +303,17 @@ class PaymentRepository extends BaseRepository
                 $upStmt->bindValue(':id', $paymentId, PDO::PARAM_INT);
                 $upStmt->execute();
 
-                // Update participant status to DEPOSITED if participant is still PENDING_DEPOSIT
-                $partId = (int) $payment['room_participant_id'];
-                $partUp = $this->pdo->prepare(
-                    'UPDATE `room_participants`
-                     SET `status` = \'DEPOSITED\', `updated_at` = NOW()
-                     WHERE `id` = :part_id AND `status` = \'PENDING_DEPOSIT\''
-                );
-                $partUp->bindValue(':part_id', $partId, PDO::PARAM_INT);
-                $partUp->execute();
+                // 5. Cập nhật participant status sang DEPOSITED nếu là cọc thành công
+                if ($payment['payment_type'] === 'DEPOSIT' && $newStatus === 'PAID') {
+                    $partId = (int) $payment['room_participant_id'];
+                    $partUp = $this->pdo->prepare(
+                        'UPDATE `room_participants`
+                         SET `status` = \'DEPOSITED\', `deposited_at` = NOW(), `updated_at` = NOW()
+                         WHERE `id` = :part_id AND `status` = \'PENDING_DEPOSIT\''
+                    );
+                    $partUp->bindValue(':part_id', $partId, PDO::PARAM_INT);
+                    $partUp->execute();
+                }
 
                 $this->pdo->commit();
 
@@ -270,7 +321,7 @@ class PaymentRepository extends BaseRepository
                 $txRecord = [
                     'id' => $txId,
                     'transaction_reference' => $txRef,
-                    'amount' => $payAmount,
+                    'amount' => $actualPay,
                     'status' => 'SUCCESS',
                     'idempotency_key' => $idempotencyKey,
                 ];
@@ -280,6 +331,20 @@ class PaymentRepository extends BaseRepository
                     'payment' => $updatedPayment ?? [],
                     'transaction' => $txRecord,
                 ];
+            } catch (\PDOException $e) {
+                if ($this->pdo->inTransaction()) {
+                    $this->pdo->rollBack();
+                }
+                if ($e->getCode() === '23000' && str_contains($e->getMessage(), 'uq_payment_transaction_idempotency')) {
+                    $existingTx = $this->findAttemptByIdempotencyKey($idempotencyKey);
+                    $payment = $this->findPaymentWithDetails($paymentId);
+                    return [
+                        'success' => ($existingTx['status'] ?? '') === 'SUCCESS',
+                        'payment' => $payment ?? [],
+                        'transaction' => $existingTx ?? [],
+                    ];
+                }
+                throw $e;
             } catch (\Throwable $e) {
                 if ($this->pdo->inTransaction()) {
                     $this->pdo->rollBack();

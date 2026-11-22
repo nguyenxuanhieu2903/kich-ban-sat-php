@@ -153,6 +153,15 @@ class BackgroundJobService
                 $upPart->bindValue(':id', $partId, PDO::PARAM_INT);
                 $upPart->execute();
 
+                // Đánh dấu hóa đơn cọc sang EXPIRED
+                $upPay = $this->pdo->prepare(
+                    'UPDATE `player_payments`
+                     SET `status` = \'EXPIRED\', `expired_at` = NOW(), `updated_at` = NOW()
+                     WHERE `room_participant_id` = :part_id AND `status` = \'PENDING\''
+                );
+                $upPay->bindValue(':part_id', $partId, PDO::PARAM_INT);
+                $upPay->execute();
+
                 // Mở Replacement Window cho phòng
                 $upRoom = $this->pdo->prepare(
                     'UPDATE `game_rooms`

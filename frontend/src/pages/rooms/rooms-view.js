@@ -447,6 +447,26 @@ export class RoomsView {
       return;
     }
 
+    const currentUserId = authState.user ? authState.user.id : null;
+    const myParticipant = this.selectedRoom && this.selectedRoom.participants
+      ? this.selectedRoom.participants.find(p => p.user_id == currentUserId)
+      : null;
+
+    if (!myParticipant) {
+      toast.error('Bạn chưa tham gia phòng này');
+      return;
+    }
+
+    if (myParticipant.status === 'DEPOSITED') {
+      toast.info('Bạn đã hoàn tất nộp cọc cho phòng này rồi');
+      return;
+    }
+
+    if (!myParticipant.payment_id) {
+      toast.warning('Phòng chưa chuyển sang giai đoạn biểu quyết lịch, chưa có hóa đơn cọc');
+      return;
+    }
+
     const modal = document.createElement('dialog');
     modal.className = 'custom-modal';
     modal.style.cssText = `
@@ -487,13 +507,24 @@ export class RoomsView {
       confirmBtn.disabled = true;
       confirmBtn.textContent = 'Đang giao dịch...';
       try {
-        toast.success('Giao dịch cọc 50.000 VNĐ thành công!');
-        modal.close();
-        await this.showRoomDetail(this.selectedRoom.id);
+        const idempKey = 'DEP_' + myParticipant.payment_id + '_' + Date.now();
+        const res = await api.post(`/payments/${myParticipant.payment_id}/deposit`, {
+          payment_method: 'SIMULATED_MOMO',
+          idempotency_key: idempKey,
+        });
+
+        if (res.success) {
+          toast.success('Giao dịch cọc 50.000 VNĐ thành công!');
+          modal.close();
+          await this.showRoomDetail(this.selectedRoom.id);
+        } else {
+          toast.error(res.error?.message || 'Thanh toán cọc không thành công');
+        }
       } catch (err) {
-        toast.error(err.message);
+        toast.error(err.message || 'Lỗi kết nối khi thanh toán');
       } finally {
         confirmBtn.disabled = false;
+        confirmBtn.textContent = 'Xác nhận nộp cọc';
       }
     };
 
