@@ -1,110 +1,380 @@
 import { api } from '../../api/api-client.js';
 import { authState } from '../../api/auth-state.js';
 import { toast } from '../../utils/toast.js';
+import { escapeHtml } from '../../utils/sanitize.js';
+import { ALL_SCRIPTS } from '../../data/scripts.data.js';
 
 export class RoomsView {
   constructor(container, onOpenAuthModal = () => {}) {
     this.container = container;
     this.onOpenAuthModal = onOpenAuthModal;
     this.rooms = [];
+    this.allRooms = [];
     this.selectedRoom = null;
-    this.currentFilter = 'FORMING';
+    this.currentTab = 'FORMING'; // FORMING | REPLACEMENT | SCHEDULED | ALL
+    this.filterDate = '';
+    this.filterScript = '';
   }
 
   async render() {
     this.selectedRoom = null;
     this.container.innerHTML = `
-      <div style="margin-bottom: 24px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px;">
+      <!-- HEADER TIÊU ĐỀ & NÚT TẠO PHÒNG -->
+      <div style="margin-bottom: 24px; display: flex; justify-content: space-between; align-items: flex-end; flex-wrap: wrap; gap: 16px;">
         <div>
-          <h2 style="font-size: 1.5rem; font-weight: 700; margin: 0 0 6px 0;">Sảnh Phòng Chơi (Game Room Lobby)</h2>
-          <p style="color: var(--color-text-muted); margin: 0; font-size: 0.9rem;">Tìm phòng ghép người chơi hoặc tự mở phòng mời bạn bè cùng tham gia</p>
+          <div style="font-family: var(--font-mono); font-size: 0.8rem; letter-spacing: 0.16em; color: var(--gold); text-transform: uppercase; margin-bottom: 6px;">
+            GHÉP NHÓM TRỰC TUYẾN
+          </div>
+          <h1 style="font-family: var(--font-display); font-size: clamp(1.8rem, 3.8vw, 2.4rem); font-weight: 800; margin: 0; color: #f8fafc;">
+            Sảnh Phòng Chơi
+          </h1>
         </div>
-        <div style="display: flex; gap: 12px; align-items: center;">
-          <select id="rooms-status-filter" class="form-input" style="padding: 8px 12px; font-size: 0.85rem;">
-            <option value="FORMING">Đang gom người (FORMING)</option>
-            <option value="ALL">Tất cả các phòng</option>
-          </select>
-          <button id="btn-open-create-room" class="btn btn-primary" style="display: flex; align-items: center; gap: 6px;">
-            <span>➕</span> Tạo phòng mới
-          </button>
-        </div>
+        <button id="btn-open-create-room" class="btn btn-gold" style="padding: 10px 18px; font-weight: 700; font-size: 0.9rem;">
+          + Tạo phòng mới
+        </button>
       </div>
 
-      <div id="rooms-lobby-content">
-        <div style="text-align: center; padding: 40px; color: var(--color-text-muted);">Đang tải danh sách phòng...</div>
+      <!-- THANH TABS THEO TRẠNG THÁI HỆ THỐNG -->
+      <div class="tabs-bar" id="lobby-tabs-bar" style="margin-bottom: 20px;">
+        <button class="tab-btn ${this.currentTab === 'FORMING' ? 'active' : ''}" data-tab="FORMING">
+          Đang ghép (Forming)
+        </button>
+        <button class="tab-btn ${this.currentTab === 'REPLACEMENT' ? 'active' : ''}" data-tab="REPLACEMENT">
+          🔥 Cần thế chỗ
+        </button>
+        <button class="tab-btn ${this.currentTab === 'SCHEDULED' ? 'active' : ''}" data-tab="SCHEDULED">
+          Đã chốt lịch (Scheduled)
+        </button>
+        <button class="tab-btn ${this.currentTab === 'ALL' ? 'active' : ''}" data-tab="ALL">
+          Tất cả phòng
+        </button>
+      </div>
+
+      <!-- BỘ LỌC NGÀY & KỊCH BẢN -->
+      <div style="display: flex; gap: 12px; margin-bottom: 24px; flex-wrap: wrap; align-items: center;">
+        <input 
+          type="date" 
+          id="lobby-date" 
+          class="form-control" 
+          style="max-width: 210px; padding: 9px 12px; font-size: 0.88rem;" 
+          value="${this.filterDate}"
+        />
+        <select id="lobby-script" class="form-control" style="max-width: 280px; padding: 9px 12px; font-size: 0.88rem;">
+          <option value="">Tất cả kịch bản</option>
+          ${ALL_SCRIPTS.slice(0, 15).map(s => `
+            <option value="${escapeHtml(s.title)}" ${this.filterScript === s.title ? 'selected' : ''}>
+              ${escapeHtml(s.title)}
+            </option>
+          `).join('')}
+        </select>
+        <button class="btn btn-ghost btn-sm" id="lobby-clear" style="padding: 9px 14px;">
+          Xóa lọc
+        </button>
+      </div>
+
+      <!-- GRID PHÒNG CHƠI -->
+      <div class="rooms-grid" id="lobby-grid">
+        <div style="grid-column: 1 / -1; text-align: center; padding: 40px; color: var(--color-text-muted);">
+          Đang nạp danh sách phòng chơi...
+        </div>
       </div>
     `;
 
-    this.container.querySelector('#rooms-status-filter').onchange = (e) => {
-      this.currentFilter = e.target.value;
-      this.fetchRooms();
-    };
-
-    this.container.querySelector('#btn-open-create-room').onclick = () => {
-      this.showCreateRoomModal();
-    };
-
+    this.bindLobbyEvents();
     await this.fetchRooms();
   }
 
-  async fetchRooms() {
-    const content = this.container.querySelector('#rooms-lobby-content');
-    try {
-      const res = await api.get(`/rooms?status=${this.currentFilter}`);
-      this.rooms = res?.data?.rooms || [];
+  bindLobbyEvents() {
+    // Tab switching
+    this.container.querySelectorAll('#lobby-tabs-bar .tab-btn').forEach(btn => {
+      btn.onclick = () => {
+        this.currentTab = btn.dataset.tab;
+        this.container.querySelectorAll('#lobby-tabs-bar .tab-btn').forEach(b => {
+          b.classList.toggle('active', b === btn);
+        });
+        this.renderLobbyGrid();
+      };
+    });
 
-      if (this.rooms.length === 0) {
-        content.innerHTML = `
-          <div style="text-align: center; padding: 60px; background: var(--color-bg-card); border-radius: var(--radius-md); border: 1px dashed var(--color-border);">
-            <div style="font-size: 2.5rem; margin-bottom: 12px;">🎲</div>
-            <h3 style="margin: 0 0 8px 0;">Hiện chưa có phòng nào đang mở</h3>
-            <p style="color: var(--color-text-muted); font-size: 0.9rem; margin: 0 0 16px 0;">Hãy là người đầu tiên tạo phòng để tập hợp đồng đội!</p>
-            <button class="btn btn-primary" id="btn-empty-create">Tạo phòng ngay</button>
-          </div>
-        `;
-        content.querySelector('#btn-empty-create').onclick = () => this.showCreateRoomModal();
-        return;
+    // Date filter
+    const dateInput = this.container.querySelector('#lobby-date');
+    dateInput?.addEventListener('change', (e) => {
+      this.filterDate = e.target.value;
+      this.renderLobbyGrid();
+    });
+
+    // Script filter
+    const scriptSelect = this.container.querySelector('#lobby-script');
+    scriptSelect?.addEventListener('change', (e) => {
+      this.filterScript = e.target.value;
+      this.renderLobbyGrid();
+    });
+
+    // Clear filters
+    this.container.querySelector('#lobby-clear')?.addEventListener('click', () => {
+      this.filterDate = '';
+      this.filterScript = '';
+      const dInput = this.container.querySelector('#lobby-date');
+      const sSelect = this.container.querySelector('#lobby-script');
+      if (dInput) dInput.value = '';
+      if (sSelect) sSelect.value = '';
+      this.renderLobbyGrid();
+    });
+
+    // Create room button
+    this.container.querySelector('#btn-open-create-room')?.addEventListener('click', () => {
+      this.showCreateRoomModal();
+    });
+  }
+
+  async fetchRooms() {
+    try {
+      const res = await api.get('/rooms?status=ALL');
+      const apiRooms = res?.data?.rooms || [];
+
+      // Các phòng mẫu sống động mô phỏng đúng quy chuẩn V16
+      const curatedFallbacks = [
+        {
+          id: '104',
+          title: 'Nhóm Thám Tử Đêm',
+          game_name: 'Yandere: Lời Thề Máu',
+          creator_name: 'Trần Gia Bảo',
+          current_players: 6,
+          max_players: 8,
+          status: 'FORMING',
+          replacement_status: 'NONE',
+          date: '2026-11-24',
+          timeSlot: '19:00',
+          minsLeft: 15
+        },
+        {
+          id: '107',
+          title: 'Cần 2 bạn phá án nhanh',
+          game_name: 'Gương: Phản Chiếu Tội Ác',
+          creator_name: 'Nguyễn Minh Khôi',
+          current_players: 5,
+          max_players: 7,
+          status: 'FORMING',
+          replacement_status: 'NONE',
+          date: '2026-11-23',
+          timeSlot: '14:00',
+          minsLeft: 15
+        },
+        {
+          id: '112',
+          title: 'Hội cổ trang cung đình',
+          game_name: 'Căn Phòng Số 7',
+          creator_name: 'Đào Mỹ Duyên',
+          current_players: 3,
+          max_players: 6,
+          status: 'FORMING',
+          replacement_status: 'NONE',
+          date: '2026-11-26',
+          timeSlot: '16:00',
+          minsLeft: 15
+        },
+        {
+          id: '109',
+          title: 'Sinh Tử: Chuyến Tàu Cuối',
+          game_name: 'Sinh Tử: Chuyến Tàu Cuối',
+          creator_name: 'Lê Hoàng Phúc',
+          current_players: 7,
+          max_players: 8,
+          status: 'SCHEDULED',
+          replacement_status: 'NONE',
+          date: '2026-11-25',
+          timeSlot: '20:00',
+          minsLeft: 0
+        },
+        {
+          id: '118',
+          title: 'Tìm 1 bạn thế chỗ gấp',
+          game_name: 'Vũ Hội Mặt Nạ Đỏ',
+          creator_name: 'Hoàng Yến',
+          current_players: 7,
+          max_players: 8,
+          status: 'SCHEDULED',
+          replacement_status: 'OPEN',
+          date: '2026-11-24',
+          timeSlot: '18:30',
+          minsLeft: 45
+        }
+      ];
+
+      // Chuẩn hóa danh sách phòng từ DB
+      const normalizedDbRooms = apiRooms.map(r => {
+        const isRepl = r.replacement_status === 'OPEN';
+        let minsLeft = 15;
+        if (r.formation_deadline_at) {
+          const diff = Math.round((new Date(r.formation_deadline_at) - Date.now()) / 60000);
+          if (diff > 0) minsLeft = diff;
+        }
+        return {
+          ...r,
+          id: String(r.id),
+          game_name: r.game_name || r.title || 'Kịch bản sát',
+          creator_name: r.creator_name || 'Người chơi',
+          current_players: Number(r.current_players) || 1,
+          max_players: Number(r.max_players) || 8,
+          status: r.status || 'FORMING',
+          replacement_status: r.replacement_status || 'NONE',
+          date: r.date || '2026-11-24',
+          timeSlot: r.timeSlot || '19:00',
+          minsLeft
+        };
+      });
+
+      // Kết hợp các phòng từ DB và phòng mẫu (ưu tiên phòng từ DB)
+      const merged = [...normalizedDbRooms];
+      for (const fb of curatedFallbacks) {
+        if (!merged.some(m => String(m.id) === String(fb.id))) {
+          merged.push(fb);
+        }
       }
 
-      content.innerHTML = `
-        <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 20px;">
-          ${this.rooms.map(room => {
-            const isReplacementOpen = room.replacement_status === 'OPEN';
-            return `
-              <div class="card room-card" data-id="${room.id}" style="padding: 20px; cursor: pointer; transition: transform 0.2s, border-color 0.2s; display: flex; flex-direction: column;">
-                <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px;">
-                  <span class="badge" style="background: ${isReplacementOpen ? 'rgba(239, 68, 68, 0.2)' : 'rgba(59, 130, 246, 0.2)'}; color: ${isReplacementOpen ? '#ef4444' : '#60a5fa'}; border: 1px solid ${isReplacementOpen ? '#ef4444' : '#3b82f6'};">
-                    ${isReplacementOpen ? '🔥 CẦN NGƯỜI THẾ CHỖ' : room.status}
-                  </span>
-                  <span style="font-size: 0.8rem; color: #94a3b8;">Mã: #${room.id}</span>
-                </div>
-                <h3 style="font-size: 1.15rem; font-weight: 700; margin: 0 0 6px 0; color: #f8fafc;">${room.title}</h3>
-                <div style="font-size: 0.85rem; color: #38bdf8; font-weight: 500; margin-bottom: 12px;">
-                  🎭 Kịch bản: ${room.game_name}
-                </div>
-                <div style="font-size: 0.85rem; color: var(--color-text-muted); margin-bottom: 16px; flex-grow: 1;">
-                  Host: <strong>${room.creator_name}</strong>
-                </div>
-                <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1px solid var(--color-border); padding-top: 14px;">
-                  <span style="font-size: 0.85rem; font-weight: 600; color: ${room.current_players >= room.max_players ? '#ef4444' : '#10b981'};">
-                    👥 ${room.current_players} / ${room.max_players} người
-                  </span>
-                  <button class="btn btn-secondary btn-view-room" data-id="${room.id}" style="padding: 6px 14px; font-size: 0.85rem;">
-                    Vào phòng &rarr;
-                  </button>
-                </div>
-              </div>
-            `;
-          }).join('')}
+      this.allRooms = merged;
+      this.renderLobbyGrid();
+    } catch (err) {
+      const grid = this.container.querySelector('#lobby-grid');
+      if (grid) {
+        grid.innerHTML = `<div style="grid-column: 1 / -1; text-align: center; padding: 40px; color: var(--color-error);">${escapeHtml(err.message)}</div>`;
+      }
+    }
+  }
+
+  renderLobbyGrid() {
+    const grid = this.container.querySelector('#lobby-grid');
+    if (!grid) return;
+
+    // Lọc theo Tab trạng thái
+    let list = this.allRooms.filter(r => {
+      // Ẩn các phòng đã hủy hoặc lỗi test trừ khi ở tab ALL
+      if (this.currentTab !== 'ALL' && (r.status === 'CANCELLED' || r.status === 'EXPIRED')) {
+        return false;
+      }
+
+      if (this.currentTab === 'FORMING') {
+        return r.status === 'FORMING' && r.replacement_status !== 'OPEN';
+      }
+      if (this.currentTab === 'REPLACEMENT') {
+        return r.replacement_status === 'OPEN';
+      }
+      if (this.currentTab === 'SCHEDULED') {
+        return ['SCHEDULED', 'FORMED', 'IN_PROGRESS', 'CONFIRMED'].includes(r.status);
+      }
+      return true;
+    });
+
+    // Lọc theo ngày
+    if (this.filterDate) {
+      list = list.filter(r => r.date === this.filterDate);
+    }
+
+    // Lọc theo kịch bản
+    if (this.filterScript) {
+      const term = this.filterScript.toLowerCase();
+      list = list.filter(r => (r.game_name || '').toLowerCase().includes(term) || (r.title || '').toLowerCase().includes(term));
+    }
+
+    if (list.length === 0) {
+      grid.innerHTML = `
+        <div style="grid-column: 1 / -1; text-align: center; padding: 54px 20px; background: var(--bg-surface); border-radius: 8px; border: 1px dashed var(--gold-border);">
+          <div style="font-size: 2.2rem; margin-bottom: 10px;">🎲</div>
+          <h3 style="font-family: var(--font-display); font-size: 1.35rem; margin-bottom: 6px; color: #f8fafc;">
+            Không có phòng nào khớp điều kiện lọc
+          </h3>
+          <p class="text-muted" style="font-size: 0.88rem; margin-bottom: 16px;">
+            Hãy thử chọn ngày khác hoặc đổi danh mục trạng thái phòng.
+          </p>
+          <button class="btn btn-gold btn-sm" id="btn-empty-create-sub">Tạo phòng mới ngay</button>
         </div>
       `;
-
-      content.querySelectorAll('.room-card').forEach(card => {
-        card.onclick = () => this.showRoomDetail(card.dataset.id);
+      grid.querySelector('#btn-empty-create-sub')?.addEventListener('click', () => {
+        this.showCreateRoomModal();
       });
-    } catch (err) {
-      content.innerHTML = `<div style="text-align: center; padding: 40px; color: var(--color-error);">${err.message}</div>`;
+      return;
     }
+
+    grid.innerHTML = list.map(r => {
+      const filled = r.current_players;
+      const max = r.max_players;
+      const pct = max > 0 ? Math.min(100, Math.round((filled / max) * 100)) : 50;
+      const isRepl = r.replacement_status === 'OPEN';
+
+      // Badge cấu hình theo trạng thái
+      let badgeHtml = '';
+      if (isRepl) {
+        badgeHtml = `<span class="badge" style="background: rgba(239, 68, 68, 0.2); color: #ef4444; border: 1px solid #ef4444;">🔥 Cần thế chỗ</span>`;
+      } else if (r.status === 'FORMING') {
+        badgeHtml = `<span class="badge badge-green">Đang ghép</span>`;
+      } else if (['SCHEDULED', 'CONFIRMED', 'FORMED'].includes(r.status)) {
+        badgeHtml = `<span class="badge badge-gold">Đã chốt lịch</span>`;
+      } else {
+        badgeHtml = `<span class="badge badge-dark">${r.status}</span>`;
+      }
+
+      return `
+        <article class="room-card" data-id="${r.id}" style="background: var(--bg-surface); border: 1px solid rgba(255,255,255,0.1); border-radius: var(--radius-md); padding: 22px; display: flex; flex-direction: column; justify-content: space-between; gap: 16px; transition: transform 0.2s, border-color 0.2s;">
+          <div>
+            <!-- Hàng trên: Badge trạng thái & Mã phòng -->
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+              ${badgeHtml}
+              <span style="font-family: var(--font-mono); color: var(--gold); font-size: 0.84rem; font-weight: 700;">
+                #KBS-${r.id}
+              </span>
+            </div>
+
+            <!-- Tên kịch bản / Tiêu đề phòng -->
+            <h3 style="font-family: var(--font-display); font-size: 1.25rem; font-weight: 700; margin: 0 0 6px 0; color: #f8fafc; line-height: 1.3;">
+              ${escapeHtml(r.game_name || r.title)}
+            </h3>
+
+            <!-- Chủ phòng -->
+            <p class="text-muted" style="font-size: 0.85rem; margin: 0 0 8px 0;">
+              Chủ phòng: <strong style="color: #e2e8f0;">${escapeHtml(r.creator_name)}</strong>
+            </p>
+
+            <!-- Lịch chơi & Giờ -->
+            <p style="font-size: 0.86rem; margin: 0 0 6px 0; color: #cbd5e1;">
+              📅 ${r.date} • ⏰ ${r.timeSlot}
+            </p>
+
+            <!-- Đồng hồ giữ chỗ còn lại -->
+            <p style="font-size: 0.82rem; color: var(--gold); margin: 0;">
+              ⏳ Giữ chỗ còn ~${r.minsLeft} phút
+            </p>
+          </div>
+
+          <!-- Tầng dưới: Tiến độ ghế & Nút xem chi tiết / tham gia -->
+          <div>
+            <div style="display: flex; justify-content: space-between; font-size: 0.82rem; margin-bottom: 6px;">
+              <span style="color: #94a3b8;">Tiến độ ghế</span>
+              <strong style="color: var(--gold); font-weight: 700;">${filled}/${max} chỗ đã cọc</strong>
+            </div>
+
+            <!-- Thanh tiến trình ghế -->
+            <div class="progress-track" style="height: 7px; background: rgba(255,255,255,0.08); border-radius: 999px; overflow: hidden; margin-top: 6px;">
+              <div class="progress-fill" style="width: ${pct}%; height: 100%; background: linear-gradient(90deg, var(--crimson), var(--gold));"></div>
+            </div>
+
+            <!-- Nút Hành động full-width -->
+            <button class="btn btn-gold btn-sm btn-action-room" data-id="${r.id}" style="width: 100%; margin-top: 14px; font-weight: 700; color: var(--ink-black); padding: 9px 14px;">
+              Xem chi tiết / Tham gia
+            </button>
+          </div>
+        </article>
+      `;
+    }).join('');
+
+    // Sự kiện click mở chi tiết phòng
+    grid.querySelectorAll('.room-card').forEach(card => {
+      card.onclick = (e) => {
+        // Tránh trigger 2 lần nếu click thẳng vào button
+        const btn = e.target.closest('.btn-action-room');
+        const roomId = btn ? btn.dataset.id : card.dataset.id;
+        this.showRoomDetail(roomId);
+      };
+    });
   }
 
   async showRoomDetail(roomId) {

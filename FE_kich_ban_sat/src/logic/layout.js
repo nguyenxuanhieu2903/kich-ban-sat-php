@@ -22,7 +22,7 @@ export function initChrome(activeKey = '') {
           <nav class="main-nav" id="main-nav">
             <a href="${prefix}index.html" class="${activeKey === 'home' ? 'active' : ''}">Trang chủ</a>
             <a href="${pagesPrefix}scenarios.html" class="${activeKey === 'scenarios' ? 'active' : ''}">Kho kịch bản</a>
-            <a href="${pagesPrefix}lobby.html" class="${activeKey === 'lobby' ? 'active' : ''}">Phòng đang tuyển</a>
+            <a href="${pagesPrefix}lobby.html" class="${activeKey === 'lobby' ? 'active' : ''}">Phòng đang ghép</a>
             <a href="${pagesPrefix}info.html#policies" class="${activeKey === 'policies' ? 'active' : ''}">Quy định &amp; Giá vé</a>
             <a href="#lien-he" class="${activeKey === 'contact' ? 'active' : ''}">Liên hệ</a>
             ${role === 'dm' ? `<a href="${pagesPrefix}dm-portal.html" class="nav-special ${activeKey === 'dm' ? 'active' : ''}">Cổng Quản Trò</a>` : ''}
@@ -195,7 +195,7 @@ export function initChrome(activeKey = '') {
               <ul class="kbs-footer-links">
                 <li><a href="${prefix}index.html">Trang chủ</a></li>
                 <li><a href="${pagesPrefix}scenarios.html">Kho 42 kịch bản</a></li>
-                <li><a href="${pagesPrefix}lobby.html">Phòng đang tuyển</a></li>
+                <li><a href="${pagesPrefix}lobby.html">Phòng đang ghép</a></li>
                 <li><a href="${pagesPrefix}info.html#policies">Quy định &amp; Giá vé</a></li>
                 <li><a href="${pagesPrefix}dm-portal.html">Cổng Quản trò (DM)</a></li>
               </ul>

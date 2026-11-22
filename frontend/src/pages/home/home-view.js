@@ -39,7 +39,7 @@ export class HomeView {
                 <p style="margin: 4px 0 0 0; font-size: 0.85rem; color: var(--text-secondary);">Bạn có toàn quyền điều phối phòng chơi, phân công DM và xét duyệt hoàn tiền.</p>
               </div>
             </div>
-            <a href="/admin.html" class="btn btn-crimson btn-sm" style="font-size: 0.88rem;">
+            <a href="#admin" class="btn btn-crimson btn-sm btn-role-tab" data-tab="admin" style="font-size: 0.88rem;">
               Vào Trang ADMIN &rarr;
             </a>
           </div>
@@ -54,7 +54,7 @@ export class HomeView {
                 <p style="margin: 4px 0 0 0; font-size: 0.85rem; color: var(--text-secondary);">Truy cập cổng Quản trò để xem lịch trực hôm nay và điểm danh người chơi.</p>
               </div>
             </div>
-            <a href="/dm.html" class="btn btn-gold btn-sm" style="font-size: 0.88rem; color: var(--ink-black);">
+            <a href="#dm" class="btn btn-gold btn-sm btn-role-tab" data-tab="dm" style="font-size: 0.88rem; color: var(--ink-black);">
               Vào Trang DM &rarr;
             </a>
           </div>
@@ -69,7 +69,7 @@ export class HomeView {
                 <p style="margin: 4px 0 0 0; font-size: 0.85rem; color: var(--text-secondary);">Bạn có thể kiểm tra vé cọc 50k, phòng đã chốt hoặc ghép nhóm mới tại Trang Player.</p>
               </div>
             </div>
-            <a href="/player.html" class="btn btn-gold btn-sm" style="font-size: 0.88rem; color: var(--ink-black);">
+            <a href="#rooms" class="btn btn-gold btn-sm btn-role-tab" data-tab="rooms" style="font-size: 0.88rem; color: var(--ink-black);">
               Vào Trang PLAYER &rarr;
             </a>
           </div>
@@ -194,9 +194,9 @@ export class HomeView {
           <div class="section-head" style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 20px;">
             <div>
               <div class="section-kicker" style="color: var(--gold); font-size: 0.8rem; letter-spacing: 0.1em; font-family: var(--font-mono);">GHÉP NHÓM NHANH</div>
-              <h2 class="section-title" style="font-family: var(--font-display); font-size: 1.8rem; margin: 4px 0 0;">Phòng Đang Tuyển Người Chơi</h2>
+              <h2 class="section-title" style="font-family: var(--font-display); font-size: 1.8rem; margin: 4px 0 0;">Phòng Đang Ghép Người Chơi</h2>
             </div>
-            <a href="/player.html" class="btn btn-ghost btn-sm">Xem tất cả phòng &rarr;</a>
+            <a href="#rooms" id="btn-view-all-rooms" class="btn btn-ghost btn-sm" data-tab="rooms">Xem tất cả phòng &rarr;</a>
           </div>
           <div class="rooms-grid" id="home-rooms-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 20px;">
             <div style="text-align: center; padding: 40px; grid-column: 1/-1;" class="text-muted">Đang tải phòng chơi trực tiếp...</div>
@@ -370,6 +370,22 @@ export class HomeView {
       });
     }
 
+    const viewAllRoomsBtn = document.getElementById('btn-view-all-rooms');
+    if (viewAllRoomsBtn) {
+      viewAllRoomsBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        this.onNavigate('rooms');
+      });
+    }
+
+    document.querySelectorAll('.btn-role-tab').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.preventDefault();
+        const tab = btn.dataset.tab;
+        if (tab) this.onNavigate(tab);
+      });
+    });
+
     await this.fetchRooms();
     await this.fetchGames();
   }
@@ -535,7 +551,7 @@ export class HomeView {
         <article class="room-card" style="background: var(--bg-surface); border: 1px solid var(--gold-border); border-radius: 8px; padding: 20px; display: flex; flex-direction: column; justify-content: space-between;">
           <div>
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-              <span class="badge badge-green">Đang tuyển</span>
+              <span class="badge badge-green">Đang ghép</span>
               <span style="font-family: var(--font-mono); color: var(--gold); font-size: 0.8rem;">#${r.id}</span>
             </div>
             <h3 style="font-family: var(--font-display); font-size: 1.25rem; margin: 4px 0 6px;">${escapeHtml(r.title)}</h3>
