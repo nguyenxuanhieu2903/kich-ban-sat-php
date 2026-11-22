@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Chi Tiết Phòng Chơi — KỊCH BẢN SÁT V16</title>
+  <link rel="stylesheet" href="../src/styles/tokens.css" />
+  <link rel="stylesheet" href="../src/styles/base.css" />
+</head>
+<body>
+  <div id="app-header"></div>
+
+  <main class="page-shell">
+    <div class="container" id="room-detail-root"></div>
+  </main>
+
+  <!-- MODAL CẢNH BÁO MẤT CỌC (< 24H) -->
+  <div class="modal-backdrop" id="forfeit-modal">
+    <div class="paper-ticket modal-box">
+      <span class="badge badge-18">CẢNH BÁO QUÁ HẠN 24 GIỜ</span>
+      <h3 style="font-family:var(--font-display);font-size:1.45rem;margin:12px 0 8px;">Mất tiền cọc 50.000đ</h3>
+      <p style="font-size:0.92rem;color:var(--ink-muted);margin-bottom:20px;">
+        Ca chơi của bạn chỉ còn <strong>dưới 24 giờ</strong> nữa sẽ bắt đầu. Theo quy định, hủy sát giờ sẽ <strong>không được hoàn lại 50.000đ tiền cọc</strong>. Bạn vẫn muốn rời phòng?
+      </p>
+      <div style="display:flex;gap:10px;justify-content:flex-end;">
+        <button class="btn btn-ghost" style="color:var(--ink-black);border-color:#999;" id="cancel-forfeit">Giữ lại chỗ</button>
+        <button class="btn btn-crimson" id="confirm-forfeit">Chấp nhận mất cọc &amp; Rời phòng</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="app-footer"></div>
+
+  <script type="module">
+    import { store } from '../src/logic/store.js';
+    import { initChrome } from '../src/logic/layout.js';
+
+    initChrome('lobby');
+
+    const params = new URLSearchParams(window.location.search);
+    const id = params.get('id') || 'KBS-107';
+    const room = store.state.rooms.find(r => r.id === id) || store.state.rooms[0];
+    const script = store.state.scripts.find(s => s.id === room.scriptId) || store.state.scripts[0];
+
+    // Trạng thái cột phải: 'pending' (4h countdown) | 'expired' (Hết hạn 4h) | 'paid' (Đã cọc & Hủy 24h)
+    let panelState = room.depositStatus || 'pending';
+    let remainingSeconds = 3 * 3600 + 59 * 60 + 59; // 03:59:59
+
+    setInterval(() => {
+      if (panelState === 'pending' && remainingSeconds > 0) {
+        remainingSeconds--;
+        const el = document.getElementById('countdown-clock');
+        if (el) {
+          const h = String(Math.floor(remainingSeconds / 3600)).padStart(2, '0');
+          const m = String(Math.floor((remainingSeconds % 3600) / 60)).padStart(2, '0');
+          const s = String(remainingSeconds % 60).padStart(2, '0');
+          el.textContent = `${h}:${m}:${s}`;
+        }
+      }
+    }, 1000);
+
+    function renderRoomDetail() {
+      const hoursBeforePlay = Math.round((new Date(room.playDateTime) - Date.now()) / 3600000);
+
+      document.getElementById('room-detail-root').innerHTML = `
+        <div class="page-header">
+          <div>
+            <div class="section-kicker">PHÒNG CHƠI #${room.id} • CÒN ${hoursBeforePlay}H TỚI GIỜ CHƠI</div>
+            <h1 class="page-title">${script.title}</h1>
+            <p class="text-muted">📅 ${room.date} • ⏰ ${room.timeSlot} • Chủ phòng: ${room.hostName}</p>
+          </div>
+          <div style="display:flex;gap:6px;flex-wrap:wrap;">
+            <span style="font-size:0.78rem;color:var(--text-dim);width:100%;">Xem thử 3 trạng thái cột thanh toán:</span>
+            <button class="btn btn-sm ${panelState === 'pending' ? 'btn-gold' : 'btn-ghost'}" data-sim="pending">1. Chờ cọc (4h)</button>
+            <button class="btn btn-sm ${panelState === 'expired' ? 'btn-gold' : 'btn-ghost'}" data-sim="expired">2. Hết hạn 4h</button>
+            <button class="btn btn-sm ${panelState === 'paid' ? 'btn-gold' : 'btn-ghost'}" data-sim="paid">3. Đã cọc &amp; Hủy 24h</button>
+          </div>
+        </div>
+
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:26px;">
+          <!-- CỘT TRÁI: 8 SLOT GHẾ -->
+          <div style="background:var(--bg-surface);border:1px solid rgba(255,255,255,0.1);border-radius:10px;padding:24px;">
+            <h2 style="font-family:var(--font-display);font-size:1.35rem;margin-bottom:16px;">Danh sách ghế ngồi (${room.maxPlayers} slot)</h2>
+            <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:12px;">
+              ${room.slots.map(slot => `
+                <div style="background:var(--bg-elevated);border:1px solid ${slot.name ? 'var(--gold-border)' : 'rgba(255,255,255,0.08)'};padding:14px;border-radius:8px;">
+                  <div style="display:flex;justify-content:space-between;font-size:0.78rem;margin-bottom:6px;">
+                    <span class="text-gold">Ghế #${slot.seat}</span>
+                    ${slot.name ? `<span class="badge ${slot.paid ? 'badge-green' : 'badge-gold'}">${slot.paid ? 'Đã cọc' : 'Giữ chỗ'}</span>` : '<span class="badge badge-dark">Trống</span>'}
+                  </div>
+                  ${slot.name ? `
+                    <strong>${slot.name}</strong>
+                    <div class="text-muted" style="font-size:0.8rem;">${slot.phone || ''}</div>
+                  ` : `
+                    <button class="btn btn-ghost btn-sm" style="width:100%;margin-top:6px;" data-join-seat="${slot.seat}">+ Đặt ghế này</button>
+                  `}
+                </div>
+              `).join('')}
+            </div>
+          </div>
+
+          <!-- CỘT PHẢI: 3 TRẠNG THÁI THANH TOÁN & HỦY -->
+          <div>
+            ${panelState === 'pending' ? `
+              <div class="paper-ticket" style="padding:28px;text-align:center;">
+                <span class="badge badge-18">TRẠNG THÁI 1: CHỜ CỌC 50.000Đ</span>
+                <div style="font-size:0.85rem;color:var(--ink-muted);margin-top:12px;">Thời gian giữ chỗ còn lại:</div>
+                <div id="countdown-clock" style="font-family:var(--font-mono);font-size:2.2rem;font-weight:700;color:var(--crimson);margin:6px 0 14px;">03:59:59</div>
+                <div style="background:var(--paper-aged);padding:14px;border-radius:6px;margin-bottom:16px;font-size:0.88rem;">
+                  Chuyển khoản <strong>50.000đ</strong> nội dung: <strong>KBS ${room.id}</strong><br/>
+                  <span style="color:var(--ink-muted);">(Mã QR check-in sẽ hiện sau khi xác nhận cọc)</span>
+                </div>
+                <button class="btn btn-crimson" style="width:100%;" id="btn-confirm-deposit">Xác nhận đã chuyển khoản cọc</button>
+              </div>
+            ` : ''}
+
+            ${panelState === 'expired' ? `
+              <div class="paper-ticket" style="padding:28px;text-align:center;">
+                <span class="badge badge-18">TRẠNG THÁI 2: HẾT HẠN GIỮ CHỖ 4 GIỜ</span>
+                <h3 style="font-family:var(--font-display);font-size:1.5rem;margin:14px 0 8px;">Vé giữ chỗ đã hết hạn</h3>
+                <p style="color:var(--ink-muted);font-size:0.9rem;margin-bottom:20px;">
+                  Đã quá 4 giờ nhưng hệ thống chưa ghi nhận tiền cọc 50.000đ. Ghế của bạn đã được mở lại cho người chơi khác.
+                </p>
+                <button class="btn btn-gold" style="width:100%;" id="btn-rebook">Đặt lại chỗ (Mở lại đồng hồ 4h)</button>
+              </div>
+            ` : ''}
+
+            ${panelState === 'paid' ? `
+              <div class="paper-ticket" style="padding:28px;text-align:center;">
+                <span class="badge badge-18">TRẠNG THÁI 3: ĐÃ CỌC &amp; QUẢN LÝ HỦY</span>
+                <h3 style="font-family:var(--font-display);font-size:1.4rem;margin:12px 0;">Vé QR Check-in Hợp Lệ</h3>
+                <div class="qr-box" style="margin-bottom:12px;">
+                  ${Array.from({ length: 49 }, (_, i) => `<div class="qr-cell ${i % 3 === 0 ? 'w' : ''}"></div>`).join('')}
+                </div>
+                <p style="font-size:0.84rem;color:var(--ink-muted);margin-bottom:18px;">
+                  Thời gian tới giờ chơi: <strong>${hoursBeforePlay} giờ</strong> (${hoursBeforePlay > 24 ? 'Hợp lệ hoàn 100% cọc' : 'Dưới 24h — Hủy sẽ mất cọc'}).
+                </p>
+                <button class="btn btn-ghost" style="width:100%;color:var(--crimson);border-color:var(--crimson);" id="btn-leave-room">
+                  Rời phòng / Hủy cọc
+                </button>
+              </div>
+            ` : ''}
+          </div>
+        </div>
+      `;
+
+      document.querySelectorAll('[data-sim]').forEach(b => {
+        b.addEventListener('click', () => { panelState = b.dataset.sim; renderRoomDetail(); });
+      });
+
+      document.querySelectorAll('[data-join-seat]').forEach(b => {
+        b.addEventListener('click', () => {
+          const seatNum = Number(b.dataset.joinSeat);
+          const targetSlot = room.slots.find(s => s.seat === seatNum);
+          if (targetSlot) {
+            targetSlot.name = store.state.currentUser.name;
+            targetSlot.phone = store.state.currentUser.phone;
+            store.save();
+            panelState = 'pending';
+            renderRoomDetail();
+          }
+        });
+      });
+
+      document.getElementById('btn-confirm-deposit')?.addEventListener('click', () => {
+        store.confirmRoomDeposit(room.id);
+        panelState = 'paid';
+        renderRoomDetail();
+      });
+
+      document.getElementById('btn-rebook')?.addEventListener('click', () => {
+        remainingSeconds = 4 * 3600 - 1;
+        panelState = 'pending';
+        renderRoomDetail();
+      });
+
+      document.getElementById('btn-leave-room')?.addEventListener('click', () => {
+        if (hoursBeforePlay > 24) {
+          store.requestRefundOrCancel(room.id);
+          alert('Đã gửi yêu cầu hoàn 100% cọc (50.000đ) tới Admin!');
+          renderRoomDetail();
+        } else {
+          document.getElementById('forfeit-modal').classList.add('open');
+        }
+      });
+    }
+
+    document.getElementById('cancel-forfeit').addEventListener('click', () => {
+      document.getElementById('forfeit-modal').classList.remove('open');
+    });
+    document.getElementById('confirm-forfeit').addEventListener('click', () => {
+      document.getElementById('forfeit-modal').classList.remove('open');
+      store.requestRefundOrCancel(room.id);
+      alert('Đã hủy chỗ. Tiền cọc không được hoàn lại do hủy dưới 24 giờ.');
+      renderRoomDetail();
+    });
+
+    renderRoomDetail();
+  </script>
+</body>
+</html>

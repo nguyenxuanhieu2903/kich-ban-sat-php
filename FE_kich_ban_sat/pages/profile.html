@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Hồ Sơ Người Chơi — KỊCH BẢN SÁT V16</title>
+  <link rel="stylesheet" href="../src/styles/tokens.css" />
+  <link rel="stylesheet" href="../src/styles/base.css" />
+</head>
+<body>
+  <div id="app-header"></div>
+
+  <main class="page-shell">
+    <div class="container">
+      <div class="page-header">
+        <div>
+          <div class="section-kicker">TÀI KHOẢN THÀNH VIÊN</div>
+          <h1 class="page-title">Hồ Sơ &amp; Lịch Sử Đặt Phòng</h1>
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:28px;">
+        <!-- CỘT TRÁI: CÀI ĐẶT TÀI KHOẢN & THẺ HSSV -->
+        <div class="paper-ticket" style="padding:28px;">
+          <span class="badge badge-18">THÔNG TIN CÁ NHÂN</span>
+          <h2 style="font-family:var(--font-display);font-size:1.5rem;margin:10px 0 18px;">Cài đặt &amp; Xác minh HSSV</h2>
+
+          <div class="form-group">
+            <label class="form-label">Họ và tên</label>
+            <input type="text" id="prof-name" class="form-control" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Số điện thoại</label>
+            <input type="text" id="prof-phone" class="form-control" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Đổi mật khẩu mới (để trống nếu giữ nguyên)</label>
+            <input type="password" id="prof-pass" class="form-control" placeholder="••••••••" />
+          </div>
+          <button class="btn btn-crimson btn-sm" id="btn-save-profile" style="margin-bottom:24px;">Lưu thông tin</button>
+
+          <hr style="border-color:#D5CCB8;margin-bottom:20px;" />
+
+          <!-- KHUNG UPLOAD THẺ HSSV 3 TRẠNG THÁI -->
+          <h3 style="font-family:var(--font-display);font-size:1.2rem;margin-bottom:8px;">Thẻ Học Sinh — Sinh Viên (Giảm 20.000đ)</h3>
+          <div id="student-status-box" style="background:var(--paper-aged);padding:16px;border-radius:6px;margin-bottom:12px;"></div>
+          <input type="file" id="student-file" accept="image/*" class="form-control" style="margin-bottom:10px;" />
+          <button class="btn btn-gold btn-sm" id="btn-upload-student">Gửi ảnh thẻ HSSV chờ duyệt</button>
+        </div>
+
+        <!-- CỘT PHẢI: LỊCH SỬ ĐẶT PHÒNG 3 TAB -->
+        <div style="background:var(--bg-surface);border:1px solid rgba(255,255,255,0.1);border-radius:10px;padding:24px;">
+          <h2 style="font-family:var(--font-display);font-size:1.45rem;margin-bottom:14px;">Lịch sử đặt phòng của bạn</h2>
+          <div class="tabs-bar">
+            <button class="tab-btn active" data-htab="upcoming">Sắp chơi</button>
+            <button class="tab-btn" data-htab="pending">Chờ cọc</button>
+            <button class="tab-btn" data-htab="completed">Đã hoàn thành</button>
+          </div>
+          <div id="history-list" style="display:grid;gap:12px;"></div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <div id="app-footer"></div>
+
+  <script type="module">
+    import { store } from '../src/logic/store.js';
+    import { initChrome } from '../src/logic/layout.js';
+
+    initChrome();
+
+    const u = store.state.currentUser;
+    document.getElementById('prof-name').value = u.name;
+    document.getElementById('prof-phone').value = u.phone;
+
+    function renderStudentBox() {
+      const st = store.state.currentUser.studentStatus;
+      const box = document.getElementById('student-status-box');
+      if (st === 'approved') {
+        box.innerHTML = `<span class="badge badge-green" style="background:#1F5E39;color:#fff;">Đã duyệt — Hưởng ưu đãi giảm 20k</span><p style="font-size:0.85rem;margin-top:6px;">Tự động trừ 20.000đ/người khi đặt ca 09:00–19:59 từ Thứ 2 đến Thứ 5.</p>`;
+      } else if (st === 'pending') {
+        box.innerHTML = `<span class="badge badge-gold" style="color:#8A6200;">Đang chờ Admin duyệt</span><p style="font-size:0.85rem;margin-top:6px;">Ảnh đã gửi: <strong>${store.state.currentUser.studentCardUrl || 'the_hssv.jpg'}</strong>. Bạn có thể qua Cổng Admin Tab 6 để duyệt thử ngay.</p>`;
+      } else {
+        box.innerHTML = `<span class="badge badge-dark" style="color:#333;">Chưa tải lên</span><p style="font-size:0.85rem;margin-top:6px;">Tải ảnh mặt trước thẻ HSSV còn hạn để kích hoạt ưu đãi.</p>`;
+      }
+    }
+
+    document.getElementById('btn-save-profile').addEventListener('click', () => {
+      store.state.currentUser.name = document.getElementById('prof-name').value.trim() || u.name;
+      store.state.currentUser.phone = document.getElementById('prof-phone').value.trim() || u.phone;
+      store.save();
+      alert('Đã cập nhật thông tin tài khoản!');
+    });
+
+    document.getElementById('btn-upload-student').addEventListener('click', () => {
+      const f = document.getElementById('student-file').files[0];
+      store.state.currentUser.studentCardUrl = f ? f.name : 'the_sinh_vien_2026.jpg';
+      store.state.currentUser.studentStatus = 'pending';
+      store.save();
+      renderStudentBox();
+    });
+
+    let hTab = 'upcoming';
+    function renderHistory() {
+      const rooms = store.state.rooms.filter(r => {
+        if (hTab === 'pending') return r.depositStatus === 'pending';
+        if (hTab === 'completed') return r.status === 'completed';
+        return r.depositStatus === 'paid' && r.status !== 'completed';
+      });
+
+      const listEl = document.getElementById('history-list');
+      if (rooms.length === 0) {
+        listEl.innerHTML = `<p class="text-muted">Chưa có phòng nào trong mục này.</p>`;
+        return;
+      }
+
+      listEl.innerHTML = rooms.map(r => {
+        const scr = store.state.scripts.find(s => s.id === r.scriptId) || store.state.scripts[0];
+        return `
+          <div style="background:var(--bg-elevated);border:1px solid rgba(255,255,255,0.08);padding:16px;border-radius:8px;display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;">
+            <div>
+              <strong class="text-gold">#${r.id}</strong> — <strong>${scr.title}</strong>
+              <div class="text-muted" style="font-size:0.84rem;">📅 ${r.date} • ⏰ ${r.timeSlot}</div>
+            </div>
+            <a href="./room-detail.html?id=${r.id}" class="btn btn-gold btn-sm">Chi tiết phòng</a>
+          </div>
+        `;
+      }).join('');
+    }
+
+    document.querySelectorAll('[data-htab]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        hTab = btn.dataset.htab;
+        document.querySelectorAll('[data-htab]').forEach(b => b.classList.toggle('active', b === btn));
+        renderHistory();
+      });
+    });
+
+    renderStudentBox();
+    renderHistory();
+  </script>
+</body>
+</html>

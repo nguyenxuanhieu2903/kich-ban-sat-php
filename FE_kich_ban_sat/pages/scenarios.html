@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Kho 42 Kịch Bản Phá Án — KỊCH BẢN SÁT V16</title>
+  <link rel="stylesheet" href="../src/styles/tokens.css" />
+  <link rel="stylesheet" href="../src/styles/base.css" />
+  <link rel="stylesheet" href="../src/styles/home.css" />
+</head>
+<body>
+  <div id="app-header"></div>
+
+  <main class="page-shell">
+    <div class="container">
+      <div class="page-header">
+        <div>
+          <div class="section-kicker">THƯ VIỆN HỒ SƠ MẬT</div>
+          <h1 class="page-title">Kho Kịch Bản (<span id="total-count">42</span>)</h1>
+        </div>
+        <a href="./create-room.html" class="btn btn-gold">+ Tạo phòng chơi mới</a>
+      </div>
+
+      <!-- BỘ LỌC KẾT HỢP -->
+      <div style="background:var(--bg-surface);border:1px solid rgba(255,255,255,0.1);border-radius:8px;padding:18px;margin-bottom:24px;display:grid;grid-template-columns:repeat(auto-fit,minmax(175px,1fr));gap:12px;">
+        <input type="search" id="f-search" class="form-control" placeholder="Tìm tên kịch bản..." />
+        <select id="f-players" class="form-control">
+          <option value="">Số người: Tất cả</option>
+          <option value="5">5 người</option>
+          <option value="6">6 người</option>
+          <option value="7">7 người</option>
+          <option value="8">8 người</option>
+        </select>
+        <select id="f-genre" class="form-control">
+          <option value="">Thể loại: Tất cả</option>
+          <option value="Tâm lý / Kinh dị">Tâm lý / Kinh dị</option>
+          <option value="Trinh thám / Siêu nhiên">Trinh thám / Siêu nhiên</option>
+          <option value="Cổ điển / Phá án">Cổ điển / Phá án</option>
+          <option value="Sinh tồn / Đấu trí">Sinh tồn / Đấu trí</option>
+          <option value="Gia tộc / Tâm lý">Gia tộc / Tâm lý</option>
+          <option value="Cổ trang / Âm mưu">Cổ trang / Âm mưu</option>
+        </select>
+        <select id="f-diff" class="form-control">
+          <option value="">Độ khó: Tất cả</option>
+          <option value="Dễ">Dễ</option>
+          <option value="Trung bình">Trung bình</option>
+          <option value="Khó">Khó</option>
+          <option value="Cực khó">Cực khó</option>
+        </select>
+        <select id="f-age" class="form-control">
+          <option value="">Độ tuổi: Tất cả</option>
+          <option value="18">Chỉ kịch bản 18+</option>
+          <option value="all">Phổ thông (Mọi lứa tuổi)</option>
+        </select>
+      </div>
+
+      <div class="scripts-grid" id="catalog-grid"></div>
+
+      <!-- EMPTY STATE -->
+      <div id="empty-state" style="display:none;text-align:center;padding:54px 20px;background:var(--bg-surface);border-radius:8px;border:1px dashed var(--gold-border);">
+        <h3 style="font-family:var(--font-display);font-size:1.4rem;margin-bottom:8px;">Không tìm thấy kịch bản phù hợp</h3>
+        <p class="text-muted" style="margin-bottom:18px;">Hãy thử nới lỏng điều kiện số người chơi hoặc thể loại.</p>
+        <button class="btn btn-gold" id="btn-reset-filters">Đặt lại bộ lọc</button>
+      </div>
+
+      <!-- PAGINATION -->
+      <div id="pagination-bar" style="display:flex;justify-content:center;gap:8px;margin-top:32px;flex-wrap:wrap;"></div>
+    </div>
+  </main>
+
+  <!-- POPUP 18+ -->
+  <div class="modal-backdrop" id="age-modal">
+    <div class="paper-ticket modal-box">
+      <span class="badge badge-18">XÁC NHẬN ĐỦ 18 TUỔI</span>
+      <h3 style="font-family:var(--font-display);font-size:1.5rem;margin:12px 0 8px;">Nội dung giới hạn độ tuổi</h3>
+      <p style="font-size:0.92rem;color:var(--ink-muted);margin-bottom:20px;">
+        Kịch bản <strong id="age-script-name"></strong> gắn nhãn <strong>18+</strong>. Vui lòng xác nhận bạn đã đủ 18 tuổi trước khi xem hồ sơ chi tiết.
+      </p>
+      <div style="display:flex;gap:10px;justify-content:flex-end;">
+        <button class="btn btn-ghost" style="color:var(--ink-black);border-color:#999;" id="age-cancel">Hủy</button>
+        <button class="btn btn-crimson" id="age-ok">Tôi đã đủ 18 tuổi</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="app-footer"></div>
+
+  <script type="module">
+    import { store } from '../src/logic/store.js';
+    import { initChrome } from '../src/logic/layout.js';
+
+    initChrome('scenarios');
+
+    const PAGE_SIZE = 9;
+    let currentPage = 1;
+    let pendingUrl = '';
+
+    const ageModal = document.getElementById('age-modal');
+    document.getElementById('age-cancel').addEventListener('click', () => ageModal.classList.remove('open'));
+    document.getElementById('age-ok').addEventListener('click', () => {
+      ageModal.classList.remove('open');
+      if (pendingUrl) window.location.href = pendingUrl;
+    });
+
+    function getFiltered() {
+      const q = document.getElementById('f-search').value.trim().toLowerCase();
+      const players = Number(document.getElementById('f-players').value);
+      const genre = document.getElementById('f-genre').value;
+      const diff = document.getElementById('f-diff').value;
+      const age = document.getElementById('f-age').value;
+
+      return store.state.scripts.filter(s => {
+        if (!s.isActive) return false;
+        if (q && !s.title.toLowerCase().includes(q) && !s.code.toLowerCase().includes(q)) return false;
+        if (players && !(players >= s.playersMin && players <= s.playersMax)) return false;
+        if (genre && s.genre !== genre) return false;
+        if (diff && s.difficulty !== diff) return false;
+        if (age === '18' && !s.is18Plus) return false;
+        if (age === 'all' && s.is18Plus) return false;
+        return true;
+      });
+    }
+
+    function render() {
+      const list = getFiltered();
+      document.getElementById('total-count').textContent = list.length;
+
+      const grid = document.getElementById('catalog-grid');
+      const empty = document.getElementById('empty-state');
+      const pagBar = document.getElementById('pagination-bar');
+
+      if (list.length === 0) {
+        grid.innerHTML = '';
+        pagBar.innerHTML = '';
+        empty.style.display = 'block';
+        return;
+      }
+
+      empty.style.display = 'none';
+      const totalPages = Math.ceil(list.length / PAGE_SIZE);
+      if (currentPage > totalPages) currentPage = 1;
+
+      const slice = list.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
+      grid.innerHTML = slice.map(s => `
+        <article class="script-card">
+          <div class="script-bg-letter">${s.title.charAt(0)}</div>
+          <div>
+            <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px;">
+              <span class="badge badge-gold">${s.playersMin}–${s.playersMax} người</span>
+              <span class="badge badge-dark">${s.difficulty}</span>
+              ${s.is18Plus ? '<span class="badge badge-18">18+</span>' : ''}
+            </div>
+            <h3 style="font-family:var(--font-display);font-size:1.3rem;margin-bottom:4px;">${s.title}</h3>
+            <div style="font-size:0.8rem;color:var(--gold);margin-bottom:8px;">${s.genre} • ${String(s.durationHours).replace('.', ',')} giờ</div>
+            <p class="text-muted" style="font-size:0.88rem;">${s.summary}</p>
+          </div>
+          <div style="border-top:1px solid rgba(255,255,255,0.08);padding-top:12px;display:flex;justify-content:space-between;align-items:center;">
+            <strong style="color:var(--gold);">${Math.round(s.price / 1000)}K/người</strong>
+            <button class="btn btn-crimson btn-sm" data-open="${s.id}">Xem hồ sơ</button>
+          </div>
+        </article>
+      `).join('');
+
+      grid.querySelectorAll('[data-open]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const scr = store.state.scripts.find(item => item.id === btn.dataset.open);
+          const url = `./scenario-detail.html?id=${scr.id}`;
+          if (scr.is18Plus) {
+            pendingUrl = url;
+            document.getElementById('age-script-name').textContent = scr.title;
+            ageModal.classList.add('open');
+          } else {
+            window.location.href = url;
+          }
+        });
+      });
+
+      pagBar.innerHTML = Array.from({ length: totalPages }, (_, i) => i + 1).map(p => `
+        <button class="btn btn-sm ${p === currentPage ? 'btn-gold' : 'btn-ghost'}" data-page="${p}">Trang ${p}</button>
+      `).join('');
+
+      pagBar.querySelectorAll('[data-page]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          currentPage = Number(btn.dataset.page);
+          render();
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+        });
+      });
+    }
+
+    ['f-search', 'f-players', 'f-genre', 'f-diff', 'f-age'].forEach(id => {
+      document.getElementById(id).addEventListener('input', () => { currentPage = 1; render(); });
+      document.getElementById(id).addEventListener('change', () => { currentPage = 1; render(); });
+    });
+
+    document.getElementById('btn-reset-filters').addEventListener('click', () => {
+      ['f-search', 'f-players', 'f-genre', 'f-diff', 'f-age'].forEach(id => document.getElementById(id).value = '');
+      currentPage = 1;
+      render();
+    });
+
+    render();
+  </script>
+</body>
+</html>

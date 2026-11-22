@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Xác nhận Đặt Phòng — KỊCH BẢN SÁT V16</title>
+  <link rel="stylesheet" href="../src/styles/tokens.css" />
+  <link rel="stylesheet" href="../src/styles/base.css" />
+</head>
+<body>
+  <div id="app-header"></div>
+
+  <main class="page-shell">
+    <div class="container" style="max-width:560px;" id="status-root"></div>
+  </main>
+
+  <div class="toast-banner" id="toast">Đã sao chép liên kết mời vào phòng</div>
+  <div id="app-footer"></div>
+
+  <script type="module">
+    import { store } from '../src/logic/store.js';
+    import { initChrome } from '../src/logic/layout.js';
+
+    initChrome();
+
+    const params = new URLSearchParams(window.location.search);
+    const id = params.get('id');
+    const room = store.state.rooms.find(r => r.id === id) || store.state.rooms[0];
+    const script = store.state.scripts.find(s => s.id === room.scriptId) || store.state.scripts[0];
+
+    function renderQRGrid() {
+      const pattern = [
+        1,1,1,0,1,1,1,
+        1,0,1,1,1,0,1,
+        1,1,1,0,1,1,1,
+        0,1,0,1,0,1,0,
+        1,1,1,0,1,0,1,
+        1,0,1,1,0,1,0,
+        1,1,1,0,1,1,1
+      ];
+      return `<div class="qr-box">${pattern.map(c => `<div class="qr-cell ${c ? '' : 'w'}"></div>`).join('')}</div>`;
+    }
+
+    function render() {
+      const isPaid = room.depositStatus === 'paid';
+      document.getElementById('status-root').innerHTML = `
+        <div class="paper-ticket" style="padding:32px;text-align:center;">
+          <span class="badge ${isPaid ? 'badge-18' : 'badge-gold'}">
+            ${isPaid ? 'ĐÃ XÁC NHẬN CỌC • VÉ HỢP LỆ' : 'ĐANG GIỮ CHỖ 4 GIỜ • CHỜ CỌC'}
+          </span>
+          <h1 style="font-family:var(--font-display);font-size:1.85rem;margin:12px 0 4px;">Phòng #${room.id}</h1>
+          <p style="color:var(--crimson);font-weight:700;margin-bottom:18px;">${script.title}</p>
+
+          ${isPaid ? `
+            ${renderQRGrid()}
+            <p style="font-size:0.82rem;color:var(--ink-muted);margin-top:10px;">Đưa mã QR này cho Quản trò (DM) tại 36/52 Nguyễn Gia Trí để Check-in.</p>
+          ` : `
+            <div style="background:var(--paper-aged);padding:18px;border-radius:8px;margin-bottom:16px;">
+              <p style="font-size:0.9rem;margin-bottom:10px;">Mã QR Check-in sẽ mở khóa ngay sau khi bạn xác nhận cọc <strong>50.000đ/người</strong>.</p>
+              <button class="btn btn-crimson" id="btn-pay-now">Xác nhận đã chuyển khoản cọc</button>
+            </div>
+          `}
+
+          <div style="text-align:left;background:var(--paper-aged);padding:16px;border-radius:6px;margin:20px 0;font-size:0.9rem;display:grid;gap:6px;">
+            <div>📅 <strong>Ngày &amp; Giờ:</strong> ${room.date} lúc ${room.timeSlot}</div>
+            <div>👤 <strong>Chủ phòng:</strong> ${room.hostName}</div>
+            <div>📍 <strong>Địa điểm:</strong> 36/52 Nguyễn Gia Trí, P.25, Q.Bình Thạnh</div>
+          </div>
+
+          <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;">
+            <button class="btn btn-gold" id="btn-copy-link">Sao chép link mời bạn bè</button>
+            <a href="./room-detail.html?id=${room.id}" class="btn btn-ghost" style="color:var(--ink-black);border-color:#999;">Vào phòng chi tiết</a>
+          </div>
+        </div>
+      `;
+
+      document.getElementById('btn-pay-now')?.addEventListener('click', () => {
+        store.confirmRoomDeposit(room.id);
+        render();
+      });
+
+      document.getElementById('btn-copy-link').addEventListener('click', () => {
+        const shareUrl = `${window.location.origin}${window.location.pathname.replace('booking-status.html', 'room-detail.html')}?id=${room.id}`;
+        navigator.clipboard?.writeText(shareUrl);
+        const toast = document.getElementById('toast');
+        toast.classList.add('show');
+        setTimeout(() => toast.classList.remove('show'), 2800);
+      });
+    }
+
+    render();
+  </script>
+</body>
+</html>
