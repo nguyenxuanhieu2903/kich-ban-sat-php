@@ -167,16 +167,31 @@ class AdminRoomCancelRefundApiTest extends TestCase
         $this->assertTrue($listData['success']);
         $this->assertNotEmpty($listData['data']);
 
-        $refundId = (int) $listData['data'][0]['id'];
+        $paymentId = (int) $listData['data'][0]['player_payment_id'];
+        $pdo = DatabaseConnection::getInstance();
 
-        // 2. Admin reject refund với lý do
-        $rejReq = new Request('POST', "/api/v1/admin/refunds/{$refundId}/reject", [], ['reason' => 'Từ chối giải ngân'], ['Authorization' => 'Bearer 1']);
+        // 2. Tạo 1 yêu cầu PENDING -> Admin reject thành công (200), sau đó cố approve đè bị chặn (409)
+        $pdo->exec("INSERT INTO `refunds` (`player_payment_id`, `amount`, `reason`, `status`, `requested_at`, `created_at`, `updated_at`) VALUES ({$paymentId}, 50000, 'Yêu cầu hoàn cọc test reject', 'PENDING', NOW(), NOW(), NOW())");
+        $rejectTargetId = (int) $pdo->lastInsertId();
+
+        $rejReq = new Request('POST', "/api/v1/admin/refunds/{$rejectTargetId}/reject", [], ['reason' => 'Từ chối giải ngân'], ['Authorization' => 'Bearer 1']);
         $rejRes = $this->app->dispatch($rejReq);
         $this->assertSame(200, $rejRes->getStatusCode());
 
-        // 3. Admin approve lại refund
-        $appReq = new Request('POST', "/api/v1/admin/refunds/{$refundId}/approve", [], [], ['Authorization' => 'Bearer 1']);
+        $reApproveReq = new Request('POST', "/api/v1/admin/refunds/{$rejectTargetId}/approve", [], [], ['Authorization' => 'Bearer 1']);
+        $reApproveRes = $this->app->dispatch($reApproveReq);
+        $this->assertSame(409, $reApproveRes->getStatusCode());
+
+        // 3. Tạo 1 yêu cầu PENDING khác -> Admin approve thành công (200), sau đó cố reject đè bị chặn (409)
+        $pdo->exec("INSERT INTO `refunds` (`player_payment_id`, `amount`, `reason`, `status`, `requested_at`, `created_at`, `updated_at`) VALUES ({$paymentId}, 50000, 'Yêu cầu hoàn cọc test approve', 'PENDING', NOW(), NOW(), NOW())");
+        $approveTargetId = (int) $pdo->lastInsertId();
+
+        $appReq = new Request('POST', "/api/v1/admin/refunds/{$approveTargetId}/approve", [], [], ['Authorization' => 'Bearer 1']);
         $appRes = $this->app->dispatch($appReq);
         $this->assertSame(200, $appRes->getStatusCode());
+
+        $reRejectReq = new Request('POST', "/api/v1/admin/refunds/{$approveTargetId}/reject", [], ['reason' => 'Từ chối sau khi đã duyệt'], ['Authorization' => 'Bearer 1']);
+        $reRejectRes = $this->app->dispatch($reRejectReq);
+        $this->assertSame(409, $reRejectRes->getStatusCode());
     }
 }

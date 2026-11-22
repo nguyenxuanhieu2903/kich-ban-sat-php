@@ -95,25 +95,63 @@ class AdminRefundController
         }
 
         $refundId = (int) $id;
-        $stmt = $this->pdo->prepare('SELECT `id`, `player_payment_id`, `amount`, `status` FROM `refunds` WHERE `id` = :id LIMIT 1');
-        $stmt->bindValue(':id', $refundId, PDO::PARAM_INT);
-        $stmt->execute();
-        $refund = $stmt->fetch(PDO::FETCH_ASSOC);
 
-        if ($refund === false) {
-            return Response::fail('Không tìm thấy yêu cầu hoàn tiền', 'REFUND_NOT_FOUND', 404);
+        $this->pdo->beginTransaction();
+        try {
+            $stmt = $this->pdo->prepare(
+                'SELECT r.`id`, r.`player_payment_id`, r.`amount`, r.`status`,
+                        rp.`user_id`, gr.`title` AS `room_title`
+                 FROM `refunds` r
+                 INNER JOIN `player_payments` p ON p.`id` = r.`player_payment_id`
+                 INNER JOIN `room_participants` rp ON rp.`id` = p.`room_participant_id`
+                 INNER JOIN `game_rooms` gr ON gr.`id` = rp.`game_room_id`
+                 WHERE r.`id` = :id
+                 LIMIT 1 FOR UPDATE'
+            );
+            $stmt->bindValue(':id', $refundId, PDO::PARAM_INT);
+            $stmt->execute();
+            $refund = $stmt->fetch(PDO::FETCH_ASSOC);
+
+            if ($refund === false) {
+                $this->pdo->rollBack();
+                return Response::fail('Không tìm thấy yêu cầu hoàn tiền', 'REFUND_NOT_FOUND', 404);
+            }
+
+            if ($refund['status'] !== 'PENDING') {
+                $this->pdo->rollBack();
+                return Response::fail(
+                    'Yêu cầu hoàn tiền này đã được xử lý trước đó (Trạng thái: ' . $refund['status'] . ')',
+                    'INVALID_REFUND_STATUS',
+                    409
+                );
+            }
+
+            $upStmt = $this->pdo->prepare(
+                'UPDATE `refunds`
+                 SET `status` = \'APPROVED\', `reviewed_by` = :reviewer, `reviewed_at` = NOW(), `updated_at` = NOW()
+                 WHERE `id` = :id'
+            );
+            $upStmt->bindValue(':reviewer', (int) $auth['id'], PDO::PARAM_INT);
+            $upStmt->bindValue(':id', $refundId, PDO::PARAM_INT);
+            $upStmt->execute();
+
+            $this->notiRepo->createNotification(
+                'Yêu cầu hoàn tiền đã được duyệt',
+                "Yêu cầu hoàn tiền " . number_format((int) $refund['amount']) . " VNĐ cho phòng '{$refund['room_title']}' đã được Quản trị viên phê duyệt.",
+                'REFUND',
+                (int) $auth['id'],
+                [(int) $refund['user_id']]
+            );
+
+            $this->pdo->commit();
+
+            return Response::success(['refund_id' => $refundId, 'status' => 'APPROVED'], 'Duyệt hoàn tiền thành công');
+        } catch (\Throwable $e) {
+            if ($this->pdo->inTransaction()) {
+                $this->pdo->rollBack();
+            }
+            throw $e;
         }
-
-        $upStmt = $this->pdo->prepare(
-            'UPDATE `refunds`
-             SET `status` = \'APPROVED\', `reviewed_by` = :reviewer, `reviewed_at` = NOW(), `updated_at` = NOW()
-             WHERE `id` = :id'
-        );
-        $upStmt->bindValue(':reviewer', (int) $auth['id'], PDO::PARAM_INT);
-        $upStmt->bindValue(':id', $refundId, PDO::PARAM_INT);
-        $upStmt->execute();
-
-        return Response::success(['refund_id' => $refundId, 'status' => 'APPROVED'], 'Duyệt hoàn tiền thành công');
     }
 
     /**
@@ -135,24 +173,61 @@ class AdminRefundController
             return Response::fail('Vui lòng nêu rõ lý do từ chối hoàn tiền', 'VALIDATION_ERROR', 422);
         }
 
-        $stmt = $this->pdo->prepare('SELECT `id` FROM `refunds` WHERE `id` = :id LIMIT 1');
-        $stmt->bindValue(':id', $refundId, PDO::PARAM_INT);
-        $stmt->execute();
+        $this->pdo->beginTransaction();
+        try {
+            $stmt = $this->pdo->prepare(
+                'SELECT r.`id`, r.`amount`, r.`status`, rp.`user_id`, gr.`title` AS `room_title`
+                 FROM `refunds` r
+                 INNER JOIN `player_payments` p ON p.`id` = r.`player_payment_id`
+                 INNER JOIN `room_participants` rp ON rp.`id` = p.`room_participant_id`
+                 INNER JOIN `game_rooms` gr ON gr.`id` = rp.`game_room_id`
+                 WHERE r.`id` = :id
+                 LIMIT 1 FOR UPDATE'
+            );
+            $stmt->bindValue(':id', $refundId, PDO::PARAM_INT);
+            $stmt->execute();
+            $refund = $stmt->fetch(PDO::FETCH_ASSOC);
 
-        if ($stmt->fetch() === false) {
-            return Response::fail('Không tìm thấy yêu cầu hoàn tiền', 'REFUND_NOT_FOUND', 404);
+            if ($refund === false) {
+                $this->pdo->rollBack();
+                return Response::fail('Không tìm thấy yêu cầu hoàn tiền', 'REFUND_NOT_FOUND', 404);
+            }
+
+            if ($refund['status'] !== 'PENDING') {
+                $this->pdo->rollBack();
+                return Response::fail(
+                    'Yêu cầu hoàn tiền này đã được xử lý trước đó (Trạng thái: ' . $refund['status'] . ')',
+                    'INVALID_REFUND_STATUS',
+                    409
+                );
+            }
+
+            $upStmt = $this->pdo->prepare(
+                'UPDATE `refunds`
+                 SET `status` = \'REJECTED\', `reviewed_by` = :reviewer, `reviewed_at` = NOW(), `review_reason` = :reason, `updated_at` = NOW()
+                 WHERE `id` = :id'
+            );
+            $upStmt->bindValue(':reviewer', (int) $auth['id'], PDO::PARAM_INT);
+            $upStmt->bindValue(':reason', $reason, PDO::PARAM_STR);
+            $upStmt->bindValue(':id', $refundId, PDO::PARAM_INT);
+            $upStmt->execute();
+
+            $this->notiRepo->createNotification(
+                'Yêu cầu hoàn tiền bị từ chối',
+                "Yêu cầu hoàn tiền cho phòng '{$refund['room_title']}' đã bị từ chối. Lý do: {$reason}",
+                'REFUND',
+                (int) $auth['id'],
+                [(int) $refund['user_id']]
+            );
+
+            $this->pdo->commit();
+
+            return Response::success(['refund_id' => $refundId, 'status' => 'REJECTED'], 'Đã từ chối hoàn tiền');
+        } catch (\Throwable $e) {
+            if ($this->pdo->inTransaction()) {
+                $this->pdo->rollBack();
+            }
+            throw $e;
         }
-
-        $upStmt = $this->pdo->prepare(
-            'UPDATE `refunds`
-             SET `status` = \'REJECTED\', `reviewed_by` = :reviewer, `reviewed_at` = NOW(), `review_reason` = :reason, `updated_at` = NOW()
-             WHERE `id` = :id'
-        );
-        $upStmt->bindValue(':reviewer', (int) $auth['id'], PDO::PARAM_INT);
-        $upStmt->bindValue(':reason', $reason, PDO::PARAM_STR);
-        $upStmt->bindValue(':id', $refundId, PDO::PARAM_INT);
-        $upStmt->execute();
-
-        return Response::success(['refund_id' => $refundId, 'status' => 'REJECTED'], 'Đã từ chối hoàn tiền');
     }
 }

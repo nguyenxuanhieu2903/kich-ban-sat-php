@@ -9,6 +9,7 @@ use App\Core\Request;
 use App\Core\Response;
 use App\Features\Notification\Repositories\NotificationRepository;
 use App\Features\PaymentRefund\Repositories\PaymentRepository;
+use App\Features\Pricing\Services\PricingService;
 use App\Infrastructure\Database\DatabaseConnection;
 use PDO;
 
@@ -30,6 +31,30 @@ class PaymentController
         if (session_status() === PHP_SESSION_NONE && !headers_sent()) {
             @session_start();
         }
+    }
+
+    /**
+     * GET /api/v1/rooms/{id}/payments
+     * Player chỉ xem hóa đơn của chính mình; Admin/DM xem toàn bộ phòng.
+     */
+    public function listByRoom(Request $request, string $id): Response
+    {
+        $auth = AuthMiddleware::authenticate($request);
+        if ($auth instanceof Response) {
+            return $auth;
+        }
+
+        $roomId = (int) $id;
+        $userRole = strtoupper((string) ($auth['role_code'] ?? 'PLAYER'));
+        $filterUserId = in_array($userRole, ['ADMIN', 'DM'], true) ? null : (int) $auth['id'];
+
+        $payments = $this->paymentRepo->listByRoomId($roomId, $filterUserId);
+
+        return Response::success([
+            'room_id' => $roomId,
+            'payments' => $payments,
+            'count' => count($payments),
+        ], 'Danh sách khoản thanh toán của phòng');
     }
 
     /**
@@ -61,6 +86,7 @@ class PaymentController
         }
 
         $idempotencyKey = $request->getHeader('x-idempotency-key')
+            ?? $request->getHeader('idempotency-key')
             ?? (string) ($request->input('idempotency_key') ?? ('DEP_' . $id . '_' . bin2hex(random_bytes(8))));
 
         $totalAmount = (int) $payment['amount'];
@@ -71,22 +97,24 @@ class PaymentController
         if ($bodyAmount !== null && (int) $bodyAmount > 0) {
             $depositAmount = min((int) $bodyAmount, $remaining);
         } else {
-            // Mặc định cọc 50% tổng số tiền
-            $depositAmount = min((int) ceil($totalAmount * 0.5), $remaining);
+            // Quy chuẩn V16: Cọc cố định 50.000 VNĐ / người
+            $depositAmount = min(PricingService::DEPOSIT_PER_PERSON, $remaining);
         }
 
         $method = (string) ($request->input('payment_method') ?? 'SIMULATED_MOMO');
 
         $result = $this->paymentRepo->processPayment($id, $depositAmount, $idempotencyKey, $method);
 
-        // Tạo thông báo cho người dùng
-        $this->notiRepo->createNotification(
-            'Thanh toán cọc thành công',
-            "Bạn đã thanh toán cọc thành công số tiền " . number_format($depositAmount) . " VNĐ cho phòng " . ($payment['room_title'] ?? ''),
-            'PAYMENT',
-            null,
-            [(int) $payment['user_id']]
-        );
+        // Tạo thông báo cho người dùng (chỉ gửi nếu giao dịch mới thành công)
+        if (!empty($result['success']) && empty($result['idempotent_replay'])) {
+            $this->notiRepo->createNotification(
+                'Thanh toán cọc thành công',
+                "Bạn đã thanh toán cọc thành công số tiền " . number_format($depositAmount) . " VNĐ cho phòng " . ($payment['room_title'] ?? ''),
+                'PAYMENT',
+                null,
+                [(int) $payment['user_id']]
+            );
+        }
 
         return Response::success($result, 'Thanh toán tiền cọc thành công');
     }
@@ -124,20 +152,22 @@ class PaymentController
         }
 
         $idempotencyKey = $request->getHeader('x-idempotency-key')
+            ?? $request->getHeader('idempotency-key')
             ?? (string) ($request->input('idempotency_key') ?? ('REM_' . $id . '_' . bin2hex(random_bytes(8))));
 
         $method = (string) ($request->input('payment_method') ?? 'SIMULATED_VNPAY');
 
         $result = $this->paymentRepo->processPayment($id, $remaining, $idempotencyKey, $method);
 
-        // Tạo thông báo cho người dùng
-        $this->notiRepo->createNotification(
-            'Thanh toán hoàn tất',
-            "Bạn đã thanh toán thành công số tiền còn lại " . number_format($remaining) . " VNĐ cho phòng " . ($payment['room_title'] ?? ''),
-            'PAYMENT',
-            null,
-            [(int) $payment['user_id']]
-        );
+        if (!empty($result['success']) && empty($result['idempotent_replay'])) {
+            $this->notiRepo->createNotification(
+                'Thanh toán hoàn tất',
+                "Bạn đã thanh toán thành công số tiền còn lại " . number_format($remaining) . " VNĐ cho phòng " . ($payment['room_title'] ?? ''),
+                'PAYMENT',
+                null,
+                [(int) $payment['user_id']]
+            );
+        }
 
         return Response::success($result, 'Thanh toán số tiền còn lại thành công');
     }

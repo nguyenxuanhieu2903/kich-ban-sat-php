@@ -7,6 +7,10 @@ use App\Core\Response;
 use App\Core\Router;
 use App\Features\Identity\Controllers\AuthController;
 use App\Features\Identity\Controllers\AdminUserController;
+use App\Features\Identity\Controllers\AdminAuditLogController;
+use App\Features\GameroomManagement\Controllers\AdminOperationsController;
+use App\Features\PaymentRefund\Controllers\PaymentRefundRequestController;
+use App\Features\VenueScheduling\Controllers\SessionLifecycleController;
 use App\Features\DMManagement\Controllers\DMAssignmentController;
 use App\Features\GameCatalog\Controllers\GameController;
 use App\Features\GameroomManagement\Controllers\GameRoomController;
@@ -44,6 +48,14 @@ $registerApiRoutes = function (string $prefix) use ($router): void {
     $router->get($prefix . '/admin/users/{id}', [AdminUserController::class, 'show']);
     $router->patch($prefix . '/admin/users/{id}', [AdminUserController::class, 'update']);
     $router->put($prefix . '/admin/users/{id}/role', [AdminUserController::class, 'assignRole']);
+    $router->get($prefix . '/admin/audit-logs', [AdminAuditLogController::class, 'index']);
+    $router->post($prefix . '/admin/rooms/{id}/assign-dm', [AdminOperationsController::class, 'assignDm']);
+    $router->post($prefix . '/dm/assignments/{id}/revoke', [AdminOperationsController::class, 'revokeDmAssignment']);
+    $router->post($prefix . '/admin/rooms/{id}/assign-venue', [AdminOperationsController::class, 'assignVenue']);
+    $router->put($prefix . '/admin/users/{id}/student-verification', [AdminOperationsController::class, 'updateStudentVerification']);
+    $router->post($prefix . '/sessions/{id}/start', [SessionLifecycleController::class, 'start']);
+    $router->post($prefix . '/sessions/{id}/complete', [SessionLifecycleController::class, 'complete']);
+    $router->post($prefix . '/payments/{id}/refund-request', [PaymentRefundRequestController::class, 'requestRefund']);
 
     // =============================================================
     // DOMAIN 2: GAME CATALOG & PROMOTIONS API
@@ -87,6 +99,7 @@ $registerApiRoutes = function (string $prefix) use ($router): void {
     // =============================================================
     // DOMAIN 7: PAYMENT & REFUND API
     // =============================================================
+    $router->get($prefix . '/rooms/{id}/payments', [PaymentController::class, 'listByRoom']);
     $router->post($prefix . '/payments/{paymentId}/deposit', [PaymentController::class, 'deposit']);
     $router->post($prefix . '/payments/{paymentId}/remaining', [PaymentController::class, 'remaining']);
 
@@ -100,6 +113,7 @@ $registerApiRoutes = function (string $prefix) use ($router): void {
     // =============================================================
     $router->get($prefix . '/notifications', [NotificationController::class, 'index']);
     $router->post($prefix . '/notifications/{id}/read', [NotificationController::class, 'markAsRead']);
+    $router->post($prefix . '/notifications/read-all', [NotificationController::class, 'markAllAsRead']);
 };
 
 // Register for both standard V16 prefix (/api/v1) and legacy fallback (/api)

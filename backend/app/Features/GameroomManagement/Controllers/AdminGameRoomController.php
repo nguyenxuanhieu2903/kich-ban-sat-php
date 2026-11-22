@@ -40,7 +40,8 @@ class AdminGameRoomController
 
         $roomId = (int) $id;
         $body = $request->getBodyParams();
-        $reason = trim((string) ($body['reason'] ?? ''));
+        $reason = trim((string) ($body['reason'] ?? $body['cancellation_reason'] ?? ''));
+        $forceRefund = !empty($body['force_refund']);
 
         if ($reason === '') {
             return Response::fail('Vui lòng nêu rõ lý do hủy phòng chơi', 'VALIDATION_ERROR', 422);

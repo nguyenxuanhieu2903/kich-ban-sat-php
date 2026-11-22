@@ -360,6 +360,10 @@ class GameRoomController
 
         $partId = (int) $part['id'];
 
+        if (in_array($room['status'], ['CANCELLED', 'COMPLETED', 'EXPIRED'], true)) {
+            return Response::fail('Phòng chơi đã kết thúc hoặc bị hủy, không thể rời phòng', 'INVALID_ROOM_STATUS', 400);
+        }
+
         if ($room['status'] === 'FORMING') {
             // Rời phòng trực tiếp khi phòng chưa chốt lịch
             $upStmt = $this->pdo->prepare('UPDATE `room_participants` SET `status` = \'LEFT\', `left_at` = NOW() WHERE `id` = :id');

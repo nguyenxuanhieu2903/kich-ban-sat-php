@@ -8,8 +8,9 @@ enum PaymentStatus: string
 {
     case PENDING = 'PENDING';
     case PROCESSING = 'PROCESSING';
-    case COMPLETED = 'COMPLETED';
+    case PAID = 'PAID';
+    case PARTIALLY_PAID = 'PARTIALLY_PAID';
     case FAILED = 'FAILED';
-    case REFUNDED = 'REFUNDED';
+    case EXPIRED = 'EXPIRED';
     case CANCELLED = 'CANCELLED';
 }

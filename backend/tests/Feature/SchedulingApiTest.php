@@ -73,8 +73,8 @@ class SchedulingApiTest extends TestCase
         $this->assertSame(200, $joinRes->getStatusCode());
 
         // 3. User 3 tạo đề xuất lịch
-        $start = date('Y-m-d H:i:s', strtotime('+2 days 18:00:00'));
-        $end = date('Y-m-d H:i:s', strtotime('+2 days 22:00:00'));
+        $start = date('Y-m-d H:i:s', strtotime('+30 days 10:00:00'));
+        $end = date('Y-m-d H:i:s', strtotime('+30 days 12:00:00'));
 
         $propReq = new Request(
             method: 'POST',

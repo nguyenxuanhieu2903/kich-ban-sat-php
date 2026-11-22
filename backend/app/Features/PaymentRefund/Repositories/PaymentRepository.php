@@ -35,6 +35,91 @@ class PaymentRepository extends BaseRepository
     }
 
     /**
+     * List payments belonging to a game room (optionally filtered by user ID).
+     *
+     * @return list<array<string, mixed>>
+     */
+    public function listByRoomId(int $roomId, ?int $userId = null): array
+    {
+        return $this->executeQuery(function () use ($roomId, $userId): array {
+            $sql = 'SELECT p.`id`, p.`room_participant_id`, p.`payment_type`, p.`amount`, p.`paid_amount`,
+                           p.`status`, p.`deadline_at`, p.`paid_at`, p.`expired_at`, p.`created_at`, p.`updated_at`,
+                           rp.`user_id`, rp.`game_room_id`, rp.`status` AS `participant_status`,
+                           u.`full_name` AS `user_name`, u.`email` AS `user_email`
+                    FROM `player_payments` p
+                    INNER JOIN `room_participants` rp ON rp.`id` = p.`room_participant_id`
+                    INNER JOIN `users` u ON u.`id` = rp.`user_id`
+                    WHERE rp.`game_room_id` = :room_id';
+
+            if ($userId !== null && $userId > 0) {
+                $sql .= ' AND rp.`user_id` = :user_id';
+            }
+
+            $sql .= ' ORDER BY p.`id` ASC';
+
+            $stmt = $this->pdo->prepare($sql);
+            $stmt->bindValue(':room_id', $roomId, PDO::PARAM_INT);
+            if ($userId !== null && $userId > 0) {
+                $stmt->bindValue(':user_id', $userId, PDO::PARAM_INT);
+            }
+            $stmt->execute();
+
+            /** @var list<array<string, mixed>> $rows */
+            $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            return $rows;
+        });
+    }
+
+    /**
+     * Ensure DEPOSIT payment records exist for all active participants of a room.
+     */
+    public function ensureDepositPaymentsForRoom(int $roomId, int $depositAmount = 50000, int $deadlineHours = 2): int
+    {
+        return $this->executeQuery(function () use ($roomId, $depositAmount, $deadlineHours): int {
+            $deadline = date('Y-m-d H:i:s', strtotime("+{$deadlineHours} hours"));
+
+            $pStmt = $this->pdo->prepare(
+                'SELECT `id` FROM `room_participants`
+                 WHERE `game_room_id` = :room_id
+                   AND `status` IN (\'PENDING_DEPOSIT\', \'DEPOSITED\')'
+            );
+            $pStmt->bindValue(':room_id', $roomId, PDO::PARAM_INT);
+            $pStmt->execute();
+            $participantIds = $pStmt->fetchAll(PDO::FETCH_COLUMN);
+
+            $created = 0;
+            $insStmt = $this->pdo->prepare(
+                'INSERT IGNORE INTO `player_payments`
+                    (`room_participant_id`, `payment_type`, `amount`, `paid_amount`, `status`, `deadline_at`, `created_at`, `updated_at`)
+                 VALUES
+                    (:part_id, \'DEPOSIT\', :amount, 0, \'PENDING\', :deadline, NOW(), NOW())'
+            );
+            $upPartStmt = $this->pdo->prepare(
+                'UPDATE `room_participants`
+                 SET `deposit_deadline_at` = COALESCE(`deposit_deadline_at`, :deadline), `updated_at` = NOW()
+                 WHERE `id` = :part_id AND `status` = \'PENDING_DEPOSIT\''
+            );
+
+            foreach ($participantIds as $partId) {
+                $pid = (int) $partId;
+                $insStmt->bindValue(':part_id', $pid, PDO::PARAM_INT);
+                $insStmt->bindValue(':amount', $depositAmount, PDO::PARAM_INT);
+                $insStmt->bindValue(':deadline', $deadline, PDO::PARAM_STR);
+                $insStmt->execute();
+                if ($insStmt->rowCount() > 0) {
+                    $created++;
+                }
+
+                $upPartStmt->bindValue(':deadline', $deadline, PDO::PARAM_STR);
+                $upPartStmt->bindValue(':part_id', $pid, PDO::PARAM_INT);
+                $upPartStmt->execute();
+            }
+
+            return $created;
+        });
+    }
+
+    /**
      * Create player payment record.
      *
      * @param array{
@@ -191,40 +276,58 @@ class PaymentRepository extends BaseRepository
     }
 
     /**
-     * Process an idempotent payment.
+     * Process an idempotent payment with row-level FOR UPDATE lock.
      *
-     * @return array{success: bool, payment: array<string, mixed>, transaction: array<string, mixed>}
+     * @return array{success: bool, payment: array<string, mixed>, transaction: array<string, mixed>, idempotent_replay?: bool}
      */
     public function processPayment(int $paymentId, int $payAmount, string $idempotencyKey, string $method = 'SIMULATED'): array
     {
         return $this->executeQuery(function () use ($paymentId, $payAmount, $idempotencyKey, $method): array {
-            // Check existing idempotency key
-            $existingTx = $this->findAttemptByIdempotencyKey($idempotencyKey);
-            if ($existingTx !== null) {
-                $payment = $this->findPaymentWithDetails($paymentId);
-                return [
-                    'success' => $existingTx['status'] === 'SUCCESS',
-                    'payment' => $payment ?? [],
-                    'transaction' => $existingTx,
-                ];
-            }
-
-            $payment = $this->findPaymentWithDetails($paymentId);
-            if ($payment === null) {
-                throw new \InvalidArgumentException('Không tìm thấy thông tin khoản thanh toán');
-            }
-
-            $currentPaid = (int) $payment['paid_amount'];
-            $totalAmount = (int) $payment['amount'];
-            $newPaid = $currentPaid + $payAmount;
-
-            $newStatus = $newPaid >= $totalAmount ? 'PAID' : 'PARTIALLY_PAID';
-            $txRef = 'TX_' . strtoupper(bin2hex(random_bytes(8)));
-            $metadata = json_encode(['method' => $method, 'pay_amount' => $payAmount]);
-
             $this->pdo->beginTransaction();
             try {
-                // Insert transaction
+                // 1. Check existing idempotency key inside transaction
+                $existingTx = $this->findAttemptByIdempotencyKey($idempotencyKey);
+                if ($existingTx !== null) {
+                    $this->pdo->commit();
+                    $payment = $this->findPaymentWithDetails($paymentId);
+                    return [
+                        'success' => $existingTx['status'] === 'SUCCESS',
+                        'payment' => $payment ?? [],
+                        'transaction' => $existingTx,
+                        'idempotent_replay' => true,
+                    ];
+                }
+
+                // 2. Lock player_payments row FOR UPDATE
+                $lockStmt = $this->pdo->prepare(
+                    'SELECT `id`, `room_participant_id`, `amount`, `paid_amount`, `status`
+                     FROM `player_payments`
+                     WHERE `id` = :id
+                     FOR UPDATE'
+                );
+                $lockStmt->bindValue(':id', $paymentId, PDO::PARAM_INT);
+                $lockStmt->execute();
+                $lockedPayment = $lockStmt->fetch(PDO::FETCH_ASSOC);
+
+                if ($lockedPayment === false) {
+                    throw new \InvalidArgumentException('Không tìm thấy thông tin khoản thanh toán');
+                }
+
+                $currentPaid = (int) $lockedPayment['paid_amount'];
+                $totalAmount = (int) $lockedPayment['amount'];
+                $remaining = max(0, $totalAmount - $currentPaid);
+
+                if ($remaining <= 0 || $lockedPayment['status'] === 'PAID') {
+                    throw new \InvalidArgumentException('Khoản thanh toán này đã được thanh toán đầy đủ');
+                }
+
+                $effectivePay = min($payAmount, $remaining);
+                $newPaid = $currentPaid + $effectivePay;
+                $newStatus = $newPaid >= $totalAmount ? 'PAID' : 'PARTIALLY_PAID';
+                $txRef = 'TX_' . strtoupper(bin2hex(random_bytes(8)));
+                $metadata = json_encode(['method' => $method, 'pay_amount' => $effectivePay]);
+
+                // 3. Insert transaction
                 $txStmt = $this->pdo->prepare(
                     'INSERT INTO `payment_transactions` (`player_payment_id`, `idempotency_key`, `transaction_reference`,
                                                          `amount`, `status`, `provider_response`, `requested_at`, `processed_at`, `created_at`)
@@ -234,12 +337,12 @@ class PaymentRepository extends BaseRepository
                 $txStmt->bindValue(':payment_id', $paymentId, PDO::PARAM_INT);
                 $txStmt->bindValue(':idempotency_key', $idempotencyKey, PDO::PARAM_STR);
                 $txStmt->bindValue(':tx_ref', $txRef, PDO::PARAM_STR);
-                $txStmt->bindValue(':amount', $payAmount, PDO::PARAM_INT);
+                $txStmt->bindValue(':amount', $effectivePay, PDO::PARAM_INT);
                 $txStmt->bindValue(':provider_response', $metadata, PDO::PARAM_STR);
                 $txStmt->execute();
                 $txId = (int) $this->pdo->lastInsertId();
 
-                // Update payment
+                // 4. Update payment
                 $upStmt = $this->pdo->prepare(
                     'UPDATE `player_payments`
                      SET `paid_amount` = :paid_amount,
@@ -254,11 +357,13 @@ class PaymentRepository extends BaseRepository
                 $upStmt->bindValue(':id', $paymentId, PDO::PARAM_INT);
                 $upStmt->execute();
 
-                // Update participant status to DEPOSITED if participant is still PENDING_DEPOSIT
-                $partId = (int) $payment['room_participant_id'];
+                // 5. Update participant status to DEPOSITED + deposited_at
+                $partId = (int) $lockedPayment['room_participant_id'];
                 $partUp = $this->pdo->prepare(
                     'UPDATE `room_participants`
-                     SET `status` = \'DEPOSITED\', `updated_at` = NOW()
+                     SET `status` = \'DEPOSITED\',
+                         `deposited_at` = COALESCE(`deposited_at`, NOW()),
+                         `updated_at` = NOW()
                      WHERE `id` = :part_id AND `status` = \'PENDING_DEPOSIT\''
                 );
                 $partUp->bindValue(':part_id', $partId, PDO::PARAM_INT);
@@ -270,7 +375,7 @@ class PaymentRepository extends BaseRepository
                 $txRecord = [
                     'id' => $txId,
                     'transaction_reference' => $txRef,
-                    'amount' => $payAmount,
+                    'amount' => $effectivePay,
                     'status' => 'SUCCESS',
                     'idempotency_key' => $idempotencyKey,
                 ];

@@ -112,4 +112,20 @@ class NotificationRepository extends BaseRepository
             return $stmt->rowCount() > 0;
         });
     }
+
+    /**
+     * Mark all unread notifications for a user as read.
+     */
+    public function markAllAsRead(int $userId): int
+    {
+        return $this->executeQuery(function () use ($userId): int {
+            $stmt = $this->pdo->prepare(
+                'UPDATE `notifications` SET `is_read` = 1, `read_at` = NOW() WHERE `user_id` = :user_id AND `is_read` = 0'
+            );
+            $stmt->bindValue(':user_id', $userId, PDO::PARAM_INT);
+            $stmt->execute();
+
+            return $stmt->rowCount();
+        });
+    }
 }

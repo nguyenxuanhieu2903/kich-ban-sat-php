@@ -59,7 +59,7 @@ class SchedulingRepository extends BaseRepository
     {
         return $this->executeQuery(function () use ($minCapacity): array {
             $stmt = $this->pdo->prepare(
-                'SELECT `id`, CONCAT(\'ROOM_\', `id`) AS `code`, `name`, `capacity`, `status`, `description`
+                'SELECT `id`, `venue_id`, CONCAT(\'ROOM_\', `id`) AS `code`, `name`, `capacity`, `status`, `description`
                  FROM `physical_rooms`
                  WHERE `status` = \'ACTIVE\' AND `capacity` >= :min_capacity
                  ORDER BY `capacity` ASC, `name` ASC'
@@ -98,6 +98,91 @@ class SchedulingRepository extends BaseRepository
 
             $result = $stmt->fetch(PDO::FETCH_ASSOC);
             return !empty($result['conflict_count']) && (int) $result['conflict_count'] > 0;
+        });
+    }
+
+    /**
+     * Find an active physical room with sufficient capacity and no conflicting session (including cleanup buffer).
+     *
+     * @return array<string, mixed>|null
+     */
+    public function findAvailablePhysicalRoom(
+        int $minCapacity,
+        string $startAt,
+        string $endAt,
+        int $bufferMinutes = 30
+    ): ?array {
+        return $this->executeQuery(function () use ($minCapacity, $startAt, $endAt, $bufferMinutes): ?array {
+            $stmt = $this->pdo->prepare(
+                'SELECT pr.`id`, pr.`venue_id`, pr.`name`, pr.`capacity`
+                 FROM `physical_rooms` pr
+                 INNER JOIN `venues` v ON v.`id` = pr.`venue_id` AND v.`status` = \'ACTIVE\'
+                 WHERE pr.`status` = \'ACTIVE\'
+                   AND pr.`capacity` >= :min_capacity
+                   AND NOT EXISTS (
+                       SELECT 1 FROM `sessions` s
+                       WHERE s.`physical_room_id` = pr.`id`
+                         AND s.`status` IN (\'SCHEDULED\', \'IN_PROGRESS\')
+                         AND s.`start_at` < DATE_ADD(:end_at, INTERVAL :buf1 MINUTE)
+                         AND s.`end_at` > DATE_SUB(:start_at, INTERVAL :buf2 MINUTE)
+                   )
+                 ORDER BY pr.`capacity` ASC, pr.`id` ASC
+                 LIMIT 1'
+            );
+            $stmt->bindValue(':min_capacity', max(1, $minCapacity), PDO::PARAM_INT);
+            $stmt->bindValue(':end_at', $endAt, PDO::PARAM_STR);
+            $stmt->bindValue(':start_at', $startAt, PDO::PARAM_STR);
+            $stmt->bindValue(':buf1', max(0, $bufferMinutes), PDO::PARAM_INT);
+            $stmt->bindValue(':buf2', max(0, $bufferMinutes), PDO::PARAM_INT);
+            $stmt->execute();
+
+            $result = $stmt->fetch(PDO::FETCH_ASSOC);
+            return $result !== false ? $result : null;
+        });
+    }
+
+    /**
+     * Find an active DM user who does not have an overlapping session.
+     */
+    public function findAvailableDmUserId(string $startAt, string $endAt, int $bufferMinutes = 30): ?int
+    {
+        return $this->executeQuery(function () use ($startAt, $endAt, $bufferMinutes): ?int {
+            $stmt = $this->pdo->prepare(
+                'SELECT u.`id`
+                 FROM `users` u
+                 INNER JOIN `roles` r ON r.`id` = u.`role_id`
+                 WHERE r.`code` = \'DM\'
+                   AND u.`status` = \'ACTIVE\'
+                   AND NOT EXISTS (
+                       SELECT 1
+                       FROM `sessions` s
+                       INNER JOIN `dm_assignments` da ON da.`id` = s.`dm_assignment_id`
+                       WHERE da.`dm_user_id` = u.`id`
+                         AND s.`status` IN (\'SCHEDULED\', \'IN_PROGRESS\')
+                         AND s.`start_at` < DATE_ADD(:end_at, INTERVAL :buf1 MINUTE)
+                         AND s.`end_at` > DATE_SUB(:start_at, INTERVAL :buf2 MINUTE)
+                   )
+                 ORDER BY u.`id` ASC
+                 LIMIT 1'
+            );
+            $stmt->bindValue(':end_at', $endAt, PDO::PARAM_STR);
+            $stmt->bindValue(':start_at', $startAt, PDO::PARAM_STR);
+            $stmt->bindValue(':buf1', max(0, $bufferMinutes), PDO::PARAM_INT);
+            $stmt->bindValue(':buf2', max(0, $bufferMinutes), PDO::PARAM_INT);
+            $stmt->execute();
+
+            $id = $stmt->fetchColumn();
+            if ($id !== false && $id !== null) {
+                return (int) $id;
+            }
+
+            // Fallback: bất kỳ DM ACTIVE nào nếu tất cả đều bận (để Admin điều phối lại)
+            $fallback = $this->pdo->query(
+                'SELECT u.`id` FROM `users` u INNER JOIN `roles` r ON r.`id` = u.`role_id`
+                 WHERE r.`code` = \'DM\' AND u.`status` = \'ACTIVE\' ORDER BY u.`id` ASC LIMIT 1'
+            );
+            $fallbackId = $fallback !== false ? $fallback->fetchColumn() : false;
+            return $fallbackId !== false && $fallbackId !== null ? (int) $fallbackId : null;
         });
     }
 }

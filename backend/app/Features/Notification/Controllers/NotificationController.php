@@ -71,4 +71,18 @@ class NotificationController
 
         return Response::success(null, 'Đã đánh dấu thông báo là đã đọc');
     }
+
+    /**
+     * POST /api/v1/notifications/read-all
+     */
+    public function markAllAsRead(Request $request): Response
+    {
+        $auth = AuthMiddleware::authenticate($request);
+        if ($auth instanceof Response) {
+            return $auth;
+        }
+
+        $count = $this->notiRepo->markAllAsRead((int) $auth['id']);
+        return Response::success(['updated_count' => $count], 'Đã đánh dấu tất cả thông báo là đã đọc');
+    }
 }
