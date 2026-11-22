@@ -101,13 +101,35 @@ class App {
   }
 
   setupNavigation() {
-    const navButtons = document.querySelectorAll('.nav-tab-btn');
+    const navButtons = document.querySelectorAll('.nav-tab-btn[data-tab]');
     navButtons.forEach(btn => {
       btn.addEventListener('click', () => {
         const tab = btn.dataset.tab;
-        this.navigateTo(tab);
+        if (tab) this.navigateTo(tab);
       });
     });
+
+    const pricingBtn = document.getElementById('nav-link-pricing');
+    if (pricingBtn) {
+      pricingBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        const dialog = document.getElementById('home-price-dialog');
+        if (dialog && typeof dialog.showModal === 'function') {
+          dialog.showModal();
+        } else {
+          this.navigateTo('games');
+        }
+      });
+    }
+
+    const contactBtn = document.getElementById('nav-link-contact');
+    if (contactBtn) {
+      contactBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        const footer = document.getElementById('app-footer');
+        if (footer) footer.scrollIntoView({ behavior: 'smooth' });
+      });
+    }
 
     if (this.notifBtn) {
       this.notifBtn.addEventListener('click', () => {
@@ -203,8 +225,16 @@ class App {
     this.currentTab = hash;
     this.closeMobileDrawer();
 
+    if (this.mountPoint) {
+      if (hash === 'home') {
+        this.mountPoint.classList.add('is-home-view');
+      } else {
+        this.mountPoint.classList.remove('is-home-view');
+      }
+    }
+
     // Update active nav button (Desktop)
-    document.querySelectorAll('.nav-tab-btn').forEach(btn => {
+    document.querySelectorAll('.nav-tab-btn[data-tab]').forEach(btn => {
       if (btn.dataset.tab === hash) {
         btn.classList.add('active');
       } else {
@@ -274,13 +304,21 @@ class App {
       };
     } else {
       this.userContainer.innerHTML = `
-        <button id="btn-open-login" class="btn btn-primary" style="padding: 7px 16px; font-size: 0.85rem;">
-          Đăng nhập / Đổi vai trò
-        </button>
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <button id="btn-open-login" class="btn btn-ghost btn-sm" style="color: var(--text-primary); border-color: rgba(255,255,255,0.25);">
+            Đăng nhập
+          </button>
+          <button id="btn-open-register" class="btn btn-gold btn-sm" style="color: var(--ink-black);">
+            Đăng ký
+          </button>
+        </div>
       `;
 
       this.userContainer.querySelector('#btn-open-login').onclick = () => {
-        this.authModal.show();
+        this.authModal.show(false);
+      };
+      this.userContainer.querySelector('#btn-open-register').onclick = () => {
+        this.authModal.show(true);
       };
     }
   }

@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Thông tin & Chính sách — KỊCH BẢN SÁT V16</title>
+  <link rel="stylesheet" href="../src/styles/tokens.css" />
+  <link rel="stylesheet" href="../src/styles/base.css" />
+</head>
+<body>
+  <div id="app-header"></div>
+
+  <main class="page-shell">
+    <div class="container">
+      <div class="tabs-bar">
+        <button class="tab-btn" data-info="contact">Giới thiệu &amp; Liên hệ</button>
+        <button class="tab-btn" data-info="policies">Quy định, Bảng giá &amp; Bảo mật</button>
+        <button class="tab-btn" data-info="404">Trang lỗi 404 (Hồ sơ thất lạc)</button>
+      </div>
+<!-- 09: ABOUT & CONTACT (BỐ CỤC 3 CỘT + EMBED GOOGLE MAPS FULL WIDTH) -->
+<section id="info-contact" style="display:none;">
+  <style>
+    .contact-showcase {
+      background: #181410;
+      border: 1px solid rgba(212, 175, 55, 0.25);
+      border-radius: 12px;
+      padding: 36px 32px 28px;
+    }
+    .contact-top-grid {
+      display: grid;
+      grid-template-columns: 1.5fr 1fr 0.7fr;
+      gap: 32px;
+      margin-bottom: 28px;
+    }
+    .contact-col-title {
+      font-family: var(--font-sans);
+      font-size: 1.05rem;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      color: var(--gold);
+      text-transform: uppercase;
+      margin-bottom: 16px;
+    }
+    .contact-info-list {
+      list-style: none;
+      display: grid;
+      gap: 13px;
+    }
+    .contact-info-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      font-size: 0.94rem;
+      color: var(--paper-cream);
+    }
+    .contact-icon-badge {
+      width: 26px;
+      height: 26px;
+      min-width: 26px;
+      border-radius: 50%;
+      background: #FFFFFF;
+      color: #181410;
+      display: grid;
+      place-items: center;
+      font-size: 0.82rem;
+      font-weight: 700;
+      margin-top: 1px;
+    }
+    .social-row {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 24px;
+    }
+    .social-btn {
+      width: 42px;
+      height: 42px;
+      border-radius: 10px;
+      display: grid;
+      place-items: center;
+      font-weight: 800;
+      font-size: 1.1rem;
+      color: #fff;
+      transition: transform 0.2s;
+    }
+    .social-btn:hover { transform: translateY(-2px); }
+    .sb-fb { background: #1877F2; }
+    .sb-ig { background: linear-gradient(45deg, #f09433, #e6683c, #dc2743, #cc2366, #bc1888); }
+    .sb-tt { background: #000000; border: 1px solid rgba(255,255,255,0.25); }
+    .sb-call { background: #25D366; }
+    .sb-msg { background: #0084FF; }
+
+    .contact-qr-card {
+      background: #FFFFFF;
+      padding: 10px;
+      border-radius: 10px;
+      width: 148px;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+    }
+    .contact-qr-grid {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 3px;
+      aspect-ratio: 1 / 1;
+      position: relative;
+    }
+    .contact-qr-center {
+      position: absolute;
+      inset: 0;
+      margin: auto;
+      width: 34px;
+      height: 34px;
+      border-radius: 50%;
+      background: #1877F2;
+      color: #fff;
+      font-weight: 800;
+      display: grid;
+      place-items: center;
+      border: 2px solid #fff;
+      font-size: 1rem;
+    }
+    .gmap-embed-wrap {
+      width: 100%;
+      height: 390px;
+      border-radius: 10px;
+      overflow: hidden;
+      border: 1px solid rgba(212, 175, 55, 0.35);
+      background: #222;
+    }
+    .gmap-embed-wrap iframe {
+      width: 100%;
+      height: 100%;
+      border: 0;
+      display: block;
+    }
+    @media (max-width: 900px) {
+      .contact-top-grid { grid-template-columns: 1fr; gap: 24px; }
+      .gmap-embed-wrap { height: 300px; }
+    }
+  </style>
+
+  <div class="contact-showcase">
+    <div class="contact-top-grid">
+      <!-- CỘT 1: THÔNG TIN LIÊN HỆ -->
+      <div>
+        <h2 class="contact-col-title">THÔNG TIN LIÊN HỆ KỊCH BẢN SÁT</h2>
+        <ul class="contact-info-list">
+          <li class="contact-info-item">
+            <span class="contact-icon-badge">📍</span>
+            <span><strong>Địa chỉ quán:</strong> 36/52 Nguyễn Gia Trí, Phường 25, Quận Bình Thạnh, TP. Hồ Chí Minh</span>
+          </li>
+          <li class="contact-info-item">
+            <span class="contact-icon-badge">🕒</span>
+            <span><strong>Giờ mở cửa:</strong> 09:00 – 23:00 mỗi ngày (cả Lễ &amp; Cuối tuần)</span>
+          </li>
+          <li class="contact-info-item">
+            <span class="contact-icon-badge">📞</span>
+            <span><strong>Hotline đặt phòng:</strong> <a href="tel:0915690033" class="text-gold">091.569.0033</a></span>
+          </li>
+          <li class="contact-info-item">
+            <span class="contact-icon-badge">Zalo</span>
+            <span><strong>Hợp tác &amp; Kịch bản:</strong> <a href="tel:0989896833" class="text-gold">0989.896.833 (Mrs Yến)</a></span>
+          </li>
+          <li class="contact-info-item">
+            <span class="contact-icon-badge">✉️</span>
+            <span><strong>Cộng đồng:</strong> Facebook Kịch Bản Sát (100% đề xuất • 59 đánh giá • 2,2K theo dõi)</span>
+          </li>
+        </ul>
+      </div>
+
+      <!-- CỘT 2: KẾT NỐI & TỔNG ĐÀI -->
+      <div>
+        <h2 class="contact-col-title">KẾT NỐI VỚI KỊCH BẢN SÁT</h2>
+        <div class="social-row">
+          <a href="https://www.facebook.com" target="_blank" rel="noopener" class="social-btn sb-fb" title="Facebook">f</a>
+          <a href="https://www.instagram.com" target="_blank" rel="noopener" class="social-btn sb-ig" title="Instagram">IG</a>
+          <a href="https://www.tiktok.com" target="_blank" rel="noopener" class="social-btn sb-tt" title="TikTok">♪</a>
+        </div>
+
+        <h2 class="contact-col-title">TỔNG ĐÀI CHĂM SÓC KHÁCH HÀNG (09:00–23:00)</h2>
+        <div class="social-row" style="margin-bottom:0;">
+          <a href="tel:0915690033" class="social-btn sb-call" title="Gọi Hotline 091.569.0033">📞</a>
+          <a href="https://m.me" target="_blank" rel="noopener" class="social-btn sb-msg" title="Nhắn tin Messenger">⚡</a>
+        </div>
+      </div>
+
+      <!-- CỘT 3: MÃ QR LIÊN HỆ CHƠI NGAY -->
+      <div>
+        <h2 class="contact-col-title">LIÊN HỆ CHƠI NGAY</h2>
+        <div class="contact-qr-card">
+          <div class="contact-qr-grid">
+            <div class="qr-cell"></div><div class="qr-cell"></div><div class="qr-cell"></div><div class="qr-cell w"></div><div class="qr-cell"></div><div class="qr-cell"></div><div class="qr-cell"></div>
+            <div class="qr-cell"></div><div class="qr-cell w"></div><div class="qr-cell"></div><div class="qr-cell"></div><div class="qr-cell"></div><div class="qr-cell w"></div><div class="qr-cell"></div>
+            <div class="qr-cell"></div><div class="qr-cell"></div><div class="qr-cell"></div><div class="qr-cell w"></div><div class="qr-cell"></div><div class="qr-cell"></div><div class="qr-cell"></div>
+            <div class="qr-cell w"></div><div class="qr-cell"></div><div class="qr-cell w"></div><div class="qr-cell w"></div><div class="qr-cell w"></div><div class="qr-cell"></div><div class="qr-cell w"></div>
+            <div class="qr-cell"></div><div class="qr-cell"></div><div class="qr-cell"></div><div class="qr-cell w"></div><div class="qr-cell"></div><div class="qr-cell w"></div><div class="qr-cell"></div>
+            <div class="qr-cell"></div><div class="qr-cell w"></div><div class="qr-cell"></div><div class="qr-cell"></div><div class="qr-cell w"></div><div class="qr-cell"></div><div class="qr-cell w"></div>
+            <div class="qr-cell"></div><div class="qr-cell"></div><div class="qr-cell"></div><div class="qr-cell w"></div><div class="qr-cell"></div><div class="qr-cell"></div><div class="qr-cell"></div>
+            <div class="contact-qr-center">f</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- GOOGLE MAPS NHÚNG TRỰC TIẾP FULL WIDTH -->
+    <div class="gmap-embed-wrap">
+      <iframe
+        title="Bản đồ Kịch Bản Sát - 36/52 Nguyễn Gia Trí, Bình Thạnh"
+        src="https://maps.google.com/maps?q=36/52%20Nguy%E1%BB%85n%20Gia%20Tr%C3%AD,%20Ph%C6%B0%E1%BB%9Dng%2025,%20B%C3%ACnh%20Th%E1%BA%A1nh,%20H%E1%BB%93%20Ch%C3%AD%20Minh&t=&z=16&ie=UTF8&iwloc=&output=embed"
+        loading="lazy"
+        referrerpolicy="no-referrer-when-downgrade">
+      </iframe>
+    </div>
+  </div>
+</section>
+      <!-- 10a: POLICIES -->
+      <section id="info-policies" style="display:none;">
+        <div class="page-header">
+          <div>
+            <div class="section-kicker">MINH BẠCH QUYỀN LỢI</div>
+            <h1 class="page-title">Bảng Giá, Ưu Đãi &amp; Điều Khoản</h1>
+          </div>
+        </div>
+
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:20px;margin-bottom:28px;">
+          <div class="paper-ticket" style="padding:24px;">
+            <span class="badge badge-18">ƯU ĐÃI THỨ 3 BÍ ẨN</span>
+            <h3 style="font-family:var(--font-display);font-size:1.35rem;margin:10px 0;">Giảm ngay 30% giá vé</h3>
+            <p style="font-size:0.9rem;color:var(--ink-muted);">Áp dụng tự động cho tất cả các ca chơi diễn ra vào <strong>Thứ 3 hàng tuần</strong>, mọi khung giờ.</p>
+          </div>
+          <div class="paper-ticket" style="padding:24px;">
+            <span class="badge badge-18">ƯU ĐÃI HSSV</span>
+            <h3 style="font-family:var(--font-display);font-size:1.35rem;margin:10px 0;">Giảm 20.000đ / người</h3>
+            <p style="font-size:0.9rem;color:var(--ink-muted);">Áp dụng từ <strong>Thứ 2 – Thứ 5 (khung giờ 09:00 – 19:59)</strong> khi tài khoản đã được Admin xác minh thẻ HSSV.</p>
+          </div>
+          <div class="paper-ticket" style="padding:24px;">
+            <span class="badge badge-18">CỌC &amp; HOÀN TIỀN 24H</span>
+            <h3 style="font-family:var(--font-display);font-size:1.35rem;margin:10px 0;">Cọc 50.000đ • Giữ chỗ 4h</h3>
+            <p style="font-size:0.9rem;color:var(--ink-muted);">Hủy trước giờ chơi <strong>&gt; 24 giờ</strong> hoàn 100% cọc (50.000đ). Hủy <strong>&lt; 24 giờ</strong> mất cọc để bù chi phí chuẩn bị đạo cụ &amp; DM.</p>
+          </div>
+        </div>
+
+        <div style="background:var(--bg-surface);border:1px solid rgba(255,255,255,0.1);border-radius:8px;padding:24px;">
+          <h3 style="color:var(--gold);margin-bottom:10px;">Điều khoản &amp; Bảo mật thông tin</h3>
+          <p class="text-muted" style="font-size:0.92rem;line-height:1.7;">
+            1. Người chơi vui lòng có mặt trước giờ bắt đầu 15 phút để Quản trò (DM) phổ biến luật và phát hồ sơ nhân vật.<br />
+            2. Tuyệt đối không tiết lộ nội dung kịch bản, hung thủ và cơ chế giải đố sau khi chơi để bảo vệ trải nghiệm cho người chơi sau.<br />
+            3. Dữ liệu cá nhân (Họ tên, SĐT, ảnh thẻ HSSV) chỉ phục vụ mục đích xác nhận đặt phòng và ưu đãi tại Kịch Bản Sát, không chia sẻ cho bên thứ ba.
+          </p>
+        </div>
+      </section>
+
+      <!-- 10b: 404 ERROR -->
+      <section id="info-404" style="display:none;text-align:center;padding:48px 16px;">
+        <div class="paper-ticket" style="max-width:560px;margin:0 auto;padding:40px 28px;">
+          <span class="badge badge-18">HỒ SƠ VỤ ÁN THẤT LẠC</span>
+          <div style="font-family:var(--font-display);font-size:5rem;font-weight:800;color:var(--crimson);line-height:1;margin:12px 0;">404</div>
+          <h2 style="font-family:var(--font-display);font-size:1.6rem;margin-bottom:10px;">Không tìm thấy manh mối tại hiện trường</h2>
+          <p style="color:var(--ink-muted);margin-bottom:24px;">Trang bạn đang tìm có thể đã bị hung thủ phi tang hoặc đường dẫn không còn tồn tại.</p>
+          <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap;">
+            <a href="../index.html" class="btn btn-crimson">Quay về Trang chủ</a>
+            <a href="./scenarios.html" class="btn btn-gold">Xem kho 42 kịch bản</a>
+          </div>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <div id="app-footer"></div>
+
+  <script type="module">
+    import { initChrome } from '../src/logic/layout.js';
+
+    function renderInfoTab() {
+      const h = window.location.hash.replace('#', '');
+      const tab = ['contact', 'policies', '404'].includes(h) ? h : 'contact';
+      initChrome(tab === '404' ? '' : tab);
+      document.querySelectorAll('[data-info]').forEach(b => b.classList.toggle('active', b.dataset.info === tab));
+      ['contact', 'policies', '404'].forEach(k => {
+        document.getElementById(`info-${k}`).style.display = k === tab ? 'block' : 'none';
+      });
+    }
+
+    document.querySelectorAll('[data-info]').forEach(btn => {
+      btn.addEventListener('click', () => { window.location.hash = btn.dataset.info; });
+    });
+    window.addEventListener('hashchange', renderInfoTab);
+    renderInfoTab();
+  </script>
+</body>
+</html>

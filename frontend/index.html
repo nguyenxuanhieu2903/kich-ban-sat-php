@@ -5,15 +5,18 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Kịch Bản Sát V16 — Nền Tảng Đặt Lịch & Ghép Phòng Chơi</title>
   <link rel="stylesheet" href="./src/styles/reset.css">
+  <link rel="stylesheet" href="./src/styles/tokens.css">
   <link rel="stylesheet" href="./src/styles/variables.css">
+  <link rel="stylesheet" href="./src/styles/base.css">
   <link rel="stylesheet" href="./src/styles/main.css">
   <link rel="stylesheet" href="./src/styles/components.css">
+  <link rel="stylesheet" href="./src/styles/home.css">
   <link rel="stylesheet" href="./src/styles/pages.css">
   <style>
     /* Global layout enhancements */
     body {
-      background-color: var(--color-bg-app);
-      color: var(--color-text-main);
+      background-color: var(--color-bg-app, #0D0D0D);
+      color: var(--color-text-main, #F5F2EB);
       margin: 0;
       font-family: var(--font-sans);
       min-height: 100vh;
@@ -22,19 +25,19 @@
     }
 
     .navbar-container {
-      background: rgba(30, 41, 59, 0.85);
-      backdrop-filter: blur(8px);
-      border-bottom: 1px solid var(--color-border);
+      background: rgba(13, 13, 13, 0.94);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--gold-border, rgba(212, 175, 55, 0.3));
       position: sticky;
       top: 0;
       z-index: 100;
     }
 
     .navbar-inner {
-      max-width: 1200px;
+      max-width: 1280px;
       margin: 0 auto;
       padding: 0 1.5rem;
-      height: 64px;
+      height: 72px;
       display: flex;
       align-items: center;
       justify-content: space-between;
@@ -54,17 +57,18 @@
     }
 
     .brand-text {
-      font-size: 1.2rem;
+      font-size: 1.25rem;
       font-weight: 700;
+      font-family: var(--font-display);
       letter-spacing: -0.02em;
-      background: linear-gradient(135deg, #60a5fa 0%, #a855f7 100%);
+      background: linear-gradient(135deg, var(--gold) 0%, var(--crimson-bright) 100%);
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
     }
 
     .nav-links {
       display: flex;
-      gap: 4px;
+      gap: 6px;
       align-items: center;
     }
 
@@ -78,7 +82,7 @@
       position: relative;
       background: transparent;
       border: 1px solid var(--color-border);
-      color: var(--color-text-main);
+      color: var(--gold);
       border-radius: var(--radius-sm);
       padding: 8px 12px;
       cursor: pointer;
@@ -111,15 +115,15 @@
       display: flex;
       align-items: center;
       gap: 8px;
-      background: rgba(15, 23, 42, 0.6);
-      border: 1px solid var(--color-border);
-      padding: 6px 12px;
+      background: var(--bg-surface);
+      border: 1px solid var(--gold-border);
+      padding: 6px 14px;
       border-radius: 9999px;
       font-size: 0.85rem;
     }
 
     .main-content {
-      max-width: 1200px;
+      max-width: 1280px;
       margin: 0 auto;
       padding: 2rem 1.5rem;
       width: 100%;
@@ -127,17 +131,40 @@
       flex: 1;
     }
 
+    .main-content.is-home-view {
+      max-width: 100%;
+      margin: 0;
+      padding: 0;
+    }
+
     .app-footer {
       border-top: 1px solid var(--color-border);
-      padding: 1.5rem;
-      text-align: center;
-      font-size: 0.85rem;
+      padding: 3rem 1.5rem 1.5rem;
+      font-size: 0.88rem;
       color: var(--color-text-muted);
-      background: rgba(15, 23, 42, 0.4);
+      background: #080808;
     }
   </style>
 </head>
 <body>
+  <!-- 4-PAGES ROLE DEMO BAR -->
+  <div class="role-demo-bar">
+    <div class="container role-demo-inner">
+      <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+        <span class="role-label" style="font-weight: 700; color: var(--gold); font-size: 0.8rem;">4 TRANG CHÍNH:</span>
+        <div class="role-pills">
+          <a href="/index.html" class="role-pill active">🏠 Trang Chủ</a>
+          <a href="/admin.html" class="role-pill">🛡️ Trang ADMIN</a>
+          <a href="/dm.html" class="role-pill">📜 Trang DM</a>
+          <a href="/player.html" class="role-pill">🎲 Trang PLAYER</a>
+        </div>
+      </div>
+      <span class="hotline-top">
+        Hotline: <strong style="color: var(--gold);">091.569.0033</strong> | 09:00 – 23:00 &bull; 36/52 Nguyễn Gia Trí, Bình Thạnh
+      </span>
+    </div>
+  </div>
+
   <!-- Header Navbar Sticky -->
   <header class="navbar-container">
     <div class="navbar-inner">
@@ -147,8 +174,8 @@
           <span id="nav-hamburger-icon">☰</span>
         </button>
 
-        <a href="#home" class="brand-logo">
-          <span class="brand-icon">🎭</span>
+        <a href="#home" class="brand-logo" title="Kịch Bản Sát V16">
+          <img src="./src/images/logo.png" alt="Kịch Bản Sát" style="height: 46px; width: auto; object-fit: contain; filter: drop-shadow(0 0 6px rgba(212,175,55,0.3));" />
           <span class="brand-text">Kịch Bản Sát V16</span>
         </a>
       </div>
@@ -156,19 +183,25 @@
       <!-- Navigation tabs -->
       <nav class="nav-links">
         <button id="nav-btn-home" class="nav-tab-btn active" data-tab="home">
-          <span>🏠</span> Trang Chủ
+          Trang chủ
         </button>
         <button id="nav-btn-games" class="nav-tab-btn" data-tab="games">
-          <span>🎭</span> Kịch Bản
+          Kho kịch bản (42)
         </button>
         <button id="nav-btn-rooms" class="nav-tab-btn" data-tab="rooms">
-          <span>🎲</span> Sảnh Phòng
+          Phòng đang tuyển
         </button>
+        <a href="#section-featured-games" id="nav-link-pricing" class="nav-tab-btn" style="text-decoration: none;">
+          Quy định &amp; Giá vé
+        </a>
+        <a href="#app-footer" id="nav-link-contact" class="nav-tab-btn" style="text-decoration: none;">
+          Liên hệ
+        </a>
         <button id="nav-btn-dm" class="nav-tab-btn" data-tab="dm" style="display: none;">
-          <span>📜</span> Quản Trò (DM)
+          Quản Trò (DM)
         </button>
         <button id="nav-btn-admin" class="nav-tab-btn" data-tab="admin" style="display: none;">
-          <span>🛡️</span> Quản Trị (Admin)
+          Quản Trị (Admin)
         </button>
       </nav>
 
@@ -181,9 +214,12 @@
         </button>
 
         <!-- User container -->
-        <div id="nav-user-container">
-          <button id="btn-open-login" class="btn btn-primary" style="padding: 7px 16px; font-size: 0.85rem;">
-            Đăng nhập / Đổi vai trò
+        <div id="nav-user-container" style="display: flex; align-items: center; gap: 8px;">
+          <button id="btn-open-login" class="btn btn-ghost btn-sm">
+            Đăng nhập
+          </button>
+          <button id="btn-open-register" class="btn btn-gold btn-sm">
+            Đăng ký
           </button>
         </div>
       </div>
@@ -194,17 +230,17 @@
       <a href="#home" class="mobile-nav-link active" data-tab="home">
         <span>🏠</span> Trang Chủ
       </a>
-      <a href="#games" class="mobile-nav-link" data-tab="games">
-        <span>🎭</span> Khám Phá Kịch Bản
+      <a href="/admin.html" id="mobile-nav-admin" class="mobile-nav-link" data-tab="admin" style="display: none;">
+        <span>🛡️</span> Cổng Quản Trị (Admin)
       </a>
-      <a href="#rooms" class="mobile-nav-link" data-tab="rooms">
-        <span>🎲</span> Sảnh Phòng Chơi
-      </a>
-      <a href="#dm" id="mobile-nav-dm" class="mobile-nav-link" data-tab="dm" style="display: none;">
+      <a href="/dm.html" id="mobile-nav-dm" class="mobile-nav-link" data-tab="dm" style="display: none;">
         <span>📜</span> Dành Cho Quản Trò (DM)
       </a>
-      <a href="#admin" id="mobile-nav-admin" class="mobile-nav-link" data-tab="admin" style="display: none;">
-        <span>🛡️</span> Cổng Quản Trị (Admin)
+      <a href="/player.html" class="mobile-nav-link" data-tab="rooms">
+        <span>🎲</span> Sảnh Phòng Chơi & Hồ Sơ Player
+      </a>
+      <a href="#games" class="mobile-nav-link" data-tab="games">
+        <span>🎭</span> Khám Phá Kịch Bản
       </a>
     </div>
   </header>
@@ -217,39 +253,47 @@
   </main>
 
   <!-- Public Footer -->
-  <footer class="app-footer">
-    <div class="footer-top">
+  <footer class="app-footer" id="app-footer">
+    <div class="footer-top" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 28px; margin-bottom: 32px;">
       <div class="footer-col">
-        <h4 style="display: flex; align-items: center; gap: 8px;">
+        <h4 style="display: flex; align-items: center; gap: 8px; font-family: var(--font-display); font-size: 1.25rem; color: var(--gold); margin-bottom: 12px;">
           <span>🎭</span> Kịch Bản Sát V16
         </h4>
-        <p>
-          Nền tảng đặt lịch và ghép phòng chơi Kịch Bản Sát (Jubensha / Murder Mystery) chuyên nghiệp hàng đầu.
+        <p style="line-height: 1.6; margin-bottom: 12px;">
+          Nền tảng đặt lịch và ghép phòng chơi Kịch Bản Sát (Jubensha / Murder Mystery) chuyên nghiệp hàng đầu TP.HCM.
           Mang đến không gian nhập vai phá án chân thực, kết nối thám tử và quy trình minh bạch tuyệt đối.
         </p>
-        <p style="font-size: 0.8rem; color: #60a5fa;">
+        <p style="font-size: 0.8rem; color: var(--gold);">
           Chuẩn kiến trúc Monolithic MVC &bull; Clean Architecture &bull; MySQL 8.4
         </p>
       </div>
 
       <div class="footer-col">
-        <h4>Chi Nhánh Hoạt Động</h4>
-        <p style="margin-bottom: 8px;">
+        <h4 style="font-family: var(--font-display); font-size: 1.15rem; color: var(--gold); margin-bottom: 12px;">Chi Nhánh Hoạt Động</h4>
+        <p style="margin-bottom: 8px; line-height: 1.5;">
+          <strong style="color: #f8fafc;">📍 Chi nhánh Bình Thạnh:</strong><br>
+          36/52 Nguyễn Gia Trí, P. 25, Q. Bình Thạnh, TP.HCM<br>
+          <span style="color: var(--gold);">Hotline: 091.569.0033</span>
+        </p>
+        <p style="margin-bottom: 8px; line-height: 1.5;">
           <strong style="color: #f8fafc;">📍 Chi nhánh Quận 1:</strong><br>
           123 Nguyễn Huệ, P. Bến Nghé, Q.1, TP.HCM<br>
-          <span style="color: #60a5fa;">Hotline: 0901 234 567</span>
+          <span style="color: var(--gold);">Hotline: 0901 234 567</span>
         </p>
-        <p>
-          <strong style="color: #f8fafc;">📍 Chi nhánh Bình Thạnh:</strong><br>
+        <p style="line-height: 1.5;">
+          <strong style="color: #f8fafc;">📍 Cơ sở Điện Biên Phủ:</strong><br>
           45 Điện Biên Phủ, P. 15, Q. Bình Thạnh, TP.HCM<br>
-          <span style="color: #60a5fa;">Hotline: 0907 654 321</span>
+          <span style="color: var(--gold);">Hotline: 0907 654 321</span>
         </p>
       </div>
 
       <div class="footer-col">
-        <h4>Điều Hướng Nhanh</h4>
-        <ul class="footer-links">
+        <h4 style="font-family: var(--font-display); font-size: 1.15rem; color: var(--gold); margin-bottom: 12px;">Điều Hướng Nhanh</h4>
+        <ul class="footer-links" style="list-style: none; padding: 0; margin: 0; line-height: 1.9;">
           <li><a href="#home">Trang chủ Kịch Bản Sát</a></li>
+          <li><a href="/admin.html">Trang ADMIN (Quản trị hệ thống)</a></li>
+          <li><a href="/dm.html">Trang DM (Dành cho Quản trò)</a></li>
+          <li><a href="/player.html">Trang PLAYER (Hồ sơ & Sảnh phòng)</a></li>
           <li><a href="#games">Danh mục kịch bản</a></li>
           <li><a href="#rooms">Sảnh ghép phòng chơi</a></li>
           <li><a href="#games">Lịch đặt phòng theo giờ</a></li>
@@ -258,18 +302,18 @@
       </div>
 
       <div class="footer-col">
-        <h4>Chính Sách & Quy Chuẩn V16</h4>
-        <ul class="footer-links">
-          <li><span style="color:#10b981;">✔</span> Cọc cố định: 50.000đ / người</li>
-          <li><span style="color:#10b981;">✔</span> Hoàn cọc 100% trước 24 giờ</li>
-          <li><span style="color:#10b981;">✔</span> Ưu đãi tính tự động tại Backend</li>
-          <li><span style="color:#10b981;">✔</span> Không cộng dồn khuyến mãi</li>
-          <li><span style="color:#10b981;">✔</span> Giờ mở cửa: 09:00 - 23:00</li>
+        <h4 style="font-family: var(--font-display); font-size: 1.15rem; color: var(--gold); margin-bottom: 12px;">Chính Sách & Quy Chuẩn V16</h4>
+        <ul class="footer-links" style="list-style: none; padding: 0; margin: 0; line-height: 1.9;">
+          <li><span style="color:#5CD68D;">✔</span> Cọc cố định: 50.000đ / người</li>
+          <li><span style="color:#5CD68D;">✔</span> Hoàn cọc 100% trước 24 giờ</li>
+          <li><span style="color:#5CD68D;">✔</span> Ưu đãi tính tự động tại Backend</li>
+          <li><span style="color:#5CD68D;">✔</span> Không cộng dồn khuyến mãi</li>
+          <li><span style="color:#5CD68D;">✔</span> Giờ mở cửa: 09:00 - 23:00</li>
         </ul>
       </div>
     </div>
 
-    <div class="footer-bottom">
+    <div class="footer-bottom" style="border-top: 1px solid rgba(255,255,255,0.08); padding-top: 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
       <div>
         &copy; 2026 <strong>Kịch Bản Sát V16 Platform</strong>. Tất cả quyền được bảo lưu.
       </div>

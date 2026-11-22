@@ -1,0 +1,480 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Trang PLAYER — Cổng Người Chơi Kịch Bản Sát V16</title>
+  <link rel="stylesheet" href="./src/styles/tokens.css" />
+  <link rel="stylesheet" href="./src/styles/variables.css" />
+  <link rel="stylesheet" href="./src/styles/base.css" />
+  <link rel="stylesheet" href="./src/styles/main.css" />
+  <link rel="stylesheet" href="./src/styles/components.css" />
+  <link rel="stylesheet" href="./src/styles/home.css" />
+  <link rel="stylesheet" href="./src/styles/pages.css" />
+</head>
+<body>
+  <!-- Top Role Demo Bar -->
+  <div id="role-demo-bar" class="role-demo-bar"></div>
+
+  <!-- Site Header -->
+  <header id="app-site-header" class="site-header"></header>
+
+  <!-- Main Container -->
+  <main class="page-shell">
+    <div class="container" style="padding: 24px 20px 60px;">
+      <!-- PLAYER STATUS & GREETING BANNER -->
+      <div style="background: var(--bg-surface); border: 1px solid var(--gold-border); border-radius: 10px; padding: 20px 24px; margin-bottom: 28px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 14px;">
+        <div style="display: flex; align-items: center; gap: 16px;">
+          <div style="width: 52px; height: 52px; border-radius: 50%; background: linear-gradient(135deg, var(--gold), var(--crimson)); color: var(--ink-black); display: grid; place-items: center; font-family: var(--font-display); font-size: 1.5rem; font-weight: 800;" id="player-avatar">
+            H
+          </div>
+          <div>
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span class="badge badge-green" style="font-size: 0.72rem;">THÀNH VIÊN NGƯỜI CHƠI (PLAYER)</span>
+              <span id="player-student-badge" class="badge badge-gold" style="font-size: 0.72rem;">HSSV: Đang Chờ Duyệt</span>
+            </div>
+            <h1 style="font-family: var(--font-display); font-size: 1.6rem; margin: 4px 0 2px;" id="player-greeting-name">
+              Chào mừng Player Hiếu
+            </h1>
+            <p class="text-muted" style="margin: 0; font-size: 0.88rem;" id="player-sub-info">
+              SĐT: 0909.123.456 &bull; Email: player.hieu@kichbansat.vn
+            </p>
+          </div>
+        </div>
+
+        <div style="display: flex; gap: 10px; align-items: center;">
+          <button class="btn btn-gold btn-sm" id="btn-player-quick-create">
+            ➕ Tạo phòng chơi mới
+          </button>
+        </div>
+      </div>
+
+      <!-- MAIN PLAYER CONTENT AREA -->
+      <div id="player-main-content">
+        <!-- 3 TABS ĐIỀU HƯỚNG CHÍNH CỦA PLAYER -->
+        <div class="tabs-bar" style="margin-bottom: 24px;">
+          <button class="tab-btn active" data-ptab="lobby">1. Sảnh ghép phòng & Tìm đồng đội</button>
+          <button class="tab-btn" data-ptab="bookings">2. Phòng của tôi & Quản lý vé cọc</button>
+          <button class="tab-btn" data-ptab="profile">3. Hồ sơ cá nhân & Thẻ HSSV (-20k)</button>
+        </div>
+
+        <!-- TAB 1: SẢNH GHÉP PHÒNG CHƠI (LOBBY) -->
+        <section id="psection-lobby" style="display: block;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 12px;">
+            <div>
+              <h2 style="font-family: var(--font-display); font-size: 1.45rem; margin: 0 0 4px 0;">Sảnh Ghép Phòng Trực Tuyến</h2>
+              <p class="text-muted" style="margin: 0; font-size: 0.88rem;">Tham gia các nhóm đang thiếu 1–2 người để mở phòng chơi ngay</p>
+            </div>
+            <div style="display: flex; gap: 8px;">
+              <select id="lobby-status-filter" class="form-control" style="padding: 6px 12px; font-size: 0.85rem;">
+                <option value="FORMING">Đang tuyển (Forming)</option>
+                <option value="ALL">Tất cả phòng</option>
+              </select>
+            </div>
+          </div>
+
+          <div id="player-lobby-grid" class="rooms-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 20px;">
+            <div style="text-align: center; padding: 40px; grid-column: 1/-1;" class="text-muted">Đang tải danh sách phòng...</div>
+          </div>
+        </section>
+
+        <!-- TAB 2: LỊCH SỬ ĐẶT PHÒNG & QUẢN LÝ VÉ CỌC (MY BOOKINGS) -->
+        <section id="psection-bookings" style="display: none;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 12px;">
+            <div>
+              <h2 style="font-family: var(--font-display); font-size: 1.45rem; margin: 0 0 4px 0;">Phòng Chơi Đã Tham Gia</h2>
+              <p class="text-muted" style="margin: 0; font-size: 0.88rem;">Theo dõi trạng thái cọc 50.000đ, thời hạn giữ chỗ 4 giờ và QR Check-in</p>
+            </div>
+          </div>
+
+          <div id="player-bookings-list" style="display: grid; gap: 18px;">
+            <!-- Rendered by JS -->
+          </div>
+        </section>
+
+        <!-- TAB 3: HỒ SƠ CÁ NHÂN & THẺ HSSV -->
+        <section id="psection-profile" style="display: none;">
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 28px;">
+            <!-- Cột trái: Cài đặt thông tin -->
+            <div class="paper-ticket" style="padding: 28px;">
+              <span class="badge badge-18">HỒ SƠ THÀNH VIÊN</span>
+              <h2 style="font-family: var(--font-display); font-size: 1.5rem; margin: 10px 0 16px;">Thông Tin Cá Nhân</h2>
+
+              <div class="form-group" style="margin-bottom: 14px;">
+                <label class="form-label">Họ và tên thật (Hiển thị khi Check-in)</label>
+                <input type="text" id="prof-name" class="form-control" value="Player Hiếu" />
+              </div>
+              <div class="form-group" style="margin-bottom: 14px;">
+                <label class="form-label">Số điện thoại liên lạc</label>
+                <input type="text" id="prof-phone" class="form-control" value="0909.123.456" />
+              </div>
+              <div class="form-group" style="margin-bottom: 18px;">
+                <label class="form-label">Đổi mật khẩu mới (để trống nếu không đổi)</label>
+                <input type="password" id="prof-pass" class="form-control" placeholder="••••••••" />
+              </div>
+              <button class="btn btn-crimson btn-sm" id="btn-save-profile">Lưu Cập Nhật</button>
+            </div>
+
+            <!-- Cột phải: Thẻ Học Sinh — Sinh Viên -->
+            <div class="paper-ticket" style="padding: 28px;">
+              <span class="badge badge-18">ƯU ĐÃI THÀNH VIÊN</span>
+              <h2 style="font-family: var(--font-display); font-size: 1.5rem; margin: 10px 0 8px;">Thẻ Học Sinh — Sinh Viên</h2>
+              <p style="font-size: 0.88rem; color: var(--ink-muted); margin-bottom: 16px;">
+                Tự động giảm ngay <strong>20.000đ/vé</strong> khi chơi các ca từ 09:00 – 19:59 từ Thứ 2 đến Thứ 5.
+              </p>
+
+              <div id="student-status-box" style="background: var(--paper-aged); padding: 16px; border-radius: 6px; margin-bottom: 14px; border: 1px dashed #c0b7a4;">
+                <span class="badge badge-green" style="background: #1F5E39; color: #fff;">ĐÃ XÁC MINH HỢP LỆ</span>
+                <p style="font-size: 0.85rem; color: var(--ink-black); margin-top: 6px;">
+                  Bạn đang được hưởng ưu đãi giảm 20.000đ/người cho mọi kịch bản khi đặt ca T2–T5.
+                </p>
+              </div>
+
+              <div class="form-group" style="margin-bottom: 12px;">
+                <label class="form-label">Cập nhật ảnh thẻ HSSV mới</label>
+                <input type="file" id="student-file-input" accept="image/*" class="form-control" />
+              </div>
+              <button class="btn btn-gold btn-sm" id="btn-upload-student">Gửi ảnh thẻ chờ duyệt</button>
+            </div>
+          </div>
+        </section>
+      </div>
+    </div>
+  </main>
+
+  <!-- MODAL TẠO PHÒNG MỚI (CREATE ROOM) -->
+  <dialog id="player-create-room-dialog" style="padding: 24px; background: var(--bg-surface); border: 1px solid var(--gold-border); border-radius: 10px; color: var(--text-primary); max-width: 520px; width: 90%; margin: auto;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 10px;">
+      <h3 style="margin: 0; font-size: 1.3rem; font-family: var(--font-display); color: var(--gold);">Tạo Phòng Chơi Mới</h3>
+      <button id="btn-close-create-dialog" style="background: none; border: none; font-size: 1.5rem; cursor: pointer; color: var(--text-secondary);">&times;</button>
+    </div>
+    <form id="player-create-room-form">
+      <div class="form-group" style="margin-bottom: 14px;">
+        <label class="form-label" style="display: block; margin-bottom: 6px;">Tên phòng hiển thị *</label>
+        <input type="text" id="cr-title" class="form-control" required placeholder="VD: Nhóm Thám Tử Sài Gòn Cần 2 Bạn" />
+      </div>
+      <div class="form-group" style="margin-bottom: 14px;">
+        <label class="form-label" style="display: block; margin-bottom: 6px;">Chọn kịch bản *</label>
+        <select id="cr-game-id" class="form-control" required>
+          <option value="1">1. Yandere: Lời Thề Máu (6–8 người, 18+)</option>
+          <option value="2">2. Căn Phòng Số 7 (5–6 người)</option>
+          <option value="3">3. Án Mạng Đêm Tuyết (6–7 người)</option>
+          <option value="4">4. Gương: Phản Chiếu Tội Ác (5–7 người)</option>
+          <option value="5">5. Sinh Tử: Chuyến Tàu Cuối (6–8 người, 18+)</option>
+        </select>
+      </div>
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 14px;">
+        <div class="form-group">
+          <label class="form-label" style="display: block; margin-bottom: 6px;">Ngày chơi</label>
+          <input type="date" id="cr-date" class="form-control" required />
+        </div>
+        <div class="form-group">
+          <label class="form-label" style="display: block; margin-bottom: 6px;">Khung giờ</label>
+          <select id="cr-time" class="form-control">
+            <option value="09:00">09:00 - 12:30</option>
+            <option value="14:00">14:00 - 17:30</option>
+            <option value="19:00" selected>19:00 - 22:30</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-group" style="margin-bottom: 18px;">
+        <label class="form-label" style="display: block; margin-bottom: 6px;">Chi nhánh</label>
+        <select id="cr-venue" class="form-control">
+          <option value="1">📍 Chi nhánh Bình Thạnh: 36/52 Nguyễn Gia Trí</option>
+          <option value="2">📍 Chi nhánh Quận 1: 123 Nguyễn Huệ</option>
+        </select>
+      </div>
+      <div style="background: rgba(212,175,55,0.08); border: 1px solid var(--gold-border); padding: 12px; border-radius: 6px; margin-bottom: 18px; font-size: 0.85rem; color: var(--text-secondary);">
+        💡 <strong>Chính sách giữ chỗ:</strong> Ngay khi tạo phòng, đồng hồ 4 giờ bắt đầu đếm ngược. Mỗi vị trí cần cọc <strong>50.000đ</strong> để xác nhận giữ ghế.
+      </div>
+      <div style="display: flex; justify-content: flex-end; gap: 10px;">
+        <button type="button" id="btn-cancel-create-dialog" class="btn btn-ghost btn-sm">Hủy</button>
+        <button type="submit" class="btn btn-gold btn-sm">Xác Nhận Mở Phòng</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- Site Footer -->
+  <div id="app-footer"></div>
+
+  <script type="module">
+    import { authState } from './src/api/auth-state.js';
+    import { api } from './src/api/api-client.js';
+    import { toast } from './src/utils/toast.js';
+    import { escapeHtml } from './src/utils/sanitize.js';
+    import { initSharedChrome } from './src/utils/shared-header.js';
+    import { AuthModal } from './src/pages/auth/auth-modal.js';
+
+    let currentPTab = 'lobby';
+    let authModalInstance = null;
+
+    async function initPlayerPage() {
+      initSharedChrome('player');
+
+      authModalInstance = new AuthModal((user) => {
+        initSharedChrome('player');
+        renderPlayerPage();
+      });
+      authModalInstance.render();
+
+      const openLoginBtn = document.getElementById('btn-open-login');
+      if (openLoginBtn) {
+        openLoginBtn.addEventListener('click', () => authModalInstance.show(false, 'PLAYER'));
+      }
+
+      try {
+        await authState.checkSession();
+      } catch (e) {
+        console.warn('Session check:', e);
+      }
+
+      initPTabEvents();
+      renderPlayerPage();
+    }
+
+    function initPTabEvents() {
+      document.querySelectorAll('[data-ptab]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          currentPTab = btn.dataset.ptab;
+          document.querySelectorAll('[data-ptab]').forEach(b => b.classList.toggle('active', b === btn));
+          ['lobby', 'bookings', 'profile'].forEach(tabName => {
+            document.getElementById(`psection-${tabName}`).style.display = (tabName === currentPTab) ? 'block' : 'none';
+          });
+        });
+      });
+
+      // Quick create room
+      const quickCreateBtn = document.getElementById('btn-player-quick-create');
+      const createDialog = document.getElementById('player-create-room-dialog');
+      if (quickCreateBtn && createDialog) {
+        quickCreateBtn.onclick = () => {
+          const user = authState.getUser();
+          if (!user) {
+            authModalInstance.show(false, 'PLAYER');
+            return;
+          }
+          // Set tomorrow as default date
+          const tomorrow = new Date(Date.now() + 86400000).toISOString().split('T')[0];
+          document.getElementById('cr-date').value = tomorrow;
+          createDialog.showModal();
+        };
+      }
+
+      document.getElementById('btn-close-create-dialog')?.addEventListener('click', () => createDialog.close());
+      document.getElementById('btn-cancel-create-dialog')?.addEventListener('click', () => createDialog.close());
+
+      document.getElementById('player-create-room-form')?.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const title = document.getElementById('cr-title').value.trim();
+        const gameId = Number(document.getElementById('cr-game-id').value);
+        try {
+          await api.post('/rooms', {
+            title,
+            game_id: gameId,
+            min_players: 5,
+            max_players: 8
+          });
+          toast.success(`Đã tạo phòng "${title}" thành công!`);
+          createDialog.close();
+          renderLobby();
+        } catch (err) {
+          toast.error(err.message || 'Lỗi tạo phòng.');
+        }
+      });
+
+      document.getElementById('btn-save-profile')?.addEventListener('click', () => {
+        toast.success('Đã lưu cập nhật thông tin cá nhân thành công!');
+      });
+
+      document.getElementById('btn-upload-student')?.addEventListener('click', () => {
+        const file = document.getElementById('student-file-input').files[0];
+        toast.success(`Đã gửi ảnh thẻ HSSV (${file ? file.name : 'the_sinh_vien.jpg'}) đến Quản Trị Viên! Vui lòng chờ phê duyệt.`);
+      });
+    }
+
+    async function renderPlayerPage() {
+      const user = authState.getUser();
+
+      if (user) {
+        document.getElementById('player-greeting-name').textContent = `Chào mừng ${user.name}`;
+        document.getElementById('player-avatar').textContent = (user.name || 'P').charAt(0).toUpperCase();
+        document.getElementById('player-sub-info').textContent = `Vai trò: ${user.role} • ID: #${user.id} • Chi nhánh: 36/52 Nguyễn Gia Trí, Bình Thạnh`;
+        document.getElementById('prof-name').value = user.name;
+      }
+
+      renderLobby();
+      renderBookings();
+    }
+
+    async function renderLobby() {
+      const grid = document.getElementById('player-lobby-grid');
+      let rooms = [];
+      try {
+        const res = await api.get('/rooms?status=FORMING');
+        rooms = res?.data?.rooms || [];
+      } catch {
+        rooms = [];
+      }
+
+      if (rooms.length === 0) {
+        grid.innerHTML = `
+          <div style="grid-column: 1/-1; padding: 48px 20px; text-align: center; background: var(--bg-surface); border-radius: 8px; border: 1px dashed var(--color-border);">
+            <div style="font-size: 2.5rem; margin-bottom: 12px;">🎲</div>
+            <h3 style="margin: 0 0 8px 0; font-family: var(--font-display);">Hiện chưa có phòng nào đang mở tuyển</h3>
+            <p class="text-muted" style="margin: 0 0 18px 0; font-size: 0.9rem;">Hãy là người đầu tiên tạo phòng mới để tập hợp đồng đội!</p>
+            <button class="btn btn-gold btn-sm" id="btn-empty-lobby-create">+ Tạo phòng ngay</button>
+          </div>
+        `;
+        document.getElementById('btn-empty-lobby-create').onclick = () => {
+          document.getElementById('player-create-room-dialog').showModal();
+        };
+        return;
+      }
+
+      grid.innerHTML = rooms.map(r => {
+        const filled = r.current_players || 4;
+        const max = r.max_players || 8;
+        const pct = Math.round((filled / max) * 100);
+        return `
+          <article class="room-card" style="background: var(--bg-surface); border: 1px solid var(--gold-border); border-radius: 8px; padding: 20px; display: flex; flex-direction: column; justify-content: space-between;">
+            <div>
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                <span class="badge badge-green">Đang tuyển (Forming)</span>
+                <span style="font-family: var(--font-mono); color: var(--gold); font-size: 0.82rem;">#${r.id}</span>
+              </div>
+              <h3 style="font-family: var(--font-display); font-size: 1.25rem; margin: 4px 0 6px;">${escapeHtml(r.title)}</h3>
+              <p class="text-gold" style="font-size: 0.88rem; margin: 0 0 4px 0;">🎭 ${escapeHtml(r.game_name || 'Kịch bản trinh thám')}</p>
+              <p class="text-muted" style="font-size: 0.84rem; margin: 0 0 10px 0;">Host: <strong>${escapeHtml(r.creator_name || 'Người chơi')}</strong></p>
+              <p style="font-size: 0.84rem; margin: 0 0 6px 0;">⏳ Giữ chỗ còn lại: <strong>~3 giờ 45 phút</strong></p>
+            </div>
+
+            <div style="margin-top: 14px; border-top: 1px solid rgba(255,255,255,0.08); padding-top: 12px;">
+              <div style="display: flex; justify-content: space-between; font-size: 0.82rem; margin-bottom: 6px;">
+                <span>Tiến độ ghế</span>
+                <strong class="text-gold">${filled}/${max} ghế đã đặt</strong>
+              </div>
+              <div class="progress-track" style="height: 6px; background: rgba(255,255,255,0.1); border-radius: 3px; overflow: hidden; margin-bottom: 12px;">
+                <div class="progress-fill" style="width: ${pct}%; height: 100%; background: linear-gradient(90deg, var(--gold), var(--crimson));"></div>
+              </div>
+              <button class="btn btn-gold btn-sm" data-join-room="${r.id}" style="width: 100%;">
+                Vào Phòng / Giữ Chỗ 50k
+              </button>
+            </div>
+          </article>
+        `;
+      }).join('');
+
+      grid.querySelectorAll('[data-join-room]').forEach(b => {
+        b.addEventListener('click', async () => {
+          const user = authState.getUser();
+          if (!user) {
+            authModalInstance.show(false, 'PLAYER');
+            return;
+          }
+          const roomId = b.dataset.joinRoom;
+          try {
+            await api.post(`/rooms/${roomId}/join`);
+            toast.success(`Bạn đã tham gia phòng #${roomId}! Vui lòng hoàn tất cọc 50.000đ trong 4 giờ.`);
+            renderBookings();
+          } catch (err) {
+            toast.error(err.message || 'Lỗi tham gia phòng.');
+          }
+        });
+      });
+    }
+
+    function renderBookings() {
+      const container = document.getElementById('player-bookings-list');
+      container.innerHTML = `
+        <!-- PHÒNG 1: SẮP DIỄN RA ĐÃ CỌC -->
+        <div class="paper-ticket" style="padding: 24px; position: relative;">
+          <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 12px; margin-bottom: 16px;">
+            <div>
+              <span class="badge badge-green" style="background: #1F5E39; color: #fff;">ĐÃ CỌC 50.000Đ &bull; PHÒNG ĐÃ CHỐT</span>
+              <h3 style="font-family: var(--font-display); font-size: 1.45rem; margin: 8px 0 4px; color: var(--ink-black);">
+                #KBS-104: Yandere — Lời Thề Máu (18+)
+              </h3>
+              <p style="font-size: 0.88rem; color: var(--ink-muted); margin: 0;">
+                📍 Chi nhánh Bình Thạnh &bull; 🚪 Phòng Mật Thất 01 (Tầng 2) &bull; ⏰ 19:00 Thứ 7 tuần này
+              </p>
+            </div>
+            <div style="text-align: right;">
+              <span style="font-family: var(--font-mono); font-size: 0.82rem; color: var(--crimson); font-weight: 700;">MÃ ĐẶT: KBS-9821</span>
+              <div style="font-size: 0.8rem; color: var(--ink-muted); margin-top: 4px;">Host: Quản trò Hoàng Nam</div>
+            </div>
+          </div>
+
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 14px; background: var(--paper-aged); padding: 14px; border-radius: 6px; margin-bottom: 16px;">
+            <div>
+              <span style="font-size: 0.75rem; color: var(--ink-muted); display: block;">Tiền cọc giữ chỗ:</span>
+              <strong style="color: #1F5E39; font-size: 1.05rem;">50.000đ (Đã thanh toán)</strong>
+            </div>
+            <div>
+              <span style="font-size: 0.75rem; color: var(--ink-muted); display: block;">Số tiền còn lại tại quán:</span>
+              <strong style="color: var(--crimson); font-size: 1.05rem;">79.000đ / người</strong>
+            </div>
+            <div>
+              <span style="font-size: 0.75rem; color: var(--ink-muted); display: block;">Mã QR Check-in:</span>
+              <strong style="color: var(--ink-black); font-size: 0.95rem;">QR-KBS-7742 (Hợp lệ)</strong>
+            </div>
+          </div>
+
+          <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+            <span style="font-size: 0.82rem; color: var(--ink-muted);">
+              🛡️ Chính sách: Hủy trước 24 giờ được hoàn đủ 50.000đ vào tài khoản.
+            </span>
+            <div style="display: flex; gap: 8px;">
+              <button class="btn btn-sm btn-crimson" id="btn-pay-remaining">
+                💳 Thanh Toán Số Tiền Còn Lại (79.000đ)
+              </button>
+              <button class="btn btn-sm btn-ghost" style="color: #555; border-color: #aaa;" id="btn-cancel-my-seat">
+                Hủy ghế (Áp dụng 24h)
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- PHÒNG 2: ĐANG CHỜ CỌC GIỮ CHỖ 4 GIỜ -->
+        <div class="paper-ticket" style="padding: 24px; position: relative; border-left: 5px solid var(--crimson);">
+          <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 12px; margin-bottom: 14px;">
+            <div>
+              <span class="badge badge-18">CHỜ THANH TOÁN CỌC (4 GIỜ)</span>
+              <h3 style="font-family: var(--font-display); font-size: 1.45rem; margin: 8px 0 4px; color: var(--ink-black);">
+                #KBS-107: Căn Phòng Số 7 (Phá Án)
+              </h3>
+              <p style="font-size: 0.88rem; color: var(--ink-muted); margin: 0;">
+                📍 Chi nhánh Bình Thạnh &bull; ⏰ 14:00 Ngày mai
+              </p>
+            </div>
+            <div style="text-align: right;">
+              <span style="color: var(--crimson); font-weight: 700; font-size: 1.1rem;">⏳ Còn 02:45:18</span>
+              <div style="font-size: 0.75rem; color: var(--ink-muted);">Hết giờ ghế sẽ tự động nhả</div>
+            </div>
+          </div>
+
+          <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+            <span style="font-size: 0.84rem; color: var(--ink-muted);">
+              Cọc 50.000đ ngay để khóa vị trí của bạn trong phòng chơi.
+            </span>
+            <button class="btn btn-sm btn-gold" id="btn-pay-deposit-now" style="color: var(--ink-black);">
+              Thanh Toán Cọc 50.000đ (VNPAY / Momo)
+            </button>
+          </div>
+        </div>
+      `;
+
+      document.getElementById('btn-pay-remaining')?.addEventListener('click', () => {
+        toast.success('Đã thanh toán số tiền còn lại 79.000đ qua cổng Simulated VNPAY! Vé của bạn đã hoàn tất 100%.');
+      });
+      document.getElementById('btn-pay-deposit-now')?.addEventListener('click', () => {
+        toast.success('Đã thanh toán cọc 50.000đ thành công! Ghế của bạn đã được xác nhận chính thức.');
+      });
+      document.getElementById('btn-cancel-my-seat')?.addEventListener('click', () => {
+        toast.info('Yêu cầu hủy ghế đã được tiếp nhận. Do thời gian trước giờ chơi > 24 giờ, tiền cọc 50.000đ sẽ được hoàn lại.');
+      });
+    }
+
+    initPlayerPage();
+  </script>
+</body>
+</html>

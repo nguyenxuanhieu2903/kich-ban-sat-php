@@ -75,27 +75,39 @@
 .nav-tab-btn {
   background: transparent;
   border: none;
-  color: var(--color-text-muted, #94a3b8);
-  padding: 8px 16px;
-  border-radius: var(--radius-sm, 6px);
-  font-size: 0.95rem;
+  color: var(--text-secondary, #B8B0A4);
+  padding: 8px 14px;
+  font-size: 0.92rem;
   font-weight: 500;
   cursor: pointer;
   transition: all 0.2s ease;
   display: flex;
   align-items: center;
   gap: 8px;
+  position: relative;
+  text-decoration: none;
+  white-space: nowrap;
 }
 
 .nav-tab-btn:hover {
-  color: var(--color-text-main, #f8fafc);
-  background: rgba(255, 255, 255, 0.05);
+  color: var(--gold, #D4AF37);
+  background: transparent;
 }
 
 .nav-tab-btn.active {
-  color: #ffffff;
-  background: var(--color-primary, #3b82f6);
+  color: var(--gold, #D4AF37);
+  background: transparent;
   font-weight: 600;
+}
+
+.nav-tab-btn.active::after {
+  content: '';
+  position: absolute;
+  left: 14px;
+  right: 14px;
+  bottom: -4px;
+  height: 2px;
+  background: var(--gold, #D4AF37);
 }
 
 /* Admin Sub Tabs */

@@ -1,0 +1,857 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Trang ADMIN — Cổng Quản Trị Hệ Thống Kịch Bản Sát V16</title>
+  <link rel="stylesheet" href="./src/styles/tokens.css" />
+  <link rel="stylesheet" href="./src/styles/variables.css" />
+  <link rel="stylesheet" href="./src/styles/base.css" />
+  <link rel="stylesheet" href="./src/styles/main.css" />
+  <link rel="stylesheet" href="./src/styles/components.css" />
+  <link rel="stylesheet" href="./src/styles/home.css" />
+  <link rel="stylesheet" href="./src/styles/pages.css" />
+  <style>
+    .admin-layout {
+      display: grid;
+      grid-template-columns: 260px 1fr;
+      gap: 28px;
+      min-height: calc(100vh - 200px);
+      padding: 24px 0 60px;
+    }
+    @media (max-width: 900px) {
+      .admin-layout {
+        grid-template-columns: 1fr;
+      }
+    }
+    .admin-sidebar {
+      background: var(--bg-surface);
+      border: 1px solid var(--gold-border);
+      border-radius: 10px;
+      padding: 16px;
+      height: fit-content;
+      position: sticky;
+      top: 90px;
+    }
+    .admin-nav-btn {
+      width: 100%;
+      text-align: left;
+      padding: 12px 14px;
+      background: transparent;
+      border: 1px solid transparent;
+      color: var(--text-secondary);
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.9rem;
+      font-weight: 500;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      transition: all 0.2s;
+      margin-bottom: 6px;
+    }
+    .admin-nav-btn:hover {
+      background: rgba(212, 175, 55, 0.08);
+      color: var(--gold);
+    }
+    .admin-nav-btn.active {
+      background: var(--gold);
+      color: var(--ink-black);
+      border-color: var(--gold);
+      font-weight: 700;
+    }
+  </style>
+</head>
+<body>
+  <!-- Top Role Demo Bar -->
+  <div id="role-demo-bar" class="role-demo-bar"></div>
+
+  <!-- Site Header -->
+  <header id="app-site-header" class="site-header"></header>
+
+  <!-- Main Container -->
+  <main class="container">
+    <div class="admin-layout">
+      <!-- Admin Sidebar Navigation -->
+      <aside class="admin-sidebar">
+        <div style="padding: 8px 12px 14px; border-bottom: 1px solid rgba(212, 175, 55, 0.2); margin-bottom: 12px;">
+          <div style="font-size: 0.72rem; color: var(--gold); letter-spacing: 0.12em; font-family: var(--font-mono); font-weight: 700;">ADMIN CONSOLE V16</div>
+          <strong style="font-family: var(--font-display); font-size: 1.15rem; color: var(--text-primary);">Trang Quản Trị</strong>
+        </div>
+        <button class="admin-nav-btn active" data-atab="overview">
+          <span>📊</span> 1. Tổng quan vận hành
+        </button>
+        <button class="admin-nav-btn" data-atab="rooms">
+          <span>🎲</span> 2. Điều phối Phòng chơi
+        </button>
+        <button class="admin-nav-btn" data-atab="refunds">
+          <span>💰</span> 3. Duyệt Hoàn cọc (24h)
+        </button>
+        <button class="admin-nav-btn" data-atab="scenarios">
+          <span>🎭</span> 4. Kho Kịch bản (42 vụ)
+        </button>
+        <button class="admin-nav-btn" data-atab="physical">
+          <span>🚪</span> 5. Phòng vật lý tại quán
+        </button>
+        <button class="admin-nav-btn" data-atab="users">
+          <span>👥</span> 6. Người dùng, DM & HSSV
+        </button>
+      </aside>
+
+      <!-- Admin Main Area -->
+      <section class="admin-main" id="admin-main-content">
+        <div style="text-align: center; padding: 60px 20px; color: var(--text-secondary);">
+          <p>Đang kiểm tra quyền hạn Quản trị viên...</p>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <!-- Dialog Hủy Phòng Khẩn Cấp -->
+  <dialog id="admin-cancel-dialog" style="padding: 24px; background: var(--bg-surface); border: 1px solid var(--crimson); border-radius: 10px; color: var(--text-primary); max-width: 500px; width: 90%; margin: auto;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 10px;">
+      <h3 style="margin: 0; font-size: 1.25rem; font-family: var(--font-display); color: var(--crimson-bright);">Hủy Phòng Khẩn Cấp (Admin)</h3>
+      <button id="btn-close-cancel-dialog" style="background: none; border: none; font-size: 1.5rem; cursor: pointer; color: var(--text-secondary);">&times;</button>
+    </div>
+    <form id="admin-cancel-form">
+      <input type="hidden" id="admin-cancel-room-id" />
+      <div style="background: rgba(245, 158, 11, 0.12); border: 1px solid var(--gold-border); padding: 12px; border-radius: 6px; margin-bottom: 16px; font-size: 0.85rem; color: var(--gold);">
+        <strong>Quy Tắc Vàng 24 Giờ:</strong><br />
+        - Hủy <strong>&ge; 24 giờ</strong> trước giờ chơi: Tự động hoàn cọc 100% cho người chơi đã cọc.<br />
+        - Hủy <strong>&lt; 24 giờ</strong>: Tiền cọc không hoàn lại theo chính sách V16.
+      </div>
+      <div class="form-group" style="margin-bottom: 16px;">
+        <label class="form-label" style="display: block; margin-bottom: 6px; font-size: 0.88rem;">Lý do hủy phòng * (Bắt buộc):</label>
+        <textarea id="admin-cancel-reason" required rows="3" class="form-control" style="width: 100%; box-sizing: border-box; resize: vertical;" placeholder="Nhập lý do chi tiết (VD: Chi nhánh mất điện, sự cố kỹ thuật...)"></textarea>
+      </div>
+      <div style="display: flex; justify-content: flex-end; gap: 10px;">
+        <button type="button" id="btn-abort-cancel" class="btn btn-ghost btn-sm">Đóng</button>
+        <button type="submit" class="btn btn-crimson btn-sm">Xác nhận Hủy Phòng</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- Modal Thêm Kịch Bản Mới -->
+  <div class="modal-backdrop" id="add-script-modal">
+    <div class="paper-ticket modal-box" style="max-width: 540px; margin: auto; padding: 28px;">
+      <span class="badge badge-18">THÊM HỒ SƠ KỊCH BẢN</span>
+      <h3 style="font-family: var(--font-display); font-size: 1.45rem; margin: 10px 0 14px;">Nhập Hồ Sơ Kịch Bản Mới</h3>
+      <form id="new-script-form">
+        <div class="form-group">
+          <label class="form-label">Tên kịch bản *</label>
+          <input type="text" id="ns-title" class="form-control" required placeholder="VD: Huyết Nguyệt Chi Mộng" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">Thể loại kịch bản</label>
+          <input type="text" id="ns-genre" class="form-control" value="Trinh thám / Siêu nhiên" />
+        </div>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+          <div class="form-group">
+            <label class="form-label">Số người tối đa (5–8)</label>
+            <input type="number" id="ns-max" class="form-control" value="7" min="5" max="8" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Giá vé (VNĐ / người)</label>
+            <input type="number" id="ns-price" class="form-control" value="129000" />
+          </div>
+        </div>
+        <label style="display: flex; align-items: center; gap: 8px; margin-bottom: 16px; font-size: 0.9rem; cursor: pointer;">
+          <input type="checkbox" id="ns-18" /> Gắn nhãn 18+ (Cảnh báo tâm lý nặng / kinh dị)
+        </label>
+        <div style="display: flex; gap: 10px; justify-content: flex-end;">
+          <button type="button" class="btn btn-ghost" style="color: #111; border-color: #999;" id="close-ns-modal">Hủy</button>
+          <button type="submit" class="btn btn-crimson">Lưu Kịch Bản</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Site Footer -->
+  <div id="app-footer"></div>
+
+  <script type="module">
+    import { authState } from './src/api/auth-state.js';
+    import { api } from './src/api/api-client.js';
+    import { toast } from './src/utils/toast.js';
+    import { escapeHtml } from './src/utils/sanitize.js';
+    import { initSharedChrome } from './src/utils/shared-header.js';
+    import { AuthModal } from './src/pages/auth/auth-modal.js';
+    import { ALL_SCRIPTS, PHYSICAL_ROOMS } from './src/data/scripts.data.js';
+
+    let activeTab = 'overview';
+    let authModalInstance = null;
+    let localScripts = [...ALL_SCRIPTS];
+    let localPhysical = [...PHYSICAL_ROOMS];
+    let scenarioSearch = '';
+    let scenarioPage = 1;
+
+    async function initAdminPage() {
+      initSharedChrome('admin');
+
+      authModalInstance = new AuthModal((user) => {
+        initSharedChrome('admin');
+        renderAdminDashboard();
+      });
+      authModalInstance.render();
+
+      const openLoginBtn = document.getElementById('btn-open-login');
+      if (openLoginBtn) {
+        openLoginBtn.addEventListener('click', () => authModalInstance.show(false, 'ADMIN'));
+      }
+
+      try {
+        await authState.checkSession();
+      } catch (e) {
+        console.warn('Session check failed:', e);
+      }
+
+      initSidebarEvents();
+      renderAdminDashboard();
+    }
+
+    function initSidebarEvents() {
+      document.querySelectorAll('[data-atab]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          activeTab = btn.dataset.atab;
+          document.querySelectorAll('[data-atab]').forEach(b => b.classList.toggle('active', b === btn));
+          renderAdminDashboard();
+        });
+      });
+    }
+
+    async function renderAdminDashboard() {
+      const root = document.getElementById('admin-main-content');
+      const user = authState.getUser();
+
+      // Guard check: Not logged in or not ADMIN
+      if (!user) {
+        root.innerHTML = `
+          <div class="paper-ticket" style="padding: 40px; text-align: center; max-width: 580px; margin: 40px auto;">
+            <span class="badge badge-18">KHU VỰC BẢO MẬT</span>
+            <h2 style="font-family: var(--font-display); font-size: 1.6rem; margin: 12px 0 8px;">Yêu Cầu Quyền Quản Trị Viên</h2>
+            <p style="color: var(--ink-muted); font-size: 0.92rem; margin-bottom: 24px;">
+              Trang ADMIN dành riêng cho Quản Trị Viên điều phối hệ thống. Vui lòng đăng nhập với tài khoản Admin để truy cập.
+            </p>
+            <div style="display: flex; justify-content: center; gap: 12px; flex-wrap: wrap;">
+              <button id="btn-quick-admin-login" class="btn btn-crimson">
+                🔑 Đăng nhập nhanh Admin (admin@kichbansat.vn)
+              </button>
+              <button id="btn-custom-admin-login" class="btn btn-ghost" style="color: #111; border-color: #999;">
+                Tùy chọn đăng nhập
+              </button>
+            </div>
+          </div>
+        `;
+        document.getElementById('btn-quick-admin-login').onclick = async () => {
+          try {
+            await authState.login('admin@kichbansat.vn', 'password123');
+            toast.success('Đăng nhập Quản Trị Viên thành công!');
+            initSharedChrome('admin');
+            renderAdminDashboard();
+          } catch (err) {
+            toast.error(err.message || 'Đăng nhập thất bại.');
+          }
+        };
+        document.getElementById('btn-custom-admin-login').onclick = () => authModalInstance.show(false, 'ADMIN');
+        return;
+      }
+
+      if (user.role !== 'ADMIN') {
+        root.innerHTML = `
+          <div class="paper-ticket" style="padding: 40px; text-align: center; max-width: 580px; margin: 40px auto; border-color: var(--crimson);">
+            <span class="badge badge-18" style="background: var(--crimson); color: white;">403 FORBIDDEN</span>
+            <h2 style="font-family: var(--font-display); font-size: 1.6rem; margin: 12px 0 8px; color: var(--crimson);">Tài Khoản Không Đủ Thẩm Quyền</h2>
+            <p style="color: var(--ink-muted); font-size: 0.92rem; margin-bottom: 20px;">
+              Bạn đang đăng nhập với tài khoản <strong>${escapeHtml(user.name)}</strong> (Vai trò: <strong>${escapeHtml(user.role)}</strong>).
+              Chỉ Quản Trị Viên (ADMIN) mới có quyền thao tác trên trang này.
+            </p>
+            <button id="btn-switch-to-admin" class="btn btn-crimson">
+              Chuyển sang tài khoản Admin Hệ Thống
+            </button>
+          </div>
+        `;
+        document.getElementById('btn-switch-to-admin').onclick = async () => {
+          try {
+            await authState.login('admin@kichbansat.vn', 'password123');
+            toast.success('Đã chuyển sang tài khoản Admin!');
+            initSharedChrome('admin');
+            renderAdminDashboard();
+          } catch (err) {
+            toast.error('Lỗi chuyển tài khoản: ' + err.message);
+          }
+        };
+        return;
+      }
+
+      /* =========================================================================
+         TAB 1: TỔNG QUAN VẬN HÀNH (OVERVIEW)
+         ========================================================================= */
+      if (activeTab === 'overview') {
+        let pendingRefundsCount = 1;
+        try {
+          const rfRes = await api.get('/admin/refunds');
+          if (rfRes?.data?.refunds) {
+            pendingRefundsCount = rfRes.data.refunds.filter(r => r.status === 'PENDING').length;
+          }
+        } catch {}
+
+        root.innerHTML = `
+          <h1 class="page-title" style="margin-bottom: 20px; font-family: var(--font-display);">Tổng Quan Vận Hành Hệ Thống</h1>
+
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 16px; margin-bottom: 28px;">
+            <div style="background: var(--bg-surface); border: 1px solid var(--gold-border); padding: 20px; border-radius: 8px;">
+              <div class="text-muted" style="font-size: 0.82rem;">Doanh thu tháng này</div>
+              <div style="font-family: var(--font-display); font-size: 1.75rem; color: var(--gold); font-weight: 800;">148.650.000đ</div>
+              <small style="color: #5CD68D;">↑ 18.4% so với tháng trước</small>
+            </div>
+            <div style="background: var(--bg-surface); border: 1px solid rgba(255,255,255,0.1); padding: 20px; border-radius: 8px;">
+              <div class="text-muted" style="font-size: 0.82rem;">Ca chơi hoạt động hôm nay</div>
+              <div style="font-family: var(--font-display); font-size: 1.75rem; font-weight: 800; color: var(--text-primary);">6 ca trực</div>
+              <small style="color: var(--text-dim);">Tỷ lệ lấp đầy: 87%</small>
+            </div>
+            <div style="background: var(--bg-surface); border: 1px solid rgba(255,255,255,0.1); padding: 20px; border-radius: 8px;">
+              <div class="text-muted" style="font-size: 0.82rem;">Hoàn cọc chờ duyệt</div>
+              <div style="font-family: var(--font-display); font-size: 1.75rem; color: var(--crimson-bright); font-weight: 800;">${pendingRefundsCount} yêu cầu</div>
+              <small style="color: var(--gold);">Áp dụng Quy tắc 24 giờ</small>
+            </div>
+            <div style="background: var(--bg-surface); border: 1px solid rgba(255,255,255,0.1); padding: 20px; border-radius: 8px;">
+              <div class="text-muted" style="font-size: 0.82rem;">Thẻ HSSV chờ xác minh</div>
+              <div style="font-family: var(--font-display); font-size: 1.75rem; color: #5CD68D; font-weight: 800;">2 thẻ mới</div>
+              <small style="color: var(--text-dim);">Ưu đãi giảm 20.000đ</small>
+            </div>
+          </div>
+
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 24px; margin-bottom: 28px;">
+            <div style="background: var(--bg-surface); border: 1px solid rgba(255,255,255,0.1); padding: 22px; border-radius: 8px;">
+              <h3 style="color: var(--gold); margin-bottom: 16px; font-family: var(--font-display);">Biểu đồ doanh thu 7 ngày gần nhất</h3>
+              <div style="display: flex; align-items: flex-end; justify-content: space-between; gap: 10px; height: 180px; padding-top: 20px;">
+                <div style="flex: 1; display: flex; flex-direction: column; align-items: center; gap: 6px; height: 100%; justify-content: flex-end;">
+                  <span style="font-size: 0.7rem; color: var(--text-dim);">3.5tr</span>
+                  <div style="width: 100%; height: 39%; background: linear-gradient(180deg, var(--gold), var(--crimson)); border-radius: 4px 4px 0 0;"></div>
+                  <strong style="font-size: 0.8rem;">T2</strong>
+                </div>
+                <div style="flex: 1; display: flex; flex-direction: column; align-items: center; gap: 6px; height: 100%; justify-content: flex-end;">
+                  <span style="font-size: 0.7rem; color: var(--gold); font-weight: bold;">4.8tr</span>
+                  <div style="width: 100%; height: 54%; background: linear-gradient(180deg, var(--gold), var(--crimson)); border-radius: 4px 4px 0 0;"></div>
+                  <strong style="font-size: 0.8rem; color: var(--gold);">T3*</strong>
+                </div>
+                <div style="flex: 1; display: flex; flex-direction: column; align-items: center; gap: 6px; height: 100%; justify-content: flex-end;">
+                  <span style="font-size: 0.7rem; color: var(--text-dim);">3.2tr</span>
+                  <div style="width: 100%; height: 36%; background: linear-gradient(180deg, var(--gold), var(--crimson)); border-radius: 4px 4px 0 0;"></div>
+                  <strong style="font-size: 0.8rem;">T4</strong>
+                </div>
+                <div style="flex: 1; display: flex; flex-direction: column; align-items: center; gap: 6px; height: 100%; justify-content: flex-end;">
+                  <span style="font-size: 0.7rem; color: var(--text-dim);">3.9tr</span>
+                  <div style="width: 100%; height: 44%; background: linear-gradient(180deg, var(--gold), var(--crimson)); border-radius: 4px 4px 0 0;"></div>
+                  <strong style="font-size: 0.8rem;">T5</strong>
+                </div>
+                <div style="flex: 1; display: flex; flex-direction: column; align-items: center; gap: 6px; height: 100%; justify-content: flex-end;">
+                  <span style="font-size: 0.7rem; color: var(--text-dim);">6.2tr</span>
+                  <div style="width: 100%; height: 69%; background: linear-gradient(180deg, var(--gold), var(--crimson)); border-radius: 4px 4px 0 0;"></div>
+                  <strong style="font-size: 0.8rem;">T6</strong>
+                </div>
+                <div style="flex: 1; display: flex; flex-direction: column; align-items: center; gap: 6px; height: 100%; justify-content: flex-end;">
+                  <span style="font-size: 0.7rem; color: var(--gold); font-weight: bold;">8.9tr</span>
+                  <div style="width: 100%; height: 100%; background: linear-gradient(180deg, var(--gold), var(--crimson)); border-radius: 4px 4px 0 0;"></div>
+                  <strong style="font-size: 0.8rem;">T7</strong>
+                </div>
+                <div style="flex: 1; display: flex; flex-direction: column; align-items: center; gap: 6px; height: 100%; justify-content: flex-end;">
+                  <span style="font-size: 0.7rem; color: var(--gold); font-weight: bold;">8.4tr</span>
+                  <div style="width: 100%; height: 94%; background: linear-gradient(180deg, var(--gold), var(--crimson)); border-radius: 4px 4px 0 0;"></div>
+                  <strong style="font-size: 0.8rem;">CN</strong>
+                </div>
+              </div>
+            </div>
+
+            <div style="background: var(--bg-surface); border: 1px solid rgba(255,255,255,0.1); padding: 22px; border-radius: 8px;">
+              <h3 style="color: var(--gold); margin-bottom: 14px; font-family: var(--font-display);">Top kịch bản đặt nhiều nhất</h3>
+              <table class="data-table" style="width: 100%;">
+                <thead><tr><th>Kịch bản</th><th>Số lượt đặt</th><th>Độ khó</th></tr></thead>
+                <tbody>
+                  <tr><td><strong>Yandere: Lời Thề Máu</strong> (18+)</td><td><strong class="text-gold">148 ca</strong></td><td><span class="badge badge-18">Khó</span></td></tr>
+                  <tr><td><strong>Căn Phòng Số 7</strong></td><td><strong class="text-gold">164 ca</strong></td><td><span class="badge badge-green">Dễ</span></td></tr>
+                  <tr><td><strong>Gương: Phản Chiếu Tội Ác</strong></td><td><strong class="text-gold">132 ca</strong></td><td><span class="badge badge-dark">Trung bình</span></td></tr>
+                  <tr><td><strong>Sinh Tử: Chuyến Tàu Cuối</strong></td><td><strong class="text-gold">119 ca</strong></td><td><span class="badge badge-18">Khó</span></td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div style="background: var(--bg-surface); border: 1px solid var(--crimson); padding: 22px; border-radius: 8px;">
+            <h3 style="color: var(--crimson-bright); margin-bottom: 10px; font-family: var(--font-display);">🚨 Việc cần xử lý gấp hôm nay</h3>
+            <p class="text-muted" style="font-size: 0.9rem; line-height: 1.6; margin: 0;">
+              • Có <strong>1 phòng chơi</strong> sắp diễn ra trong 4 giờ tới chưa có Quản trò (DM) nhận ca.<br />
+              • Có <strong>${pendingRefundsCount} yêu cầu hoàn cọc</strong> cần đối chiếu mốc thời gian 24 giờ để duyệt trả lại tiền cho khách.
+            </p>
+          </div>
+        `;
+      }
+
+      /* =========================================================================
+         TAB 2: ĐIỀU PHỐI PHÒNG CHƠI TRONG NGÀY (ROOMS)
+         ========================================================================= */
+      if (activeTab === 'rooms') {
+        let rooms = [];
+        try {
+          const res = await api.get('/rooms');
+          rooms = res?.data?.rooms || [];
+        } catch {
+          rooms = [];
+        }
+
+        root.innerHTML = `
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 12px;">
+            <h1 class="page-title" style="font-family: var(--font-display); margin: 0;">Điều Phối Phòng Chơi Trong Ngày</h1>
+            <span class="badge badge-gold">Tổng cộng: ${rooms.length} phòng</span>
+          </div>
+
+          <div class="table-wrap" style="background: var(--bg-surface); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; overflow-x: auto;">
+            <table class="data-table" style="width: 100%;">
+              <thead>
+                <tr>
+                  <th>Mã</th>
+                  <th>Kịch bản & Host</th>
+                  <th>Số người</th>
+                  <th>Gán Quản Trò (DM)</th>
+                  <th>Phòng vật lý</th>
+                  <th>Trạng thái</th>
+                  <th>Hành động</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${rooms.length === 0 ? `
+                  <tr><td colspan="7" style="text-align: center; padding: 30px;" class="text-muted">Chưa có phòng nào được tạo.</td></tr>
+                ` : rooms.map(r => `
+                  <tr>
+                    <td><strong class="text-gold">#${r.id}</strong></td>
+                    <td>
+                      <strong>${escapeHtml(r.game_name || r.title)}</strong><br />
+                      <small class="text-muted">Host: ${escapeHtml(r.creator_name || 'Khách')}</small>
+                    </td>
+                    <td>${r.current_players}/${r.max_players}</td>
+                    <td>
+                      <select class="form-control" style="padding: 6px; font-size: 0.82rem; min-width: 140px;" data-assign-dm="${r.id}">
+                        <option value="">-- Chọn DM --</option>
+                        <option value="2" ${r.dm_id == 2 ? 'selected' : ''}>Host Hoàng Nam (Kinh dị)</option>
+                        <option value="3" ${r.dm_id == 3 ? 'selected' : ''}>Host Thảo Vy (Cổ trang)</option>
+                        <option value="4" ${r.dm_id == 4 ? 'selected' : ''}>Host Đức Anh (Đấu trí)</option>
+                      </select>
+                    </td>
+                    <td>
+                      <select class="form-control" style="padding: 6px; font-size: 0.82rem; min-width: 140px;" data-assign-pr="${r.id}">
+                        <option value="">-- Phòng 01-05 --</option>
+                        ${localPhysical.map(p => `<option value="${p.id}" ${r.physical_room === p.id ? 'selected' : ''}>${p.name}</option>`).join('')}
+                      </select>
+                    </td>
+                    <td>
+                      <span class="badge ${r.status === 'COMPLETED' ? 'badge-dark' : r.status === 'CANCELLED' ? 'badge-18' : 'badge-green'}">
+                        ${r.status}
+                      </span>
+                    </td>
+                    <td>
+                      ${r.status !== 'CANCELLED' ? `
+                        <button class="btn btn-crimson btn-sm" data-admin-cancel="${r.id}" style="font-size: 0.78rem; padding: 4px 8px;">
+                          Hủy phòng (24h)
+                        </button>
+                      ` : '<span class="text-muted">—</span>'}
+                    </td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          </div>
+        `;
+
+        root.querySelectorAll('[data-assign-dm]').forEach(sel => {
+          sel.addEventListener('change', async () => {
+            const roomId = sel.dataset.assignDm;
+            const dmId = sel.value;
+            if (!dmId) return;
+            try {
+              await api.post(`/admin/rooms/${roomId}/assign-dm`, { dm_user_id: Number(dmId) });
+              toast.success(`Đã gán Quản trò cho phòng #${roomId}`);
+            } catch (err) {
+              toast.error(err.message || 'Lỗi gán DM');
+            }
+          });
+        });
+
+        root.querySelectorAll('[data-admin-cancel]').forEach(btn => {
+          btn.addEventListener('click', () => {
+            const roomId = btn.dataset.adminCancel;
+            document.getElementById('admin-cancel-room-id').value = roomId;
+            document.getElementById('admin-cancel-dialog').showModal();
+          });
+        });
+      }
+
+      /* =========================================================================
+         TAB 3: XÉT DUYỆT HOÀN CỌC 24H (REFUNDS)
+         ========================================================================= */
+      if (activeTab === 'refunds') {
+        let refunds = [];
+        try {
+          const res = await api.get('/admin/refunds');
+          refunds = res?.data?.refunds || [];
+        } catch {
+          refunds = [
+            { id: 1, room_id: 104, user_name: 'Lê Thu Hà', amount: 50000, hours_before_play: 36, status: 'PENDING' },
+            { id: 2, room_id: 107, user_name: 'Hoàng Minh Trí', amount: 50000, hours_before_play: 14, status: 'PENDING' }
+          ];
+        }
+
+        root.innerHTML = `
+          <h1 class="page-title" style="margin-bottom: 8px; font-family: var(--font-display);">Xét Duyệt Hoàn Tiền Cọc (50.000đ)</h1>
+          <p class="text-muted" style="margin-bottom: 20px;">
+            Quy tắc vàng V16: Hủy trước giờ chơi <strong>&gt; 24 giờ</strong> hợp lệ hoàn 100% (50.000đ). Hủy <strong>&lt; 24 giờ</strong> từ chối hoàn cọc để bảo vệ chi phí giữ chỗ.
+          </p>
+
+          <div class="table-wrap" style="background: var(--bg-surface); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; overflow-x: auto;">
+            <table class="data-table" style="width: 100%;">
+              <thead>
+                <tr>
+                  <th>Mã YC</th>
+                  <th>Phòng</th>
+                  <th>Người chơi</th>
+                  <th>Số tiền</th>
+                  <th>Mốc hủy</th>
+                  <th>Điều kiện 24h</th>
+                  <th>Trạng thái</th>
+                  <th>Thao tác</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${refunds.length === 0 ? `
+                  <tr><td colspan="8" style="text-align: center; padding: 30px;" class="text-muted">Không có yêu cầu hoàn cọc nào cần xử lý.</td></tr>
+                ` : refunds.map(rf => {
+                  const hours = Number(rf.hours_before_play || 25);
+                  const isEligible = hours >= 24;
+                  return `
+                    <tr style="background: ${isEligible ? 'rgba(46,125,79,0.08)' : 'rgba(184,41,41,0.08)'};">
+                      <td><strong>#RF-${rf.id}</strong></td>
+                      <td>#${rf.room_id || rf.roomId || '104'}</td>
+                      <td><strong>${escapeHtml(rf.user_name || rf.playerName || 'Người chơi')}</strong></td>
+                      <td class="text-gold">50.000đ</td>
+                      <td>Trước <strong>${hours} giờ</strong></td>
+                      <td>
+                        <span class="badge ${isEligible ? 'badge-green' : 'badge-18'}">
+                          ${isEligible ? '✓ Hợp lệ (&ge; 24h)' : '✗ Quá hạn (&lt; 24h)'}
+                        </span>
+                      </td>
+                      <td><strong>${rf.status}</strong></td>
+                      <td style="display: flex; gap: 6px;">
+                        ${rf.status === 'PENDING' ? `
+                          <button class="btn btn-gold btn-sm" data-rf-approve="${rf.id}">Duyệt hoàn</button>
+                          <button class="btn btn-crimson btn-sm" data-rf-reject="${rf.id}">Từ chối</button>
+                        ` : '<span class="text-muted">Đã xử lý</span>'}
+                      </td>
+                    </tr>
+                  `;
+                }).join('')}
+              </tbody>
+            </table>
+          </div>
+        `;
+
+        root.querySelectorAll('[data-rf-approve]').forEach(b => {
+          b.addEventListener('click', async () => {
+            try {
+              await api.post(`/admin/refunds/${b.dataset.rfApprove}/approve`);
+              toast.success('Đã duyệt hoàn tiền cọc 50.000đ thành công!');
+              renderAdminDashboard();
+            } catch (err) {
+              toast.error(err.message || 'Lỗi duyệt hoàn tiền');
+            }
+          });
+        });
+
+        root.querySelectorAll('[data-rf-reject]').forEach(b => {
+          b.addEventListener('click', async () => {
+            try {
+              await api.post(`/admin/refunds/${b.dataset.rfReject}/reject`, { reason: 'Vi phạm quy tắc hủy muộn dưới 24 giờ.' });
+              toast.info('Đã từ chối hoàn cọc.');
+              renderAdminDashboard();
+            } catch (err) {
+              toast.error(err.message || 'Lỗi từ chối hoàn cọc');
+            }
+          });
+        });
+      }
+
+      /* =========================================================================
+         TAB 4: KHO 42 KỊCH BẢN (SCENARIOS)
+         ========================================================================= */
+      if (activeTab === 'scenarios') {
+        const filtered = localScripts.filter(s => s.title.toLowerCase().includes(scenarioSearch.toLowerCase()));
+        const perPage = 8;
+        const totalPages = Math.ceil(filtered.length / perPage) || 1;
+        if (scenarioPage > totalPages) scenarioPage = 1;
+        const items = filtered.slice((scenarioPage - 1) * perPage, scenarioPage * perPage);
+
+        root.innerHTML = `
+          <div style="display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 20px;">
+            <div>
+              <h1 class="page-title" style="font-family: var(--font-display); margin: 0;">Quản Lý Kho 42 Kịch Bản</h1>
+              <p class="text-muted" style="margin: 4px 0 0 0; font-size: 0.88rem;">Toàn bộ kịch bản trinh thám, kinh dị và phá án chuẩn V16</p>
+            </div>
+            <button class="btn btn-gold btn-sm" id="btn-open-add-script">+ Thêm kịch bản mới</button>
+          </div>
+
+          <div style="margin-bottom: 16px;">
+            <input type="search" id="scr-search-input" class="form-control" style="max-width: 320px;" placeholder="Tìm theo tên kịch bản..." value="${escapeHtml(scenarioSearch)}" />
+          </div>
+
+          <div class="table-wrap" style="background: var(--bg-surface); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; overflow-x: auto;">
+            <table class="data-table" style="width: 100%;">
+              <thead>
+                <tr>
+                  <th>Mã</th>
+                  <th>Tên kịch bản</th>
+                  <th>Thể loại</th>
+                  <th>Số người</th>
+                  <th>Giá vé</th>
+                  <th>Độ tuổi</th>
+                  <th>Trạng thái</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${items.map(s => `
+                  <tr>
+                    <td style="font-family: var(--font-mono); font-size: 0.8rem; color: var(--gold);">${s.code}</td>
+                    <td><strong>${escapeHtml(s.title)}</strong></td>
+                    <td class="text-muted">${escapeHtml(s.genre)}</td>
+                    <td>${s.playersMin}–${s.playersMax} người</td>
+                    <td class="text-gold font-bold">${(s.price).toLocaleString('vi-VN')}đ</td>
+                    <td>${s.is18Plus ? '<span class="badge badge-18">18+</span>' : '<span class="badge badge-green">Phổ thông</span>'}</td>
+                    <td>
+                      <label class="switch">
+                        <input type="checkbox" data-scr-toggle="${s.id}" ${s.isActive ? 'checked' : ''} />
+                        <span class="slider"></span>
+                      </label>
+                    </td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          </div>
+
+          <div style="display: flex; justify-content: center; gap: 8px; margin-top: 18px;">
+            ${Array.from({ length: totalPages }, (_, i) => i + 1).map(p => `
+              <button class="btn btn-sm ${p === scenarioPage ? 'btn-gold' : 'btn-ghost'}" data-page="${p}">${p}</button>
+            `).join('')}
+          </div>
+        `;
+
+        document.getElementById('scr-search-input').addEventListener('input', (e) => {
+          scenarioSearch = e.target.value;
+          scenarioPage = 1;
+          renderAdminDashboard();
+        });
+
+        document.getElementById('btn-open-add-script').addEventListener('click', () => {
+          document.getElementById('add-script-modal').classList.add('open');
+        });
+
+        root.querySelectorAll('[data-page]').forEach(b => {
+          b.addEventListener('click', () => {
+            scenarioPage = Number(b.dataset.page);
+            renderAdminDashboard();
+          });
+        });
+
+        root.querySelectorAll('[data-scr-toggle]').forEach(chk => {
+          chk.addEventListener('change', () => {
+            const item = localScripts.find(s => s.id === chk.dataset.scrToggle);
+            if (item) {
+              item.isActive = chk.checked;
+              toast.info(`Kịch bản "${item.title}" đã ${chk.checked ? 'bật' : 'tắt'}.`);
+            }
+          });
+        });
+      }
+
+      /* =========================================================================
+         TAB 5: PHÒNG VẬT LÝ TẠI QUÁN (PHYSICAL ROOMS)
+         ========================================================================= */
+      if (activeTab === 'physical') {
+        root.innerHTML = `
+          <h1 class="page-title" style="margin-bottom: 8px; font-family: var(--font-display);">Trạng Thái Phòng Vật Lý Tại Chi Nhánh</h1>
+          <p class="text-muted" style="margin-bottom: 24px;">Chi nhánh 36/52 Nguyễn Gia Trí, P.25, Bình Thạnh (5 phòng chuyên đề nhập vai)</p>
+
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px;">
+            ${localPhysical.map(p => `
+              <div style="background: var(--bg-surface); border: 1px solid rgba(255,255,255,0.12); padding: 22px; border-radius: 8px; position: relative;">
+                <span class="badge ${p.status === 'available' ? 'badge-green' : p.status === 'occupied' ? 'badge-gold' : 'badge-18'}" style="margin-bottom: 12px;">
+                  ${p.status === 'available' ? '● Đang trống (Sẵn sàng)' : p.status === 'occupied' ? '● Đang có ca diễn' : '● Bảo trì đạo cụ'}
+                </span>
+                <h3 style="font-family: var(--font-display); font-size: 1.25rem; margin: 8px 0 6px;">${p.name}</h3>
+                <p class="text-muted" style="font-size: 0.88rem; margin-bottom: 12px;">Sức chứa tối đa: <strong>${p.capacity} người chơi</strong></p>
+                <div style="border-top: 1px solid rgba(255,255,255,0.08); padding-top: 10px; font-size: 0.82rem; color: var(--gold);">
+                  Mã phòng: #${p.id} ${p.currentBookingId ? `• Đang phục vụ: #${p.currentBookingId}` : ''}
+                </div>
+              </div>
+            `).join('')}
+          </div>
+        `;
+      }
+
+      /* =========================================================================
+         TAB 6: NGƯỜI DÙNG, DM & DUYỆT THẺ HSSV
+         ========================================================================= */
+      if (activeTab === 'users') {
+        let users = [];
+        try {
+          const res = await api.get('/admin/users');
+          users = res?.data?.users || [];
+        } catch {
+          users = [
+            { id: 1, full_name: 'Player Hiếu', email: 'player.hieu@kichbansat.vn', role: 'PLAYER' },
+            { id: 2, full_name: 'Quản trò Hoàng Nam', email: 'dm.nam@kichbansat.vn', role: 'DM' },
+            { id: 3, full_name: 'Admin Hệ Thống', email: 'admin@kichbansat.vn', role: 'ADMIN' }
+          ];
+        }
+
+        root.innerHTML = `
+          <h1 class="page-title" style="margin-bottom: 20px; font-family: var(--font-display);">Quản Lý Người Dùng & Duyệt Thẻ HSSV</h1>
+
+          <!-- Khung Duyệt Thẻ HSSV -->
+          <div class="paper-ticket" style="padding: 24px; margin-bottom: 28px;">
+            <span class="badge badge-18">DUYỆT ƯU ĐÃI HỌC SINH — SINH VIÊN (-20.000Đ)</span>
+            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 14px; margin-top: 12px;">
+              <div>
+                <strong style="font-size: 1.1rem; color: #111;">Nguyễn Minh Khôi</strong> (0909.123.456)<br />
+                <span style="font-size: 0.86rem; color: var(--ink-muted);">
+                  Ảnh thẻ đính kèm: <strong>the_sinh_vien_khoi_2026.jpg</strong> &bull; Trạng thái: <span class="badge badge-gold" style="color: #8A6200;">Chờ duyệt</span>
+                </span>
+              </div>
+              <div style="display: flex; gap: 8px;">
+                <button class="btn btn-gold btn-sm" id="btn-approve-student">Duyệt thẻ HSSV (-20k)</button>
+                <button class="btn btn-crimson btn-sm" id="btn-reject-student">Từ chối</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Bảng Danh Sách Tài Khoản & RBAC -->
+          <h3 style="color: var(--gold); margin-bottom: 12px; font-family: var(--font-display);">Danh Sách Thành Viên & Phân Quyền (RBAC)</h3>
+          <div class="table-wrap" style="background: var(--bg-surface); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; overflow-x: auto;">
+            <table class="data-table" style="width: 100%;">
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>Họ và tên</th>
+                  <th>Email</th>
+                  <th>Vai trò hiện tại</th>
+                  <th>Đổi quyền RBAC</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${users.map(u => `
+                  <tr>
+                    <td>#${u.id}</td>
+                    <td><strong>${escapeHtml(u.full_name || u.name || 'Người dùng')}</strong></td>
+                    <td class="text-muted">${escapeHtml(u.email || '—')}</td>
+                    <td>
+                      <span class="badge ${u.role === 'ADMIN' ? 'badge-18' : u.role === 'DM' ? 'badge-gold' : 'badge-green'}">
+                        ${u.role}
+                      </span>
+                    </td>
+                    <td>
+                      <select class="form-control" style="padding: 4px 8px; font-size: 0.82rem;" data-change-role="${u.id}">
+                        <option value="PLAYER" ${u.role === 'PLAYER' ? 'selected' : ''}>PLAYER</option>
+                        <option value="DM" ${u.role === 'DM' ? 'selected' : ''}>DM</option>
+                        <option value="ADMIN" ${u.role === 'ADMIN' ? 'selected' : ''}>ADMIN</option>
+                      </select>
+                    </td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          </div>
+        `;
+
+        const approveBtn = document.getElementById('btn-approve-student');
+        if (approveBtn) {
+          approveBtn.onclick = () => {
+            toast.success('Đã duyệt thẻ HSSV cho bạn Nguyễn Minh Khôi! Hệ thống tự động trừ 20.000đ khi đặt phòng T2-T5.');
+          };
+        }
+        const rejectBtn = document.getElementById('btn-reject-student');
+        if (rejectBtn) {
+          rejectBtn.onclick = () => {
+            toast.info('Đã từ chối ảnh thẻ HSSV do không hợp lệ.');
+          };
+        }
+
+        root.querySelectorAll('[data-change-role]').forEach(sel => {
+          sel.addEventListener('change', async () => {
+            const userId = sel.dataset.changeRole;
+            const newRole = sel.value;
+            try {
+              await api.put(`/admin/users/${userId}/role`, { role: newRole });
+              toast.success(`Đã cập nhật vai trò người dùng #${userId} thành ${newRole}`);
+            } catch (err) {
+              toast.error(err.message || 'Lỗi cập nhật vai trò');
+            }
+          });
+        });
+      }
+    }
+
+    // Modal Events
+    document.getElementById('btn-close-cancel-dialog')?.addEventListener('click', () => {
+      document.getElementById('admin-cancel-dialog').close();
+    });
+    document.getElementById('btn-abort-cancel')?.addEventListener('click', () => {
+      document.getElementById('admin-cancel-dialog').close();
+    });
+
+    document.getElementById('admin-cancel-form')?.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const roomId = document.getElementById('admin-cancel-room-id').value;
+      const reason = document.getElementById('admin-cancel-reason').value.trim();
+      try {
+        await api.post(`/admin/rooms/${roomId}/cancel`, { reason });
+        toast.success(`Đã hủy phòng #${roomId} thành công.`);
+        document.getElementById('admin-cancel-dialog').close();
+        renderAdminDashboard();
+      } catch (err) {
+        toast.error(err.message || 'Lỗi hủy phòng.');
+      }
+    });
+
+    document.getElementById('close-ns-modal')?.addEventListener('click', () => {
+      document.getElementById('add-script-modal').classList.remove('open');
+    });
+
+    document.getElementById('new-script-form')?.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const title = document.getElementById('ns-title').value.trim();
+      const genre = document.getElementById('ns-genre').value.trim();
+      const maxP = Number(document.getElementById('ns-max').value);
+      const price = Number(document.getElementById('ns-price').value);
+      const is18 = document.getElementById('ns-18').checked;
+
+      localScripts.unshift({
+        id: `SCR-${Date.now().toString().slice(-3)}`,
+        code: `KBS-${Math.floor(200 + Math.random() * 700)}`,
+        title,
+        genre,
+        playersMin: Math.max(5, maxP - 1),
+        playersMax: maxP,
+        difficulty: 'Trung bình',
+        durationHours: 3.5,
+        price,
+        is18Plus: is18,
+        isActive: true,
+        summary: 'Kịch bản mới được thêm vào kho hồ sơ mật Kịch Bản Sát V16.'
+      });
+
+      toast.success(`Đã lưu kịch bản "${title}" vào hệ thống!`);
+      document.getElementById('add-script-modal').classList.remove('open');
+      renderAdminDashboard();
+    });
+
+    initAdminPage();
+  </script>
+</body>
+</html>

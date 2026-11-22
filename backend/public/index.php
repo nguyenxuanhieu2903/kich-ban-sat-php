@@ -20,6 +20,24 @@ if (!str_starts_with($path, '/api')) {
         exit;
     }
 
+    if (in_array($path, ['/admin', '/admin.html'])) {
+        header('Content-Type: text/html; charset=utf-8');
+        readfile($frontendDir . '/admin.html');
+        exit;
+    }
+
+    if (in_array($path, ['/dm', '/dm.html'])) {
+        header('Content-Type: text/html; charset=utf-8');
+        readfile($frontendDir . '/dm.html');
+        exit;
+    }
+
+    if (in_array($path, ['/player', '/player.html', '/phayer', '/phayer.html'])) {
+        header('Content-Type: text/html; charset=utf-8');
+        readfile($frontendDir . '/player.html');
+        exit;
+    }
+
     $filePath = realpath($frontendDir . $path);
     $realFrontendDir = realpath($frontendDir);
 

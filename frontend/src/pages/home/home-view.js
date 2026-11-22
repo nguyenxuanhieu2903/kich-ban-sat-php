@@ -2,12 +2,9 @@ import { api } from '../../api/api-client.js';
 import { authState } from '../../api/auth-state.js';
 import { toast } from '../../utils/toast.js';
 import { escapeHtml, sanitizeUrl } from '../../utils/sanitize.js';
+import { ALL_SCRIPTS } from '../../data/scripts.data.js';
 
 export class HomeView {
-  /**
-   * @param {HTMLElement} container Mount point container
-   * @param {Object} options Options containing onNavigate and onOpenAuth
-   */
   constructor(container, options = {}) {
     this.container = container;
     this.onNavigate = options.onNavigate || ((tab) => { window.location.hash = `#${tab}`; });
@@ -15,13 +12,16 @@ export class HomeView {
 
     this.games = [];
     this.promotions = [];
+    this.formingRooms = [];
     this.searchQuery = '';
     this.selectedPlayers = '';
+    this.selectedGenre = 'Tất cả';
 
     this.isLoadingGames = false;
     this.isLoadingPromotions = false;
     this.gamesError = null;
     this.promotionsError = null;
+    this.ticking = false;
   }
 
   async render() {
@@ -31,755 +31,630 @@ export class HomeView {
     if (user) {
       if (user.role === 'ADMIN') {
         roleBannerHtml = `
-          <div style="background: rgba(239, 68, 68, 0.12); border: 1px solid rgba(239, 68, 68, 0.4); border-radius: 12px; padding: 16px 20px; margin-bottom: 24px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 14px;">
+          <div style="background: rgba(196, 55, 55, 0.14); border: 1px solid var(--crimson); border-radius: 10px; padding: 16px 20px; margin-bottom: 24px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 14px;">
             <div style="display: flex; align-items: center; gap: 12px;">
               <span style="font-size: 1.8rem;">🛡️</span>
               <div>
                 <strong style="color: #fca5a5; font-size: 1rem;">Bạn đang đăng nhập: Quản Trị Viên (Admin) — ${escapeHtml(user.name)}</strong>
-                <p style="margin: 4px 0 0 0; font-size: 0.85rem; color: #cbd5e1;">Trang này là giao diện giới thiệu công cộng. Bạn có thể chuyển sang Cổng Quản Trị để điều hành hệ thống.</p>
+                <p style="margin: 4px 0 0 0; font-size: 0.85rem; color: var(--text-secondary);">Bạn có toàn quyền điều phối phòng chơi, phân công DM và xét duyệt hoàn tiền.</p>
               </div>
             </div>
-            <button id="btn-banner-go-role" class="btn" style="padding: 10px 18px; font-size: 0.9rem; background: #ef4444; color: white; font-weight: 600; border-radius: 8px;">
-              Vào Cổng Quản Trị (Admin) &rarr;
-            </button>
+            <a href="/admin.html" class="btn btn-crimson btn-sm" style="font-size: 0.88rem;">
+              Vào Trang ADMIN &rarr;
+            </a>
           </div>
         `;
       } else if (user.role === 'DM') {
         roleBannerHtml = `
-          <div style="background: rgba(245, 158, 11, 0.12); border: 1px solid rgba(245, 158, 11, 0.4); border-radius: 12px; padding: 16px 20px; margin-bottom: 24px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 14px;">
+          <div style="background: rgba(212, 175, 55, 0.14); border: 1px solid var(--gold-border); border-radius: 10px; padding: 16px 20px; margin-bottom: 24px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 14px;">
             <div style="display: flex; align-items: center; gap: 12px;">
               <span style="font-size: 1.8rem;">📜</span>
               <div>
-                <strong style="color: #fbbf24; font-size: 1rem;">Bạn đang đăng nhập: Quản Trò (DM) — Host ${escapeHtml(user.name)}</strong>
-                <p style="margin: 4px 0 0 0; font-size: 0.85rem; color: #cbd5e1;">Trang này là giao diện giới thiệu công cộng. Bấm để truy cập danh sách ca trực và điều hành buổi chơi.</p>
+                <strong style="color: var(--gold); font-size: 1rem;">Bạn đang đăng nhập: Quản Trò (DM) — Host ${escapeHtml(user.name)}</strong>
+                <p style="margin: 4px 0 0 0; font-size: 0.85rem; color: var(--text-secondary);">Truy cập cổng Quản trò để xem lịch trực hôm nay và điểm danh người chơi.</p>
               </div>
             </div>
-            <button id="btn-banner-go-role" class="btn" style="padding: 10px 18px; font-size: 0.9rem; background: #f59e0b; color: #1e293b; font-weight: 600; border-radius: 8px;">
-              Vào Cổng Quản Trò (DM) &rarr;
-            </button>
+            <a href="/dm.html" class="btn btn-gold btn-sm" style="font-size: 0.88rem; color: var(--ink-black);">
+              Vào Trang DM &rarr;
+            </a>
           </div>
         `;
       } else {
         roleBannerHtml = `
-          <div style="background: rgba(59, 130, 246, 0.12); border: 1px solid rgba(59, 130, 246, 0.4); border-radius: 12px; padding: 16px 20px; margin-bottom: 24px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 14px;">
+          <div style="background: rgba(46, 125, 79, 0.14); border: 1px solid rgba(46, 125, 79, 0.4); border-radius: 10px; padding: 16px 20px; margin-bottom: 24px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 14px;">
             <div style="display: flex; align-items: center; gap: 12px;">
               <span style="font-size: 1.8rem;">🎲</span>
               <div>
-                <strong style="color: #93c5fd; font-size: 1rem;">Chào mừng Người Chơi: ${escapeHtml(user.name)}</strong>
-                <p style="margin: 4px 0 0 0; font-size: 0.85rem; color: #cbd5e1;">Bạn đang xem Trang giới thiệu. Truy cập Sảnh Phòng để tạo phòng mới, ghép đội hoặc tiếp tục phòng đã tham gia.</p>
+                <strong style="color: #5CD68D; font-size: 1rem;">Chào mừng Người Chơi: ${escapeHtml(user.name)}</strong>
+                <p style="margin: 4px 0 0 0; font-size: 0.85rem; color: var(--text-secondary);">Bạn có thể kiểm tra vé cọc 50k, phòng đã chốt hoặc ghép nhóm mới tại Trang Player.</p>
               </div>
             </div>
-            <button id="btn-banner-go-role" class="btn btn-primary" style="padding: 10px 18px; font-size: 0.9rem; font-weight: 600; border-radius: 8px;">
-              Vào Sảnh Phòng Của Bạn &rarr;
-            </button>
+            <a href="/player.html" class="btn btn-gold btn-sm" style="font-size: 0.88rem; color: var(--ink-black);">
+              Vào Trang PLAYER &rarr;
+            </a>
           </div>
         `;
       }
     }
 
     this.container.innerHTML = `
-      ${roleBannerHtml}
+      <!-- VÙNG SCROLLYTELLING PARALLAX 3 TẦNG (FE_KỊCH_BẢN_SÁT) -->
+      <section class="scrolly-stage" id="scrolly-stage">
+        <div class="scrolly-sticky">
+          <div class="scrolly-progress-bar" id="scrolly-progress"></div>
 
-      <!-- 1. HERO SECTION -->
-      <section class="home-hero-section">
-        <div class="home-hero-badge">
-          <span>✨</span> NỀN TẢNG KỊCH BẢN SÁT & JUBENSHA CHUYÊN NGHIỆP
-        </div>
-
-        <h1 class="home-hero-title">
-          Đắm Chìm Vào Thế Giới Trinh Thám & Nhập Vai Phá Án
-        </h1>
-
-        <p class="home-hero-desc">
-          Khám phá kho tàng kịch bản Jubensha ly kỳ, kết nối người chơi thông minh,
-          hòa mình vào những cốt truyện bí ẩn cùng Game Master (DM) tận tâm và chuyên nghiệp.
-        </p>
-
-        <div class="home-hero-actions">
-          <button id="hero-cta-games" class="btn btn-primary" style="padding: 12px 24px; font-size: 1rem; border-radius: var(--radius-md);">
-            🎯 Khám Phá Kịch Bản
-          </button>
-          <button id="hero-cta-rooms" class="btn btn-secondary" style="padding: 12px 24px; font-size: 1rem; border-radius: var(--radius-md); background: rgba(30, 41, 59, 0.8); border: 1px solid var(--color-border); color: #f8fafc;">
-            🎲 Xem Sảnh Phòng Chờ
-          </button>
-        </div>
-
-        <!-- Hero Feature Pillars -->
-        <div class="home-hero-features">
-          <div class="home-feature-pill">
-            <span class="home-feature-icon">🎭</span>
-            <div>
-              <div class="home-feature-title">Kịch Bản Chọn Lọc</div>
-              <div class="home-feature-sub">Đa dạng thể loại & độ khó</div>
-            </div>
-          </div>
-          <div class="home-feature-pill">
-            <span class="home-feature-icon">⚡</span>
-            <div>
-              <div class="home-feature-title">Ghép Phòng Linh Hoạt</div>
-              <div class="home-feature-sub">Tìm đồng đội trong vài phút</div>
-            </div>
-          </div>
-          <div class="home-feature-pill">
-            <span class="home-feature-icon">💰</span>
-            <div>
-              <div class="home-feature-title">Cọc Cố Định 50.000đ</div>
-              <div class="home-feature-sub">Chuẩn V16 không phát sinh phí ẩn</div>
-            </div>
-          </div>
-          <div class="home-feature-pill">
-            <span class="home-feature-icon">🛡️</span>
-            <div>
-              <div class="home-feature-title">Hoàn Tiền Trước 24h</div>
-              <div class="home-feature-sub">Quy tắc vàng bảo vệ quyền lợi</div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <!-- 2. GAME DISCOVERY & SEARCH BAR -->
-      <section class="home-section" id="section-discovery">
-        <div class="home-search-bar">
-          <div class="home-search-input-wrap">
-            <span class="home-search-icon">🔍</span>
-            <input
-              type="text"
-              id="home-search-input"
-              class="form-input home-search-input"
-              placeholder="Tìm kiếm kịch bản theo tên hoặc cốt truyện..."
-              value="${escapeHtml(this.searchQuery)}"
-            />
+          <!-- PHÂN CẢNH 1: CỔNG DINH THỰ & MÀN SƯƠNG -->
+          <div class="scene-layer s1-sky" id="s1-sky">
+            <div class="blood-moon"></div>
           </div>
 
-          <div style="display: flex; align-items: center; gap: 8px;">
-            <label style="font-size: 0.85rem; color: var(--color-text-muted); white-space: nowrap;">Số người chơi:</label>
-            <select id="home-filter-players" class="form-input" style="padding: 8px 12px; font-size: 0.85rem;">
-              <option value="">Tất cả</option>
-              <option value="5" ${this.selectedPlayers === '5' ? 'selected' : ''}>5 người</option>
-              <option value="6" ${this.selectedPlayers === '6' ? 'selected' : ''}>6 người</option>
-              <option value="7" ${this.selectedPlayers === '7' ? 'selected' : ''}>7 người</option>
-              <option value="8" ${this.selectedPlayers === '8' ? 'selected' : ''}>8 người</option>
-              <option value="10" ${this.selectedPlayers === '10' ? 'selected' : ''}>10 người</option>
-            </select>
+          <div class="scene-layer s1-mansion" id="s1-mansion">
+            <svg class="mansion-svg" viewBox="0 0 800 320" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M80 320V170L160 110L240 170V130L400 40L560 130V170L640 110L720 170V320H80Z" fill="#0B0909"/>
+              <polygon points="400,15 385,45 415,45" fill="#0B0909"/>
+              <rect x="372" y="95" width="20" height="32" rx="2" fill="#D4AF37" opacity="0.9"/>
+              <rect x="408" y="95" width="20" height="32" rx="2" fill="#D4AF37" opacity="0.75"/>
+              <rect x="280" y="165" width="22" height="36" rx="2" fill="#D4AF37" opacity="0.85"/>
+              <rect x="330" y="165" width="22" height="36" rx="2" fill="#D4AF37" opacity="0.5"/>
+              <rect x="448" y="165" width="22" height="36" rx="2" fill="#D4AF37" opacity="0.9"/>
+              <rect x="498" y="165" width="22" height="36" rx="2" fill="#D4AF37" opacity="0.65"/>
+              <rect x="148" y="195" width="24" height="38" rx="2" fill="#D4AF37" opacity="0.7"/>
+              <rect x="628" y="195" width="24" height="38" rx="2" fill="#D4AF37" opacity="0.85"/>
+            </svg>
           </div>
 
-          <button id="home-btn-search" class="btn btn-primary" style="padding: 8px 18px;">
-            Tìm kiếm
-          </button>
-          <button id="home-btn-reset-filter" class="btn" style="padding: 8px 14px; background: transparent; border: 1px solid var(--color-border); color: var(--color-text-muted);">
-            Đặt lại
-          </button>
-        </div>
-      </section>
-
-      <!-- 3. FEATURED GAMES SECTION -->
-      <section class="home-section" id="section-featured-games">
-        <div class="home-section-header">
-          <div class="home-section-title-wrap">
-            <h2><span>🔥</span> Kịch Bản Nổi Bật</h2>
-            <p>Những vụ án ly kỳ được cộng đồng yêu thích nhất, sẵn sàng khởi tạo phòng chơi ngay</p>
+          <div class="scene-layer s1-gates" id="s1-gates">
+            <div class="iron-gate left" id="gate-left"></div>
+            <div class="iron-gate right" id="gate-right"></div>
           </div>
-          <button id="btn-see-all-games" class="btn" style="background: transparent; border: 1px solid var(--color-border); color: #60a5fa; font-size: 0.88rem; gap: 6px;">
-            Xem toàn bộ kịch bản <span>→</span>
-          </button>
-        </div>
 
-        <div id="home-games-container">
-          <!-- Populated by fetchGames -->
-        </div>
-      </section>
-
-      <!-- 4. PROMOTIONS SECTION -->
-      <section class="home-section" id="section-promotions">
-        <div class="home-section-header">
-          <div class="home-section-title-wrap">
-            <h2><span>🎁</span> Chương Trình Ưu Đãi Đang Áp Dụng</h2>
-            <p>Ưu đãi được tính toán tự động tại Backend theo quy chuẩn V16 khi đặt phòng và thanh toán</p>
-          </div>
-        </div>
-
-        <div id="home-promotions-container">
-          <!-- Populated by fetchPromotions -->
-        </div>
-      </section>
-
-      <!-- 5. HOW IT WORKS (4 STEPS) -->
-      <section class="home-section" id="section-how-it-works">
-        <div class="home-section-header">
-          <div class="home-section-title-wrap">
-            <h2><span>🧭</span> Quy Trình Trải Nghiệm Đơn Giản</h2>
-            <p>4 bước nhanh chóng từ việc chọn kịch bản đến buổi phá án đầy cảm xúc</p>
-          </div>
-        </div>
-
-        <div class="steps-grid">
-          <div class="step-card">
-            <div class="step-number">1</div>
-            <h3 class="step-title">Chọn Kịch Bản</h3>
-            <p class="step-desc">Khám phá nội dung, cốt truyện bí ẩn, thời lượng và khung giờ chơi phù hợp với nhóm bạn.</p>
-          </div>
-          <div class="step-card">
-            <div class="step-number">2</div>
-            <h3 class="step-title">Tạo Hoặc Ghép Phòng</h3>
-            <p class="step-desc">Mở phòng riêng mời bạn bè hoặc tham gia sảnh chờ để hệ thống ghép thám tử đồng hành.</p>
-          </div>
-          <div class="step-card">
-            <div class="step-number">3</div>
-            <h3 class="step-title">Đặt Cọc 50.000đ/Người</h3>
-            <p class="step-desc">Mức cọc cố định chuẩn V16, tự động giữ chỗ phòng chơi và hoàn tiền 100% nếu hủy trước 24 giờ.</p>
-          </div>
-          <div class="step-card">
-            <div class="step-number">4</div>
-            <h3 class="step-title">Nhập Vai & Phá Án</h3>
-            <p class="step-desc">Có mặt tại phòng chủ đề, nhận trang phục, tài liệu và tận hưởng sự dẫn dắt lôi cuốn từ Game Master.</p>
-          </div>
-        </div>
-      </section>
-
-      <!-- 6. VENUES & BRANCHES -->
-      <section class="home-section" id="section-venues">
-        <div class="home-section-header">
-          <div class="home-section-title-wrap">
-            <h2><span>📍</span> Hệ Thống Chi Nhánh Chuyên Nghiệp</h2>
-            <p>Không gian nhập vai chủ đề được đầu tư bài bản, âm thanh và ánh sáng chuẩn điện ảnh</p>
-          </div>
-        </div>
-
-        <div class="venues-grid">
-          <div class="venue-card">
-            <div class="venue-header">
-              <h3 class="venue-name">Kịch Bản Sát Station - Chi nhánh Quận 1</h3>
-              <span class="badge" style="background: rgba(16, 185, 129, 0.2); color: #34d399;">Hoạt động</span>
-            </div>
-            <div class="venue-address">
-              <span>📌</span> 123 Nguyễn Huệ, Phường Bến Nghé, Quận 1, TP. Hồ Chí Minh
-            </div>
-            <p style="font-size: 0.85rem; color: var(--color-text-muted); line-height: 1.5; margin: 0 0 14px 0;">
-              Chi nhánh trung tâm với không gian nhập vai phong cách Châu Âu cổ điển.
-              Trang bị: <em>Phòng Sherlock Holmes, Phòng VIP Huyết Tộc Dracula</em>.
+          <div class="s1-content" id="s1-content">
+            <span class="hero-kicker">36/52 NGUYỄN GIA TRÍ • BÌNH THẠNH</span>
+            <h1 class="hero-title">KỊCH BẢN <span class="text-crimson">SÁT</span></h1>
+            <p class="hero-desc">
+              Chọn kịch bản, ghép đủ 5–8 người, giữ chỗ trong 4 giờ. Hung thủ đang ngồi ngay trong phòng.
             </p>
-            <div style="font-size: 0.82rem; color: #60a5fa; margin-top: auto;">
-              📞 Hotline đặt phòng: 0901 234 567
+            <div class="hero-cta-row">
+              <a href="#section-featured-games" class="btn btn-gold">Khám phá kịch bản</a>
+              <button id="hero-btn-create-room" class="btn btn-ghost" style="border-color: rgba(255,255,255,0.4); color: #fff;">Tạo phòng ngay</button>
+            </div>
+            <div class="scroll-cue" id="scroll-cue">↓ Cuộn để bước vào hiện trường</div>
+          </div>
+
+          <!-- PHÂN CẢNH 2: BÀN TRÒN NGHI PHẠM & ÁNH NẾN -->
+          <div class="scene-layer s2-room" id="s2-room">
+            <div class="s2-copy" id="s2-copy">
+              <span class="hero-kicker">PHÒNG THẨM VẤN KÍN</span>
+              <h2>5–8 NGHI PHẠM.<br /><span class="text-crimson">1 HUNG THỦ.</span></h2>
+              <p class="text-muted" style="font-size: 1.05rem;">
+                Mỗi người cầm một vai và giấu một bí mật. Quản trò (DM) giữ nhịp, cả nhóm lần ra sự thật.
+              </p>
+            </div>
+
+            <div class="suspects-row">
+              <div class="suspect-silhouette"></div>
+              <div class="suspect-silhouette"></div>
+              <div class="suspect-silhouette"></div>
+              <div class="suspect-silhouette"></div>
+              <div class="suspect-silhouette culprit" title="Nghi phạm số 5"></div>
+              <div class="suspect-silhouette"></div>
+              <div class="suspect-silhouette"></div>
+            </div>
+            <div class="interrogation-table">
+              <div class="candle"></div>
+              <div class="candle"></div>
+              <div class="candle"></div>
             </div>
           </div>
 
-          <div class="venue-card">
-            <div class="venue-header">
-              <h3 class="venue-name">Kịch Bản Sát Hub - Chi nhánh Bình Thạnh</h3>
-              <span class="badge" style="background: rgba(16, 185, 129, 0.2); color: #34d399;">Hoạt động</span>
+          <!-- PHÂN CẢNH 3: RÚT HỒ SƠ NHÂN VẬT 3D CARD FAN -->
+          <div class="scene-layer s3-cards-scene" id="s3-cards">
+            <div class="card-fan">
+              <div class="dossier-card dossier-paper" id="card-left">
+                <span class="dossier-stamp">HỒ SƠ A</span>
+                <div>
+                  <h3 style="font-family: var(--font-display); color: var(--crimson); margin-bottom: 6px;">Người thừa kế</h3>
+                  <p style="font-size: 0.8rem; color: var(--ink-muted);">Có mặt tại thư phòng lúc 22:15. Giữ chìa khóa két sắt.</p>
+                </div>
+                <span style="font-family: var(--font-mono); font-size: 0.72rem;">MẬT MÃ #01</span>
+              </div>
+
+              <div class="dossier-card dossier-culprit" id="card-center">
+                <span class="badge badge-gold" style="width: fit-content;">#KBS</span>
+                <div>
+                  <div class="question-emblem">?</div>
+                  <p style="text-align: center; color: var(--gold); font-weight: 700; font-size: 0.95rem;">Ai là hung thủ?</p>
+                </div>
+                <span style="font-family: var(--font-mono); font-size: 0.72rem; color: var(--text-dim); text-align: center;">VAI DIỄN BÍ MẬT</span>
+              </div>
+
+              <div class="dossier-card dossier-paper" id="card-right">
+                <span class="dossier-stamp">HỒ SƠ B</span>
+                <div>
+                  <h3 style="font-family: var(--font-display); color: var(--ink-black); margin-bottom: 6px;">Quản gia</h3>
+                  <p style="font-size: 0.8rem; color: var(--ink-muted);">Người cuối cùng dâng trà cho nạn nhân trước khi mất điện.</p>
+                </div>
+                <span style="font-family: var(--font-mono); font-size: 0.72rem;">MẬT MÃ #02</span>
+              </div>
             </div>
-            <div class="venue-address">
-              <span>📌</span> 45 Điện Biên Phủ, Phường 15, Quận Bình Thạnh, TP. Hồ Chí Minh
-            </div>
-            <p style="font-size: 0.85rem; color: var(--color-text-muted); line-height: 1.5; margin: 0 0 14px 0;">
-              Không gian hiện đại chuyên kịch bản kinh dị & trinh thám Á Đông huyền bí.
-              Trang bị: <em>Phòng Cổ Trang Á Đông, hệ thống âm thanh vòm và đạo cụ thực tế</em>.
-            </p>
-            <div style="font-size: 0.82rem; color: #60a5fa; margin-top: auto;">
-              📞 Hotline đặt phòng: 0907 654 321
+
+            <div class="s3-copy">
+              <h2>RÚT MỘT HỒ SƠ. <span class="text-gold">LẬT MỘT VAI.</span></h2>
+              <p class="text-muted" style="margin-bottom: 20px;">Mỗi kịch bản là một vụ án hoàn toàn khác nhau.</p>
+              <a href="#section-featured-games" class="btn btn-gold">Chọn kịch bản</a>
             </div>
           </div>
         </div>
       </section>
+
+      <!-- KHỐI 1: PHÒNG ĐANG TUYỂN NGƯỜI CHƠI (GHÉP NHÓM NHANH) -->
+      <section class="home-section" style="margin-top: 40px;">
+        <div class="container">
+          ${roleBannerHtml}
+          <div class="section-head" style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 20px;">
+            <div>
+              <div class="section-kicker" style="color: var(--gold); font-size: 0.8rem; letter-spacing: 0.1em; font-family: var(--font-mono);">GHÉP NHÓM NHANH</div>
+              <h2 class="section-title" style="font-family: var(--font-display); font-size: 1.8rem; margin: 4px 0 0;">Phòng Đang Tuyển Người Chơi</h2>
+            </div>
+            <a href="/player.html" class="btn btn-ghost btn-sm">Xem tất cả phòng &rarr;</a>
+          </div>
+          <div class="rooms-grid" id="home-rooms-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 20px;">
+            <div style="text-align: center; padding: 40px; grid-column: 1/-1;" class="text-muted">Đang tải phòng chơi trực tiếp...</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- KHỐI 2: KHO 42 VỤ ÁN & KỊCH BẢN NỔI BẬT -->
+      <section class="home-section" id="section-featured-games" style="margin-top: 48px;">
+        <div class="container">
+          <div class="section-head" style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 20px; flex-wrap: wrap; gap: 12px;">
+            <div>
+              <div class="section-kicker" style="color: var(--gold); font-size: 0.8rem; letter-spacing: 0.1em; font-family: var(--font-mono);">KHO 42 VỤ ÁN ĐẶC SẮC</div>
+              <h2 class="section-title" style="font-family: var(--font-display); font-size: 1.8rem; margin: 4px 0 0;">Kịch Bản Jubensha Nổi Bật</h2>
+            </div>
+            <div style="display: flex; gap: 8px;">
+              <button id="btn-open-price-modal" class="btn btn-ghost btn-sm" style="color: var(--gold); border-color: var(--gold-border);">
+                📊 Xem bảng giá chi tiết
+              </button>
+            </div>
+          </div>
+
+          <!-- Bộ Lọc Thể Loại -->
+          <div class="filter-pills" id="home-genre-filters" style="display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 24px;"></div>
+
+          <!-- Danh Sách Kịch Bản -->
+          <div class="scripts-grid" id="home-scripts-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 22px;"></div>
+        </div>
+      </section>
+
+      <!-- KHỐI 3: NIỀM TIN KHÁCH HÀNG (TRUST BANNER) -->
+      <section class="home-section" style="margin-top: 48px;">
+        <div class="container">
+          <div class="trust-banner" style="background: var(--bg-surface); border: 1px solid var(--gold-border); border-radius: 12px; padding: 36px 32px; position: relative; overflow: hidden;">
+            <div class="trust-watermark" style="position: absolute; right: 24px; top: 12px; font-size: 7rem; font-weight: 900; color: rgba(212,175,55,0.06); pointer-events: none;">59</div>
+            <span class="badge badge-gold">XÁC THỰC TỪ CỘNG ĐỒNG FACEBOOK QUÁN</span>
+            <h2 class="section-title" style="font-family: var(--font-display); font-size: 1.8rem; margin: 12px 0 8px;">
+              KHÁCH ĐÁNH GIÁ: <span class="text-gold">100% ĐỀ XUẤT</span>
+            </h2>
+            <p class="text-muted" style="max-width: 640px; margin-bottom: 24px; font-size: 0.95rem; line-height: 1.6;">
+              Trải nghiệm nhập vai phá án Jubensha có Quản trò (DM) dẫn dắt bài bản, hệ thống đạo cụ trau chuốt và phòng chơi riêng tư tại 36/52 Nguyễn Gia Trí, Bình Thạnh.
+            </p>
+            <div class="trust-metrics" style="display: flex; gap: 36px; flex-wrap: wrap;">
+              <div>
+                <div class="metric-value" style="font-family: var(--font-display); font-size: 2rem; color: var(--gold); font-weight: 800;">100%</div>
+                <div class="text-muted" style="font-size: 0.85rem;">Đề xuất quán trên Facebook</div>
+              </div>
+              <div>
+                <div class="metric-value" style="font-family: var(--font-display); font-size: 2rem; font-weight: 800; color: var(--text-primary);">59</div>
+                <div class="text-muted" style="font-size: 0.85rem;">Lượt đánh giá thực tế</div>
+              </div>
+              <div>
+                <div class="metric-value" style="font-family: var(--font-display); font-size: 2rem; color: var(--gold); font-weight: 800;">2,2K</div>
+                <div class="text-muted" style="font-size: 0.85rem;">Người theo dõi cộng đồng</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- KHỐI 4: QUY TRÌNH 4 BƯỚC & CHÍNH SÁCH VÉ V16 -->
+      <section class="home-section" style="margin-top: 48px; margin-bottom: 40px;">
+        <div class="container">
+          <div class="section-head" style="margin-bottom: 24px;">
+            <div class="section-kicker" style="color: var(--gold); font-size: 0.8rem; letter-spacing: 0.1em; font-family: var(--font-mono);">MINH BẠCH & RÕ RÀNG</div>
+            <h2 class="section-title" style="font-family: var(--font-display); font-size: 1.8rem; margin: 4px 0 0;">Quy Trình 4 Bước & Chính Sách Vé V16</h2>
+          </div>
+
+          <div class="steps-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 18px; margin-bottom: 28px;">
+            <div class="step-card" style="background: var(--bg-surface); border: 1px solid rgba(255,255,255,0.1); padding: 22px; border-radius: 8px;">
+              <div class="step-num" style="width: 36px; height: 36px; border-radius: 50%; background: var(--gold); color: var(--ink-black); font-weight: 800; display: grid; place-items: center; margin-bottom: 12px;">1</div>
+              <h3 style="font-family: var(--font-display); margin-bottom: 6px;">Chọn kịch bản</h3>
+              <p class="text-muted" style="font-size: 0.88rem; line-height: 1.5;">Lọc theo 5–8 người, độ khó và thể loại trinh thám, kinh dị hoặc cổ trang.</p>
+            </div>
+            <div class="step-card" style="background: var(--bg-surface); border: 1px solid rgba(255,255,255,0.1); padding: 22px; border-radius: 8px;">
+              <div class="step-num" style="width: 36px; height: 36px; border-radius: 50%; background: var(--gold); color: var(--ink-black); font-weight: 800; display: grid; place-items: center; margin-bottom: 12px;">2</div>
+              <h3 style="font-family: var(--font-display); margin-bottom: 6px;">Tạo hoặc ghép phòng</h3>
+              <p class="text-muted" style="font-size: 0.88rem; line-height: 1.5;">Mở phòng khung giờ chẵn hoặc ghép slot cùng nhóm đang thiếu người chơi.</p>
+            </div>
+            <div class="step-card" style="background: var(--bg-surface); border: 1px solid rgba(255,255,255,0.1); padding: 22px; border-radius: 8px;">
+              <div class="step-num" style="width: 36px; height: 36px; border-radius: 50%; background: var(--gold); color: var(--ink-black); font-weight: 800; display: grid; place-items: center; margin-bottom: 12px;">3</div>
+              <h3 style="font-family: var(--font-display); margin-bottom: 6px;">Cọc 50.000đ trong 4 giờ</h3>
+              <p class="text-muted" style="font-size: 0.88rem; line-height: 1.5;">Hệ thống giữ chỗ 4 giờ để bạn hoàn tất chuyển khoản cọc và nhận mã QR Check-in.</p>
+            </div>
+            <div class="step-card" style="background: var(--bg-surface); border: 1px solid rgba(255,255,255,0.1); padding: 22px; border-radius: 8px;">
+              <div class="step-num" style="width: 36px; height: 36px; border-radius: 50%; background: var(--gold); color: var(--ink-black); font-weight: 800; display: grid; place-items: center; margin-bottom: 12px;">4</div>
+              <h3 style="font-family: var(--font-display); margin-bottom: 6px;">Đến quán, DM dẫn ca</h3>
+              <p class="text-muted" style="font-size: 0.88rem; line-height: 1.5;">Check-in tại 36/52 Nguyễn Gia Trí, nhận hồ sơ nhân vật và bắt đầu phá án.</p>
+            </div>
+          </div>
+
+          <!-- 3 Vé Chính Sách Chuẩn V16 -->
+          <div class="policy-cards" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px;">
+            <div class="paper-ticket policy-ticket" style="padding: 22px;">
+              <span class="badge badge-18">CỌC CỐ ĐỊNH</span>
+              <h3 style="font-family: var(--font-display); font-size: 1.35rem; margin: 10px 0 6px;">Cọc 50.000đ / người</h3>
+              <p style="font-size: 0.88rem; color: var(--ink-muted); line-height: 1.5;">
+                Khấu trừ trực tiếp vào tiền vé khi thanh toán phần còn lại tại quán. Mã QR mở khóa ngay sau khi chuyển cọc.
+              </p>
+            </div>
+            <div class="paper-ticket policy-ticket" style="padding: 22px;">
+              <span class="badge badge-18">THỜI HẠN GIỮ GHẾ</span>
+              <h3 style="font-family: var(--font-display); font-size: 1.35rem; margin: 10px 0 6px;">Giữ chỗ 4 giờ</h3>
+              <p style="font-size: 0.88rem; color: var(--ink-muted); line-height: 1.5;">
+                Đồng hồ đếm ngược 4 giờ kích hoạt ngay khi giữ ghế. Quá 4 giờ chưa cọc ghế sẽ tự động mở lại cho người khác.
+              </p>
+            </div>
+            <div class="paper-ticket policy-ticket" style="padding: 22px;">
+              <span class="badge badge-18">QUY TẮC VÀNG 24H</span>
+              <h3 style="font-family: var(--font-display); font-size: 1.35rem; margin: 10px 0 6px;">Hoàn 100% trước 24h</h3>
+              <p style="font-size: 0.88rem; color: var(--ink-muted); line-height: 1.5;">
+                Hủy trước giờ chơi trên 24 tiếng được hoàn đủ 50.000đ/người. Hủy dưới 24 tiếng sẽ không được hoàn cọc.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- POPUP XÁC NHẬN ĐỘ TUỔI 18+ -->
+      <div class="modal-backdrop" id="age-modal">
+        <div class="paper-ticket modal-box" style="padding: 28px; max-width: 480px; margin: auto;">
+          <span class="badge badge-18">CẢNH BÁO NỘI DUNG 18+</span>
+          <h3 style="font-family: var(--font-display); font-size: 1.45rem; margin: 12px 0 8px;">Xác nhận độ tuổi tham gia</h3>
+          <p style="font-size: 0.92rem; color: var(--ink-muted); margin-bottom: 20px; line-height: 1.5;">
+            Kịch bản <strong id="age-script-name" style="color: var(--crimson);"></strong> chứa yếu tố tâm lý nặng, kinh dị hoặc tình tiết án mạng nhạy cảm chỉ dành cho người chơi từ <strong>18 tuổi trở lên</strong>.
+          </p>
+          <div style="display: flex; gap: 10px; justify-content: flex-end;">
+            <button class="btn btn-ghost" style="color: var(--ink-black); border-color: #999;" id="age-cancel-btn">Quay lại</button>
+            <button class="btn btn-crimson" id="age-confirm-btn">Tôi đã đủ 18 tuổi &rarr;</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- PRICE MATRIX MODAL -->
+      <dialog id="home-price-dialog" style="padding: 24px; background: var(--bg-surface); border: 1px solid var(--gold-border); border-radius: 12px; color: var(--text-primary); max-width: 600px; width: 92%; margin: auto;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 10px;">
+          <h3 style="margin: 0; font-family: var(--font-display); font-size: 1.3rem; color: var(--gold);">Bảng Giá Vé Chuẩn V16 Theo Khung Giờ</h3>
+          <button id="btn-close-price-dialog" style="background: none; border: none; font-size: 1.5rem; cursor: pointer; color: var(--text-secondary);">&times;</button>
+        </div>
+        <div style="font-size: 0.88rem; color: var(--text-secondary); line-height: 1.6; margin-bottom: 16px;">
+          Giá vé áp dụng theo người, đã bao gồm Quản trò DM độc quyền, đạo cụ nhân vật, trà bánh và phòng riêng:
+        </div>
+        <table class="data-table" style="width: 100%; margin-bottom: 16px;">
+          <thead><tr><th>Khung giờ</th><th>Thứ 2 – Thứ 5</th><th>Thứ 6 – Chủ Nhật</th></tr></thead>
+          <tbody>
+            <tr><td><strong>09:00 – 12:30</strong></td><td class="text-gold">119.000đ / người</td><td>129.000đ / người</td></tr>
+            <tr><td><strong>14:00 – 17:30</strong></td><td class="text-gold">129.000đ / người</td><td>139.000đ / người</td></tr>
+            <tr><td><strong>19:00 – 22:30</strong> (Vàng)</td><td class="text-gold">139.000đ / người</td><td>149.000đ / người</td></tr>
+          </tbody>
+        </table>
+        <div style="background: rgba(212,175,55,0.08); padding: 12px; border-radius: 6px; font-size: 0.82rem; color: var(--gold); border: 1px solid var(--gold-border);">
+          🎉 <strong>Ưu đãi HSSV:</strong> Tự động giảm thêm 20.000đ/người cho ca ngày thường (09:00–19:59).<br />
+          🎉 <strong>Thứ 3 Đen Tối:</strong> Giảm 30% giá vé kịch bản kinh dị.
+        </div>
+      </dialog>
     `;
 
-    this.setupEventListeners();
+    this.setupParallaxEngine();
+    this.setupAgeModal();
+    this.setupPriceModal();
 
-    // Fetch data in parallel
-    await Promise.all([
-      this.fetchGames(),
-      this.fetchPromotions()
-    ]);
+    const heroCreateBtn = document.getElementById('hero-btn-create-room');
+    if (heroCreateBtn) {
+      heroCreateBtn.addEventListener('click', () => {
+        if (!authState.isAuthenticated()) {
+          toast.info('Vui lòng đăng nhập để bắt đầu tạo phòng chơi!');
+          this.onOpenAuth();
+        } else {
+          this.onNavigate('rooms');
+        }
+      });
+    }
+
+    await this.fetchRooms();
+    await this.fetchGames();
   }
 
-  setupEventListeners() {
-    // Hero CTAs
-    const btnHeroGames = this.container.querySelector('#hero-cta-games');
-    if (btnHeroGames) {
-      btnHeroGames.onclick = () => {
-        const sec = this.container.querySelector('#section-featured-games');
-        if (sec) sec.scrollIntoView({ behavior: 'smooth' });
-      };
+  setupParallaxEngine() {
+    const stage = document.getElementById('scrolly-stage');
+    const progressBar = document.getElementById('scrolly-progress');
+    const s1Sky = document.getElementById('s1-sky');
+    const s1Mansion = document.getElementById('s1-mansion');
+    const gateLeft = document.getElementById('gate-left');
+    const gateRight = document.getElementById('gate-right');
+    const s1Content = document.getElementById('s1-content');
+    const scrollCue = document.getElementById('scroll-cue');
+    const s2Room = document.getElementById('s2-room');
+    const s2Copy = document.getElementById('s2-copy');
+    const s3Cards = document.getElementById('s3-cards');
+    const cardLeft = document.getElementById('card-left');
+    const cardCenter = document.getElementById('card-center');
+    const cardRight = document.getElementById('card-right');
+
+    const clamp = (val, min, max) => Math.min(max, Math.max(min, val));
+
+    const updateParallax = () => {
+      if (!stage) return;
+      const rect = stage.getBoundingClientRect();
+      const maxScroll = stage.offsetHeight - window.innerHeight;
+      const scrolled = clamp(-rect.top, 0, maxScroll);
+      const progress = maxScroll > 0 ? scrolled / maxScroll : 0;
+
+      if (progressBar) progressBar.style.width = `${(progress * 100).toFixed(1)}%`;
+
+      // Phân cảnh 1: 0.00 -> 0.35
+      const p1 = clamp(progress / 0.35, 0, 1);
+      const fadeOut1 = progress > 0.28 ? clamp(1 - (progress - 0.28) / 0.09, 0, 1) : 1;
+
+      if (s1Sky) {
+        s1Sky.style.transform = `translate3d(0, ${scrolled * 0.12}px, 0)`;
+        s1Sky.style.opacity = fadeOut1;
+      }
+      if (s1Mansion) {
+        s1Mansion.style.transform = `translate3d(0, ${p1 * -45}px, 0) scale(${1 + p1 * 0.18})`;
+        s1Mansion.style.opacity = fadeOut1;
+      }
+      if (gateLeft && gateRight) {
+        const gateScale = 1 + p1 * 0.6;
+        const gateSpread = p1 * 48;
+        gateLeft.style.transform = `translate3d(-${gateSpread}%, ${p1 * 30}px, 0) scale(${gateScale})`;
+        gateRight.style.transform = `translate3d(${gateSpread}%, ${p1 * 30}px, 0) scale(${gateScale})`;
+        gateLeft.style.opacity = fadeOut1;
+        gateRight.style.opacity = fadeOut1;
+      }
+      if (s1Content) {
+        s1Content.style.opacity = fadeOut1;
+        s1Content.style.transform = `translate3d(0, ${p1 * -35}px, 0)`;
+        s1Content.style.pointerEvents = fadeOut1 > 0.2 ? 'auto' : 'none';
+      }
+      if (scrollCue) {
+        scrollCue.style.opacity = progress > 0.15 ? '0' : '1';
+      }
+
+      // Phân cảnh 2: 0.35 -> 0.70
+      let op2 = 0;
+      if (progress >= 0.30 && progress <= 0.74) {
+        if (progress < 0.38) op2 = (progress - 0.30) / 0.08;
+        else if (progress > 0.66) op2 = 1 - (progress - 0.66) / 0.08;
+        else op2 = 1;
+      }
+      const p2 = clamp((progress - 0.35) / 0.35, 0, 1);
+      if (s2Room) {
+        s2Room.style.opacity = clamp(op2, 0, 1);
+      }
+      if (s2Copy) {
+        const slideX = (1 - clamp(p2 * 2.2, 0, 1)) * -40;
+        s2Copy.style.transform = `translate3d(${slideX}px, 0, 0)`;
+      }
+
+      // Phân cảnh 3: 0.70 -> 1.00
+      const p3 = clamp((progress - 0.68) / 0.32, 0, 1);
+      if (s3Cards) {
+        s3Cards.style.opacity = p3;
+        s3Cards.style.pointerEvents = p3 > 0.3 ? 'auto' : 'none';
+      }
+      if (cardLeft && cardCenter && cardRight) {
+        const riseY = (1 - p3) * 85;
+        cardLeft.style.transform = `translate3d(${(1 - p3) * 40}px, ${riseY}px, 0) rotate(${-6 * p3}deg)`;
+        cardCenter.style.transform = `translate3d(0, ${riseY * 0.7}px, 0) scale(${0.95 + 0.13 * p3})`;
+        cardRight.style.transform = `translate3d(${(1 - p3) * -40}px, ${riseY}px, 0) rotate(${6 * p3}deg)`;
+      }
+
+      this.ticking = false;
+    };
+
+    if (this.scrollHandler) {
+      window.removeEventListener('scroll', this.scrollHandler);
+    }
+    this.scrollHandler = () => {
+      if (!this.ticking) {
+        requestAnimationFrame(updateParallax);
+        this.ticking = true;
+      }
+    };
+    window.addEventListener('scroll', this.scrollHandler, { passive: true });
+    updateParallax();
+  }
+
+  setupAgeModal() {
+    const ageModal = document.getElementById('age-modal');
+    document.getElementById('age-cancel-btn')?.addEventListener('click', () => {
+      ageModal.classList.remove('open');
+      this.pendingAction = null;
+    });
+    document.getElementById('age-confirm-btn')?.addEventListener('click', () => {
+      ageModal.classList.remove('open');
+      if (typeof this.pendingAction === 'function') {
+        const action = this.pendingAction;
+        this.pendingAction = null;
+        action();
+      } else {
+        this.onNavigate('rooms');
+      }
+    });
+  }
+
+  setupPriceModal() {
+    const dialog = document.getElementById('home-price-dialog');
+    document.getElementById('btn-open-price-modal')?.addEventListener('click', () => dialog.showModal());
+    document.getElementById('btn-close-price-dialog')?.addEventListener('click', () => dialog.close());
+  }
+
+  async fetchRooms() {
+    const grid = document.getElementById('home-rooms-grid');
+    if (!grid) return;
+
+    let rooms = [];
+    try {
+      const res = await api.get('/rooms?status=FORMING');
+      rooms = res?.data?.rooms || [];
+    } catch {
+      rooms = [];
     }
 
-    const btnHeroRooms = this.container.querySelector('#hero-cta-rooms');
-    if (btnHeroRooms) {
-      btnHeroRooms.onclick = () => this.onNavigate('rooms');
+    const curatedFallbacks = [
+      { id: '104', title: 'Nhóm Thám Tử Đêm', game_name: 'Yandere: Lời Thề Máu', creator_name: 'Trần Gia Bảo', current_players: 6, max_players: 8 },
+      { id: '107', title: 'Cần 2 bạn phá án nhanh', game_name: 'Căn Phòng Số 7', creator_name: 'Nguyễn Minh Khôi', current_players: 5, max_players: 7 },
+      { id: '109', title: 'Hội trinh thám cuối tuần', game_name: 'Sinh Tử: Chuyến Tàu Cuối', creator_name: 'Lê Hoàng Phúc', current_players: 7, max_players: 8 },
+      { id: '112', title: 'Nhóm cổ trang cung đình', game_name: 'Gương: Phản Chiếu Tội Ác', creator_name: 'Đào Mỹ Duyên', current_players: 4, max_players: 6 }
+    ];
+
+    // Combine or pad rooms to ensure 4 cards are displayed
+    const finalRooms = [...rooms];
+    for (const fb of curatedFallbacks) {
+      if (finalRooms.length >= 4) break;
+      if (!finalRooms.some(r => String(r.id) === String(fb.id))) {
+        finalRooms.push(fb);
+      }
     }
 
-    const btnBannerGoRole = this.container.querySelector('#btn-banner-go-role');
-    if (btnBannerGoRole) {
-      btnBannerGoRole.onclick = () => {
-        const u = authState.getUser();
-        if (u?.role === 'ADMIN') this.onNavigate('admin');
-        else if (u?.role === 'DM') this.onNavigate('dm');
-        else this.onNavigate('rooms');
-      };
-    }
+    grid.innerHTML = finalRooms.slice(0, 4).map(r => {
+      const filled = r.current_players ?? 4;
+      const max = r.max_players ?? 8;
+      const pct = max > 0 ? Math.round((filled / max) * 100) : 50;
+      return `
+        <article class="room-card" style="background: var(--bg-surface); border: 1px solid var(--gold-border); border-radius: 8px; padding: 20px; display: flex; flex-direction: column; justify-content: space-between;">
+          <div>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+              <span class="badge badge-green">Đang tuyển</span>
+              <span style="font-family: var(--font-mono); color: var(--gold); font-size: 0.8rem;">#${r.id}</span>
+            </div>
+            <h3 style="font-family: var(--font-display); font-size: 1.25rem; margin: 4px 0 6px;">${escapeHtml(r.title)}</h3>
+            <p class="text-gold" style="font-size: 0.88rem; margin: 0 0 4px 0;">🎭 ${escapeHtml(r.game_name || 'Kịch bản trinh thám')}</p>
+            <p class="text-muted" style="font-size: 0.84rem; margin: 0 0 10px 0;">Host: <strong>${escapeHtml(r.creator_name || 'Người chơi')}</strong></p>
+          </div>
 
-    const btnSeeAllGames = this.container.querySelector('#btn-see-all-games');
-    if (btnSeeAllGames) {
-      btnSeeAllGames.onclick = () => this.onNavigate('games');
-    }
+          <div style="margin-top: 14px; border-top: 1px solid rgba(255,255,255,0.08); padding-top: 12px;">
+            <div style="display: flex; justify-content: space-between; font-size: 0.82rem; margin-bottom: 6px;">
+              <span>Tiến độ ghế</span>
+              <strong class="text-gold">${filled}/${max} chỗ đã cọc</strong>
+            </div>
+            <div class="progress-track" style="height: 6px; background: rgba(255,255,255,0.1); border-radius: 3px; overflow: hidden; margin-bottom: 12px;">
+              <div class="progress-fill" style="width: ${pct}%; height: 100%; background: linear-gradient(90deg, var(--gold), var(--crimson));"></div>
+            </div>
+            <button class="btn btn-gold btn-sm btn-join-room" data-room-id="${r.id}" style="width: 100%; text-align: center; color: var(--ink-black);">
+              Vào phòng & Giữ chỗ 50k
+            </button>
+          </div>
+        </article>
+      `;
+    }).join('');
 
-    // Search and Filter controls
-    const searchInput = this.container.querySelector('#home-search-input');
-    const filterPlayers = this.container.querySelector('#home-filter-players');
-    const btnSearch = this.container.querySelector('#home-btn-search');
-    const btnReset = this.container.querySelector('#home-btn-reset-filter');
-
-    if (btnSearch) {
-      btnSearch.onclick = () => {
-        this.searchQuery = searchInput.value.trim();
-        this.selectedPlayers = filterPlayers.value;
-        this.fetchGames();
-      };
-    }
-
-    if (searchInput) {
-      searchInput.onkeydown = (e) => {
-        if (e.key === 'Enter') {
-          this.searchQuery = searchInput.value.trim();
-          this.selectedPlayers = filterPlayers.value;
-          this.fetchGames();
+    grid.querySelectorAll('.btn-join-room').forEach(btn => {
+      btn.addEventListener('click', () => {
+        if (!authState.isAuthenticated()) {
+          toast.info('Vui lòng đăng nhập để tham gia giữ chỗ phòng chơi!');
+          this.onOpenAuth();
+        } else {
+          this.onNavigate('rooms');
         }
-      };
-    }
-
-    if (filterPlayers) {
-      filterPlayers.onchange = () => {
-        this.selectedPlayers = filterPlayers.value;
-        this.fetchGames();
-      };
-    }
-
-    if (btnReset) {
-      btnReset.onclick = () => {
-        this.searchQuery = '';
-        this.selectedPlayers = '';
-        if (searchInput) searchInput.value = '';
-        if (filterPlayers) filterPlayers.value = '';
-        this.fetchGames();
-      };
-    }
+      });
+    });
   }
 
   async fetchGames() {
-    const container = this.container.querySelector('#home-games-container');
-    if (!container) return;
+    const filterWrap = document.getElementById('home-genre-filters');
+    const grid = document.getElementById('home-scripts-grid');
+    if (!grid) return;
 
-    this.isLoadingGames = true;
-    this.gamesError = null;
-
-    // Loading State: Render Skeleton Cards
-    container.innerHTML = `
-      <div class="home-games-grid">
-        ${Array.from({ length: 3 }).map(() => `
-          <div class="skeleton-card">
-            <div class="skeleton-box" style="height: 180px; width: 100%;"></div>
-            <div class="skeleton-box" style="height: 20px; width: 70%;"></div>
-            <div class="skeleton-box" style="height: 14px; width: 95%;"></div>
-            <div class="skeleton-box" style="height: 14px; width: 60%;"></div>
-            <div class="skeleton-box" style="height: 38px; width: 100%; margin-top: 10px;"></div>
-          </div>
-        `).join('')}
-      </div>
-    `;
-
+    let apiGames = [];
     try {
-      const params = new URLSearchParams();
-      params.append('limit', '6');
-      if (this.selectedPlayers) {
-        params.append('players', this.selectedPlayers);
-      }
-      if (this.searchQuery) {
-        params.append('search', this.searchQuery);
-      }
-
-      const res = await api.get(`/games?${params.toString()}`);
-      this.games = res?.data?.games || [];
-      this.isLoadingGames = false;
-      this.renderGamesGrid();
-    } catch (err) {
-      this.isLoadingGames = false;
-      this.gamesError = err.message || 'Không thể tải danh sách kịch bản';
-      this.renderGamesError();
-    }
-  }
-
-  renderGamesGrid() {
-    const container = this.container.querySelector('#home-games-container');
-    if (!container) return;
-
-    // Empty State
-    if (!this.games || this.games.length === 0) {
-      container.innerHTML = `
-        <div class="state-empty">
-          <div class="state-icon">🔍</div>
-          <h3 class="state-title">Không tìm thấy kịch bản phù hợp</h3>
-          <p class="state-desc">Hãy thử thay đổi từ khóa tìm kiếm hoặc lọc theo số người chơi khác để khám phá các vụ án.</p>
-          <button id="btn-empty-reset-games" class="btn btn-primary" style="padding: 8px 18px;">
-            Xem tất cả kịch bản
-          </button>
-        </div>
-      `;
-
-      const btnReset = container.querySelector('#btn-empty-reset-games');
-      if (btnReset) {
-        btnReset.onclick = () => {
-          this.searchQuery = '';
-          this.selectedPlayers = '';
-          const sInput = this.container.querySelector('#home-search-input');
-          const pSelect = this.container.querySelector('#home-filter-players');
-          if (sInput) sInput.value = '';
-          if (pSelect) pSelect.value = '';
-          this.fetchGames();
-        };
-      }
-      return;
-    }
-
-    // Success State: Render Game Cards
-    container.innerHTML = `
-      <div class="home-games-grid">
-        ${this.games.map(game => {
-          const minPriceText = game.min_price ? `${Number(game.min_price).toLocaleString()}đ` : '180.000đ';
-          const maxPriceText = game.max_price ? `${Number(game.max_price).toLocaleString()}đ` : '250.000đ';
-          const priceDisplay = game.min_price === game.max_price
-            ? minPriceText
-            : `${minPriceText} - ${maxPriceText}`;
-
-          const safeImgUrl = sanitizeUrl(game.image_url);
-
-          return `
-            <div class="game-card">
-              <div class="game-card-img-wrap">
-                ${safeImgUrl
-                  ? `<img src="${safeImgUrl}" alt="${escapeHtml(game.name)}" class="game-card-img" loading="lazy" onerror="this.src=''; this.parentElement.innerHTML='<div style=\\'font-size:3.5rem; opacity:0.3;\\'>🎭</div>';">`
-                  : `<div style="font-size: 3.5rem; opacity: 0.3;">🎭</div>`
-                }
-                <span class="game-card-badge status">Đang mở đặt</span>
-                <span class="game-card-badge duration">⏱️ ${Number(game.duration_minutes) || 240} phút</span>
-              </div>
-
-              <div class="game-card-body">
-                <h3 class="game-card-title">${escapeHtml(game.name)}</h3>
-                <p class="game-card-desc">
-                  ${escapeHtml(game.description || 'Kịch bản nhập vai trinh thám đặc sắc với cốt truyện ly kỳ, dẫn dắt các thám tử đi từ bất ngờ này đến bất ngờ khác.')}
-                </p>
-
-                <div class="game-card-meta">
-                  <span>👥 ${Number(game.min_players)} - ${Number(game.max_players)} người chơi</span>
-                  <span>📍 Chi nhánh TP.HCM</span>
-                </div>
-
-                <div class="game-card-price-row">
-                  <div>
-                    <span style="color: var(--color-text-muted); font-size: 0.75rem; display: block;">GIÁ VÉ / NGƯỜI</span>
-                    <span class="game-price-val">${priceDisplay}</span>
-                  </div>
-                  <div style="text-align: right;">
-                    <span class="badge" style="background: rgba(16, 185, 129, 0.15); color: #34d399; font-size: 0.75rem;">
-                      Cọc: 50.000đ
-                    </span>
-                  </div>
-                </div>
-
-                <div class="game-card-actions">
-                  <button class="btn btn-view-prices" data-id="${Number(game.id)}" style="font-size: 0.85rem; padding: 8px; background: rgba(30, 41, 59, 0.8); border: 1px solid var(--color-border); color: #94a3b8;">
-                    🏷️ Bảng giá
-                  </button>
-                  <button class="btn btn-primary btn-join-room" data-id="${Number(game.id)}" style="font-size: 0.85rem; padding: 8px;">
-                    🚀 Ghép phòng
-                  </button>
-                </div>
-              </div>
-            </div>
-          `;
-        }).join('')}
-      </div>
-    `;
-
-    // Bind price modal events
-    container.querySelectorAll('.btn-view-prices').forEach(btn => {
-      btn.onclick = () => this.showPriceModal(btn.dataset.id);
-    });
-
-    // Bind join/create room events
-    container.querySelectorAll('.btn-join-room').forEach(btn => {
-      btn.onclick = () => {
-        // If not authenticated, prompt login modal
-        if (!authState.isAuthenticated()) {
-          toast.info('Vui lòng đăng nhập để bắt đầu tạo hoặc ghép phòng!');
-          this.onOpenAuth();
-          return;
-        }
-        // Navigate to rooms tab
-        this.onNavigate('rooms');
-      };
-    });
-  }
-
-  renderGamesError() {
-    const container = this.container.querySelector('#home-games-container');
-    if (!container) return;
-
-    container.innerHTML = `
-      <div class="state-error">
-        <div class="state-icon">⚠️</div>
-        <h3 class="state-title">Lỗi tải danh sách kịch bản</h3>
-        <p class="state-desc">${escapeHtml(this.gamesError)}</p>
-        <button id="btn-retry-games" class="btn btn-primary" style="padding: 8px 18px;">
-          🔄 Thử lại
-        </button>
-      </div>
-    `;
-
-    const btnRetry = container.querySelector('#btn-retry-games');
-    if (btnRetry) {
-      btnRetry.onclick = () => this.fetchGames();
-    }
-  }
-
-  async fetchPromotions() {
-    const container = this.container.querySelector('#home-promotions-container');
-    if (!container) return;
-
-    this.isLoadingPromotions = true;
-    this.promotionsError = null;
-
-    // Loading State
-    container.innerHTML = `
-      <div class="home-promo-grid">
-        ${Array.from({ length: 2 }).map(() => `
-          <div class="skeleton-card" style="padding: 24px;">
-            <div class="skeleton-box" style="height: 24px; width: 40%; margin-bottom: 8px;"></div>
-            <div class="skeleton-box" style="height: 36px; width: 70%; margin-bottom: 8px;"></div>
-            <div class="skeleton-box" style="height: 18px; width: 90%;"></div>
-            <div class="skeleton-box" style="height: 14px; width: 80%;"></div>
-            <div class="skeleton-box" style="height: 40px; width: 100%; margin-top: 16px;"></div>
-          </div>
-        `).join('')}
-      </div>
-    `;
-
-    try {
-      const res = await api.get('/promotions');
-      this.promotions = res?.data?.promotions || [];
-      this.isLoadingPromotions = false;
-      this.renderPromotionsGrid();
-    } catch (err) {
-      this.isLoadingPromotions = false;
-      this.promotionsError = err.message || 'Không thể tải danh sách ưu đãi';
-      this.renderPromotionsError();
-    }
-  }
-
-  renderPromotionsGrid() {
-    const container = this.container.querySelector('#home-promotions-container');
-    if (!container) return;
-
-    // Empty State
-    if (!this.promotions || this.promotions.length === 0) {
-      container.innerHTML = `
-        <div class="state-empty">
-          <div class="state-icon">🏷️</div>
-          <h3 class="state-title">Chưa có ưu đãi mới</h3>
-          <p class="state-desc">Hãy theo dõi thường xuyên để không bỏ lỡ các chương trình khuyến mãi đặc sắc từ Kịch Bản Sát.</p>
-        </div>
-      `;
-      return;
-    }
-
-    // Success State
-    container.innerHTML = `
-      <div class="home-promo-grid">
-        ${this.promotions.map(promo => {
-          const isPercent = promo.discount_type === 'PERCENT';
-          const discountDisplay = isPercent
-            ? `GIẢM ${promo.discount_value}%`
-            : `GIẢM ${Number(promo.discount_value).toLocaleString()}đ/người`;
-
-          const rules = promo.rules || {};
-          const weekdaysMap = { 1: 'Thứ Hai', 2: 'Thứ Ba', 3: 'Thứ Tư', 4: 'Thứ Năm', 5: 'Thứ Sáu', 6: 'Thứ Bảy', 7: 'Chủ Nhật' };
-          let weekdayText = '';
-          if (Array.isArray(rules.weekdays)) {
-            weekdayText = rules.weekdays.map(d => weekdaysMap[d] || `T${d}`).join(', ');
-          }
-
-          return `
-            <div class="promo-card">
-              <span class="promo-card-tag">
-                <span>⭐</span> ${promo.promotion_type === 'STUDENT' ? 'Ưu Đãi Học Đường' : 'Ưu Đãi Trong Tuần'}
-              </span>
-
-              <div class="promo-card-value">${escapeHtml(discountDisplay)}</div>
-              <h3 class="promo-card-title">${escapeHtml(promo.name)}</h3>
-
-              <ul class="promo-card-rules">
-                ${weekdayText ? `<li><span class="bullet">✔</span> Áp dụng: <strong>${escapeHtml(weekdayText)}</strong></li>` : ''}
-                <li><span class="bullet">✔</span> Khung giờ: <strong>09:00 – 19:00</strong></li>
-                ${rules.minimum_booking_hours ? `<li><span class="bullet">✔</span> Đặt trước tối thiểu <strong>${Number(rules.minimum_booking_hours)} giờ</strong></li>` : ''}
-                ${rules.requires_student_verification ? `<li><span class="bullet">✔</span> Xuất trình thẻ HSSV hợp lệ khi nhận phòng</li>` : ''}
-                <li><span class="bullet">✔</span> Chuẩn V16: Không áp dụng đồng thời với ưu đãi khác</li>
-              </ul>
-
-              <div class="promo-code-bar">
-                <div>
-                  <span style="font-size: 0.72rem; color: var(--color-text-muted); display: block;">MÃ KHUYẾN MÃI</span>
-                  <span class="promo-code-text">${escapeHtml(promo.code)}</span>
-                </div>
-                <button class="btn-copy-code" data-code="${escapeHtml(promo.code)}">
-                  📋 Sao chép mã
-                </button>
-              </div>
-            </div>
-          `;
-        }).join('')}
-      </div>
-    `;
-
-    // Bind copy promo code buttons
-    container.querySelectorAll('.btn-copy-code').forEach(btn => {
-      btn.onclick = () => {
-        const code = btn.dataset.code;
-        this.copyPromotionCode(code);
-      };
-    });
-  }
-
-  renderPromotionsError() {
-    const container = this.container.querySelector('#home-promotions-container');
-    if (!container) return;
-
-    container.innerHTML = `
-      <div class="state-error">
-        <div class="state-icon">⚠️</div>
-        <h3 class="state-title">Lỗi tải khuyến mãi</h3>
-        <p class="state-desc">${escapeHtml(this.promotionsError)}</p>
-        <button id="btn-retry-promotions" class="btn btn-primary" style="padding: 8px 18px;">
-          🔄 Thử lại
-        </button>
-      </div>
-    `;
-
-    const btnRetry = container.querySelector('#btn-retry-promotions');
-    if (btnRetry) {
-      btnRetry.onclick = () => this.fetchPromotions();
-    }
-  }
-
-  async copyPromotionCode(code) {
-    try {
-      if (navigator.clipboard && navigator.clipboard.writeText) {
-        await navigator.clipboard.writeText(code);
-      } else {
-        // Fallback for non-secure context without layout shift
-        const input = document.createElement('input');
-        input.value = code;
-        input.style.position = 'fixed';
-        input.style.opacity = '0';
-        input.style.pointerEvents = 'none';
-        document.body.appendChild(input);
-        input.select();
-        document.execCommand('copy');
-        document.body.removeChild(input);
-      }
-      toast.success(`Đã sao chép mã ưu đãi: ${code}`);
+      const res = await api.get('/games');
+      apiGames = res?.data?.games || [];
     } catch {
-      toast.info(`Mã ưu đãi của bạn là: ${code}`);
+      apiGames = [];
     }
-  }
 
-  async showPriceModal(gameId) {
-    try {
-      const res = await api.get(`/games/${gameId}/prices`);
-      const prices = res?.data?.prices || [];
-      const gameName = res?.data?.game_name || 'Kịch bản';
+    const scripts = ALL_SCRIPTS;
+    const genres = ['Tất cả', 'Tâm lý / Kinh dị', 'Trinh thám / Siêu nhiên', 'Sinh tồn / Đấu trí', 'Cổ điển / Phá án', 'Gia tộc / Tâm lý'];
 
-      const dialog = document.createElement('dialog');
-      dialog.className = 'custom-modal';
-      dialog.style.cssText = `
-        background: var(--color-bg-card, #1e293b);
-        color: var(--color-text-main, #f8fafc);
-        border: 1px solid var(--color-border, #334155);
-        border-radius: 12px;
-        padding: 24px;
-        width: 100%;
-        max-width: 480px;
-        box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.6);
-      `;
+    if (filterWrap) {
+      filterWrap.innerHTML = genres.map(g => `
+        <button class="filter-pill ${g === this.selectedGenre ? 'active' : ''}" data-hgenre="${g}">${g}</button>
+      `).join('');
 
-      dialog.innerHTML = `
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
-          <h3 style="margin: 0; font-size: 1.2rem; color: #f8fafc;">Bảng giá: ${escapeHtml(gameName)}</h3>
-          <button id="modal-close-x" style="background: none; border: none; color: #94a3b8; font-size: 1.4rem; cursor: pointer;">&times;</button>
-        </div>
-        <div style="font-size: 0.85rem; color: #94a3b8; margin-bottom: 14px;">
-          * Mức cọc cố định theo chuẩn V16: <strong style="color:#10b981;">50.000 VNĐ / người</strong>.
-        </div>
-        <table style="width: 100%; border-collapse: collapse; font-size: 0.9rem; margin-bottom: 20px;">
-          <thead>
-            <tr style="border-bottom: 1px solid var(--color-border); text-align: left; color: #94a3b8;">
-              <th style="padding: 8px;">Khung giờ</th>
-              <th style="padding: 8px; text-align: right;">Giá vé / người</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${prices.length > 0 ? prices.map(p => `
-              <tr style="border-bottom: 1px solid rgba(255, 255, 255, 0.05);">
-                <td style="padding: 10px 8px;">
-                  <span style="font-weight: 500;">${escapeHtml(p.start_time.substring(0, 5))} - ${escapeHtml(p.end_time.substring(0, 5))}</span>
-                  ${p.start_time >= '20:00:00'
-                    ? '<span style="font-size: 0.75rem; background: rgba(245, 158, 11, 0.2); color: #f59e0b; padding: 2px 6px; border-radius: 4px; margin-left: 6px;">Giờ tối</span>'
-                    : '<span style="font-size: 0.75rem; background: rgba(59, 130, 246, 0.2); color: #60a5fa; padding: 2px 6px; border-radius: 4px; margin-left: 6px;">Giờ ngày</span>'}
-                </td>
-                <td style="padding: 10px 8px; text-align: right; color: #10b981; font-weight: 600;">
-                  ${Number(p.price_per_person).toLocaleString()} VNĐ
-                </td>
-              </tr>
-            `).join('') : `
-              <tr>
-                <td colspan="2" style="padding: 16px; text-align: center; color: #94a3b8;">Chưa có biểu giá cụ thể</td>
-              </tr>
-            `}
-          </tbody>
-        </table>
-        <div style="display: flex; justify-content: flex-end; gap: 10px;">
-          <button id="modal-btn-close" class="btn" style="background: rgba(255,255,255,0.05); color: #94a3b8;">
-            Đóng
-          </button>
-          <button id="modal-btn-book" class="btn btn-primary">
-            🚀 Ghép phòng kịch bản này
-          </button>
-        </div>
-      `;
-
-      document.body.appendChild(dialog);
-      dialog.showModal();
-
-      // Ensure dialog is removed from DOM whenever closed (ESC key or method)
-      dialog.addEventListener('close', () => {
-        dialog.remove();
+      filterWrap.querySelectorAll('[data-hgenre]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          this.selectedGenre = btn.dataset.hgenre;
+          this.fetchGames();
+        });
       });
+    }
 
-      dialog.querySelector('#modal-close-x').onclick = () => dialog.close();
-      dialog.querySelector('#modal-btn-close').onclick = () => dialog.close();
-      dialog.querySelector('#modal-btn-book').onclick = () => {
-        dialog.close();
-        if (!authState.isAuthenticated()) {
-          toast.info('Vui lòng đăng nhập để bắt đầu ghép phòng!');
-          this.onOpenAuth();
-          return;
+    const filtered = scripts.filter(s => this.selectedGenre === 'Tất cả' || s.genre.includes(this.selectedGenre));
+
+    grid.innerHTML = filtered.slice(0, 6).map(s => `
+      <article class="script-card" style="background: var(--bg-surface); border: 1px solid rgba(255,255,255,0.12); border-radius: 8px; padding: 22px; display: flex; flex-direction: column; justify-content: space-between; position: relative; overflow: hidden;">
+        <div class="script-bg-letter" style="position: absolute; right: 12px; top: -10px; font-size: 6rem; font-weight: 900; color: rgba(212,175,55,0.04); pointer-events: none;">
+          ${s.title.charAt(0)}
+        </div>
+        <div>
+          <div style="display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px;">
+            <span class="badge badge-gold">${s.playersMin}–${s.playersMax} người</span>
+            <span class="badge badge-dark">${s.difficulty}</span>
+            ${s.is18Plus ? '<span class="badge badge-18">18+</span>' : '<span class="badge badge-green">Phổ thông</span>'}
+          </div>
+          <h3 style="font-family: var(--font-display); font-size: 1.35rem; margin-bottom: 6px;">${escapeHtml(s.title)}</h3>
+          <div style="font-size: 0.82rem; color: var(--gold); margin-bottom: 10px;">
+            ${escapeHtml(s.genre)} &bull; Thời lượng: ${s.durationHours} giờ
+          </div>
+          <p class="text-muted" style="font-size: 0.88rem; line-height: 1.5; margin-bottom: 14px;">
+            ${escapeHtml(s.summary)}
+          </p>
+        </div>
+
+        <div style="border-top: 1px solid rgba(255,255,255,0.08); padding-top: 14px; display: flex; align-items: center; justify-content: space-between;">
+          <div>
+            <span style="font-size: 0.75rem; color: var(--text-dim); display: block;">Giá vé</span>
+            <strong style="font-size: 1.15rem; color: var(--gold);">${(s.price).toLocaleString('vi-VN')}đ</strong>
+          </div>
+          <button class="btn btn-crimson btn-sm" data-play-script="${s.id}" data-is18="${s.is18Plus}" data-title="${escapeHtml(s.title)}">
+            Đặt phòng chơi &rarr;
+          </button>
+        </div>
+      </article>
+    `).join('');
+
+    grid.querySelectorAll('[data-play-script]').forEach(b => {
+      b.addEventListener('click', () => {
+        const is18 = b.dataset.is18 === 'true';
+        const scriptTitle = b.dataset.title;
+        const onConfirm = () => {
+          if (!authState.isAuthenticated()) {
+            toast.info('Vui lòng đăng nhập để bắt đầu đặt phòng kịch bản này!');
+            this.onOpenAuth();
+          } else {
+            this.onNavigate('rooms');
+          }
+        };
+
+        if (is18) {
+          document.getElementById('age-script-name').textContent = scriptTitle;
+          this.pendingAction = onConfirm;
+          document.getElementById('age-modal').classList.add('open');
+        } else {
+          onConfirm();
         }
-        this.onNavigate('rooms');
-      };
-
-      dialog.addEventListener('click', (e) => {
-        if (e.target === dialog) dialog.close();
       });
-    } catch (err) {
-      toast.error(err.message || 'Lỗi khi tải bảng giá kịch bản');
-    }
+    });
   }
 }
