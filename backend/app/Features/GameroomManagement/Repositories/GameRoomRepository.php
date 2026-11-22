@@ -168,10 +168,15 @@ class GameRoomRepository extends BaseRepository
                         rp.`joined_at`, rp.`deposit_deadline_at`, rp.`deposited_at`, rp.`left_at`,
                         u.`full_name` AS `user_name`, u.`full_name`, u.`email` AS `user_email`,
                         p.`id` AS `payment_id`, p.`amount` AS `payment_amount`, p.`paid_amount` AS `payment_paid_amount`,
-                        p.`status` AS `payment_status`, p.`deadline_at` AS `payment_deadline_at`
+                        p.`status` AS `payment_status`, p.`deadline_at` AS `payment_deadline_at`,
+                        pps.`remaining_amount` AS `snapshot_remaining_amount`,
+                        p_rem.`id` AS `remaining_payment_id`, p_rem.`status` AS `remaining_payment_status`,
+                        p_rem.`amount` AS `remaining_payment_amount`, p_rem.`paid_amount` AS `remaining_paid_amount`
                  FROM `room_participants` rp
                  INNER JOIN `users` u ON u.`id` = rp.`user_id`
                  LEFT JOIN `player_payments` p ON p.`room_participant_id` = rp.`id` AND p.`payment_type` = \'DEPOSIT\'
+                 LEFT JOIN `player_payments` p_rem ON p_rem.`room_participant_id` = rp.`id` AND p_rem.`payment_type` = \'REMAINING\'
+                 LEFT JOIN `participant_price_snapshots` pps ON pps.`room_participant_id` = rp.`id`
                  WHERE rp.`game_room_id` = :game_room_id
                  ORDER BY rp.`joined_at` ASC'
             );

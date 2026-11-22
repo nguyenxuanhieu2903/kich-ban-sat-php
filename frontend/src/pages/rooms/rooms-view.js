@@ -133,6 +133,13 @@ export class RoomsView {
     const myParticipant = currentUser ? participants.find(p => Number(p.user_id) === Number(currentUser.id)) : null;
     const isJoined = myParticipant && ['PENDING_DEPOSIT', 'DEPOSITED', 'LEAVE_REQUESTED'].includes(myParticipant.status);
     const isReplacementOpen = room.replacement_status === 'OPEN';
+    const isScheduled = ['SCHEDULED', 'IN_PROGRESS', 'COMPLETED'].includes(room.status);
+    const hasDeposited = myParticipant && ['DEPOSITED', 'LEAVE_REQUESTED'].includes(myParticipant.status);
+    const isRemainingPaid = myParticipant && myParticipant.remaining_payment_status === 'PAID';
+    const remainingAmount = myParticipant?.snapshot_remaining_amount !== undefined && myParticipant.snapshot_remaining_amount !== null
+      ? Number(myParticipant.snapshot_remaining_amount)
+      : (room.price_remaining_total && room.current_players ? Math.round(Number(room.price_remaining_total) / room.current_players) : 0);
+    const remainingFormatted = Number(remainingAmount).toLocaleString() + ' đ';
 
     this.container.innerHTML = `
       <div style="margin-bottom: 20px;">
@@ -236,7 +243,8 @@ export class RoomsView {
 
         <!-- Right Column: Hướng dẫn & Thanh toán mô phỏng -->
         <div style="display: flex; flex-direction: column; gap: 24px;">
-          <!-- Card: Thanh toán cọc mô phỏng -->
+          <!-- Card: Thanh toán cọc mô phỏng (Hiển thị khi chưa cọc) -->
+          ${!hasDeposited ? `
           <div class="card" style="padding: 20px; border-left: 4px solid #10b981;">
             <h3 style="font-size: 1.1rem; font-weight: 700; margin: 0 0 10px 0; color: #10b981;">
               💳 Thanh Toán Cọc Giữ Chỗ
@@ -250,6 +258,47 @@ export class RoomsView {
               </button>
             </div>
           </div>
+          ` : ''}
+
+          <!-- DEF-27: Card Thanh toán phần còn lại (Hiển thị khi phòng SCHEDULED và đã cọc) -->
+          ${isScheduled && hasDeposited ? `
+            ${isRemainingPaid ? `
+              <div class="card" style="padding: 20px; border-left: 4px solid #10b981;">
+                <h3 style="font-size: 1.1rem; font-weight: 700; margin: 0 0 10px 0; color: #10b981;">
+                  ✅ Đã Hoàn Tất Toàn Bộ Chi Phí
+                </h3>
+                <p style="font-size: 0.85rem; color: var(--color-text-muted); line-height: 1.5; margin: 0 0 10px 0;">
+                  Bạn đã thanh toán đủ 100% chi phí (cọc + số tiền còn lại). Hãy sẵn sàng cho buổi chơi phá án!
+                </p>
+                <div style="background: rgba(16, 185, 129, 0.15); border: 1px solid #10b981; border-radius: 6px; padding: 10px; color: #10b981; font-size: 0.85rem; font-weight: 600;">
+                  🎉 100% hoàn tất thanh toán
+                </div>
+              </div>
+            ` : `
+              <div class="card" style="padding: 20px; border-left: 4px solid #f59e0b;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                  <h3 style="font-size: 1.1rem; font-weight: 700; margin: 0; color: #f59e0b;">
+                    💳 Thanh Toán Số Tiền Còn Lại
+                  </h3>
+                  <span class="badge" style="background: rgba(245, 158, 11, 0.2); color: #f59e0b; font-size: 0.75rem;">
+                    CHỜ THANH TOÁN
+                  </span>
+                </div>
+                <p style="font-size: 0.85rem; color: var(--color-text-muted); line-height: 1.5; margin: 0 0 14px 0;">
+                  Buổi chơi đã được chốt lịch chính thức! Bạn có thể thanh toán trước số tiền còn lại qua cổng thanh toán mô phỏng V16.
+                </p>
+                <div style="background: rgba(255, 255, 255, 0.03); padding: 12px; border-radius: 6px; margin-bottom: 14px; border: 1px solid var(--color-border);">
+                  <div style="font-size: 0.75rem; color: #94a3b8;">Số tiền còn lại cần nộp:</div>
+                  <div style="font-size: 1.25rem; font-weight: 700; color: #f59e0b; margin-top: 2px;">
+                    ${remainingFormatted}
+                  </div>
+                </div>
+                <button id="btn-pay-remaining" class="btn btn-warning" style="width: 100%; padding: 10px; font-weight: 700;">
+                  💳 Thanh toán số tiền còn lại (${remainingFormatted})
+                </button>
+              </div>
+            `}
+          ` : ''}
 
           <!-- Card: Quy định hoàn tiền 24h -->
           <div class="card" style="padding: 20px; border-left: 4px solid #f59e0b;">
@@ -287,6 +336,11 @@ export class RoomsView {
     const payBtn = this.container.querySelector('#btn-pay-deposit');
     if (payBtn) {
       payBtn.onclick = () => this.handlePayDeposit();
+    }
+
+    const payRemainingBtn = this.container.querySelector('#btn-pay-remaining');
+    if (payRemainingBtn) {
+      payRemainingBtn.onclick = () => this.handlePayRemaining();
     }
 
     this.bindProposalEvents();
@@ -525,6 +579,104 @@ export class RoomsView {
       } finally {
         confirmBtn.disabled = false;
         confirmBtn.textContent = 'Xác nhận nộp cọc';
+      }
+    };
+
+    document.body.appendChild(modal);
+    modal.showModal();
+  }
+
+  handlePayRemaining() {
+    if (!authState.isAuthenticated()) {
+      toast.info('Vui lòng đăng nhập để thanh toán');
+      this.onOpenAuthModal();
+      return;
+    }
+
+    const currentUserId = authState.user ? authState.user.id : null;
+    const myParticipant = this.selectedRoom && this.selectedRoom.participants
+      ? this.selectedRoom.participants.find(p => Number(p.user_id) === Number(currentUserId))
+      : null;
+
+    if (!myParticipant) {
+      toast.error('Bạn chưa tham gia phòng này');
+      return;
+    }
+
+    if (myParticipant.remaining_payment_status === 'PAID') {
+      toast.info('Bạn đã hoàn tất thanh toán toàn bộ chi phí cho phòng này');
+      return;
+    }
+
+    const targetPaymentId = myParticipant.remaining_payment_id || myParticipant.payment_id;
+    if (!targetPaymentId) {
+      toast.warning('Chưa có hóa đơn thanh toán cho người chơi');
+      return;
+    }
+
+    const remainingAmount = myParticipant?.snapshot_remaining_amount !== undefined && myParticipant.snapshot_remaining_amount !== null
+      ? Number(myParticipant.snapshot_remaining_amount)
+      : (this.selectedRoom.price_remaining_total && this.selectedRoom.current_players ? Math.round(Number(this.selectedRoom.price_remaining_total) / this.selectedRoom.current_players) : 0);
+    const remainingFormatted = Number(remainingAmount).toLocaleString() + ' đ';
+
+    const modal = document.createElement('dialog');
+    modal.className = 'custom-modal';
+    modal.style.cssText = `
+      background: var(--color-bg-card, #1e293b);
+      color: var(--color-text-main, #f8fafc);
+      border: 1px solid var(--color-border, #334155);
+      border-radius: 12px;
+      padding: 24px;
+      width: 100%;
+      max-width: 400px;
+      text-align: center;
+    `;
+
+    modal.innerHTML = `
+      <h3 style="margin: 0 0 10px 0; color: #f59e0b;">Cổng Thanh Toán Chi Phí Còn Lại (V16)</h3>
+      <p style="font-size: 0.85rem; color: #94a3b8; margin: 0 0 16px 0;">Mã thanh toán phần còn lại: <strong>${remainingFormatted}</strong></p>
+      
+      <div style="background: #ffffff; padding: 16px; border-radius: 8px; display: inline-block; margin-bottom: 16px;">
+        <!-- Simulated QR Code -->
+        <div style="width: 160px; height: 160px; background: #000000; display: flex; align-items: center; justify-content: center; color: #ffffff; font-family: monospace; font-size: 0.75rem; text-align: center; padding: 10px; box-sizing: border-box;">
+          [QR SIMULATED VNPAY]
+        </div>
+      </div>
+
+      <div style="font-size: 0.8rem; color: #94a3b8; margin-bottom: 20px;">
+        Hệ thống tự động sinh <code>X-Idempotency-Key</code> bảo vệ chống trùng lặp giao dịch.
+      </div>
+
+      <div style="display: flex; gap: 10px;">
+        <button id="btn-cancel-pay-rem" class="btn btn-secondary" style="flex: 1;">Hủy</button>
+        <button id="btn-confirm-pay-rem" class="btn btn-warning" style="flex: 1;">Xác nhận thanh toán</button>
+      </div>
+    `;
+
+    modal.querySelector('#btn-cancel-pay-rem').onclick = () => modal.close();
+    modal.querySelector('#btn-confirm-pay-rem').onclick = async () => {
+      const confirmBtn = modal.querySelector('#btn-confirm-pay-rem');
+      confirmBtn.disabled = true;
+      confirmBtn.textContent = 'Đang giao dịch...';
+      try {
+        const idempKey = 'REM_' + targetPaymentId + '_' + Date.now();
+        const res = await api.post(`/payments/${targetPaymentId}/remaining`, {
+          payment_method: 'SIMULATED_VNPAY',
+          idempotency_key: idempKey,
+        });
+
+        if (res.success) {
+          toast.success(res.message || 'Thanh toán số tiền còn lại thành công!');
+          modal.close();
+          await this.showRoomDetail(this.selectedRoom.id);
+        } else {
+          toast.error(res.error?.message || 'Thanh toán không thành công');
+        }
+      } catch (err) {
+        toast.error(err.message || 'Lỗi kết nối khi thanh toán');
+      } finally {
+        confirmBtn.disabled = false;
+        confirmBtn.textContent = 'Xác nhận thanh toán';
       }
     };
 

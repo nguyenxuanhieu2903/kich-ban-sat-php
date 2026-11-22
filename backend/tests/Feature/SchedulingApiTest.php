@@ -143,4 +143,85 @@ class SchedulingApiTest extends TestCase
         $bodyAfterScheduled = json_decode($resAfterScheduled->getContent(), true);
         $this->assertSame('ROOM_NOT_FORMING', $bodyAfterScheduled['error']['code']);
     }
+
+    /**
+     * DEF-25: Xác minh phòng chốt lịch khi DM đang ở trạng thái PENDING
+     * Vẫn tạo Session liên kết thành công (không để mồ côi) và KHÔNG tự động chuyển DM sang ACCEPTED.
+     */
+    public function testDEF25ScheduleConfirmationWithPendingDMAssignmentCreatesSessionAndKeepsDMPending(): void
+    {
+        // 1. Tạo phòng mới với User 3
+        $createReq = new Request(
+            method: 'POST',
+            path: '/api/v1/rooms',
+            queryParams: [],
+            bodyParams: [
+                'game_id' => 1,
+                'title' => 'Phòng test DEF-25 pending DM',
+            ],
+            headers: [
+                'Authorization' => 'Bearer 3',
+            ]
+        );
+        $createRes = $this->app->dispatch($createReq);
+        $this->assertSame(201, $createRes->getStatusCode());
+        $roomId = (int) json_decode($createRes->getContent(), true)['data']['room']['id'];
+
+        // 2. User 4 tham gia phòng
+        $joinReq = new Request('POST', "/api/v1/rooms/{$roomId}/join", [], [], ['Authorization' => 'Bearer 4']);
+        $joinRes = $this->app->dispatch($joinReq);
+        $this->assertSame(200, $joinRes->getStatusCode());
+
+        // 3. Admin (User 1) phân công DM 2 -> assignment ở trạng thái PENDING
+        $assignReq = new Request(
+            method: 'POST',
+            path: "/api/v1/admin/rooms/{$roomId}/assign-dm",
+            queryParams: [],
+            bodyParams: ['dm_user_id' => 2, 'notes' => 'Admin phân công trước khi chốt lịch'],
+            headers: ['Authorization' => 'Bearer 1']
+        );
+        $assignRes = $this->app->dispatch($assignReq);
+        $this->assertSame(201, $assignRes->getStatusCode());
+        $assignId = (int) json_decode($assignRes->getContent(), true)['data']['assignment']['id'];
+
+        // 4. User 3 tạo đề xuất lịch
+        $start = date('Y-m-d H:i:s', strtotime('+3 days 14:00:00'));
+        $end = date('Y-m-d H:i:s', strtotime('+3 days 18:00:00'));
+        $propReq = new Request('POST', "/api/v1/rooms/{$roomId}/proposals", [], [
+            'proposed_start_at' => $start,
+            'proposed_end_at' => $end,
+        ], ['Authorization' => 'Bearer 3']);
+        $propRes = $this->app->dispatch($propReq);
+        $this->assertSame(201, $propRes->getStatusCode());
+        $propId = (int) json_decode($propRes->getContent(), true)['data']['proposal_id'];
+
+        // 5. User 4 vote ACCEPTED -> 100% đồng ý
+        $voteReq = new Request('POST', "/api/v1/proposals/{$propId}/vote", [], ['response' => 'ACCEPTED'], ['Authorization' => 'Bearer 4']);
+        $voteRes = $this->app->dispatch($voteReq);
+        $this->assertSame(200, $voteRes->getStatusCode());
+        $voteData = json_decode($voteRes->getContent(), true);
+
+        // Khẳng định 1: Proposal được confirm và session_id được tạo
+        $this->assertTrue($voteData['success']);
+        $this->assertTrue($voteData['data']['proposal_confirmed']);
+        $this->assertNotNull($voteData['data']['session_id']);
+        $sessionId = (int) $voteData['data']['session_id'];
+
+        $pdo = \App\Infrastructure\Database\DatabaseConnection::getInstance();
+
+        // Khẳng định 2: game_rooms.status chuyển sang SCHEDULED
+        $roomStatus = $pdo->query("SELECT `status` FROM `game_rooms` WHERE `id` = {$roomId}")->fetchColumn();
+        $this->assertSame('SCHEDULED', $roomStatus);
+
+        // Khẳng định 3: Session tồn tại trong DB, liên kết đúng game_room_id và dm_assignment_id
+        $sessRow = $pdo->query("SELECT `id`, `game_room_id`, `dm_assignment_id`, `status` FROM `sessions` WHERE `id` = {$sessionId}")->fetch(\PDO::FETCH_ASSOC);
+        $this->assertNotEmpty($sessRow);
+        $this->assertSame($roomId, (int) $sessRow['game_room_id']);
+        $this->assertSame($assignId, (int) $sessRow['dm_assignment_id']);
+        $this->assertSame('SCHEDULED', $sessRow['status']);
+
+        // Khẳng định 4: DM assignment VẪN Ở TRẠNG THÁI PENDING (tuyệt đối không auto-accept)
+        $dmStatus = $pdo->query("SELECT `status` FROM `dm_assignments` WHERE `id` = {$assignId}")->fetchColumn();
+        $this->assertSame('PENDING', $dmStatus);
+    }
 }

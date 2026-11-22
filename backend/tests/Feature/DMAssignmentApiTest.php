@@ -28,13 +28,22 @@ class DMAssignmentApiTest extends TestCase
         $this->dmRepo = new DMRepository($pdo);
 
         // Dọn dẹp dữ liệu test cũ để tránh va chạm xung đột lịch trình giữa các lần chạy
-        $pdo->exec("UPDATE `sessions` SET `status` = 'CANCELLED' WHERE `game_room_id` IN (SELECT `id` FROM `game_rooms` WHERE `title` LIKE 'Phòng test%' OR `title` LIKE 'Phòng 1%' OR `title` LIKE 'Phòng 2%')");
-        $pdo->exec("UPDATE `dm_assignments` SET `status` = 'REVOKED' WHERE `game_room_id` IN (SELECT `id` FROM `game_rooms` WHERE `title` LIKE 'Phòng test%' OR `title` LIKE 'Phòng 1%' OR `title` LIKE 'Phòng 2%')");
+        $pdo->exec("UPDATE `sessions` SET `status` = 'CANCELLED' WHERE `game_room_id` IN (SELECT `id` FROM `game_rooms` WHERE `title` LIKE 'Phòng test%' OR `title` LIKE 'Phòng 1%' OR `title` LIKE 'Phòng 2%') OR `game_room_id` = 1");
+        $pdo->exec("UPDATE `dm_assignments` SET `status` = 'REVOKED' WHERE `game_room_id` IN (SELECT `id` FROM `game_rooms` WHERE `title` LIKE 'Phòng test%' OR `title` LIKE 'Phòng 1%' OR `title` LIKE 'Phòng 2%') OR (`game_room_id` = 1 AND `status` = 'PENDING')");
         $pdo->exec("UPDATE `game_rooms` SET `status` = 'CANCELLED' WHERE `title` LIKE 'Phòng test%' OR `title` LIKE 'Phòng 1%' OR `title` LIKE 'Phòng 2%'");
 
         $routesFile = $basePath . '/routes/api.php';
         $router = $this->app->getRouter();
         require $routesFile;
+    }
+
+    protected function createIsolatedRoom(string $title = 'Phòng test DM assignment'): int
+    {
+        $pdo = DatabaseConnection::getInstance();
+        $stmt = $pdo->prepare("INSERT INTO `game_rooms` (`game_id`, `game_configuration_id`, `creator_id`, `title`, `min_players`, `max_players`, `status`, `formation_deadline_at`, `created_at`, `updated_at`) VALUES (1, 1, 3, :title, 6, 8, 'FORMING', DATE_ADD(NOW(), INTERVAL 3 DAY), NOW(), NOW())");
+        $stmt->bindValue(':title', $title, \PDO::PARAM_STR);
+        $stmt->execute();
+        return (int) $pdo->lastInsertId();
     }
 
     public function testPlayerCannotAccessDMAssignments(): void
@@ -81,8 +90,9 @@ class DMAssignmentApiTest extends TestCase
 
     public function testDMCanAcceptPendingAssignmentAndPreventsIDOR(): void
     {
-        // 1. Tạo assignment PENDING cho DM User 2
-        $assignmentId = $this->dmRepo->assignToRoom(1, 2, 'Cần DM có kinh nghiệm kịch bản kinh dị', 1);
+        // 1. DEF-28: Tạo phòng test độc lập để tránh xung đột lịch với seed data room 1
+        $roomId = $this->createIsolatedRoom('Phòng test DM accept ' . uniqid());
+        $assignmentId = $this->dmRepo->assignToRoom($roomId, 2, 'Cần DM có kinh nghiệm kịch bản kinh dị', 1);
 
         // 2. Thử accept bằng tài khoản khác không phải DM này và không phải Admin (giả sử tạo tạm DM giả hoặc user khác)
         // Set user 3 thành role DM tạm để test IDOR giữa 2 DM
@@ -130,8 +140,9 @@ class DMAssignmentApiTest extends TestCase
 
     public function testDMCanRejectPendingAssignmentWithReason(): void
     {
-        // 1. Tạo assignment PENDING cho DM User 2
-        $assignmentId = $this->dmRepo->assignToRoom(1, 2, 'Phân công ca tối', 1);
+        // 1. DEF-28: Tạo phòng test độc lập
+        $roomId = $this->createIsolatedRoom('Phòng test DM reject ' . uniqid());
+        $assignmentId = $this->dmRepo->assignToRoom($roomId, 2, 'Phân công ca tối', 1);
 
         // 2. Từ chối nhưng thiếu lý do -> 422
         $emptyReasonReq = new Request(

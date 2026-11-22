@@ -12,6 +12,7 @@ use App\Features\GameCatalog\Controllers\GameController;
 use App\Features\GameroomManagement\Controllers\GameRoomController;
 use App\Features\GameroomManagement\Controllers\AdminGameRoomController;
 use App\Features\VenueScheduling\Controllers\SchedulingController;
+use App\Features\VenueScheduling\Controllers\SessionController;
 use App\Features\PaymentRefund\Controllers\PaymentController;
 use App\Features\PaymentRefund\Controllers\AdminRefundController;
 use App\Features\Notification\Controllers\NotificationController;
@@ -77,6 +78,11 @@ $registerApiRoutes = function (string $prefix) use ($router): void {
     $router->post($prefix . '/rooms/{id}/proposals', [SchedulingController::class, 'propose']);
     $router->get($prefix . '/proposals/{id}', [SchedulingController::class, 'showProposal']);
     $router->post($prefix . '/proposals/{id}/vote', [SchedulingController::class, 'vote']);
+
+    // Sessions Play Lifecycle (DEF-26)
+    $router->get($prefix . '/sessions/{id}', [SessionController::class, 'show']);
+    $router->post($prefix . '/sessions/{id}/start', [SessionController::class, 'start']);
+    $router->post($prefix . '/sessions/{id}/complete', [SessionController::class, 'complete']);
 
     // =============================================================
     // DOMAIN 6: DM ASSIGNMENT API
