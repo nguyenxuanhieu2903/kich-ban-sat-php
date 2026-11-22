@@ -182,7 +182,11 @@ class PricingService
             'calculated_at' => date('Y-m-d H:i:s'),
         ]);
 
-        $this->pdo->beginTransaction();
+        $ownsTransaction = false;
+        if (!$this->pdo->inTransaction()) {
+            $this->pdo->beginTransaction();
+            $ownsTransaction = true;
+        }
         try {
             // Cập nhật snapshot vào game_rooms
             $upRoom = $this->pdo->prepare(
@@ -238,7 +242,9 @@ class PricingService
                 }
             }
 
-            $this->pdo->commit();
+            if ($ownsTransaction && $this->pdo->inTransaction()) {
+                $this->pdo->commit();
+            }
 
             return [
                 'game_room_id' => $roomId,
@@ -262,7 +268,7 @@ class PricingService
                 'applied_promotion' => $appliedPromotion,
             ];
         } catch (\Throwable $e) {
-            if ($this->pdo->inTransaction()) {
+            if ($ownsTransaction && $this->pdo->inTransaction()) {
                 $this->pdo->rollBack();
             }
             throw $e;

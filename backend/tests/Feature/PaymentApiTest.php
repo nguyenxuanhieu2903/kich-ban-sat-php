@@ -369,9 +369,9 @@ class PaymentApiTest extends TestCase
         $payStatus = $this->pdo->query("SELECT `status` FROM `player_payments` WHERE `id` = {$payId}")->fetchColumn();
         $this->assertSame('EXPIRED', $payStatus);
 
-        // - game_rooms phải mở replacement_status = 'OPEN'
+        // - game_rooms FORMING không được mở replacement_status = 'OPEN' (DEF-21 fix)
         $rwStatus = $this->pdo->query("SELECT `replacement_status` FROM `game_rooms` WHERE `id` = {$roomId}")->fetchColumn();
-        $this->assertSame('OPEN', $rwStatus);
+        $this->assertNull($rwStatus);
 
         // 4. Chạy lại job lần 2: Không xử lý lại (idempotent, kicked = 0 cho bản ghi này)
         $kickedAgain = $jobService->runDepositTimeout();

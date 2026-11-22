@@ -253,18 +253,36 @@ class BackgroundJobService
                 $upPay->bindValue(':part_id', $partId, PDO::PARAM_INT);
                 $upPay->execute();
 
-                // Mở Replacement Window cho phòng
-                $upRoom = $this->pdo->prepare(
-                    'UPDATE `game_rooms`
-                     SET `replacement_status` = \'OPEN\',
-                         `replacement_started_at` = NOW(),
-                         `replacement_deadline_at` = DATE_ADD(NOW(), INTERVAL 4 HOUR),
-                         `replacement_reason` = \'Có thành viên quá hạn đóng tiền cọc cần tìm người thay thế\',
-                         `updated_at` = NOW()
-                     WHERE `id` = :room_id'
-                );
-                $upRoom->bindValue(':room_id', $roomId, PDO::PARAM_INT);
-                $upRoom->execute();
+                // DEF-21: Chỉ mở Replacement Window khi phòng đã chốt lịch (SCHEDULED) và có thành viên LEAVE_REQUESTED
+                // Tuyệt đối không mở Replacement Window cho phòng FORMING hoặc cho participant bị CANCELLED_UNPAID
+                $rLock = $this->pdo->prepare('SELECT `id`, `status` FROM `game_rooms` WHERE `id` = :room_id FOR UPDATE');
+                $rLock->bindValue(':room_id', $roomId, PDO::PARAM_INT);
+                $rLock->execute();
+                $roomRow = $rLock->fetch(PDO::FETCH_ASSOC);
+
+                if ($roomRow !== false && $roomRow['status'] === 'SCHEDULED') {
+                    $chkLeave = $this->pdo->prepare(
+                        'SELECT COUNT(*) FROM `room_participants`
+                         WHERE `game_room_id` = :room_id AND `status` = \'LEAVE_REQUESTED\''
+                    );
+                    $chkLeave->bindValue(':room_id', $roomId, PDO::PARAM_INT);
+                    $chkLeave->execute();
+                    $leavingCount = (int) $chkLeave->fetchColumn();
+
+                    if ($leavingCount > 0) {
+                        $upRoom = $this->pdo->prepare(
+                            'UPDATE `game_rooms`
+                             SET `replacement_status` = \'OPEN\',
+                                 `replacement_started_at` = NOW(),
+                                 `replacement_deadline_at` = DATE_ADD(NOW(), INTERVAL 4 HOUR),
+                                 `replacement_reason` = \'Có thành viên quá hạn đóng tiền cọc cần tìm người thay thế\',
+                                 `updated_at` = NOW()
+                             WHERE `id` = :room_id'
+                        );
+                        $upRoom->bindValue(':room_id', $roomId, PDO::PARAM_INT);
+                        $upRoom->execute();
+                    }
+                }
 
                 $this->pdo->commit();
                 $kickedCount++;

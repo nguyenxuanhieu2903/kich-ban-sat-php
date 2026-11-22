@@ -458,14 +458,52 @@ class GameRoomController
                 return Response::fail('Phòng chơi đã đủ số lượng thành viên tối đa (' . $room['max_players'] . ' người)', 'ROOM_FULL', 400);
             }
 
+            // DEF-24: Kiểm tra xem phòng FORMING đã có đề xuất lịch biểu (PROPOSED/PENDING) chưa
+            $propStmt = $this->pdo->prepare(
+                'SELECT `id`, `expires_at` FROM `schedule_proposals`
+                 WHERE `game_room_id` = :room_id AND `status` IN (\'PROPOSED\', \'PENDING\')
+                 ORDER BY `id` DESC LIMIT 1 FOR UPDATE'
+            );
+            $propStmt->bindValue(':room_id', $roomId, PDO::PARAM_INT);
+            $propStmt->execute();
+            $activeProposal = $propStmt->fetch(PDO::FETCH_ASSOC);
+
+            $depositDeadline = null;
+            if ($activeProposal !== false) {
+                // Đã có đề xuất lịch biểu: áp dụng hạn chót nộp cọc 2 giờ theo V16 baseline
+                $depositDeadline = date('Y-m-d H:i:s', time() + (2 * 3600));
+            }
+
             $insPartStmt = $this->pdo->prepare(
-                'INSERT INTO `room_participants` (`game_room_id`, `user_id`, `status`, `joined_at`, `created_at`, `updated_at`)
-                 VALUES (:game_room_id, :user_id, \'PENDING_DEPOSIT\', NOW(), NOW(), NOW())'
+                'INSERT INTO `room_participants` (`game_room_id`, `user_id`, `status`, `deposit_deadline_at`, `joined_at`, `created_at`, `updated_at`)
+                 VALUES (:game_room_id, :user_id, \'PENDING_DEPOSIT\', :deposit_deadline, NOW(), NOW(), NOW())'
             );
             $insPartStmt->bindValue(':game_room_id', $roomId, PDO::PARAM_INT);
             $insPartStmt->bindValue(':user_id', $userId, PDO::PARAM_INT);
+            $insPartStmt->bindValue(':deposit_deadline', $depositDeadline, $depositDeadline !== null ? PDO::PARAM_STR : PDO::PARAM_NULL);
             $insPartStmt->execute();
             $participantId = (int) $this->pdo->lastInsertId();
+
+            if ($depositDeadline !== null) {
+                // DEF-24: Tạo hóa đơn cọc cố định 50.000 VNĐ cho người chơi tham gia muộn
+                $chkPay = $this->pdo->prepare(
+                    'SELECT `id` FROM `player_payments`
+                     WHERE `room_participant_id` = :part_id AND `payment_type` = \'DEPOSIT\'
+                     LIMIT 1 FOR UPDATE'
+                );
+                $chkPay->bindValue(':part_id', $participantId, PDO::PARAM_INT);
+                $chkPay->execute();
+
+                if ($chkPay->fetchColumn() === false) {
+                    $insPay = $this->pdo->prepare(
+                        'INSERT INTO `player_payments` (`room_participant_id`, `payment_type`, `amount`, `paid_amount`, `status`, `deadline_at`, `created_at`, `updated_at`)
+                         VALUES (:part_id, \'DEPOSIT\', 50000, 0, \'PENDING\', :deadline_at, NOW(), NOW())'
+                    );
+                    $insPay->bindValue(':part_id', $participantId, PDO::PARAM_INT);
+                    $insPay->bindValue(':deadline_at', $depositDeadline, PDO::PARAM_STR);
+                    $insPay->execute();
+                }
+            }
 
             $this->pdo->commit();
 

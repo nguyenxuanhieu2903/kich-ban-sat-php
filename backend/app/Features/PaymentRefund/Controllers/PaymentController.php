@@ -9,6 +9,7 @@ use App\Core\Request;
 use App\Core\Response;
 use App\Features\Notification\Repositories\NotificationRepository;
 use App\Features\PaymentRefund\Repositories\PaymentRepository;
+use App\Features\Pricing\Services\PricingService;
 use App\Infrastructure\Database\DatabaseConnection;
 use PDO;
 
@@ -159,6 +160,24 @@ class PaymentController
                 $snapStmt->bindValue(':part_id', $partId, PDO::PARAM_INT);
                 $snapStmt->execute();
                 $snapRem = $snapStmt->fetchColumn();
+
+                // DEF-23: Fallback phòng đã chốt lịch nhưng chưa có snapshot bảng giá
+                if ($snapRem === false) {
+                    $rStmt = $this->pdo->prepare('SELECT `game_room_id` FROM `room_participants` WHERE `id` = :part_id LIMIT 1');
+                    $rStmt->bindValue(':part_id', $partId, PDO::PARAM_INT);
+                    $rStmt->execute();
+                    $gRoomId = $rStmt->fetchColumn();
+                    if ($gRoomId !== false) {
+                        try {
+                            $pricingService = new PricingService($this->pdo);
+                            $pricingService->calculateAndSnapshot((int) $gRoomId);
+                            $snapStmt->execute();
+                            $snapRem = $snapStmt->fetchColumn();
+                        } catch (\Throwable) {
+                            // Bỏ qua lỗi fallback để xử lý qua validation phía dưới
+                        }
+                    }
+                }
 
                 if ($snapRem !== false && (int) $snapRem > 0) {
                     $newRemAmount = (int) $snapRem;

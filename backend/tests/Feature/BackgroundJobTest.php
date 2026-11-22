@@ -43,9 +43,9 @@ class BackgroundJobTest extends TestCase
         $this->assertSame('CANCELLED_UNPAID', $partStatus);
     }
 
-    public function testDepositTimeoutKicksUnpaidParticipantAndOpensReplacement(): void
+    public function testDepositTimeoutKicksUnpaidParticipantAndDoesNotOpenReplacementInFormingRoom(): void
     {
-        // 1. Tạo phòng và participant đã quá hạn nộp tiền cọc
+        // 1. Tạo phòng FORMING và participant đã quá hạn nộp tiền cọc
         $this->pdo->exec("INSERT INTO `game_rooms` (`game_id`, `game_configuration_id`, `creator_id`, `title`, `min_players`, `max_players`, `status`, `formation_deadline_at`, `created_at`, `updated_at`) VALUES (1, 1, 3, 'Phòng test deposit timeout', 6, 8, 'FORMING', DATE_ADD(NOW(), INTERVAL 3 DAY), NOW(), NOW())");
         $roomId = (int) $this->pdo->lastInsertId();
 
@@ -60,7 +60,32 @@ class BackgroundJobTest extends TestCase
         $partStatus = $this->pdo->query("SELECT `status` FROM `room_participants` WHERE `id` = {$partId}")->fetchColumn();
         $this->assertSame('CANCELLED_UNPAID', $partStatus);
 
-        // 4. Phòng mở replacement_status = 'OPEN'
+        // 4. DEF-21: Phòng FORMING tuyệt đối không được mở replacement_status = 'OPEN'
+        $rwStatus = $this->pdo->query("SELECT `replacement_status` FROM `game_rooms` WHERE `id` = {$roomId}")->fetchColumn();
+        $this->assertNull($rwStatus);
+    }
+
+    public function testDepositTimeoutInScheduledRoomWithLeavingParticipantPreservesReplacement(): void
+    {
+        // 1. Tạo phòng SCHEDULED có 1 người xin rút lui (LEAVE_REQUESTED) và 1 người thay thế quá hạn cọc
+        $this->pdo->exec("INSERT INTO `game_rooms` (`game_id`, `game_configuration_id`, `creator_id`, `title`, `min_players`, `max_players`, `status`, `formation_deadline_at`, `created_at`, `updated_at`) VALUES (1, 1, 3, 'Phòng scheduled test deposit timeout', 6, 8, 'SCHEDULED', DATE_ADD(NOW(), INTERVAL 3 DAY), NOW(), NOW())");
+        $roomId = (int) $this->pdo->lastInsertId();
+
+        // Thành viên xin rút lui
+        $this->pdo->exec("INSERT INTO `room_participants` (`game_room_id`, `user_id`, `status`, `joined_at`, `created_at`, `updated_at`) VALUES ({$roomId}, 3, 'LEAVE_REQUESTED', NOW(), NOW(), NOW())");
+        // Thành viên thay thế quá hạn cọc
+        $this->pdo->exec("INSERT INTO `room_participants` (`game_room_id`, `user_id`, `status`, `deposit_deadline_at`, `joined_at`, `created_at`, `updated_at`) VALUES ({$roomId}, 4, 'PENDING_DEPOSIT', DATE_SUB(NOW(), INTERVAL 1 HOUR), NOW(), NOW(), NOW())");
+        $partId = (int) $this->pdo->lastInsertId();
+
+        // 2. Chạy job
+        $kicked = $this->jobService->runDepositTimeout();
+        $this->assertGreaterThanOrEqual(1, $kicked);
+
+        // 3. Participant thay thế bị chuyển thành 'CANCELLED_UNPAID'
+        $partStatus = $this->pdo->query("SELECT `status` FROM `room_participants` WHERE `id` = {$partId}")->fetchColumn();
+        $this->assertSame('CANCELLED_UNPAID', $partStatus);
+
+        // 4. Do phòng SCHEDULED và có người LEAVE_REQUESTED, replacement_status được mở 'OPEN'
         $rwStatus = $this->pdo->query("SELECT `replacement_status` FROM `game_rooms` WHERE `id` = {$roomId}")->fetchColumn();
         $this->assertSame('OPEN', $rwStatus);
     }

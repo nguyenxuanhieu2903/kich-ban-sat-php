@@ -7,6 +7,7 @@ namespace App\Features\VenueScheduling\Controllers;
 use App\Core\Middleware\AuthMiddleware;
 use App\Core\Request;
 use App\Core\Response;
+use App\Features\Pricing\Services\PricingService;
 use App\Infrastructure\Database\DatabaseConnection;
 use PDO;
 
@@ -337,6 +338,21 @@ class SchedulingController
         if ($acceptedCount >= count($activeParticipantIds) && count($activeParticipantIds) > 0) {
             $this->pdo->beginTransaction();
             try {
+                // DEF-22: Khóa phòng chơi và đề xuất lịch biểu để bảo đảm concurrency
+                $rLock = $this->pdo->prepare('SELECT `id`, `game_id`, `status` FROM `game_rooms` WHERE `id` = :room_id FOR UPDATE');
+                $rLock->bindValue(':room_id', $roomId, PDO::PARAM_INT);
+                $rLock->execute();
+                $lockedRoom = $rLock->fetch(PDO::FETCH_ASSOC);
+
+                $pLock = $this->pdo->prepare('SELECT `id`, `status`, `proposed_start_at`, `proposed_end_at` FROM `schedule_proposals` WHERE `id` = :id FOR UPDATE');
+                $pLock->bindValue(':id', $proposalId, PDO::PARAM_INT);
+                $pLock->execute();
+                $lockedProp = $pLock->fetch(PDO::FETCH_ASSOC);
+
+                // DEF-22: Tính toán và lưu snapshot bảng giá phòng & từng thành viên TRƯỚC KHI chuyển sang SCHEDULED
+                $pricingService = new PricingService($this->pdo);
+                $pricingService->calculateAndSnapshot($roomId, (string) $proposal['proposed_start_at']);
+
                 $confStmt = $this->pdo->prepare('UPDATE `schedule_proposals` SET `status` = \'CONFIRMED\', `confirmed_at` = NOW() WHERE `id` = :id');
                 $confStmt->bindValue(':id', $proposalId, PDO::PARAM_INT);
                 $confStmt->execute();
