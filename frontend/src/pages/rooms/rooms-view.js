@@ -739,7 +739,22 @@ export class RoomsView {
 
     const form = modal.querySelector('#create-room-form');
     if (preselectedGame) {
-      form.querySelector('select[name="game_id"]').value = preselectedGame.id;
+      const select = form.querySelector('select[name="game_id"]');
+      if (select) {
+        const gameId = preselectedGame.dbId || preselectedGame.id;
+        const optExists = Array.from(select.options).some(o => o.value == gameId);
+        if (!optExists) {
+          const newOpt = document.createElement('option');
+          newOpt.value = gameId;
+          newOpt.textContent = `${preselectedGame.title || preselectedGame.name} (${preselectedGame.playersMin || 6} - ${preselectedGame.playersMax || 8} người)`;
+          select.appendChild(newOpt);
+        }
+        select.value = gameId;
+      }
+      const titleInput = form.querySelector('input[name="title"]');
+      if (titleInput && !titleInput.value) {
+        titleInput.value = `Tuyển đồng đội: ${preselectedGame.title || preselectedGame.name}`;
+      }
     }
 
     form.onsubmit = async (e) => {

@@ -46,11 +46,16 @@ class App {
         onNavigate: (tab) => this.navigateTo(tab),
         onOpenAuth: (role) => this.authModal.show(false, role || 'PLAYER')
       }),
-      games: new GamesView(this.mountPoint, () => {
+      games: new GamesView(this.mountPoint, (game) => {
         if (!authState.isAuthenticated()) {
           this.authModal.show();
         } else {
           this.navigateTo('rooms');
+          setTimeout(() => {
+            if (this.views.rooms && typeof this.views.rooms.showCreateRoomModal === 'function') {
+              this.views.rooms.showCreateRoomModal(game);
+            }
+          }, 120);
         }
       }),
       rooms: new RoomsView(this.mountPoint, () => this.authModal.show()),
