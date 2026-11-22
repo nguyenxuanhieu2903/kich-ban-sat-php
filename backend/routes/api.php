@@ -61,6 +61,7 @@ $registerApiRoutes = function (string $prefix) use ($router): void {
     $router->get($prefix . '/rooms/{id}', [GameRoomController::class, 'show']);
     $router->post($prefix . '/rooms/{id}/join', [GameRoomController::class, 'join']);
     $router->post($prefix . '/rooms/{id}/leave', [GameRoomController::class, 'leave']);
+    $router->post($prefix . '/rooms/{id}/cancel', [GameRoomController::class, 'cancel']);
 
     // Pricing calculation & snapshot
     $router->post($prefix . '/rooms/{id}/calculate-price', [PricingController::class, 'calculate']);

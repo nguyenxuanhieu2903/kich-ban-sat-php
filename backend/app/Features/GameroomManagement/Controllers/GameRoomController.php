@@ -346,6 +346,34 @@ class GameRoomController
                 $upOld->bindValue(':id', $leavingPartId, PDO::PARAM_INT);
                 $upOld->execute();
 
+                // 1b. Tạo yêu cầu hoàn cọc (PENDING) cho người cũ nếu đã nộp cọc (DEC-01 & DEC-02: Bắt buộc duyệt thủ công)
+                $oldPayStmt = $this->pdo->prepare(
+                    'SELECT `id`, `paid_amount` FROM `player_payments`
+                     WHERE `room_participant_id` = :part_id AND `payment_type` = \'DEPOSIT\' AND `paid_amount` > 0
+                     LIMIT 1 FOR UPDATE'
+                );
+                $oldPayStmt->bindValue(':part_id', $leavingPartId, PDO::PARAM_INT);
+                $oldPayStmt->execute();
+                $oldPayment = $oldPayStmt->fetch(PDO::FETCH_ASSOC);
+
+                $takeoverRefundCreated = false;
+                if ($oldPayment !== false && (int) $oldPayment['paid_amount'] > 0) {
+                    $chkRefStmt = $this->pdo->prepare('SELECT COUNT(*) FROM `refunds` WHERE `player_payment_id` = :payment_id');
+                    $chkRefStmt->bindValue(':payment_id', (int) $oldPayment['id'], PDO::PARAM_INT);
+                    $chkRefStmt->execute();
+                    if ((int) $chkRefStmt->fetchColumn() === 0) {
+                        $insRefStmt = $this->pdo->prepare(
+                            'INSERT INTO `refunds` (`player_payment_id`, `amount`, `reason`, `status`, `requested_at`, `created_at`, `updated_at`)
+                             VALUES (:payment_id, :amount, :reason, \'PENDING\', NOW(), NOW(), NOW())'
+                        );
+                        $insRefStmt->bindValue(':payment_id', (int) $oldPayment['id'], PDO::PARAM_INT);
+                        $insRefStmt->bindValue(':amount', (int) $oldPayment['paid_amount'], PDO::PARAM_INT);
+                        $insRefStmt->bindValue(':reason', 'Hoàn cọc do đã có người chơi khác nhận thay thế slot thành công', PDO::PARAM_STR);
+                        $insRefStmt->execute();
+                        $takeoverRefundCreated = true;
+                    }
+                }
+
                 // 2. Thêm người mới vào slot thay thế và gán hạn cọc 2 giờ kèm hóa đơn cọc
                 $repDepositDl = date('Y-m-d H:i:s', time() + (2 * 3600));
                 $insNewPart = $this->pdo->prepare(
@@ -390,10 +418,13 @@ class GameRoomController
                 // Gửi thông báo cho người cũ
                 try {
                     $notiRepo = new \App\Features\Notification\Repositories\NotificationRepository($this->pdo);
+                    $leavingMsg = $takeoverRefundCreated
+                        ? "Yêu cầu rút phòng của bạn tại phòng '{$room['title']}' đã có người thế chỗ. Yêu cầu hoàn cọc đã được tạo và đang chờ Admin duyệt."
+                        : "Yêu cầu rút phòng của bạn tại phòng '{$room['title']}' đã hoàn tất nhờ có người chơi khác thế chỗ.";
                     $notiRepo->createNotification(
-                        'Đã có người thay thế slot',
-                        "Yêu cầu rút phòng của bạn tại phòng '{$room['title']}' đã hoàn tất nhờ có người chơi khác thế chỗ.",
-                        'ROOM',
+                        $takeoverRefundCreated ? 'Đã có người thay thế slot & Chờ duyệt hoàn cọc' : 'Đã có người thay thế slot',
+                        $leavingMsg,
+                        $takeoverRefundCreated ? 'REFUND' : 'ROOM',
                         null,
                         [$leavingUserId]
                     );
@@ -466,7 +497,7 @@ class GameRoomController
 
         $this->pdo->beginTransaction();
         try {
-            $rStmt = $this->pdo->prepare('SELECT `id`, `title`, `status`, `replacement_status` FROM `game_rooms` WHERE `id` = :id FOR UPDATE');
+            $rStmt = $this->pdo->prepare('SELECT `id`, `title`, `creator_id`, `status`, `replacement_status` FROM `game_rooms` WHERE `id` = :id FOR UPDATE');
             $rStmt->bindValue(':id', $roomId, PDO::PARAM_INT);
             $rStmt->execute();
             $room = $rStmt->fetch(PDO::FETCH_ASSOC);
@@ -501,10 +532,132 @@ class GameRoomController
             $partId = (int) $part['id'];
 
             if ($room['status'] === 'FORMING') {
-                // Rời phòng trực tiếp khi phòng chưa chốt lịch
-                $upStmt = $this->pdo->prepare('UPDATE `room_participants` SET `status` = \'LEFT\', `left_at` = NOW(), `updated_at` = NOW() WHERE `id` = :id');
+                // Nếu người rời phòng là chủ phòng: Giải tán phòng, hủy hóa đơn chưa thanh toán, tạo yêu cầu hoàn cọc PENDING
+                if ((int) $room['creator_id'] === $userId) {
+                    $cancelReason = 'Chủ phòng rời phòng và hủy ghép người';
+
+                    $upRoom = $this->pdo->prepare(
+                        'UPDATE `game_rooms`
+                         SET `status` = \'CANCELLED\', `cancelled_at` = NOW(),
+                             `cancel_reason` = :reason, `updated_at` = NOW()
+                         WHERE `id` = :room_id'
+                    );
+                    $upRoom->bindValue(':reason', $cancelReason, PDO::PARAM_STR);
+                    $upRoom->bindValue(':room_id', $roomId, PDO::PARAM_INT);
+                    $upRoom->execute();
+
+                    $upParts = $this->pdo->prepare(
+                        'UPDATE `room_participants`
+                         SET `status` = \'CANCELLED_UNPAID\', `cancelled_at` = NOW(),
+                             `cancel_reason` = :reason, `updated_at` = NOW()
+                         WHERE `game_room_id` = :room_id AND `status` IN (\'PENDING_DEPOSIT\', \'DEPOSITED\', \'LEAVE_REQUESTED\')'
+                    );
+                    $upParts->bindValue(':reason', $cancelReason, PDO::PARAM_STR);
+                    $upParts->bindValue(':room_id', $roomId, PDO::PARAM_INT);
+                    $upParts->execute();
+
+                    // Hủy các hóa đơn chưa thanh toán
+                    $upUnpaid = $this->pdo->prepare(
+                        'UPDATE `player_payments` p
+                         INNER JOIN `room_participants` rp ON rp.`id` = p.`room_participant_id`
+                         SET p.`status` = \'CANCELLED\', p.`updated_at` = NOW()
+                         WHERE rp.`game_room_id` = :room_id AND p.`status` = \'PENDING\''
+                    );
+                    $upUnpaid->bindValue(':room_id', $roomId, PDO::PARAM_INT);
+                    $upUnpaid->execute();
+
+                    // Tạo hoàn cọc PENDING cho các thành viên đã cọc
+                    $payStmt = $this->pdo->prepare(
+                        'SELECT p.`id`, p.`paid_amount`, rp.`user_id`
+                         FROM `player_payments` p
+                         INNER JOIN `room_participants` rp ON rp.`id` = p.`room_participant_id`
+                         WHERE rp.`game_room_id` = :room_id AND p.`paid_amount` > 0
+                           AND NOT EXISTS (SELECT 1 FROM `refunds` r WHERE r.`player_payment_id` = p.`id`)'
+                    );
+                    $payStmt->bindValue(':room_id', $roomId, PDO::PARAM_INT);
+                    $payStmt->execute();
+                    $paidList = $payStmt->fetchAll(PDO::FETCH_ASSOC);
+
+                    $insRef = $this->pdo->prepare(
+                        'INSERT INTO `refunds` (`player_payment_id`, `amount`, `reason`, `status`, `requested_at`, `created_at`, `updated_at`)
+                         VALUES (:payment_id, :amount, :reason, \'PENDING\', NOW(), NOW(), NOW())'
+                    );
+                    foreach ($paidList as $payment) {
+                        $insRef->bindValue(':payment_id', (int) $payment['id'], PDO::PARAM_INT);
+                        $insRef->bindValue(':amount', (int) $payment['paid_amount'], PDO::PARAM_INT);
+                        $insRef->bindValue(':reason', $cancelReason, PDO::PARAM_STR);
+                        $insRef->execute();
+                    }
+
+                    $uStmt = $this->pdo->prepare('SELECT DISTINCT `user_id` FROM `room_participants` WHERE `game_room_id` = :room_id');
+                    $uStmt->bindValue(':room_id', $roomId, PDO::PARAM_INT);
+                    $uStmt->execute();
+                    $recipientIds = $uStmt->fetchAll(PDO::FETCH_COLUMN);
+
+                    $this->pdo->commit();
+
+                    if (!empty($recipientIds)) {
+                        try {
+                            $notiRepo = new \App\Features\Notification\Repositories\NotificationRepository($this->pdo);
+                            $notiRepo->createNotification(
+                                'Phòng chơi đã bị hủy',
+                                "Phòng '{$room['title']}' đã bị hủy do chủ phòng rời phòng.",
+                                'ROOM',
+                                $userId,
+                                array_map('intval', $recipientIds)
+                            );
+                        } catch (\Throwable) {
+                        }
+                    }
+
+                    return Response::success(null, 'Chủ phòng đã rời phòng, phòng chơi đã tự động giải tán');
+                }
+
+                // Thành viên thông thường rời phòng FORMING
+                $upStmt = $this->pdo->prepare(
+                    'UPDATE `room_participants`
+                     SET `status` = \'LEFT\', `left_at` = NOW(),
+                         `cancel_reason` = \'Người chơi tự rời phòng khi đang gom người\',
+                         `updated_at` = NOW()
+                     WHERE `id` = :id'
+                );
                 $upStmt->bindValue(':id', $partId, PDO::PARAM_INT);
                 $upStmt->execute();
+
+                // Hủy các hóa đơn chưa thanh toán của thành viên này
+                $upUnpaid = $this->pdo->prepare(
+                    'UPDATE `player_payments`
+                     SET `status` = \'CANCELLED\', `updated_at` = NOW()
+                     WHERE `room_participant_id` = :part_id AND `status` = \'PENDING\''
+                );
+                $upUnpaid->bindValue(':part_id', $partId, PDO::PARAM_INT);
+                $upUnpaid->execute();
+
+                // Nếu người chơi đã nộp cọc trước đó: Tạo yêu cầu hoàn cọc PENDING
+                $payStmt = $this->pdo->prepare(
+                    'SELECT `id`, `paid_amount` FROM `player_payments`
+                     WHERE `room_participant_id` = :part_id AND `paid_amount` > 0
+                     LIMIT 1 FOR UPDATE'
+                );
+                $payStmt->bindValue(':part_id', $partId, PDO::PARAM_INT);
+                $payStmt->execute();
+                $paidPayment = $payStmt->fetch(PDO::FETCH_ASSOC);
+
+                if ($paidPayment !== false && (int) $paidPayment['paid_amount'] > 0) {
+                    $chkRef = $this->pdo->prepare('SELECT COUNT(*) FROM `refunds` WHERE `player_payment_id` = :payment_id');
+                    $chkRef->bindValue(':payment_id', (int) $paidPayment['id'], PDO::PARAM_INT);
+                    $chkRef->execute();
+                    if ((int) $chkRef->fetchColumn() === 0) {
+                        $insRef = $this->pdo->prepare(
+                            'INSERT INTO `refunds` (`player_payment_id`, `amount`, `reason`, `status`, `requested_at`, `created_at`, `updated_at`)
+                             VALUES (:payment_id, :amount, :reason, \'PENDING\', NOW(), NOW(), NOW())'
+                        );
+                        $insRef->bindValue(':payment_id', (int) $paidPayment['id'], PDO::PARAM_INT);
+                        $insRef->bindValue(':amount', (int) $paidPayment['paid_amount'], PDO::PARAM_INT);
+                        $insRef->bindValue(':reason', 'Người chơi tự rút khỏi phòng khi đang gom người', PDO::PARAM_STR);
+                        $insRef->execute();
+                    }
+                }
 
                 $this->pdo->commit();
                 return Response::success(null, 'Đã rời phòng chơi thành công');
@@ -571,6 +724,153 @@ class GameRoomController
                 'replacement_status' => 'OPEN',
                 'replacement_deadline_at' => $deadline,
             ], 'Yêu cầu rút phòng đã được ghi nhận. Đã mở cửa sổ tuyển người thay thế đến ' . $deadline . '.');
+        } catch (\Throwable $e) {
+            if ($this->pdo->inTransaction()) {
+                $this->pdo->rollBack();
+            }
+            throw $e;
+        }
+    }
+
+    /**
+     * POST /api/v1/rooms/{id}/cancel
+     * Hủy phòng chơi bởi Chủ phòng (khi FORMING) hoặc Quản trị viên
+     */
+    public function cancel(Request $request, string $id): Response
+    {
+        $auth = AuthMiddleware::authenticate($request);
+        if ($auth instanceof Response) {
+            return $auth;
+        }
+
+        $userId = (int) $auth['id'];
+        $userRole = strtoupper((string) ($auth['role'] ?? 'USER'));
+        $roomId = (int) $id;
+        $body = $request->getBodyParams();
+        $reason = trim((string) ($body['reason'] ?? ''));
+
+        $this->pdo->beginTransaction();
+        try {
+            $rStmt = $this->pdo->prepare('SELECT `id`, `title`, `creator_id`, `status` FROM `game_rooms` WHERE `id` = :id FOR UPDATE');
+            $rStmt->bindValue(':id', $roomId, PDO::PARAM_INT);
+            $rStmt->execute();
+            $room = $rStmt->fetch(PDO::FETCH_ASSOC);
+
+            if ($room === false) {
+                $this->pdo->rollBack();
+                return Response::fail('Phòng chơi không tồn tại', 'ROOM_NOT_FOUND', 404);
+            }
+
+            $isCreator = (int) $room['creator_id'] === $userId;
+            $isAdmin = $userRole === 'ADMIN';
+
+            if (!$isCreator && !$isAdmin) {
+                $this->pdo->rollBack();
+                return Response::fail('Chỉ chủ phòng hoặc quản trị viên mới có quyền hủy phòng', 'FORBIDDEN', 403);
+            }
+
+            if (!$isAdmin && $room['status'] !== 'FORMING') {
+                $this->pdo->rollBack();
+                return Response::fail('Chủ phòng chỉ có thể hủy phòng khi đang trong giai đoạn gom người (FORMING)', 'INVALID_ROOM_STATE', 400);
+            }
+
+            if ($room['status'] === 'CANCELLED') {
+                $this->pdo->commit();
+                return Response::success(['game_room_id' => $roomId, 'status' => 'CANCELLED'], 'Phòng chơi đã ở trạng thái hủy trước đó');
+            }
+
+            $cancelReason = $reason !== '' ? $reason : ($isAdmin ? 'Phòng chơi đã bị hủy bởi Quản trị viên' : 'Phòng chơi đã bị hủy bởi Chủ phòng');
+
+            // 1. Cập nhật trạng thái phòng
+            $upRoom = $this->pdo->prepare(
+                'UPDATE `game_rooms`
+                 SET `status` = \'CANCELLED\',
+                     `cancelled_at` = NOW(),
+                     `cancel_reason` = :reason,
+                     `updated_at` = NOW()
+                 WHERE `id` = :room_id'
+            );
+            $upRoom->bindValue(':reason', $cancelReason, PDO::PARAM_STR);
+            $upRoom->bindValue(':room_id', $roomId, PDO::PARAM_INT);
+            $upRoom->execute();
+
+            // 2. Cập nhật thành viên phòng
+            $participantCancelStatus = $isAdmin ? 'CANCELLED_BY_ADMIN' : 'CANCELLED_UNPAID';
+            $upParts = $this->pdo->prepare(
+                "UPDATE `room_participants`
+                 SET `status` = :part_status,
+                     `cancelled_at` = NOW(),
+                     `cancel_reason` = :reason,
+                     `updated_at` = NOW()
+                 WHERE `game_room_id` = :room_id AND `status` IN ('PENDING_DEPOSIT', 'DEPOSITED', 'LEAVE_REQUESTED')"
+            );
+            $upParts->bindValue(':part_status', $participantCancelStatus, PDO::PARAM_STR);
+            $upParts->bindValue(':reason', $cancelReason, PDO::PARAM_STR);
+            $upParts->bindValue(':room_id', $roomId, PDO::PARAM_INT);
+            $upParts->execute();
+
+            // 3. Hủy tất cả các hóa đơn chưa thanh toán (PENDING)
+            $upUnpaid = $this->pdo->prepare(
+                'UPDATE `player_payments` p
+                 INNER JOIN `room_participants` rp ON rp.`id` = p.`room_participant_id`
+                 SET p.`status` = \'CANCELLED\', p.`updated_at` = NOW()
+                 WHERE rp.`game_room_id` = :room_id AND p.`status` = \'PENDING\''
+            );
+            $upUnpaid->bindValue(':room_id', $roomId, PDO::PARAM_INT);
+            $upUnpaid->execute();
+
+            // 4. Tạo yêu cầu hoàn cọc (PENDING) cho các khoản thanh toán đã nạp tiền (paid_amount > 0)
+            $payStmt = $this->pdo->prepare(
+                'SELECT p.`id`, p.`paid_amount`, rp.`user_id`
+                 FROM `player_payments` p
+                 INNER JOIN `room_participants` rp ON rp.`id` = p.`room_participant_id`
+                 WHERE rp.`game_room_id` = :room_id AND p.`paid_amount` > 0
+                   AND NOT EXISTS (SELECT 1 FROM `refunds` r WHERE r.`player_payment_id` = p.`id`)'
+            );
+            $payStmt->bindValue(':room_id', $roomId, PDO::PARAM_INT);
+            $payStmt->execute();
+            $paidList = $payStmt->fetchAll(PDO::FETCH_ASSOC);
+
+            $insRef = $this->pdo->prepare(
+                'INSERT INTO `refunds` (`player_payment_id`, `amount`, `reason`, `status`, `requested_at`, `created_at`, `updated_at`)
+                 VALUES (:payment_id, :amount, :reason, \'PENDING\', NOW(), NOW(), NOW())'
+            );
+
+            foreach ($paidList as $payment) {
+                $insRef->bindValue(':payment_id', (int) $payment['id'], PDO::PARAM_INT);
+                $insRef->bindValue(':amount', (int) $payment['paid_amount'], PDO::PARAM_INT);
+                $insRef->bindValue(':reason', $cancelReason, PDO::PARAM_STR);
+                $insRef->execute();
+            }
+
+            // 5. Lấy danh sách thành viên để gửi thông báo
+            $uStmt = $this->pdo->prepare('SELECT DISTINCT `user_id` FROM `room_participants` WHERE `game_room_id` = :room_id');
+            $uStmt->bindValue(':room_id', $roomId, PDO::PARAM_INT);
+            $uStmt->execute();
+            $recipientIds = $uStmt->fetchAll(PDO::FETCH_COLUMN);
+
+            $this->pdo->commit();
+
+            if (!empty($recipientIds)) {
+                try {
+                    $notiRepo = new \App\Features\Notification\Repositories\NotificationRepository($this->pdo);
+                    $notiRepo->createNotification(
+                        'Phòng chơi đã bị hủy',
+                        "Phòng '{$room['title']}' đã bị hủy. Lý do: {$cancelReason}.",
+                        'ROOM',
+                        $userId,
+                        array_map('intval', $recipientIds)
+                    );
+                } catch (\Throwable) {
+                    // Ignore notification delivery error
+                }
+            }
+
+            return Response::success([
+                'game_room_id' => $roomId,
+                'status' => 'CANCELLED',
+                'cancel_reason' => $cancelReason,
+            ], 'Đã hủy phòng chơi thành công');
         } catch (\Throwable $e) {
             if ($this->pdo->inTransaction()) {
                 $this->pdo->rollBack();

@@ -88,8 +88,79 @@ class BackgroundJobService
                     $upParts->bindValue(':room_id', $roomId, PDO::PARAM_INT);
                     $upParts->execute();
 
+                    // Hủy các hóa đơn chưa thanh toán (PENDING)
+                    $upUnpaid = $this->pdo->prepare(
+                        'UPDATE `player_payments` p
+                         INNER JOIN `room_participants` rp ON rp.`id` = p.`room_participant_id`
+                         SET p.`status` = \'CANCELLED\', p.`updated_at` = NOW()
+                         WHERE rp.`game_room_id` = :room_id AND p.`status` = \'PENDING\''
+                    );
+                    $upUnpaid->bindValue(':room_id', $roomId, PDO::PARAM_INT);
+                    $upUnpaid->execute();
+
+                    // Tự động hoàn tiền COMPLETED cho các thành viên đã cọc (Option A là FINAL)
+                    $payStmt = $this->pdo->prepare(
+                        'SELECT p.`id` AS `payment_id`, p.`paid_amount`, rp.`user_id`
+                         FROM `player_payments` p
+                         INNER JOIN `room_participants` rp ON rp.`id` = p.`room_participant_id`
+                         WHERE rp.`game_room_id` = :room_id AND p.`paid_amount` > 0
+                           AND NOT EXISTS (SELECT 1 FROM `refunds` r WHERE r.`player_payment_id` = p.`id`)'
+                    );
+                    $payStmt->bindValue(':room_id', $roomId, PDO::PARAM_INT);
+                    $payStmt->execute();
+                    $paidList = $payStmt->fetchAll(PDO::FETCH_ASSOC);
+
+                    $insRef = $this->pdo->prepare(
+                        'INSERT INTO `refunds` (`player_payment_id`, `amount`, `reason`, `status`, `requested_at`, `completed_at`, `review_reason`, `created_at`, `updated_at`)
+                         VALUES (:payment_id, :amount, :reason, \'COMPLETED\', NOW(), NOW(), :review_reason, NOW(), NOW())'
+                    );
+
+                    $refundedUserMap = [];
+                    foreach ($paidList as $payment) {
+                        $payId = (int) $payment['payment_id'];
+                        $amount = (int) $payment['paid_amount'];
+                        $pUserId = (int) $payment['user_id'];
+                        $timeoutReason = 'Tự động hoàn tiền do phòng không đủ người chơi tối thiểu';
+                        $reviewNote = 'Tự động hoàn tiền bởi hệ thống (Formation Timeout Option A)';
+
+                        $insRef->bindValue(':payment_id', $payId, PDO::PARAM_INT);
+                        $insRef->bindValue(':amount', $amount, PDO::PARAM_INT);
+                        $insRef->bindValue(':reason', $timeoutReason, PDO::PARAM_STR);
+                        $insRef->bindValue(':review_reason', $reviewNote, PDO::PARAM_STR);
+                        $insRef->execute();
+                        $refundId = (int) $this->pdo->lastInsertId();
+
+                        // Cập nhật player_payments sang CANCELLED
+                        $upPay = $this->pdo->prepare('UPDATE `player_payments` SET `status` = \'CANCELLED\', `updated_at` = NOW() WHERE `id` = :id');
+                        $upPay->bindValue(':id', $payId, PDO::PARAM_INT);
+                        $upPay->execute();
+
+                        // Ghi nhận giao dịch hoàn tiền thành công vào payment_transactions với Idempotency Key xác định
+                        $idempotencyKey = 'TIMEOUT_REFUND_' . $payId;
+                        $txRef = 'TX_REFUND_AUTO_' . $payId;
+                        $metadata = json_encode([
+                            'action' => 'FORMATION_TIMEOUT_AUTO_REFUND',
+                            'refund_id' => $refundId,
+                            'amount' => $amount,
+                        ]);
+                        $insTx = $this->pdo->prepare(
+                            'INSERT INTO `payment_transactions` (`player_payment_id`, `idempotency_key`, `transaction_reference`,
+                                                                 `amount`, `status`, `provider_response`, `requested_at`, `processed_at`, `created_at`)
+                             VALUES (:payment_id, :idempotency_key, :tx_ref,
+                                     :amount, \'SUCCESS\', :provider_response, NOW(), NOW(), NOW())'
+                        );
+                        $insTx->bindValue(':payment_id', $payId, PDO::PARAM_INT);
+                        $insTx->bindValue(':idempotency_key', $idempotencyKey, PDO::PARAM_STR);
+                        $insTx->bindValue(':tx_ref', $txRef, PDO::PARAM_STR);
+                        $insTx->bindValue(':amount', $amount, PDO::PARAM_INT);
+                        $insTx->bindValue(':provider_response', $metadata, PDO::PARAM_STR);
+                        $insTx->execute();
+
+                        $refundedUserMap[$pUserId] = $amount;
+                    }
+
                     // Lấy danh sách user_id để gửi notification
-                    $uStmt = $this->pdo->prepare('SELECT `user_id` FROM `room_participants` WHERE `game_room_id` = :room_id');
+                    $uStmt = $this->pdo->prepare('SELECT DISTINCT `user_id` FROM `room_participants` WHERE `game_room_id` = :room_id');
                     $uStmt->bindValue(':room_id', $roomId, PDO::PARAM_INT);
                     $uStmt->execute();
                     $userIds = $uStmt->fetchAll(PDO::FETCH_COLUMN);
@@ -97,14 +168,33 @@ class BackgroundJobService
                     $this->pdo->commit();
                     $cancelledCount++;
 
-                    if (!empty($userIds)) {
-                        $this->notiRepo->createNotification(
-                            'Phòng chơi đã tự động giải tán',
-                            "Phòng '{$room['title']}' đã bị hủy do hết thời hạn gom phòng mà chưa đủ số lượng thành viên tối thiểu ({$minPlayers} người).",
-                            'ROOM',
-                            null,
-                            array_map('intval', $userIds)
-                        );
+                    // Gửi thông báo hoàn cọc tự động cho những user đã nộp tiền
+                    foreach ($refundedUserMap as $rUid => $rAmount) {
+                        try {
+                            $this->notiRepo->createNotification(
+                                'Tự động hoàn cọc - Phòng giải tán',
+                                "Phòng '{$room['title']}' đã tự động giải tán do không gom đủ người. Tiền cọc " . number_format($rAmount) . " VNĐ đã được tự động hoàn lại cho bạn.",
+                                'REFUND',
+                                null,
+                                [$rUid]
+                            );
+                        } catch (\Throwable) {
+                        }
+                    }
+
+                    // Gửi thông báo chung cho các user khác chưa đóng cọc
+                    $unpaidUserIds = array_diff(array_map('intval', $userIds), array_keys($refundedUserMap));
+                    if (!empty($unpaidUserIds)) {
+                        try {
+                            $this->notiRepo->createNotification(
+                                'Phòng chơi đã tự động giải tán',
+                                "Phòng '{$room['title']}' đã bị hủy do hết thời hạn gom phòng mà chưa đủ số lượng thành viên tối thiểu ({$minPlayers} người).",
+                                'ROOM',
+                                null,
+                                array_values($unpaidUserIds)
+                            );
+                        } catch (\Throwable) {
+                        }
                     }
                 } catch (\Throwable $e) {
                     if ($this->pdo->inTransaction()) {

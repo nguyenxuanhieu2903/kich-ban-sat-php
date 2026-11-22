@@ -143,12 +143,24 @@ class AdminGameRoomController
                 );
             }
 
+            // 5c. Hủy tất cả các hóa đơn chưa thanh toán (PENDING)
+            $upUnpaid = $this->pdo->prepare(
+                'UPDATE `player_payments` p
+                 INNER JOIN `room_participants` rp ON rp.`id` = p.`room_participant_id`
+                 SET p.`status` = \'CANCELLED\', p.`updated_at` = NOW()
+                 WHERE rp.`game_room_id` = :room_id AND p.`status` = \'PENDING\''
+            );
+            $upUnpaid->bindValue(':room_id', $roomId, PDO::PARAM_INT);
+            $upUnpaid->execute();
+
             // 6. Xử lý hoàn tiền cho các khoản thanh toán đã nạp tiền (paid_amount > 0)
+            // Có kiểm tra NOT EXISTS để bảo đảm Idempotency chống trùng lặp refund
             $payStmt = $this->pdo->prepare(
                 'SELECT p.`id`, p.`room_participant_id`, p.`paid_amount`, rp.`user_id`
                  FROM `player_payments` p
                  INNER JOIN `room_participants` rp ON rp.`id` = p.`room_participant_id`
-                 WHERE rp.`game_room_id` = :room_id AND p.`paid_amount` > 0'
+                 WHERE rp.`game_room_id` = :room_id AND p.`paid_amount` > 0
+                   AND NOT EXISTS (SELECT 1 FROM `refunds` r WHERE r.`player_payment_id` = p.`id`)'
             );
             $payStmt->bindValue(':room_id', $roomId, PDO::PARAM_INT);
             $payStmt->execute();
@@ -156,14 +168,15 @@ class AdminGameRoomController
 
             $refundRecords = [];
             $insRef = $this->pdo->prepare(
-                'INSERT INTO `refunds` (`player_payment_id`, `amount`, `reason`, `status`, `requested_at`, `reviewed_by`, `reviewed_at`, `review_reason`, `created_at`, `updated_at`)
-                 VALUES (:payment_id, :amount, :reason, :status, NOW(), :reviewed_by, NOW(), :review_reason, NOW(), NOW())'
+                'INSERT INTO `refunds` (`player_payment_id`, `amount`, `reason`, `status`, `requested_at`, `reviewed_by`, `reviewed_at`, `completed_at`, `review_reason`, `created_at`, `updated_at`)
+                 VALUES (:payment_id, :amount, :reason, :status, NOW(), :reviewed_by, NOW(), :completed_at, :review_reason, NOW(), NOW())'
             );
 
             $refundStatus = $isEligibleForRefund ? 'APPROVED' : 'REJECTED';
             $reviewNote = $isEligibleForRefund
                 ? 'Đủ điều kiện hoàn cọc (hủy trước mốc 24h so với giờ chơi)'
                 : 'Không đủ điều kiện hoàn cọc (hủy muộn hơn mốc 24h trước giờ chơi)';
+            $completedAtValue = $isEligibleForRefund ? date('Y-m-d H:i:s') : null;
 
             foreach ($paidList as $payment) {
                 $payId = (int) $payment['id'];
@@ -174,11 +187,42 @@ class AdminGameRoomController
                 $insRef->bindValue(':reason', $reason, PDO::PARAM_STR);
                 $insRef->bindValue(':status', $refundStatus, PDO::PARAM_STR);
                 $insRef->bindValue(':reviewed_by', (int) $auth['id'], PDO::PARAM_INT);
+                $insRef->bindValue(':completed_at', $completedAtValue, $completedAtValue === null ? PDO::PARAM_NULL : PDO::PARAM_STR);
                 $insRef->bindValue(':review_reason', $reviewNote, PDO::PARAM_STR);
                 $insRef->execute();
+                $refundId = (int) $this->pdo->lastInsertId();
+
+                if ($isEligibleForRefund) {
+                    // Cập nhật player_payments sang CANCELLED
+                    $upPay = $this->pdo->prepare('UPDATE `player_payments` SET `status` = \'CANCELLED\', `updated_at` = NOW() WHERE `id` = :id');
+                    $upPay->bindValue(':id', $payId, PDO::PARAM_INT);
+                    $upPay->execute();
+
+                    // Ghi nhận giao dịch hoàn tiền vào payment_transactions
+                    $idempotencyKey = 'ADMIN_CANCEL_REFUND_' . $payId;
+                    $txRef = 'RF_' . strtoupper(bin2hex(random_bytes(8)));
+                    $metadata = json_encode([
+                        'action' => 'ADMIN_CANCEL_REFUND',
+                        'refund_id' => $refundId,
+                        'admin_user_id' => (int) $auth['id'],
+                        'amount' => $amount,
+                    ]);
+                    $insTx = $this->pdo->prepare(
+                        'INSERT INTO `payment_transactions` (`player_payment_id`, `idempotency_key`, `transaction_reference`,
+                                                             `amount`, `status`, `provider_response`, `requested_at`, `processed_at`, `created_at`)
+                         VALUES (:payment_id, :idempotency_key, :tx_ref,
+                                 :amount, \'SUCCESS\', :provider_response, NOW(), NOW(), NOW())'
+                    );
+                    $insTx->bindValue(':payment_id', $payId, PDO::PARAM_INT);
+                    $insTx->bindValue(':idempotency_key', $idempotencyKey, PDO::PARAM_STR);
+                    $insTx->bindValue(':tx_ref', $txRef, PDO::PARAM_STR);
+                    $insTx->bindValue(':amount', $amount, PDO::PARAM_INT);
+                    $insTx->bindValue(':provider_response', $metadata, PDO::PARAM_STR);
+                    $insTx->execute();
+                }
 
                 $refundRecords[] = [
-                    'refund_id' => (int) $this->pdo->lastInsertId(),
+                    'refund_id' => $refundId,
                     'payment_id' => $payId,
                     'user_id' => (int) $payment['user_id'],
                     'amount' => $amount,
