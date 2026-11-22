@@ -103,6 +103,40 @@ export class AdminView {
           </div>
         </form>
       </dialog>
+
+      <!-- Dialog Phân Công DM -->
+      <dialog id="admin-assign-dm-dialog" style="padding: 24px; background: var(--color-bg-card); border: 1px solid var(--color-border); border-radius: var(--radius-md); color: var(--color-text-main); max-width: 500px; width: 90%;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; border-bottom: 1px solid var(--color-border); padding-bottom: 10px;">
+          <h3 style="margin: 0; font-size: 1.2rem; font-weight: 600; color: var(--color-primary);">Phân Công Quản Trò (DM)</h3>
+          <button id="btn-close-assign-dm" style="background: none; border: none; font-size: 1.5rem; cursor: pointer; color: var(--color-text-muted);">&times;</button>
+        </div>
+        <form id="admin-assign-dm-form">
+          <input type="hidden" id="assign-dm-room-id" />
+          <div style="margin-bottom: 16px;">
+            <label style="display: block; font-size: 0.85rem; font-weight: 600; margin-bottom: 6px;">
+              Chọn Quản Trò <span style="color: var(--color-error);">*</span>
+            </label>
+            <select id="assign-dm-user-id" class="form-input" style="width: 100%;">
+              <option value="2">Host Hoàng Nam (DM - ID #2)</option>
+              <option value="1">Admin Quản Trị (ADMIN - ID #1)</option>
+            </select>
+          </div>
+          <div style="margin-bottom: 16px;">
+            <label style="display: block; font-size: 0.85rem; font-weight: 600; margin-bottom: 6px;">
+              Ghi chú phân công
+            </label>
+            <input type="text" id="assign-dm-notes" class="form-input" style="width: 100%;" placeholder="Ghi chú thêm về ca trực..." />
+          </div>
+          <div style="display: flex; justify-content: flex-end; gap: 10px;">
+            <button type="button" id="btn-cancel-assign-dm" class="btn" style="background: transparent; border: 1px solid var(--color-border); color: var(--color-text-muted);">
+              Đóng
+            </button>
+            <button type="submit" class="btn btn-primary">
+              Xác nhận Phân Công
+            </button>
+          </div>
+        </form>
+      </dialog>
     `;
 
     this.container.querySelector('#tab-btn-users').onclick = () => this.switchSubTab('users');
@@ -110,6 +144,7 @@ export class AdminView {
     this.container.querySelector('#tab-btn-refunds').onclick = () => this.switchSubTab('refunds');
 
     this.setupCancelRoomDialog();
+    this.setupAssignDmDialog();
     await this.renderSubTabContent();
   }
 
@@ -274,9 +309,14 @@ export class AdminView {
                     </td>
                     <td style="padding: 12px 16px; text-align: right;">
                       ${r.status !== 'CANCELLED' && r.status !== 'FINISHED' ? `
-                        <button id="btn-admin-cancel-room-${r.id}" class="btn" style="padding: 4px 10px; font-size: 0.8rem; background: var(--color-error); color: white; border: none;">
-                          Hủy phòng
-                        </button>
+                        <div style="display: flex; gap: 6px; justify-content: flex-end;">
+                          <button id="btn-admin-assign-dm-${r.id}" class="btn btn-primary" style="padding: 4px 10px; font-size: 0.8rem;">
+                            Phân công DM
+                          </button>
+                          <button id="btn-admin-cancel-room-${r.id}" class="btn" style="padding: 4px 10px; font-size: 0.8rem; background: var(--color-error); color: white; border: none;">
+                            Hủy phòng
+                          </button>
+                        </div>
                       ` : `<span style="color: var(--color-text-muted); font-size: 0.8rem;">Đã đóng</span>`}
                     </td>
                   </tr>
@@ -288,6 +328,11 @@ export class AdminView {
       `;
 
       this.rooms.forEach(r => {
+        const assignBtn = container.querySelector(`#btn-admin-assign-dm-${r.id}`);
+        if (assignBtn) {
+          assignBtn.onclick = () => this.openAssignDmModal(r.id);
+        }
+
         const cancelBtn = container.querySelector(`#btn-admin-cancel-room-${r.id}`);
         if (cancelBtn) {
           cancelBtn.onclick = () => this.openCancelRoomModal(r.id);
@@ -337,6 +382,44 @@ export class AdminView {
     const dialog = this.container.querySelector('#admin-cancel-room-dialog');
     this.container.querySelector('#cancel-room-id').value = roomId;
     this.container.querySelector('#cancel-room-reason').value = '';
+    dialog.showModal();
+  }
+
+  setupAssignDmDialog() {
+    const dialog = this.container.querySelector('#admin-assign-dm-dialog');
+    const closeBtn = this.container.querySelector('#btn-close-assign-dm');
+    const cancelBtn = this.container.querySelector('#btn-cancel-assign-dm');
+    const form = this.container.querySelector('#admin-assign-dm-form');
+
+    const closeDialog = () => {
+      dialog.close();
+      form.reset();
+    };
+
+    closeBtn.onclick = closeDialog;
+    cancelBtn.onclick = closeDialog;
+
+    form.onsubmit = async (e) => {
+      e.preventDefault();
+      const roomId = this.container.querySelector('#assign-dm-room-id').value;
+      const dmUserId = parseInt(this.container.querySelector('#assign-dm-user-id').value, 10);
+      const notes = this.container.querySelector('#assign-dm-notes').value.trim();
+
+      try {
+        const res = await api.post(`/admin/rooms/${roomId}/assign-dm`, { dm_user_id: dmUserId, notes });
+        toast.success(res.message || 'Phân công quản trò thành công!');
+        closeDialog();
+        this.renderRoomsTab(this.container.querySelector('#admin-subtab-content'));
+      } catch (err) {
+        toast.error(err.message || 'Không thể phân công quản trò');
+      }
+    };
+  }
+
+  openAssignDmModal(roomId) {
+    const dialog = this.container.querySelector('#admin-assign-dm-dialog');
+    this.container.querySelector('#assign-dm-room-id').value = roomId;
+    this.container.querySelector('#assign-dm-notes').value = '';
     dialog.showModal();
   }
 

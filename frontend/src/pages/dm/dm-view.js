@@ -124,7 +124,7 @@ export class DmView {
       }
 
       try {
-        const res = await api.post(`/dm/assignments/${assignmentId}/reject`, { rejection_reason: reason });
+        const res = await api.post(`/dm/assignments/${assignmentId}/reject`, { reason, rejection_reason: reason });
         toast.success(res.message || 'Đã từ chối ca thành công!');
         closeDialog();
         this.fetchAssignments();
@@ -147,7 +147,7 @@ export class DmView {
 
     try {
       const res = await api.get('/dm/assignments');
-      this.assignments = res.data || [];
+      this.assignments = res.data?.assignments || (Array.isArray(res.data) ? res.data : []);
 
       if (this.assignments.length === 0) {
         listEl.innerHTML = `

@@ -84,4 +84,33 @@ class BackgroundJobTest extends TestCase
         $partStatus = $this->pdo->query("SELECT `status` FROM `room_participants` WHERE `game_room_id` = {$roomId} AND `user_id` = 4")->fetchColumn();
         $this->assertSame('LEFT', $partStatus);
     }
+
+    public function testDMAssignmentTimeoutRevokesPendingAssignmentAndNotifiesAdmin(): void
+    {
+        // 1. Tạo phòng và assignment PENDING đã quá 24h
+        $this->pdo->exec("INSERT INTO `game_rooms` (`game_id`, `game_configuration_id`, `creator_id`, `title`, `min_players`, `max_players`, `status`, `formation_deadline_at`, `created_at`, `updated_at`) VALUES (1, 1, 3, 'Phòng test DM assignment timeout', 6, 8, 'SCHEDULED', DATE_ADD(NOW(), INTERVAL 3 DAY), NOW(), NOW())");
+        $roomId = (int) $this->pdo->lastInsertId();
+
+        $this->pdo->exec("INSERT INTO `dm_assignments` (`game_room_id`, `dm_user_id`, `assigned_by`, `status`, `assigned_at`, `created_at`, `updated_at`) VALUES ({$roomId}, 2, 1, 'PENDING', DATE_SUB(NOW(), INTERVAL 25 HOUR), NOW(), NOW())");
+        $assignId = (int) $this->pdo->lastInsertId();
+
+        // 2. Chạy job timeout DM
+        $revoked = $this->jobService->runDMAssignmentTimeout();
+        $this->assertGreaterThanOrEqual(1, $revoked);
+
+        // 3. Trạng thái phải là REVOKED
+        $status = $this->pdo->query("SELECT `status` FROM `dm_assignments` WHERE `id` = {$assignId}")->fetchColumn();
+        $this->assertSame('REVOKED', $status);
+
+        $reason = $this->pdo->query("SELECT `reason` FROM `dm_assignments` WHERE `id` = {$assignId}")->fetchColumn();
+        $this->assertStringContainsString('Timeout', (string) $reason);
+
+        // 4. Admin nhận được thông báo
+        $notiStmt = $this->pdo->query("SELECT COUNT(*) FROM `notifications` WHERE `type` = 'DM_TIMEOUT' AND `title` LIKE '%quá hạn%'");
+        $this->assertGreaterThan(0, (int) $notiStmt->fetchColumn());
+
+        // 5. Không tồn tại session tham chiếu đến assignment này
+        $sessCount = (int) $this->pdo->query("SELECT COUNT(*) FROM `sessions` WHERE `dm_assignment_id` = {$assignId}")->fetchColumn();
+        $this->assertSame(0, $sessCount);
+    }
 }

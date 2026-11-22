@@ -83,6 +83,8 @@ $registerApiRoutes = function (string $prefix) use ($router): void {
     $router->get($prefix . '/dm/assignments', [DMAssignmentController::class, 'index']);
     $router->post($prefix . '/dm/assignments/{id}/accept', [DMAssignmentController::class, 'accept']);
     $router->post($prefix . '/dm/assignments/{id}/reject', [DMAssignmentController::class, 'reject']);
+    $router->post($prefix . '/admin/rooms/{id}/assign-dm', [DMAssignmentController::class, 'assign']);
+    $router->post($prefix . '/admin/sessions/{id}/reassign-dm', [DMAssignmentController::class, 'reassignSession']);
 
     // =============================================================
     // DOMAIN 7: PAYMENT & REFUND API

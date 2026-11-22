@@ -39,6 +39,11 @@ switch ($targetJob) {
         echo "[SUCCESS] Processed {$count} expired replacement windows.\n";
         break;
 
+    case 'dm-timeout':
+        $count = $service->runDMAssignmentTimeout();
+        echo "[SUCCESS] Processed {$count} expired DM assignments.\n";
+        break;
+
     case 'all':
     default:
         $stats = $service->runAll();
@@ -46,6 +51,7 @@ switch ($targetJob) {
         echo "  - Formation Timeouts: {$stats['formation_timeouts']} room(s) cancelled.\n";
         echo "  - Deposit Timeouts: {$stats['deposit_timeouts']} participant(s) kicked.\n";
         echo "  - Replacement Timeouts: {$stats['replacement_timeouts']} window(s) expired.\n";
+        echo "  - DM Assignment Timeouts: {$stats['dm_assignment_timeouts']} assignment(s) revoked.\n";
         break;
 }
 

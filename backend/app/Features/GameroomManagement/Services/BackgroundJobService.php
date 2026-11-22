@@ -30,6 +30,7 @@ class BackgroundJobService
             'formation_timeouts' => $this->runFormationTimeout(),
             'deposit_timeouts' => $this->runDepositTimeout(),
             'replacement_timeouts' => $this->runReplacementTimeout(),
+            'dm_assignment_timeouts' => $this->runDMAssignmentTimeout(),
         ];
     }
 
@@ -251,5 +252,83 @@ class BackgroundJobService
         }
 
         return $closedCount;
+    }
+
+    /**
+     * Job 4: Quét các phân công quản trò PENDING quá hạn phản hồi
+     * (> 24 giờ kể từ lúc phân công HOẶC trong vòng 12 giờ trước giờ chơi)
+     * -> Tự động REVOKED ca, gỡ bỏ Session mồ côi (nếu có), và gửi thông báo cho Admin.
+     */
+    public function runDMAssignmentTimeout(): int
+    {
+        $sql = "SELECT da.`id`, da.`game_room_id`, da.`dm_user_id`, gr.`title` AS `room_title`,
+                       u.`full_name` AS `dm_name`
+                FROM `dm_assignments` da
+                INNER JOIN `game_rooms` gr ON gr.`id` = da.`game_room_id`
+                INNER JOIN `users` u ON u.`id` = da.`dm_user_id`
+                LEFT JOIN `sessions` s ON s.`dm_assignment_id` = da.`id` AND s.`game_room_id` = da.`game_room_id`
+                LEFT JOIN `schedule_proposals` sp ON sp.`game_room_id` = da.`game_room_id` AND sp.`status` = 'CONFIRMED'
+                WHERE da.`status` = 'PENDING'
+                  AND (
+                      da.`assigned_at` <= DATE_SUB(NOW(), INTERVAL 24 HOUR)
+                      OR (s.`start_at` IS NOT NULL AND s.`start_at` <= DATE_ADD(NOW(), INTERVAL 12 HOUR))
+                      OR (sp.`proposed_start_at` IS NOT NULL AND sp.`proposed_start_at` <= DATE_ADD(NOW(), INTERVAL 12 HOUR))
+                  )";
+
+        $stmt = $this->pdo->query($sql);
+        $expiredAssignments = $stmt !== false ? $stmt->fetchAll(PDO::FETCH_ASSOC) : [];
+
+        $revokedCount = 0;
+
+        // Lấy danh sách ID Admin để thông báo
+        $adminStmt = $this->pdo->query("SELECT u.`id` FROM `users` u INNER JOIN `roles` r ON r.`id` = u.`role_id` WHERE r.`code` = 'ADMIN'");
+        $adminIds = $adminStmt !== false ? $adminStmt->fetchAll(PDO::FETCH_COLUMN) : [];
+
+        foreach ($expiredAssignments as $item) {
+            $assignmentId = (int) $item['id'];
+            $roomId = (int) $item['game_room_id'];
+            $roomTitle = $item['room_title'] ?? ('#' . $roomId);
+            $dmName = $item['dm_name'] ?? 'Quản trò';
+
+            $this->pdo->beginTransaction();
+            try {
+                // 1. Chuyển trạng thái assignment thành REVOKED
+                $upStmt = $this->pdo->prepare(
+                    'UPDATE `dm_assignments`
+                     SET `status` = \'REVOKED\',
+                         `revoked_at` = NOW(),
+                         `reason` = \'Quá hạn phản hồi nhận ca (Timeout)\',
+                         `updated_at` = NOW()
+                     WHERE `id` = :id AND `status` = \'PENDING\''
+                );
+                $upStmt->bindValue(':id', $assignmentId, PDO::PARAM_INT);
+                $upStmt->execute();
+
+                // 2. DEF-05: Gỡ bỏ Session tham chiếu đến assignment đã hết hạn
+                $delSess = $this->pdo->prepare('DELETE FROM `sessions` WHERE `dm_assignment_id` = :aid');
+                $delSess->bindValue(':aid', $assignmentId, PDO::PARAM_INT);
+                $delSess->execute();
+
+                $this->pdo->commit();
+                $revokedCount++;
+
+                // 3. Thông báo cho Admin
+                if (!empty($adminIds)) {
+                    $this->notiRepo->createNotification(
+                        'Quản trò quá hạn phản hồi ca trực',
+                        "Phân công quản trò của {$dmName} cho phòng '{$roomTitle}' đã tự động thu hồi do quá hạn phản hồi. Vui lòng phân công lại DM.",
+                        'DM_TIMEOUT',
+                        null,
+                        array_map('intval', $adminIds)
+                    );
+                }
+            } catch (\Throwable $e) {
+                if ($this->pdo->inTransaction()) {
+                    $this->pdo->rollBack();
+                }
+            }
+        }
+
+        return $revokedCount;
     }
 }

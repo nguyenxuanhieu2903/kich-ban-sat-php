@@ -115,6 +115,34 @@ class AdminGameRoomController
             $upParts->bindValue(':room_id', $roomId, PDO::PARAM_INT);
             $upParts->execute();
 
+            // 5b. Thu hồi phân công quản trò nếu có ca đang PENDING hoặc ACCEPTED
+            $upDm = $this->pdo->prepare(
+                'UPDATE `dm_assignments`
+                 SET `status` = \'REVOKED\', `revoked_at` = NOW(),
+                     `reason` = :reason, `updated_at` = NOW()
+                 WHERE `game_room_id` = :room_id AND `status` IN (\'PENDING\', \'ACCEPTED\')'
+            );
+            $dmRevokeReason = 'Phòng chơi đã bị hủy bởi quản trị viên: ' . $reason;
+            $upDm->bindValue(':reason', $dmRevokeReason, PDO::PARAM_STR);
+            $upDm->bindValue(':room_id', $roomId, PDO::PARAM_INT);
+            $upDm->execute();
+
+            // Lấy danh sách DM cần thông báo
+            $dmStmt = $this->pdo->prepare('SELECT DISTINCT `dm_user_id` FROM `dm_assignments` WHERE `game_room_id` = :room_id AND `status` = \'REVOKED\' AND `revoked_at` >= DATE_SUB(NOW(), INTERVAL 1 MINUTE)');
+            $dmStmt->bindValue(':room_id', $roomId, PDO::PARAM_INT);
+            $dmStmt->execute();
+            $dmUserIds = $dmStmt->fetchAll(PDO::FETCH_COLUMN);
+
+            if (!empty($dmUserIds)) {
+                $this->notiRepo->createNotification(
+                    'Ca dẫn kịch bản đã bị hủy',
+                    "Phòng '{$room['title']}' đã bị hủy bởi Quản trị viên. Lý do: {$reason}.",
+                    'DM_ASSIGNMENT',
+                    (int) $auth['id'],
+                    array_map('intval', $dmUserIds)
+                );
+            }
+
             // 6. Xử lý hoàn tiền cho các khoản thanh toán đã nạp tiền (paid_amount > 0)
             $payStmt = $this->pdo->prepare(
                 'SELECT p.`id`, p.`room_participant_id`, p.`paid_amount`, rp.`user_id`
