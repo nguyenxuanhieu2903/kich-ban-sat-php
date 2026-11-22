@@ -14,23 +14,8 @@ export function initSharedChrome(activeKey = 'home') {
 export function renderRoleDemoBar(activeKey) {
   const demoBarEl = document.getElementById('role-demo-bar');
   if (!demoBarEl) return;
-
-  demoBarEl.innerHTML = `
-    <div class="container role-demo-inner">
-      <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
-        <span class="role-label" style="font-size: 0.8rem; font-weight: 600; color: var(--gold);">4 TRANG CHÍNH:</span>
-        <div class="role-pills">
-          <a href="/index.html" class="role-pill ${activeKey === 'home' ? 'active' : ''}" data-goto="home">🏠 Trang Chủ</a>
-          <a href="/admin.html" class="role-pill ${activeKey === 'admin' ? 'active' : ''}" data-goto="admin">🛡️ Trang ADMIN</a>
-          <a href="/dm.html" class="role-pill ${activeKey === 'dm' ? 'active' : ''}" data-goto="dm">📜 Trang DM</a>
-          <a href="/player.html" class="role-pill ${activeKey === 'player' ? 'active' : ''}" data-goto="player">🎲 Trang PLAYER</a>
-        </div>
-      </div>
-      <span class="hotline-top" style="font-size: 0.8rem; color: var(--text-secondary);">
-        Hotline: <strong style="color: var(--gold);">091.569.0033</strong> | 09:00 – 23:00 • 36/52 Nguyễn Gia Trí, Bình Thạnh
-      </span>
-    </div>
-  `;
+  demoBarEl.style.display = 'none';
+  demoBarEl.innerHTML = '';
 }
 
 export function renderSiteHeader(activeKey) {

@@ -13,18 +13,6 @@ export function initChrome(activeKey = '') {
   const headerEl = document.getElementById('app-header');
   if (headerEl) {
     headerEl.innerHTML = `
-      <div class="role-demo-bar">
-        <div class="container role-demo-inner">
-          <span class="role-label">Chế độ xem nhanh (4 Vai trò):</span>
-          <div class="role-pills">
-            <button data-role="guest" class="role-pill ${role === 'guest' ? 'active' : ''}">Khách vãng lai</button>
-            <button data-role="player" class="role-pill ${role === 'player' ? 'active' : ''}">Người chơi (Player)</button>
-            <button data-role="dm" class="role-pill ${role === 'dm' ? 'active' : ''}">Quản trò (DM)</button>
-            <button data-role="admin" class="role-pill ${role === 'admin' ? 'active' : ''}">Quản trị (Admin)</button>
-          </div>
-          <span class="hotline-top">Hotline: <strong>091.569.0033</strong> | 09:00 – 23:00</span>
-        </div>
-      </div>
       <header class="site-header">
         <div class="container header-inner">
           <a href="${prefix}index.html" class="brand-logo" title="Kịch Bản Sát V16">
@@ -33,7 +21,7 @@ export function initChrome(activeKey = '') {
 
           <nav class="main-nav" id="main-nav">
             <a href="${prefix}index.html" class="${activeKey === 'home' ? 'active' : ''}">Trang chủ</a>
-            <a href="${pagesPrefix}scenarios.html" class="${activeKey === 'scenarios' ? 'active' : ''}">Kho kịch bản (42)</a>
+            <a href="${pagesPrefix}scenarios.html" class="${activeKey === 'scenarios' ? 'active' : ''}">Kho kịch bản</a>
             <a href="${pagesPrefix}lobby.html" class="${activeKey === 'lobby' ? 'active' : ''}">Phòng đang tuyển</a>
             <a href="${pagesPrefix}info.html#policies" class="${activeKey === 'policies' ? 'active' : ''}">Quy định &amp; Giá vé</a>
             <a href="#lien-he" class="${activeKey === 'contact' ? 'active' : ''}">Liên hệ</a>
