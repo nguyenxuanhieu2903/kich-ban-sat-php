@@ -478,22 +478,22 @@ Toàn bộ 28 hạng mục được phân rã thành 3 giai đoạn triển khai
 gantt
     title Lộ Trình Triển Khai Nâng Cấp Hệ Thống Kịch Bản Sát V16
     dateFormat  YYYY-MM-DD
-    section Giai đoạn P0
+    section Giai đoạn P0 (Nền tảng - 100% PASS)
     Phân quyền DM - System - Admin & Chốt 3 quyết định :done, p0_1, 2026-11-20, 2d
-    Mô hình Public & Private Group Booking             :done, p0_2, 2026-11-22, 2d
-    Đảo luồng Lịch trước - Cọc sau & 4 State Machines :active, p0_3, 2026-11-24, 2d
-    Cơ chế cọc linh hoạt & 7 Kịch bản ngoại lệ        :active, p0_4, 2026-11-24, 2d
-    Buffer cứng 30 phút dọn phòng & SLAs Timeout       :p0_5, after p0_3, 2d
-    section Giai đoạn P1
-    Gắn chi nhánh & khung giờ lúc tạo phòng            :p1_1, after p0_5, 2d
-    Quy trình rời phòng, Host transfer & Thế chỗ       :p1_2, after p1_1, 2d
-    DM Console: Check-in, Timer 240p & Incident Report :p1_3, after p1_2, 2d
-    Xác nhận tất toán quầy & Thông báo nhắc 24h       :p1_4, after p1_3, 2d
-    section Giai đoạn P2
-    Mở rộng kho kịch bản (12 kịch bản hoàn chỉnh)     :p2_1, after p1_4, 2d
-    Khóa phòng thủ công Hotline / Walk-in             :p2_2, after p2_1, 1d
-    Quy tắc giá vắt khung giờ, HSSV, Chống chơi lại   :p2_3, after p2_2, 2d
-    Báo cáo tài chính chuyên sâu & Đo lường KPI        :p2_4, after p2_3, 1d
+    Mô hình Public & Private Group Booking             :done, p0_2, 2026-11-21, 2d
+    Đảo luồng Lịch trước - Cọc sau & 4 State Machines :done, p0_3, 2026-11-22, 2d
+    Cơ chế cọc linh hoạt & 7 Kịch bản ngoại lệ        :done, p0_4, 2026-11-22, 2d
+    Buffer cứng 30 phút dọn phòng & SLAs Timeout       :done, p0_5, 2026-11-23, 2d
+    section Giai đoạn P1 (Vận hành cốt lõi - 100% PASS)
+    Gắn chi nhánh & khung giờ lúc tạo phòng            :done, p1_1, 2026-11-23, 2d
+    Quy trình rời phòng, Host transfer & Thế chỗ       :done, p1_2, 2026-11-23, 2d
+    DM Console: Check-in, Timer 240p & Incident Report :done, p1_3, 2026-11-23, 2d
+    Xác nhận tất toán quầy & Thông báo nhắc 24h       :done, p1_4, 2026-11-24, 2d
+    section Giai đoạn P2 (Trải nghiệm & Mở rộng - 100% PASS)
+    Mở rộng kho kịch bản (12 kịch bản hoàn chỉnh)     :done, p2_1, 2026-11-24, 1d
+    Khóa phòng thủ công Hotline / Walk-in             :done, p2_2, 2026-11-24, 1d
+    Quy tắc giá vắt khung giờ, HSSV, Chống chơi lại   :done, p2_3, 2026-11-24, 1d
+    Báo cáo tài chính chuyên sâu & Đo lường KPI        :done, p2_4, 2026-11-24, 1d
 ```
 
 ### Chi tiết các gói công việc:
@@ -522,6 +522,8 @@ gantt
 - Hoàn tất vòng đời chi trả hoàn tiền cọc kế toán sang COMPLETED (`POST /api/v1/admin/refunds/{id}/complete` - Hoàn thành 100%).
 - Tự động phát thông báo nhắc lịch ca chơi trước 24 giờ cho khách hàng và Quản trò (Job 6 `runUpcomingSession24hReminder` trong `BackgroundJobService.php` - Hoàn thành 100%).
 - Bộ kiểm thử tự động đạt mốc 150/150 tests PASS (100%), 731 assertions và 12/12 trang web đạt chuẩn hoàn hảo qua Chrome DevTools Protocol.
+- Xây dựng bộ cẩm nang bảo vệ đồ án và 10 câu hỏi phản biện hóc búa nhất (`docs/BO_CAU_HOI_PHAN_BIEN_VA_KICH_BAN_DEMO.md` - Hoàn thành 100%).
+- Chuẩn hóa Sổ tay hướng dẫn cách vận hành chi tiết (`CACH_VAN_HANH.md` - Hoàn thành 100%).
 
 ---
 
