@@ -170,6 +170,32 @@ class BackgroundJobService
                 $upPart->bindValue(':id', $partId, PDO::PARAM_INT);
                 $upPart->execute();
 
+                // Nếu người bị kick là Host của phòng, chuyển quyền Host cho thành viên tiếp theo
+                $hostCheckStmt = $this->pdo->prepare('SELECT `creator_id` FROM `game_rooms` WHERE `id` = :room_id LIMIT 1');
+                $hostCheckStmt->bindValue(':room_id', $roomId, PDO::PARAM_INT);
+                $hostCheckStmt->execute();
+                $currentHostId = (int) $hostCheckStmt->fetchColumn();
+
+                if ($currentHostId === $userId) {
+                    $nextHostStmt = $this->pdo->prepare(
+                        'SELECT `user_id` FROM `room_participants`
+                         WHERE `game_room_id` = :room_id AND `user_id` != :uid
+                           AND `status` IN (\'PENDING_DEPOSIT\', \'DEPOSITED\')
+                         ORDER BY (`status` = \'DEPOSITED\') DESC, `joined_at` ASC, `id` ASC LIMIT 1'
+                    );
+                    $nextHostStmt->bindValue(':room_id', $roomId, PDO::PARAM_INT);
+                    $nextHostStmt->bindValue(':uid', $userId, PDO::PARAM_INT);
+                    $nextHostStmt->execute();
+                    $nextHostId = $nextHostStmt->fetchColumn();
+
+                    if ($nextHostId !== false) {
+                        $upHost = $this->pdo->prepare('UPDATE `game_rooms` SET `creator_id` = :next_uid WHERE `id` = :room_id');
+                        $upHost->bindValue(':next_uid', (int) $nextHostId, PDO::PARAM_INT);
+                        $upHost->bindValue(':room_id', $roomId, PDO::PARAM_INT);
+                        $upHost->execute();
+                    }
+                }
+
                 // Mở Replacement Window cho phòng
                 $upRoom = $this->pdo->prepare(
                     'UPDATE `game_rooms`
@@ -257,6 +283,24 @@ class BackgroundJobService
 
                 $this->pdo->commit();
                 $closedCount++;
+
+                // Thông báo tới Host và DM về việc cửa sổ thế chỗ đã đóng
+                $sessStmt = $this->pdo->prepare('SELECT s.`id`, dma.`dm_user_id`, gr.`creator_id` FROM `sessions` s INNER JOIN `game_rooms` gr ON gr.`id` = s.`game_room_id` LEFT JOIN `dm_assignments` dma ON dma.`id` = s.`dm_assignment_id` WHERE s.`game_room_id` = :room_id AND s.`status` = \'SCHEDULED\' LIMIT 1');
+                $sessStmt->bindValue(':room_id', $roomId, PDO::PARAM_INT);
+                $sessStmt->execute();
+                $sessData = $sessStmt->fetch(PDO::FETCH_ASSOC);
+                if ($sessData) {
+                    $recipients = array_values(array_filter([(int) $sessData['creator_id'], (int) ($sessData['dm_user_id'] ?? 0)]));
+                    if (!empty($recipients)) {
+                        $this->notiRepo->createNotification(
+                            'Cửa sổ tìm người thay thế đã đóng',
+                            "Cửa sổ tìm người thay thế của phòng '{$room['title']}' đã đóng. Quản trò (DM) sẽ hỗ trợ điều chỉnh nhân vật hoặc đóng thế vai NPC.",
+                            'ROOM',
+                            null,
+                            $recipients
+                        );
+                    }
+                }
             } catch (\Throwable $e) {
                 if ($this->pdo->inTransaction()) {
                     $this->pdo->rollBack();
