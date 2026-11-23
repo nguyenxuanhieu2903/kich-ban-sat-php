@@ -795,5 +795,8 @@ Nhằm đưa toàn bộ nền tảng đạt chuẩn hoàn hảo 100% tuyệt đ�
    - Kết quả: **146/146 tests PASS (100%)**, 700 assertions, 0 errors, 0 failures, thời gian chạy ~3.8 giây.
 5. **Kiểm thử trình duyệt thực tế Chrome CDP 12/12 trang PASS (100%):**
    - Toàn bộ 12 trang web đạt chuẩn hoàn hảo trên cả Desktop (1440px) và Mobile (375px), 0 lỗi console, 0 exception, 0 lỗi tràn ngang.
+6. **Đồng bộ toàn diện 60 REST API Endpoints vào OpenAPI 3.0 & Swagger UI:**
+   - Cập nhật tệp đặc tả `openapi.json` mở rộng từ 36 lên 60 endpoints, bao phủ 10 Domain nghiệp vụ với thẻ tag phân tầng rõ ràng (System & Health, Auth & Identity, Admin Operations, Session Lifecycle, Game Catalog, Gameroom Management, Scheduling & Proposals, DM Assignments, Payments & Refunds, Notifications).
+   - Truy cập trực tiếp tài liệu tương tác tại route `/docs` hoặc `/api/v1/docs`.
 
 

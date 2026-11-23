@@ -27,7 +27,10 @@
           "200": {
             "description": "Hệ thống hoạt động bình thường, MySQL kết nối ổn định"
           }
-        }
+        },
+        "tags": [
+          "System & Health"
+        ]
       }
     },
     "/auth/csrf-token": {
@@ -37,7 +40,10 @@
           "200": {
             "description": "CSRF token hợp lệ"
           }
-        }
+        },
+        "tags": [
+          "Auth & Identity"
+        ]
       }
     },
     "/auth/register": {
@@ -88,7 +94,10 @@
           "422": {
             "description": "Dữ liệu không hợp lệ"
           }
-        }
+        },
+        "tags": [
+          "Auth & Identity"
+        ]
       }
     },
     "/auth/login": {
@@ -128,7 +137,10 @@
           "403": {
             "description": "Tài khoản bị khóa"
           }
-        }
+        },
+        "tags": [
+          "Auth & Identity"
+        ]
       }
     },
     "/auth/me": {
@@ -149,7 +161,10 @@
           "401": {
             "description": "Chưa xác thực"
           }
-        }
+        },
+        "tags": [
+          "Auth & Identity"
+        ]
       }
     },
     "/auth/logout": {
@@ -159,7 +174,10 @@
           "200": {
             "description": "Đăng xuất thành công"
           }
-        }
+        },
+        "tags": [
+          "Auth & Identity"
+        ]
       }
     },
     "/games": {
@@ -201,7 +219,10 @@
           "200": {
             "description": "Danh sách kịch bản"
           }
-        }
+        },
+        "tags": [
+          "Game Catalog"
+        ]
       }
     },
     "/games/{id}": {
@@ -224,7 +245,10 @@
           "404": {
             "description": "Không tìm thấy kịch bản"
           }
-        }
+        },
+        "tags": [
+          "Game Catalog"
+        ]
       }
     },
     "/promotions": {
@@ -234,7 +258,10 @@
           "200": {
             "description": "Danh sách ưu đãi"
           }
-        }
+        },
+        "tags": [
+          "System & Health"
+        ]
       }
     },
     "/rooms": {
@@ -261,7 +288,10 @@
           "200": {
             "description": "Danh sách phòng"
           }
-        }
+        },
+        "tags": [
+          "Gameroom Management"
+        ]
       },
       "post": {
         "summary": "Tạo phòng ghép người chơi mới",
@@ -309,7 +339,10 @@
           "201": {
             "description": "Tạo phòng thành công"
           }
-        }
+        },
+        "tags": [
+          "Gameroom Management"
+        ]
       }
     },
     "/rooms/{id}": {
@@ -332,7 +365,10 @@
           "404": {
             "description": "Không tìm thấy phòng"
           }
-        }
+        },
+        "tags": [
+          "Gameroom Management"
+        ]
       }
     },
     "/rooms/{id}/join": {
@@ -366,7 +402,10 @@
           "409": {
             "description": "Đã tham gia phòng trước đó"
           }
-        }
+        },
+        "tags": [
+          "Gameroom Management"
+        ]
       }
     },
     "/rooms/{id}/leave": {
@@ -394,7 +433,10 @@
           "200": {
             "description": "Đã rời hoặc mở cửa sổ thay thế"
           }
-        }
+        },
+        "tags": [
+          "Gameroom Management"
+        ]
       }
     },
     "/rooms/{id}/calculate-price": {
@@ -441,7 +483,10 @@
           "200": {
             "description": "Bảng tính giá chi tiết"
           }
-        }
+        },
+        "tags": [
+          "Gameroom Management"
+        ]
       }
     },
     "/rooms/{id}/price-snapshot": {
@@ -461,7 +506,10 @@
           "200": {
             "description": "Snapshot giá phòng"
           }
-        }
+        },
+        "tags": [
+          "Gameroom Management"
+        ]
       }
     },
     "/venues": {
@@ -471,7 +519,10 @@
           "200": {
             "description": "Danh sách địa điểm"
           }
-        }
+        },
+        "tags": [
+          "Scheduling & Proposals"
+        ]
       }
     },
     "/rooms/{id}/proposals": {
@@ -523,7 +574,10 @@
           "201": {
             "description": "Tạo đề xuất thành công"
           }
-        }
+        },
+        "tags": [
+          "Gameroom Management"
+        ]
       }
     },
     "/proposals/{id}/vote": {
@@ -574,7 +628,10 @@
           "200": {
             "description": "Ghi nhận biểu quyết"
           }
-        }
+        },
+        "tags": [
+          "Scheduling & Proposals"
+        ]
       }
     },
     "/dm/assignments": {
@@ -592,7 +649,10 @@
           "200": {
             "description": "Danh sách ca làm việc"
           }
-        }
+        },
+        "tags": [
+          "DM Assignments"
+        ]
       }
     },
     "/dm/assignments/{id}/accept": {
@@ -620,7 +680,10 @@
           "200": {
             "description": "Nhận ca thành công"
           }
-        }
+        },
+        "tags": [
+          "DM Assignments"
+        ]
       }
     },
     "/dm/assignments/{id}/reject": {
@@ -667,7 +730,10 @@
           "200": {
             "description": "Từ chối ca thành công"
           }
-        }
+        },
+        "tags": [
+          "DM Assignments"
+        ]
       }
     },
     "/payments/{paymentId}/deposit": {
@@ -695,7 +761,10 @@
           "200": {
             "description": "Thanh toán cọc thành công"
           }
-        }
+        },
+        "tags": [
+          "Payments & Refunds"
+        ]
       }
     },
     "/payments/{paymentId}/remaining": {
@@ -723,7 +792,10 @@
           "200": {
             "description": "Thanh toán số tiền còn lại thành công"
           }
-        }
+        },
+        "tags": [
+          "Payments & Refunds"
+        ]
       }
     },
     "/payments/{id}/refund-request": {
@@ -754,7 +826,10 @@
           "422": {
             "description": "Đã quá hạn 24 giờ trước giờ chơi"
           }
-        }
+        },
+        "tags": [
+          "Payments & Refunds"
+        ]
       }
     },
     "/admin/refunds": {
@@ -769,7 +844,10 @@
           "200": {
             "description": "Danh sách yêu cầu hoàn tiền"
           }
-        }
+        },
+        "tags": [
+          "Payments & Refunds"
+        ]
       }
     },
     "/admin/refunds/{id}/approve": {
@@ -794,7 +872,10 @@
           "200": {
             "description": "Duyệt hoàn tiền thành công"
           }
-        }
+        },
+        "tags": [
+          "Payments & Refunds"
+        ]
       }
     },
     "/admin/refunds/{id}/reject": {
@@ -819,17 +900,18 @@
           "200": {
             "description": "Từ chối hoàn tiền"
           }
-        }
+        },
+        "tags": [
+          "Payments & Refunds"
+        ]
       }
     },
     "/sessions/{id}/start": {
       "post": {
-        "summary": "Bắt đầu phiên chơi (SCHEDULED -> IN_PROGRESS)",
-        "security": [
-          {
-            "BearerAuth": []
-          }
+        "tags": [
+          "Session Lifecycle"
         ],
+        "summary": "DM bắt đầu phiên chơi tại phòng vật lý (chuyển trạng thái sang IN_PROGRESS)",
         "parameters": [
           {
             "name": "id",
@@ -840,21 +922,24 @@
             }
           }
         ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "responses": {
           "200": {
-            "description": "Bắt đầu phiên chơi"
+            "description": "Bắt đầu ca chơi thành công"
           }
         }
       }
     },
     "/sessions/{id}/complete": {
       "post": {
-        "summary": "Hoàn tất phiên chơi (IN_PROGRESS -> COMPLETED)",
-        "security": [
-          {
-            "BearerAuth": []
-          }
+        "tags": [
+          "Session Lifecycle"
         ],
+        "summary": "DM kết thúc phiên chơi sau khi phá án thành công (chuyển trạng thái sang COMPLETED)",
         "parameters": [
           {
             "name": "id",
@@ -865,9 +950,14 @@
             }
           }
         ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "responses": {
           "200": {
-            "description": "Hoàn tất phiên chơi"
+            "description": "Kết thúc ca chơi thành công"
           }
         }
       }
@@ -887,7 +977,10 @@
           "200": {
             "description": "Danh sách thông báo"
           }
-        }
+        },
+        "tags": [
+          "Notifications"
+        ]
       }
     },
     "/notifications/read-all": {
@@ -905,7 +998,10 @@
           "200": {
             "description": "Đã đánh dấu đã đọc"
           }
-        }
+        },
+        "tags": [
+          "Notifications"
+        ]
       }
     },
     "/api/v1/auth/profile": {
@@ -1086,6 +1182,980 @@
           }
         }
       }
+    },
+    "/auth/my-rooms": {
+      "get": {
+        "tags": [
+          "Auth & Identity"
+        ],
+        "summary": "Lấy danh sách các phòng chơi người dùng hiện tại đã tham gia hoặc làm chủ phòng",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Danh sách phòng chơi của người dùng"
+          },
+          "401": {
+            "description": "Chưa đăng nhập"
+          }
+        }
+      }
+    },
+    "/auth/profile": {
+      "patch": {
+        "tags": [
+          "Auth & Identity"
+        ],
+        "summary": "Cập nhật thông tin hồ sơ cá nhân người dùng",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "full_name": {
+                    "type": "string"
+                  },
+                  "phone": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Cập nhật hồ sơ thành công"
+          }
+        }
+      }
+    },
+    "/auth/student-verification": {
+      "post": {
+        "tags": [
+          "Auth & Identity"
+        ],
+        "summary": "Gửi yêu cầu xác minh thẻ học sinh - sinh viên kèm mã thẻ",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "student_card_id"
+                ],
+                "properties": {
+                  "student_card_id": {
+                    "type": "string",
+                    "example": "SV2026-DHQG"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Đã gửi yêu cầu xác minh thẻ HSSV"
+          }
+        }
+      }
+    },
+    "/admin/users": {
+      "get": {
+        "tags": [
+          "Admin Operations"
+        ],
+        "summary": "Lấy danh sách người dùng toàn hệ thống kèm phân quyền và trạng thái hoạt động",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Danh sách người dùng"
+          },
+          "403": {
+            "description": "Yêu cầu quyền ADMIN"
+          }
+        }
+      }
+    },
+    "/admin/users/{id}": {
+      "get": {
+        "tags": [
+          "Admin Operations"
+        ],
+        "summary": "Xem chi tiết một người dùng theo ID",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Chi tiết người dùng"
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "Admin Operations"
+        ],
+        "summary": "Khóa hoặc mở khóa tài khoản người dùng",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "is_active": {
+                    "type": "boolean"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Cập nhật trạng thái thành công"
+          }
+        }
+      }
+    },
+    "/admin/users/{id}/role": {
+      "put": {
+        "tags": [
+          "Admin Operations"
+        ],
+        "summary": "Phân vai trò RBAC cho người dùng (PLAYER, DM, ADMIN)",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "role"
+                ],
+                "properties": {
+                  "role": {
+                    "type": "string",
+                    "enum": [
+                      "PLAYER",
+                      "DM",
+                      "ADMIN"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Đổi vai trò thành công"
+          }
+        }
+      }
+    },
+    "/admin/users/{id}/verify-student": {
+      "post": {
+        "tags": [
+          "Admin Operations"
+        ],
+        "summary": "Phê duyệt hoặc hủy phê duyệt thẻ học sinh - sinh viên (giảm 20.000đ)",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "student_verified"
+                ],
+                "properties": {
+                  "student_verified": {
+                    "type": "boolean"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Cập nhật xác thực sinh viên thành công"
+          }
+        }
+      }
+    },
+    "/admin/audit-logs": {
+      "get": {
+        "tags": [
+          "Admin Operations"
+        ],
+        "summary": "Truy xuất nhật ký kiểm toán (Audit Trail) các hành vi nhạy cảm trong hệ thống",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Danh sách vết kiểm toán"
+          }
+        }
+      }
+    },
+    "/admin/reports/revenue": {
+      "get": {
+        "tags": [
+          "Admin Operations"
+        ],
+        "summary": "Báo cáo tổng doanh thu thuần, tiền cọc đã thu và số buổi chơi hoàn tất",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Số liệu báo cáo tài chính"
+          }
+        }
+      }
+    },
+    "/admin/payments": {
+      "get": {
+        "tags": [
+          "Admin Operations"
+        ],
+        "summary": "Danh sách các giao dịch thanh toán trong hệ thống",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Danh sách thanh toán"
+          }
+        }
+      }
+    },
+    "/admin/rooms/{id}/assign-dm": {
+      "post": {
+        "tags": [
+          "Admin Operations"
+        ],
+        "summary": "Admin chỉ định Quản trò (DM) cho phòng chơi",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "dm_user_id"
+                ],
+                "properties": {
+                  "dm_user_id": {
+                    "type": "integer"
+                  },
+                  "reason": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Phân công Quản trò thành công"
+          }
+        }
+      }
+    },
+    "/admin/rooms/{id}/revoke-dm": {
+      "post": {
+        "tags": [
+          "Admin Operations"
+        ],
+        "summary": "Admin thu hồi phân công Quản trò cho phòng chơi",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Thu hồi Quản trò thành công"
+          }
+        }
+      }
+    },
+    "/admin/rooms/{id}/assign-physical-room": {
+      "post": {
+        "tags": [
+          "Admin Operations"
+        ],
+        "summary": "Admin chỉ định phòng vật lý tại chi nhánh cho buổi chơi",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "physical_room_id"
+                ],
+                "properties": {
+                  "physical_room_id": {
+                    "type": "integer"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Chỉ định phòng vật lý thành công"
+          }
+        }
+      }
+    },
+    "/admin/rooms/offline-block": {
+      "post": {
+        "tags": [
+          "Admin Operations"
+        ],
+        "summary": "Khóa giữ chỗ phòng vật lý thủ công cho khách đặt qua Hotline hoặc khách vãng lai (Walk-in)",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "venue_id",
+                  "physical_room_id",
+                  "start_at",
+                  "end_at",
+                  "customer_name",
+                  "customer_phone"
+                ],
+                "properties": {
+                  "venue_id": {
+                    "type": "integer"
+                  },
+                  "physical_room_id": {
+                    "type": "integer"
+                  },
+                  "start_at": {
+                    "type": "string",
+                    "example": "2026-12-01 18:00:00"
+                  },
+                  "end_at": {
+                    "type": "string",
+                    "example": "2026-12-01 22:00:00"
+                  },
+                  "customer_name": {
+                    "type": "string"
+                  },
+                  "customer_phone": {
+                    "type": "string"
+                  },
+                  "notes": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Khóa giữ chỗ thủ công thành công"
+          }
+        }
+      }
+    },
+    "/admin/physical-rooms": {
+      "get": {
+        "tags": [
+          "Admin Operations"
+        ],
+        "summary": "Lấy danh sách toàn bộ phòng vật lý tại các chi nhánh kèm trạng thái bảo trì và ca chơi sắp tới",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Danh sách phòng vật lý"
+          }
+        }
+      }
+    },
+    "/admin/physical-rooms/{id}/maintenance": {
+      "post": {
+        "tags": [
+          "Admin Operations"
+        ],
+        "summary": "Kích hoạt hoặc tắt chế độ bảo trì phòng vật lý, tự động điều chuyển ca chơi tương lai (Dynamic Room Rerouting)",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "is_maintenance": {
+                    "type": "boolean"
+                  },
+                  "reason": {
+                    "type": "string",
+                    "example": "Bảo trì máy lạnh và hệ thống âm thanh"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Cập nhật trạng thái bảo trì và trả về danh sách ca chơi được điều chuyển"
+          }
+        }
+      }
+    },
+    "/admin/rooms/{id}/cancel": {
+      "post": {
+        "tags": [
+          "Admin Operations"
+        ],
+        "summary": "Admin hủy phòng chơi khẩn cấp theo Quy Tắc Vàng 24 Giờ (tự động duyệt hoàn tiền nếu trước 24h)",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "cancellation_reason"
+                ],
+                "properties": {
+                  "cancellation_reason": {
+                    "type": "string"
+                  },
+                  "force_refund": {
+                    "type": "boolean"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Hủy phòng và kích hoạt hoàn cọc thành công"
+          }
+        }
+      }
+    },
+    "/sessions/{id}": {
+      "get": {
+        "tags": [
+          "Session Lifecycle"
+        ],
+        "summary": "Xem thông tin chi tiết phiên chơi theo ID",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Thông tin phiên chơi"
+          }
+        }
+      }
+    },
+    "/sessions/{id}/notes": {
+      "post": {
+        "tags": [
+          "Session Lifecycle"
+        ],
+        "summary": "DM lưu biên bản hiện trường hoặc ghi chú quan sát thái độ người chơi",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "notes"
+                ],
+                "properties": {
+                  "notes": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Lưu ghi chú thành công"
+          }
+        }
+      }
+    },
+    "/sessions/{id}/settle": {
+      "post": {
+        "tags": [
+          "Session Lifecycle"
+        ],
+        "summary": "Xác nhận tất toán hóa đơn tiền còn lại tại quầy chi nhánh (hỗ trợ phụ phí hỏng đạo cụ extra_fee)",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "extra_fee": {
+                    "type": "integer",
+                    "example": 50000
+                  },
+                  "extra_fee_reason": {
+                    "type": "string",
+                    "example": "Đền bù rách kịch bản nhân vật số 2"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Tất toán ca chơi thành công"
+          }
+        }
+      }
+    },
+    "/sessions/{id}/no-show": {
+      "post": {
+        "tags": [
+          "Session Lifecycle"
+        ],
+        "summary": "Xử lý tình huống khách vắng mặt (No-show 3 cấp độ: thiếu 1 người DM đóng NPC, thiếu >= 2 người hủy ca tại chỗ)",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "absent_user_ids"
+                ],
+                "properties": {
+                  "absent_user_ids": {
+                    "type": "array",
+                    "items": {
+                      "type": "integer"
+                    }
+                  },
+                  "reason": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Xử lý No-show thành công"
+          }
+        }
+      }
+    },
+    "/sessions/{id}/overtime-alert": {
+      "post": {
+        "tags": [
+          "Session Lifecycle"
+        ],
+        "summary": "DM gửi cảnh báo trễ ca chơi (10-180 phút) về bảng điều khiển quản trị",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "estimated_minutes"
+                ],
+                "properties": {
+                  "estimated_minutes": {
+                    "type": "integer",
+                    "example": 45
+                  },
+                  "reason": {
+                    "type": "string",
+                    "example": "Đội chơi cao trào đang tranh luận giải mã cuối"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Đã gửi cảnh báo trễ ca thành công"
+          }
+        }
+      }
+    },
+    "/sessions/{id}/reviews": {
+      "post": {
+        "tags": [
+          "Session Lifecycle"
+        ],
+        "summary": "Người chơi chấm điểm đánh giá (1-5 sao) cho Kịch bản và Quản trò DM sau buổi chơi",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "dm_rating",
+                  "scenario_rating"
+                ],
+                "properties": {
+                  "dm_rating": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 5,
+                    "example": 5
+                  },
+                  "scenario_rating": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 5,
+                    "example": 5
+                  },
+                  "review_text": {
+                    "type": "string",
+                    "example": "Quản trò dẫn chuyện rất nhập tâm, cốt truyện bất ngờ!"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Gửi đánh giá thành công"
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "Session Lifecycle"
+        ],
+        "summary": "Lấy danh sách đánh giá của buổi chơi",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Danh sách đánh giá"
+          }
+        }
+      }
+    },
+    "/admin/refunds/{id}/complete": {
+      "post": {
+        "tags": [
+          "Payments & Refunds"
+        ],
+        "summary": "Kế toán xác nhận hoàn tất chuyển khoản tiền cọc trả lại cho người chơi (chuyển sang COMPLETED)",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "bank_reference_code": {
+                    "type": "string",
+                    "example": "UNC_VCB_20261124_001"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Đóng hồ sơ hoàn cọc thành công"
+          }
+        }
+      }
     }
   },
   "components": {
@@ -1102,5 +2172,47 @@
         "description": "PHP Native Session Cookie"
       }
     }
-  }
+  },
+  "tags": [
+    {
+      "name": "System & Health",
+      "description": "Kiểm tra trạng thái hệ thống và tài liệu API"
+    },
+    {
+      "name": "Auth & Identity",
+      "description": "Xác thực, phân quyền RBAC và hồ sơ người dùng"
+    },
+    {
+      "name": "Admin Operations",
+      "description": "Cổng quản trị, điều phối phòng, khóa hotline và bảo trì"
+    },
+    {
+      "name": "Session Lifecycle",
+      "description": "Quản lý vòng đời buổi chơi, check-in, tất toán, trễ ca và đánh giá"
+    },
+    {
+      "name": "Game Catalog",
+      "description": "Danh mục 12 kịch bản sát, cấu hình phòng và bảng giá"
+    },
+    {
+      "name": "Gameroom Management",
+      "description": "Tạo phòng, ghép đội, tính giá và chính sách 24h"
+    },
+    {
+      "name": "Scheduling & Proposals",
+      "description": "Biểu quyết lịch chơi, quorum 80% và phân phòng vật lý"
+    },
+    {
+      "name": "DM Assignments",
+      "description": "Tiếp nhận, từ chối và xoay tua Quản trò"
+    },
+    {
+      "name": "Payments & Refunds",
+      "description": "Thanh toán cọc 50k, tất toán quầy và hoàn tiền cọc"
+    },
+    {
+      "name": "Notifications",
+      "description": "Thông báo sự kiện và nhắc lịch tự động"
+    }
+  ]
 }
