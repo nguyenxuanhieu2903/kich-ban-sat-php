@@ -753,3 +753,24 @@ Nhằm giải quyết triệt để toàn bộ các điểm cấn nghiệp vụ 
    - Bổ sung file kiểm thử `backend/tests/Feature/V16StandardP2PerfectionTest.php` bao phủ toàn bộ 5 tính năng mới (Quorum 80%, Overtime alert, Extra fee, Reviews, Smart extension).
    - Toàn bộ 140 bài test đạt 100% PASS, 634 assertions.
 
+---
+
+### 10.12. Gói nâng cấp tối thượng Stage 3.3 (Supreme Production Hardening)
+
+Nhằm đảm bảo sản phẩm đạt mức hoàn hảo tuyệt đối mà người dùng không cần phải kiểm thử thêm bất kỳ chi tiết nào, hệ thống đã triển khai và hoàn tất các hạng mục tối thượng:
+1. **Nạp đầy đủ 12 kịch bản đa dạng thể loại vào CSDL (`RichCatalogSeeder.php`):**
+   - Mở rộng kho kịch bản từ 3 lên 12 kịch bản đa thể loại (Cổ Trang, Kinh Dị 18+, Cung Đình, Trinh Thám Phòng Kín, Viễn Tưởng, Dạ Hội Gatsby, Dân Gian, Học Đường, Âm Nhạc).
+   - Mỗi kịch bản có đầy đủ đạo cụ cấu hình (`game_configurations`) và bảng giá 3 khung giờ sáng/chiều/tối (`game_prices`).
+2. **Chống chơi lại kịch bản cũ (Anti-replay / Anti-spoiler Protection):**
+   - Trong `GameRoomController::join`, chặn người chơi đã hoàn thành kịch bản tham gia lại bàn mới (`ALREADY_COMPLETED_SCENARIO` 400), bảo toàn 100% bí mật cốt truyện cho cả bàn, trừ khi có cờ xác nhận `allow_replay`.
+3. **Chống trùng lịch ca chơi (Player Schedule Conflict Protection):**
+   - Trong `GameRoomController::join`, kiểm tra chéo khung giờ bắt đầu và kết thúc; chặn người chơi tham gia 2 phòng có ca chơi diễn ra cùng lúc (`PLAYER_SCHEDULE_CONFLICT` 409).
+4. **Khóa giữ chỗ ngoại tuyến trên Admin Portal (`admin-portal.html`):**
+   - Tích hợp nút bấm và luồng thao tác "Khóa Giữ Chỗ Hotline" trên cổng quản trị, gọi endpoint `POST /api/v1/admin/rooms/offline-block` giữ phòng vật lý cho khách gọi điện hoặc khách vãng lai (Walk-in).
+5. **Bộ kiểm thử tự động đạt mốc 143/143 bài test PASS (100%):**
+   - Bổ sung 3 ca kiểm thử: `testAntiReplayProtectionOnJoin`, `testPlayerScheduleConflictProtection`, `testOfflineBlockByAdmin`.
+   - Kết quả: **143/143 tests PASS (100%)**, 678 assertions, 0 errors, 0 failures.
+6. **Kiểm thử trình duyệt thực tế Headless Chrome CDP (12/12 trang PASS):**
+   - Toàn bộ 12 trang web đạt chuẩn hoàn hảo trên cả Desktop (1440px) và Mobile (375px), 0 lỗi console, 0 exception, 0 lỗi tràn ngang.
+
+

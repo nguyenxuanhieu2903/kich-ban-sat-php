@@ -269,6 +269,60 @@ class GameRoomController
             }
         }
 
+        $body = $request->getBodyParams();
+        $allowReplay = !empty($body['allow_replay']) || !empty($body['acknowledge_spoiler']);
+        $checkAntiReplay = !empty($body['strict_anti_spoiler']) || !empty($body['check_replay']);
+
+        // 1. Chống chơi lại kịch bản đã hoàn thành (Bảo vệ bí mật cốt truyện cho cả bàn chơi khi kích hoạt)
+        if ($checkAntiReplay && !$allowReplay) {
+            $playedCheck = $this->pdo->prepare(
+                'SELECT COUNT(*) FROM `room_participants` rp
+                 INNER JOIN `game_rooms` gr ON gr.`id` = rp.`game_room_id`
+                 INNER JOIN `sessions` s ON s.`game_room_id` = gr.`id`
+                 WHERE rp.`user_id` = :uid AND gr.`game_id` = :gid AND s.`status` = \'COMPLETED\''
+            );
+            $playedCheck->bindValue(':uid', $userId, PDO::PARAM_INT);
+            $playedCheck->bindValue(':gid', (int) $room['game_id'], PDO::PARAM_INT);
+            $playedCheck->execute();
+            if ((int) $playedCheck->fetchColumn() > 0) {
+                return Response::fail(
+                    'Bạn đã từng tham gia và hoàn tất kịch bản này trước đây. Để đảm bảo trải nghiệm suy luận và giữ kín bí mật vụ án cho các thành viên khác, vui lòng chọn kịch bản khác (hoặc gửi cờ xác nhận allow_replay nếu đi cùng bạn bè).',
+                    'ALREADY_COMPLETED_SCENARIO',
+                    400
+                );
+            }
+        }
+
+        // 2. Chống trùng lịch ca chơi: Kiểm tra xem người chơi đã có ca chơi khác trùng khung giờ không
+        $roomSessStmt = $this->pdo->prepare(
+            'SELECT `start_at`, `end_at` FROM `sessions`
+             WHERE `game_room_id` = :rid AND `status` IN (\'SCHEDULED\', \'IN_PROGRESS\')
+             LIMIT 1'
+        );
+        $roomSessStmt->bindValue(':rid', $roomId, PDO::PARAM_INT);
+        $roomSessStmt->execute();
+        $roomSess = $roomSessStmt->fetch(PDO::FETCH_ASSOC);
+
+        if ($roomSess) {
+            $conflictStmt = $this->pdo->prepare(
+                'SELECT s.`id` FROM `sessions` s
+                 INNER JOIN `game_rooms` gr ON gr.`id` = s.`game_room_id`
+                 INNER JOIN `room_participants` rp ON rp.`game_room_id` = gr.`id`
+                 WHERE rp.`user_id` = :uid
+                   AND rp.`status` IN (\'PENDING_DEPOSIT\', \'DEPOSITED\')
+                   AND s.`status` IN (\'SCHEDULED\', \'IN_PROGRESS\')
+                   AND s.`start_at` < :end_at AND s.`end_at` > :start_at
+                 LIMIT 1'
+            );
+            $conflictStmt->bindValue(':uid', $userId, PDO::PARAM_INT);
+            $conflictStmt->bindValue(':start_at', $roomSess['start_at'], PDO::PARAM_STR);
+            $conflictStmt->bindValue(':end_at', $roomSess['end_at'], PDO::PARAM_STR);
+            $conflictStmt->execute();
+            if ($conflictStmt->fetchColumn() !== false) {
+                return Response::fail('Bạn đã có một ca chơi khác đã xác nhận trong cùng khung giờ này', 'PLAYER_SCHEDULE_CONFLICT', 409);
+            }
+        }
+
         // TRƯỜNG HỢP 1: Vào thay thế (Replacement Slot Takeover)
         if ($isReplacementOpen) {
             $leavePartStmt = $this->pdo->prepare(

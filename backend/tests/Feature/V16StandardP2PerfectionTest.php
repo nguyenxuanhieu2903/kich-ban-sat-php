@@ -244,4 +244,138 @@ class V16StandardP2PerfectionTest extends TestCase
         $this->assertSame(4, $v3Data['data']['quorum_threshold']);
         $this->assertNotNull($v3Data['data']['session_id']);
     }
+
+    public function testAntiReplayProtectionOnJoin(): void
+    {
+        $testUser = $this->createTestUser('Player Replay Test');
+
+        // Tạo phòng cũ đã hoàn thành cho game 1
+        $this->pdo->exec("INSERT INTO `game_rooms` (`game_id`, `game_configuration_id`, `creator_id`, `title`, `min_players`, `max_players`, `status`, `formation_deadline_at`, `created_at`, `updated_at`) VALUES (1, 1, {$testUser}, 'Phòng Cũ Đã Xong', 6, 8, 'CONFIRMED', DATE_ADD(NOW(), INTERVAL 3 DAY), NOW(), NOW())");
+        $oldRoomId = (int) $this->pdo->lastInsertId();
+
+        $this->pdo->exec("INSERT INTO `room_participants` (`game_room_id`, `user_id`, `status`, `created_at`, `updated_at`) VALUES ({$oldRoomId}, {$testUser}, 'DEPOSITED', NOW(), NOW())");
+
+        $this->pdo->exec("INSERT INTO `schedule_proposals` (`game_room_id`, `proposed_by`, `proposed_start_at`, `proposed_end_at`, `status`, `expires_at`, `created_at`) VALUES ({$oldRoomId}, {$testUser}, NOW(), DATE_ADD(NOW(), INTERVAL 4 HOUR), 'CONFIRMED', DATE_ADD(NOW(), INTERVAL 24 HOUR), NOW())");
+        $propId = (int) $this->pdo->lastInsertId();
+
+        $this->pdo->exec("INSERT INTO `dm_assignments` (`game_room_id`, `dm_user_id`, `assigned_by`, `status`, `assigned_at`, `created_at`, `updated_at`) VALUES ({$oldRoomId}, 2, 1, 'ACCEPTED', NOW(), NOW(), NOW())");
+        $assignId = (int) $this->pdo->lastInsertId();
+
+        $this->pdo->exec("INSERT INTO `physical_rooms` (`venue_id`, `name`, `capacity`, `status`, `created_at`, `updated_at`) VALUES (1, 'Phòng Replay " . uniqid() . "', 10, 'ACTIVE', NOW(), NOW())");
+        $pRoomId = (int) $this->pdo->lastInsertId();
+
+        $this->pdo->exec("INSERT INTO `sessions` (`game_room_id`, `schedule_proposal_id`, `dm_assignment_id`, `venue_id`, `physical_room_id`, `start_at`, `end_at`, `status`, `created_at`, `updated_at`) VALUES ({$oldRoomId}, {$propId}, {$assignId}, 1, {$pRoomId}, NOW(), DATE_ADD(NOW(), INTERVAL 4 HOUR), 'COMPLETED', NOW(), NOW())");
+
+        // Tạo phòng mới cho cùng game 1
+        $this->pdo->exec("INSERT INTO `game_rooms` (`game_id`, `game_configuration_id`, `creator_id`, `title`, `min_players`, `max_players`, `status`, `formation_deadline_at`, `created_at`, `updated_at`) VALUES (1, 1, 3, 'Phòng Mới Game 1', 6, 8, 'FORMING', DATE_ADD(NOW(), INTERVAL 3 DAY), NOW(), NOW())");
+        $newRoomId = (int) $this->pdo->lastInsertId();
+
+        // 1. Thử tham gia phòng mới -> Bị chặn vì đã từng chơi kịch bản này
+        $joinReq = new Request(
+            method: 'POST',
+            path: "/api/rooms/{$newRoomId}/join",
+            queryParams: [],
+            bodyParams: ['strict_anti_spoiler' => true],
+            headers: ['Authorization' => "Bearer {$testUser}"]
+        );
+        $joinRes = $this->app->dispatch($joinReq);
+        $this->assertSame(400, $joinRes->getStatusCode());
+        $joinData = json_decode($joinRes->getContent(), true);
+        $this->assertFalse($joinData['success']);
+        $this->assertSame('ALREADY_COMPLETED_SCENARIO', $joinData['error']['code']);
+
+        // 2. Tham gia kèm cờ allow_replay -> Thành công
+        $repReq = new Request(
+            method: 'POST',
+            path: "/api/rooms/{$newRoomId}/join",
+            queryParams: [],
+            bodyParams: ['strict_anti_spoiler' => true, 'allow_replay' => true],
+            headers: ['Authorization' => "Bearer {$testUser}"]
+        );
+        $repRes = $this->app->dispatch($repReq);
+        $this->assertSame(200, $repRes->getStatusCode());
+        $this->assertTrue(json_decode($repRes->getContent(), true)['success']);
+    }
+
+    public function testPlayerScheduleConflictProtection(): void
+    {
+        $testUser = $this->createTestUser('Player Conflict Test');
+
+        // Phòng A: ca chơi từ 14:00 đến 18:00
+        $this->pdo->exec("INSERT INTO `game_rooms` (`game_id`, `game_configuration_id`, `creator_id`, `title`, `min_players`, `max_players`, `status`, `formation_deadline_at`, `created_at`, `updated_at`) VALUES (1, 1, {$testUser}, 'Phòng A Conflict', 6, 8, 'CONFIRMED', DATE_ADD(NOW(), INTERVAL 3 DAY), NOW(), NOW())");
+        $roomA = (int) $this->pdo->lastInsertId();
+
+        $this->pdo->exec("INSERT INTO `room_participants` (`game_room_id`, `user_id`, `status`, `created_at`, `updated_at`) VALUES ({$roomA}, {$testUser}, 'DEPOSITED', NOW(), NOW())");
+
+        $this->pdo->exec("INSERT INTO `schedule_proposals` (`game_room_id`, `proposed_by`, `proposed_start_at`, `proposed_end_at`, `status`, `expires_at`, `created_at`) VALUES ({$roomA}, {$testUser}, '2026-12-10 14:00:00', '2026-12-10 18:00:00', 'CONFIRMED', DATE_ADD(NOW(), INTERVAL 24 HOUR), NOW())");
+        $propA = (int) $this->pdo->lastInsertId();
+
+        $this->pdo->exec("INSERT INTO `dm_assignments` (`game_room_id`, `dm_user_id`, `assigned_by`, `status`, `assigned_at`, `created_at`, `updated_at`) VALUES ({$roomA}, 2, 1, 'ACCEPTED', NOW(), NOW(), NOW())");
+        $assignA = (int) $this->pdo->lastInsertId();
+
+        $this->pdo->exec("INSERT INTO `physical_rooms` (`venue_id`, `name`, `capacity`, `status`, `created_at`, `updated_at`) VALUES (1, 'Phòng Confl " . uniqid() . "', 10, 'ACTIVE', NOW(), NOW())");
+        $pRoomA = (int) $this->pdo->lastInsertId();
+
+        $this->pdo->exec("INSERT INTO `sessions` (`game_room_id`, `schedule_proposal_id`, `dm_assignment_id`, `venue_id`, `physical_room_id`, `start_at`, `end_at`, `status`, `created_at`, `updated_at`) VALUES ({$roomA}, {$propA}, {$assignA}, 1, {$pRoomA}, '2026-12-10 14:00:00', '2026-12-10 18:00:00', 'SCHEDULED', NOW(), NOW())");
+
+        // Phòng B: cùng khung giờ vắt chéo 16:00 đến 20:00
+        $this->pdo->exec("INSERT INTO `game_rooms` (`game_id`, `game_configuration_id`, `creator_id`, `title`, `min_players`, `max_players`, `status`, `formation_deadline_at`, `created_at`, `updated_at`) VALUES (2, 2, 3, 'Phòng B Conflict', 6, 8, 'FORMING', DATE_ADD(NOW(), INTERVAL 3 DAY), NOW(), NOW())");
+        $roomB = (int) $this->pdo->lastInsertId();
+
+        $this->pdo->exec("INSERT INTO `schedule_proposals` (`game_room_id`, `proposed_by`, `proposed_start_at`, `proposed_end_at`, `status`, `expires_at`, `created_at`) VALUES ({$roomB}, 3, '2026-12-10 16:00:00', '2026-12-10 20:00:00', 'CONFIRMED', DATE_ADD(NOW(), INTERVAL 24 HOUR), NOW())");
+        $propB = (int) $this->pdo->lastInsertId();
+
+        $this->pdo->exec("INSERT INTO `dm_assignments` (`game_room_id`, `dm_user_id`, `assigned_by`, `status`, `assigned_at`, `created_at`, `updated_at`) VALUES ({$roomB}, 2, 1, 'ACCEPTED', NOW(), NOW(), NOW())");
+        $assignB = (int) $this->pdo->lastInsertId();
+
+        $this->pdo->exec("INSERT INTO `physical_rooms` (`venue_id`, `name`, `capacity`, `status`, `created_at`, `updated_at`) VALUES (2, 'Phòng Confl B " . uniqid() . "', 10, 'ACTIVE', NOW(), NOW())");
+        $pRoomB = (int) $this->pdo->lastInsertId();
+
+        $this->pdo->exec("INSERT INTO `sessions` (`game_room_id`, `schedule_proposal_id`, `dm_assignment_id`, `venue_id`, `physical_room_id`, `start_at`, `end_at`, `status`, `created_at`, `updated_at`) VALUES ({$roomB}, {$propB}, {$assignB}, 2, {$pRoomB}, '2026-12-10 16:00:00', '2026-12-10 20:00:00', 'SCHEDULED', NOW(), NOW())");
+
+        // Thử tham gia phòng B -> Chặn xung đột giờ
+        $joinReq = new Request(
+            method: 'POST',
+            path: "/api/rooms/{$roomB}/join",
+            queryParams: [],
+            bodyParams: [],
+            headers: ['Authorization' => "Bearer {$testUser}"]
+        );
+        $joinRes = $this->app->dispatch($joinReq);
+        $this->assertSame(409, $joinRes->getStatusCode());
+        $data = json_decode($joinRes->getContent(), true);
+        $this->assertSame('PLAYER_SCHEDULE_CONFLICT', $data['error']['code']);
+    }
+
+    public function testOfflineBlockByAdmin(): void
+    {
+        $this->pdo->exec("INSERT INTO `physical_rooms` (`venue_id`, `name`, `capacity`, `status`, `created_at`, `updated_at`) VALUES (1, 'Phòng Block " . uniqid() . "', 10, 'ACTIVE', NOW(), NOW())");
+        $pRoomId = (int) $this->pdo->lastInsertId();
+
+        $request = new Request(
+            method: 'POST',
+            path: '/api/admin/rooms/offline-block',
+            queryParams: [],
+            bodyParams: [
+                'venue_id' => 1,
+                'physical_room_id' => $pRoomId,
+                'start_at' => '2026-12-20 18:00:00',
+                'end_at' => '2026-12-20 22:00:00',
+                'customer_name' => 'Chị Lan Hương (Hotline)',
+                'customer_phone' => '0912345678',
+                'notes' => 'Khách đoàn VIP đã cọc trực tiếp tại quầy 500k',
+            ],
+            headers: [
+                'Authorization' => 'Bearer 1', // Admin ID
+            ]
+        );
+
+        $response = $this->app->dispatch($request);
+        $this->assertSame(201, $response->getStatusCode());
+        $data = json_decode($response->getContent(), true);
+        $this->assertTrue($data['success']);
+        $this->assertSame('Chị Lan Hương (Hotline)', $data['data']['customer_name']);
+        $this->assertSame($pRoomId, (int) $data['data']['physical_room_id']);
+        $this->assertNotNull($data['data']['block_id']);
+    }
 }

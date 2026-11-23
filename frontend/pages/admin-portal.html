@@ -110,9 +110,12 @@
 
     <!-- Operations Card -->
     <div class="ticket-card" style="margin-bottom: 24px;">
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
-        <h3>Điều Phối Phòng Chơi & Phân Công Quản Trò (DM)</h3>
-        <span class="stamp-badge open">STAGE 3 OPERATIONS</span>
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 10px;">
+        <h3 style="margin: 0;">Điều Phối Phòng Chơi & Phân Công Quản Trò (DM)</h3>
+        <div style="display: flex; gap: 8px; align-items: center;">
+          <button type="button" class="btn btn-gold" id="btnOfflineBlock" style="font-size: 0.85rem; padding: 6px 12px;">Khóa Giữ Chỗ Hotline</button>
+          <span class="stamp-badge open">STAGE 3 OPERATIONS</span>
+        </div>
       </div>
 
       <div style="overflow-x: auto;">
@@ -538,6 +541,40 @@
       await checkAuth();
       await Promise.all([loadRooms(), loadProposals(), loadStudents(), loadAuditLogs(), loadReports()]);
     }
+
+    document.getElementById('btnOfflineBlock')?.addEventListener('click', async () => {
+      const customerName = prompt('Tên khách hàng đặt qua Hotline/Walk-in:', 'Anh Tuấn (Hotline)');
+      if (!customerName) return;
+      const customerPhone = prompt('Số điện thoại khách hàng:', '0909123456');
+      if (!customerPhone) return;
+      const venueId = prompt('ID Chi nhánh (1: Quận 1, 2: Bình Thạnh):', '1');
+      if (!venueId) return;
+      const pRoomId = prompt('ID Phòng vật lý (1: Sherlock Holmes, 2: Dracula, 3: Cổ Trang):', '1');
+      if (!pRoomId) return;
+      const nowStr = new Date(Date.now() + 3600000).toISOString().slice(0, 19).replace('T', ' ');
+      const endStr = new Date(Date.now() + 18000000).toISOString().slice(0, 19).replace('T', ' ');
+      const startAt = prompt('Thời gian bắt đầu (YYYY-MM-DD HH:MM:SS):', nowStr);
+      if (!startAt) return;
+      const endAt = prompt('Thời gian kết thúc (YYYY-MM-DD HH:MM:SS):', endStr);
+      if (!endAt) return;
+      const notes = prompt('Ghi chú đặt phòng:', 'Khách cọc trực tiếp tại quầy 100k');
+
+      try {
+        const json = await apiClient.post('/admin/rooms/offline-block', {
+          venue_id: Number(venueId),
+          physical_room_id: Number(pRoomId),
+          start_at: startAt,
+          end_at: endAt,
+          customer_name: customerName,
+          customer_phone: customerPhone,
+          notes: notes || ''
+        });
+        alert(json.message || 'Đã khóa giữ chỗ phòng vật lý thành công!');
+        loadAdminDashboard();
+      } catch (err) {
+        alert(err.message || 'Không thể khóa giữ chỗ phòng');
+      }
+    });
 
     loadAdminDashboard();
   </script>
