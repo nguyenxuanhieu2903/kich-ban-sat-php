@@ -498,20 +498,20 @@ gantt
 
 ### Chi tiết các gói công việc:
 
-#### Gói P0 (Ưu tiên tối cao - Kiến trúc nền tảng):
-- Sửa dứt điểm ranh giới DM – System – Admin.
-- Tách bạch `booking_type` (PUBLIC vs PRIVATE) và hệ thống chỉ số sĩ số.
-- Đảo trình tự: Thống nhất lịch & Giữ phòng trước -> Mới phát sinh yêu cầu nộp cọc.
-- Hoàn thiện 4 State Machine độc lập.
-- Thiết lập quy tắc giữ cứng 30 phút dọn phòng (`BUFFER_MINUTES = 30`).
-- Mã hóa 7 kịch bản ngoại lệ đặt cọc và hoàn tiền.
+#### Gói P0 (Ưu tiên tối cao - Kiến trúc nền tảng - ĐÃ HOÀN THÀNH 100%):
+- Sửa dứt điểm ranh giới DM – System – Admin (Hoàn thành 100%).
+- Tách bạch `booking_type` (PUBLIC vs PRIVATE) và hệ thống chỉ số sĩ số (Hoàn thành 100%).
+- Đảo trình tự: Thống nhất lịch & Giữ phòng trước -> Mới phát sinh yêu cầu nộp cọc (Hoàn thành 100%).
+- Hoàn thiện 4 State Machine độc lập (Hoàn thành 100%).
+- Thiết lập quy tắc giữ cứng 30 phút dọn phòng (`BUFFER_MINUTES = 30` - Hoàn thành 100%).
+- Mã hóa 7 kịch bản ngoại lệ đặt cọc và hoàn tiền (Hoàn thành 100%).
 
-#### Gói P1 (Ưu tiên cao - Vận hành cốt lõi):
-- Cho phép gắn địa điểm và khung giờ dự kiến ngay tại form tạo phòng để xóa bỏ tình trạng "vào phòng mù".
-- Triển khai chức năng sao chép link mời bạn bè (`invite_token`).
-- Nâng cấp DM Portal: Check-in khách, đồng hồ đếm ngược 240 phút (6 giai đoạn), biên bản hiện trường và báo cáo sự cố.
-- Triển khai nghiệp vụ chuyển quyền Host và cửa sổ tìm người thay thế khi có thành viên rút lui.
-- Triển khai thông báo tự động nhắc lịch trước 24 giờ.
+#### Gói P1 (Ưu tiên cao - Vận hành cốt lõi - ĐÃ HOÀN THÀNH 100%):
+- Cho phép gắn địa điểm và khung giờ dự kiến ngay tại form tạo phòng để xóa bỏ tình trạng "vào phòng mù" (Hoàn thành 100%).
+- Triển khai chức năng sao chép link mời bạn bè (`invite_token` - Hoàn thành 100%).
+- Nâng cấp DM Portal: Check-in khách, đồng hồ đếm ngược 240 phút (6 giai đoạn), biên bản hiện trường và báo cáo sự cố (Hoàn thành 100%).
+- Triển khai nghiệp vụ chuyển quyền Host và cửa sổ tìm người thay thế khi có thành viên rút lui (Hoàn thành 100%).
+- Triển khai thông báo tự động nhắc lịch trước 24 giờ (Hoàn thành 100%).
 
 #### Gói P2 (Ưu tiên trung bình - Hoàn thiện trải nghiệm & Nghiệp vụ mở rộng - ĐÃ HOÀN THÀNH 100%):
 - Nạp bổ sung 12 kịch bản đa dạng thể loại vào CSDL qua seeder (`seed_rich_catalog.php` - Hoàn thành 100%).
