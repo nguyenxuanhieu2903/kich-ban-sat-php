@@ -92,6 +92,8 @@
   </main>
 
   <script type="module">
+    import { apiClient } from '../src/api/api-client.js';
+
     const btnStart = document.getElementById('btnStartSession');
     const btnComplete = document.getElementById('btnCompleteSession');
     const btnReject = document.getElementById('btnRejectShift');
@@ -100,8 +102,7 @@
 
     btnStart.addEventListener('click', async () => {
       try {
-        const res = await fetch('/api/v1/dm/sessions/1/start', { method: 'POST' });
-        const json = await res.json();
+        await apiClient.post('/sessions/1/start');
       } catch (e) {}
       sessionStatus.textContent = 'ĐANG DIỄN RA (IN_PROGRESS)';
       sessionStatus.className = 'stamp-badge open';
@@ -112,8 +113,7 @@
 
     btnComplete.addEventListener('click', async () => {
       try {
-        const res = await fetch('/api/v1/dm/sessions/1/complete', { method: 'POST' });
-        const json = await res.json();
+        await apiClient.post('/sessions/1/complete');
       } catch (e) {}
       sessionStatus.textContent = 'HOÀN TẤT (COMPLETED)';
       sessionStatus.className = 'stamp-badge';
@@ -125,11 +125,7 @@
       const reason = prompt('Vui lòng nhập lý do từ chối ca trực:');
       if (reason) {
         try {
-          await fetch('/api/v1/dm/assignments/1/reject', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ reason })
-          });
+          await apiClient.post('/dm/assignments/1/reject', { reason });
         } catch (e) {}
         alert('Đã từ chối ca trực. Admin sẽ điều phối người thay thế!');
         sessionStatus.textContent = 'ĐÃ TỪ CHỐI (REJECTED)';
@@ -140,11 +136,7 @@
     btnSaveNotes.addEventListener('click', async () => {
       const notes = document.getElementById('sessionNotes').value;
       try {
-        await fetch('/api/v1/dm/sessions/1/notes', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ notes })
-        });
+        await apiClient.post('/sessions/1/notes', { notes });
       } catch (e) {}
       alert('Đã lưu ghi chú hiện trường thành công!');
     });

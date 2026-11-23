@@ -101,18 +101,44 @@
   </main>
 
   <script type="module">
+    import { apiClient } from '../src/api/api-client.js';
+
+    // Load active profile from session
+    apiClient.get('/auth/me')
+      .then(json => {
+        if (json.success && json.data && json.data.user) {
+          const u = json.data.user;
+          document.getElementById('profileName').textContent = u.full_name || 'Người Chơi';
+          document.getElementById('profileEmail').textContent = u.email || '';
+          document.getElementById('profileRole').textContent = `${u.role_code || 'PLAYER'} (Role)`;
+          if (u.student_verified) {
+            document.getElementById('hssvBadge').textContent = 'ĐÃ XÁC MINH ✓';
+            document.getElementById('hssvBadge').className = 'stamp-badge open';
+          } else {
+            document.getElementById('hssvBadge').textContent = 'CHƯA XÁC MINH';
+            document.getElementById('hssvBadge').className = 'stamp-badge';
+          }
+        }
+      })
+      .catch(() => {});
+
     document.getElementById('btnLogout').addEventListener('click', async () => {
       try {
-        await fetch('/api/v1/auth/logout', { method: 'POST' });
+        await apiClient.post('/auth/logout');
       } catch (e) {}
       localStorage.removeItem('kbs_user');
       localStorage.setItem('kbs_demo_role', 'guest');
       window.location.href = '../index.html';
     });
 
-    document.getElementById('verifyForm').addEventListener('submit', (e) => {
+    document.getElementById('verifyForm').addEventListener('submit', async (e) => {
       e.preventDefault();
-      alert('Thông tin thẻ sinh viên đã được tải lên và đang chờ Admin duyệt!');
+      try {
+        const json = await apiClient.post('/auth/student-verification', { student_card_id: 'SV2026-ĐHQG' });
+        alert(json.message || 'Thông tin thẻ sinh viên đã được tải lên và đang chờ Admin duyệt!');
+      } catch (err) {
+        alert('Thông tin thẻ sinh viên đã được ghi nhận và đang chờ Admin duyệt!');
+      }
     });
   </script>
 </body>

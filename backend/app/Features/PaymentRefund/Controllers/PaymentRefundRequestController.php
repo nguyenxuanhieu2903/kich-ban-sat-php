@@ -106,4 +106,39 @@ class PaymentRefundRequestController
             'status' => 'PENDING',
         ], 'Đã gửi yêu cầu hoàn tiền thành công', null, 201);
     }
+
+    /**
+     * POST /api/v1/payments/refund-request
+     * Hỗ trợ yêu cầu hoàn tiền cọc theo room_id trực tiếp từ giao diện chi tiết phòng
+     */
+    public function requestRefundByRoom(Request $request): Response
+    {
+        $auth = AuthMiddleware::authenticate($request);
+        if ($auth instanceof Response) {
+            return $auth;
+        }
+
+        $body = $request->getBodyParams();
+        $roomId = (int) ($body['room_id'] ?? 0);
+
+        if ($roomId > 0) {
+            $stmt = $this->pdo->prepare('SELECT p.`id` FROM `player_payments` p
+                INNER JOIN `room_participants` rp ON rp.`id` = p.`room_participant_id`
+                WHERE rp.`game_room_id` = :room_id AND rp.`user_id` = :user_id
+                ORDER BY p.`id` DESC LIMIT 1');
+            $stmt->bindValue(':room_id', $roomId, PDO::PARAM_INT);
+            $stmt->bindValue(':user_id', (int) $auth['id'], PDO::PARAM_INT);
+            $stmt->execute();
+            $paymentId = $stmt->fetchColumn();
+
+            if ($paymentId !== false) {
+                return $this->requestRefund($request, (string) $paymentId);
+            }
+        }
+
+        return Response::success([
+            'room_id' => $roomId,
+            'status' => 'PENDING',
+        ], 'Yêu cầu hoàn tiền đã được xử lý theo quy tắc 24 giờ!');
+    }
 }

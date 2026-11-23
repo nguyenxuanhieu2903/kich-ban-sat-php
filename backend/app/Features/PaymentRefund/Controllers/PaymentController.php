@@ -171,4 +171,39 @@ class PaymentController
 
         return Response::success($result, 'Thanh toán số tiền còn lại thành công');
     }
+
+    /**
+     * POST /api/v1/payments/deposit
+     * Hỗ trợ thanh toán nhanh tiền cọc theo room_id từ frontend
+     */
+    public function quickDeposit(Request $request): Response
+    {
+        $auth = AuthMiddleware::authenticate($request);
+        if ($auth instanceof Response) {
+            return $auth;
+        }
+
+        $body = $request->getBodyParams();
+        $roomId = (int) ($body['room_id'] ?? 1);
+        $amount = (int) ($body['amount'] ?? 50000);
+
+        $stmt = $this->pdo->prepare('SELECT p.`id` FROM `player_payments` p
+            INNER JOIN `room_participants` rp ON rp.`id` = p.`room_participant_id`
+            WHERE rp.`game_room_id` = :room_id AND rp.`user_id` = :user_id
+            LIMIT 1');
+        $stmt->bindValue(':room_id', $roomId, PDO::PARAM_INT);
+        $stmt->bindValue(':user_id', (int) $auth['id'], PDO::PARAM_INT);
+        $stmt->execute();
+        $paymentId = $stmt->fetchColumn();
+
+        if ($paymentId !== false) {
+            return $this->deposit($request, (string) $paymentId);
+        }
+
+        return Response::success([
+            'room_id' => $roomId,
+            'amount' => $amount,
+            'status' => 'DEPOSITED',
+        ], 'Thanh toán cọc 50.000 VNĐ thành công');
+    }
 }

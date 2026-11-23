@@ -202,4 +202,33 @@ class SessionLifecycleController
             throw $e;
         }
     }
+
+    /**
+     * POST /api/v1/sessions/{id}/notes
+     * Ghi chú kết quả & sự cố hiện trường buổi chơi
+     */
+    public function saveNotes(Request $request, string $id): Response
+    {
+        $auth = AuthMiddleware::authenticate($request, ['ADMIN', 'DM']);
+        if ($auth instanceof Response) {
+            return $auth;
+        }
+
+        $sessionId = (int) $id;
+        $body = $request->getBodyParams();
+        $notes = trim((string) ($body['notes'] ?? ''));
+
+        $this->auditService->log(
+            (int) $auth['id'],
+            'SESSION_NOTES_UPDATED',
+            'session',
+            $sessionId,
+            ['notes' => $notes]
+        );
+
+        return Response::success([
+            'session_id' => $sessionId,
+            'notes' => $notes,
+        ], 'Đã lưu ghi chú hiện trường thành công');
+    }
 }

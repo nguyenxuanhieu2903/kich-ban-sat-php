@@ -111,6 +111,7 @@
   </main>
 
   <script type="module">
+    import { apiClient } from '../src/api/api-client.js';
     import { SCENARIOS } from '../src/data/scripts.data.js';
 
     const urlParams = new URLSearchParams(window.location.search);
@@ -119,8 +120,7 @@
     let item = SCENARIOS.find(s => s.id === id);
     if (!item && !isNaN(Number(id))) {
       // Fetch from API
-      fetch(`/api/v1/games`)
-        .then(r => r.json())
+      apiClient.get('/games')
         .then(res => {
           if (res.success && res.data.games) {
             const found = res.data.games.find(g => String(g.id) === String(id));

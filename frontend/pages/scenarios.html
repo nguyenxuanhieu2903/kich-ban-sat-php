@@ -79,6 +79,7 @@
   </main>
 
   <script type="module">
+    import { apiClient } from '../src/api/api-client.js';
     import { SCENARIOS } from '../src/data/scripts.data.js';
 
     let allScenarios = SCENARIOS || [];
@@ -170,9 +171,21 @@
       render();
     });
 
+    // Keyboard shortcuts: '/' to focus search, 'Escape' to clear
+    window.addEventListener('keydown', (e) => {
+      if (e.key === '/' && document.activeElement !== searchInput) {
+        e.preventDefault();
+        searchInput.focus();
+      } else if (e.key === 'Escape' && document.activeElement === searchInput) {
+        searchInput.value = '';
+        currentSearch = '';
+        searchInput.blur();
+        render();
+      }
+    });
+
     // Try fetching live games from backend API
-    fetch('/api/v1/games')
-      .then(res => res.json())
+    apiClient.get('/games')
       .then(json => {
         if (json.success && json.data.games && json.data.games.length > 0) {
           const apiGames = json.data.games.map(g => ({

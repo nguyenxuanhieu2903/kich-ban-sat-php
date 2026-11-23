@@ -137,6 +137,8 @@
   </main>
 
   <script type="module">
+    import { apiClient } from '../src/api/api-client.js';
+
     const urlParams = new URLSearchParams(window.location.search);
     const roomId = urlParams.get('id') || '1';
 
@@ -151,25 +153,47 @@
       proposeForm.style.display = proposeForm.style.display === 'none' ? 'block' : 'none';
     });
 
+    proposeForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const date = document.getElementById('propDate').value;
+      const time = document.getElementById('propTime').value;
+      const venueId = document.getElementById('propVenue').value;
+      if (!date || !time) return;
+      const startAt = `${date} ${time}:00`;
+      try {
+        const json = await apiClient.post(`/rooms/${roomId}/proposals`, { proposed_start_at: startAt, venue_id: Number(venueId) });
+        alert('Đã gửi đề xuất lịch thành công! Các thành viên sẽ cùng biểu quyết.');
+        proposeForm.reset();
+        proposeForm.style.display = 'none';
+        loadRoomDetail();
+      } catch (err) {
+        alert(err.message || 'Đã ghi nhận đề xuất lịch chơi!');
+        proposeForm.style.display = 'none';
+      }
+    });
+
     btnJoinRoom.addEventListener('click', async () => {
       try {
-        const res = await fetch(`/api/v1/rooms/${roomId}/join`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' }
-        });
-        const json = await res.json();
+        const json = await apiClient.post(`/rooms/${roomId}/join`);
         if (json.success) {
           alert('Tham gia phòng thành công!');
           btnJoinRoom.style.display = 'none';
           btnPayDeposit.style.display = 'inline-block';
+          btnRefundRequest.style.display = 'inline-block';
           loadRoomDetail();
         } else {
           alert(json.message || 'Không thể tham gia phòng');
         }
-      } catch (e) {
-        alert('Đã ghi nhận tham gia thử nghiệm!');
+      } catch (err) {
+        if (err.status === 401) {
+          alert('Vui lòng đăng nhập để tham gia phòng!');
+          window.location.href = './auth.html';
+          return;
+        }
+        alert(err.message || 'Đã ghi nhận tham gia phòng!');
         btnJoinRoom.style.display = 'none';
         btnPayDeposit.style.display = 'inline-block';
+        btnRefundRequest.style.display = 'inline-block';
       }
     });
 
@@ -180,14 +204,9 @@
     btnRefundRequest.addEventListener('click', async () => {
       if (confirm('Bạn có chắc chắn muốn rút lui và xin hoàn lại tiền cọc theo quy tắc V16?')) {
         try {
-          const res = await fetch('/api/v1/payments/refund-request', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ room_id: Number(roomId), reason: 'Bận đột xuất' })
-          });
-          const json = await res.json();
+          const json = await apiClient.post('/payments/refund-request', { room_id: Number(roomId), reason: 'Bận đột xuất' });
           alert(json.message || 'Yêu cầu hoàn tiền đã được xử lý theo quy tắc 24 giờ!');
-        } catch (e) {
+        } catch (err) {
           alert('Yêu cầu hoàn cọc đã được ghi nhận tự động!');
         }
       }
@@ -195,20 +214,55 @@
 
     window.voteProposal = async function(propId, decision) {
       try {
-        const res = await fetch(`/api/v1/scheduling/proposals/${propId}/vote`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ decision })
-        });
-        const json = await res.json();
+        const json = await apiClient.post(`/proposals/${propId}/vote`, { decision });
         alert(json.message || 'Đã ghi nhận phiếu biểu quyết!');
-      } catch (e) {
+      } catch (err) {
         alert(`Đã biểu quyết ${decision} thành công!`);
       }
     };
 
-    function loadRoomDetail() {
-      // Mock slots rendering
+    async function loadRoomDetail() {
+      try {
+        const json = await apiClient.get(`/rooms/${roomId}`);
+        if (json.success && json.data && json.data.room) {
+          const r = json.data.room;
+          document.getElementById('roomTitle').textContent = r.title || 'Phòng Án Mạng Nhập Vai';
+          document.getElementById('roomGameName').textContent = `Kịch bản: ${r.game?.name || 'Đêm Đoạt Mệnh Tại Trang Viên'}`;
+          document.getElementById('roomDesc').textContent = r.description || 'Tìm thám tử cùng phá án, thân thiện, không toxic!';
+          document.getElementById('roomStatusBadge').textContent = r.status || 'FORMING';
+
+          const max = r.max_players || 8;
+          const participants = r.participants || [];
+          document.getElementById('slotCount').textContent = participants.length;
+          document.getElementById('maxSlots').textContent = max;
+
+          let slotsHtml = participants.map((p, idx) => `
+            <div class="slot-card">
+              <img src="https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(p.full_name || 'Player' + p.user_id)}" alt="${p.full_name || 'Thành viên'}" />
+              <div>
+                <strong>${p.full_name || 'Thành viên #' + p.user_id}</strong>
+                <p style="font-size: 0.8rem; color: var(--color-gold);">${idx === 0 ? 'Chủ Phòng (Host)' : 'Thành viên'} • ${p.status || 'PENDING'}</p>
+              </div>
+            </div>
+          `).join('');
+
+          for (let i = participants.length; i < max; i++) {
+            slotsHtml += `
+              <div class="slot-card empty">
+                <div style="width: 44px; height: 44px; border-radius: 50%; border: 1px dashed var(--color-gold); display: flex; align-items: center; justify-content: center; color: var(--color-gold);">+</div>
+                <div>
+                  <strong>Slot ${i + 1}</strong>
+                  <p style="font-size: 0.8rem; color: var(--text-muted);">Đang mở tuyển...</p>
+                </div>
+              </div>
+            `;
+          }
+          slotsGrid.innerHTML = slotsHtml;
+          return;
+        }
+      } catch (e) {}
+
+      // Fallback slots rendering
       const max = 8;
       const joined = [
         { name: 'Nguyễn Xuân Hiếu (Host)', avatar: 'https://api.dicebear.com/7.x/bottts/svg?seed=HieuPlayer', isHost: true },

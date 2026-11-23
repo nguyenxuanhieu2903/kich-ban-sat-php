@@ -42,6 +42,8 @@
   </main>
 
   <script type="module">
+    import { apiClient } from '../src/api/api-client.js';
+
     const roomsGrid = document.getElementById('roomsGrid');
 
     async function loadRooms() {
@@ -104,18 +106,19 @@
 
     window.joinRoom = async function(roomId) {
       try {
-        const res = await fetch(`/api/v1/rooms/${roomId}/join`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' }
-        });
-        const json = await res.json();
+        const json = await apiClient.post(`/rooms/${roomId}/join`);
         if (json.success) {
           alert('Tham gia phòng thành công!');
           window.location.href = `./room-detail.html?id=${roomId}`;
         } else {
           alert(json.message || 'Không thể tham gia phòng');
         }
-      } catch (e) {
+      } catch (err) {
+        if (err.status === 401) {
+          alert('Vui lòng đăng nhập tài khoản trước khi tham gia phòng!');
+          window.location.href = './auth.html';
+          return;
+        }
         window.location.href = `./room-detail.html?id=${roomId}`;
       }
     };

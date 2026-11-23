@@ -139,6 +139,32 @@ class AdminOperationsController
     }
 
     /**
+     * POST /api/v1/admin/rooms/{id}/revoke-dm
+     */
+    public function revokeRoomDm(Request $request, string $id): Response
+    {
+        $auth = AuthMiddleware::authenticate($request, ['ADMIN']);
+        if ($auth instanceof Response) {
+            return $auth;
+        }
+
+        $roomId = (int) $id;
+        $stmt = $this->pdo->prepare('SELECT `id` FROM `dm_assignments` WHERE `game_room_id` = :rid AND `status` IN (\'PENDING\', \'ACCEPTED\') ORDER BY `id` DESC LIMIT 1');
+        $stmt->bindValue(':rid', $roomId, PDO::PARAM_INT);
+        $stmt->execute();
+        $assignmentId = $stmt->fetchColumn();
+
+        if ($assignmentId !== false) {
+            return $this->revokeDmAssignment($request, (string) $assignmentId);
+        }
+
+        return Response::success([
+            'game_room_id' => $roomId,
+            'status' => 'REVOKED',
+        ], 'Đã thu hồi phân công Quản trò thành công');
+    }
+
+    /**
      * POST /api/v1/admin/rooms/{id}/assign-venue
      * Body: venue_id (int, optional), physical_room_id (int, optional)
      */

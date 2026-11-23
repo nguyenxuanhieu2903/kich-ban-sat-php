@@ -139,3 +139,9 @@ roleSelectEl.addEventListener('change', (e) => {
 
 // Khởi chạy
 renderScenarios('ALL');
+
+const savedRole = localStorage.getItem('kbs_demo_role');
+if (savedRole && roleSelectEl) {
+  roleSelectEl.value = savedRole;
+  roleSelectEl.dispatchEvent(new Event('change'));
+}

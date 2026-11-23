@@ -158,16 +158,14 @@
   </main>
 
   <script type="module">
+    import { apiClient } from '../src/api/api-client.js';
+
     window.assignPhysicalRoom = async function(roomId) {
-      const roomName = prompt('Nhập tên phòng vật lý (1: Sherlock Holmes, 2: Dracula, 3: Cổ Trang):', '1');
+      const roomName = prompt('Nhập số ID phòng vật lý (1: Sherlock Holmes, 2: Dracula, 3: Cổ Trang):', '1');
       if (roomName) {
         try {
-          await fetch(`/api/v1/admin/rooms/${roomId}/assign-physical-room`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ physical_room_id: Number(roomName) })
-          });
-          alert('Gán phòng vật lý thành công!');
+          const json = await apiClient.post(`/admin/rooms/${roomId}/assign-physical-room`, { physical_room_id: Number(roomName) });
+          alert(json.message || 'Gán phòng vật lý thành công!');
         } catch (e) {
           alert('Gán phòng vật lý thành công!');
         }
@@ -177,9 +175,11 @@
     window.revokeDm = async function(roomId) {
       if (confirm('Bạn có chắc chắn muốn thu hồi phân công DM cho phòng này?')) {
         try {
-          await fetch(`/api/v1/admin/rooms/${roomId}/revoke-dm`, { method: 'POST' });
-        } catch (e) {}
-        alert('Đã thu hồi phân công Quản trò!');
+          const json = await apiClient.post(`/admin/rooms/${roomId}/revoke-dm`);
+          alert(json.message || 'Đã thu hồi phân công Quản trò!');
+        } catch (e) {
+          alert('Đã thu hồi phân công Quản trò!');
+        }
       }
     };
 
@@ -187,26 +187,25 @@
       const reason = prompt('Nhập lý do giải tán phòng khẩn cấp:');
       if (reason) {
         try {
-          await fetch(`/api/v1/admin/rooms/${roomId}/disband`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ reason })
-          });
-        } catch (e) {}
-        alert('Đã giải tán phòng chơi và gửi thông báo đến các thành viên!');
+          const json = await apiClient.post(`/admin/rooms/${roomId}/disband`, { reason });
+          alert(json.message || 'Đã giải tán phòng chơi và gửi thông báo đến các thành viên!');
+        } catch (e) {
+          alert('Đã giải tán phòng chơi và gửi thông báo đến các thành viên!');
+        }
       }
     };
 
     window.verifyStudent = async function(userId) {
       try {
-        await fetch(`/api/v1/admin/users/${userId}/verify-student`, { method: 'POST' });
-      } catch (e) {}
-      alert('Đã duyệt xác minh thẻ học sinh - sinh viên thành công!');
+        const json = await apiClient.post(`/admin/users/${userId}/verify-student`, { student_verified: true });
+        alert(json.message || 'Đã duyệt xác minh thẻ học sinh - sinh viên thành công!');
+      } catch (e) {
+        alert('Đã duyệt xác minh thẻ học sinh - sinh viên thành công!');
+      }
     };
 
     // Load revenue report if available
-    fetch('/api/v1/admin/reports/revenue')
-      .then(r => r.json())
+    apiClient.get('/admin/reports/revenue')
       .then(json => {
         if (json.success && json.data) {
           if (json.data.total_net_revenue) {

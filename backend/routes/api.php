@@ -123,12 +123,21 @@ HTML;
     $router->get($prefix . '/admin/payments', [\App\Features\Identity\Controllers\AdminReportController::class, 'payments']);
     $router->post($prefix . '/admin/rooms/{id}/assign-dm', [AdminOperationsController::class, 'assignDm']);
     $router->post($prefix . '/dm/assignments/{id}/revoke', [AdminOperationsController::class, 'revokeDmAssignment']);
+    $router->post($prefix . '/admin/rooms/{id}/revoke-dm', [AdminOperationsController::class, 'revokeRoomDm']);
     $router->post($prefix . '/admin/rooms/{id}/assign-venue', [AdminOperationsController::class, 'assignVenue']);
+    $router->post($prefix . '/admin/rooms/{id}/assign-physical-room', [AdminOperationsController::class, 'assignVenue']);
+    $router->post($prefix . '/admin/rooms/{id}/disband', [AdminGameRoomController::class, 'cancel']);
     $router->put($prefix . '/admin/users/{id}/student-verification', [AdminOperationsController::class, 'updateStudentVerification']);
+    $router->post($prefix . '/admin/users/{id}/verify-student', [AdminOperationsController::class, 'updateStudentVerification']);
     $router->get($prefix . '/sessions/{id}', [SessionLifecycleController::class, 'show']);
     $router->post($prefix . '/sessions/{id}/start', [SessionLifecycleController::class, 'start']);
     $router->post($prefix . '/sessions/{id}/complete', [SessionLifecycleController::class, 'complete']);
+    $router->post($prefix . '/sessions/{id}/notes', [SessionLifecycleController::class, 'saveNotes']);
+    $router->post($prefix . '/dm/sessions/{id}/start', [SessionLifecycleController::class, 'start']);
+    $router->post($prefix . '/dm/sessions/{id}/complete', [SessionLifecycleController::class, 'complete']);
+    $router->post($prefix . '/dm/sessions/{id}/notes', [SessionLifecycleController::class, 'saveNotes']);
     $router->post($prefix . '/payments/{id}/refund-request', [PaymentRefundRequestController::class, 'requestRefund']);
+    $router->post($prefix . '/payments/refund-request', [PaymentRefundRequestController::class, 'requestRefundByRoom']);
 
     // =============================================================
     // DOMAIN 2: GAME CATALOG & PROMOTIONS API
@@ -161,6 +170,7 @@ HTML;
     $router->post($prefix . '/rooms/{id}/proposals', [SchedulingController::class, 'propose']);
     $router->get($prefix . '/proposals/{id}', [SchedulingController::class, 'showProposal']);
     $router->post($prefix . '/proposals/{id}/vote', [SchedulingController::class, 'vote']);
+    $router->post($prefix . '/scheduling/proposals/{id}/vote', [SchedulingController::class, 'vote']);
 
     // =============================================================
     // DOMAIN 6: DM ASSIGNMENT API
@@ -174,6 +184,7 @@ HTML;
     // =============================================================
     $router->get($prefix . '/rooms/{id}/payments', [PaymentController::class, 'listByRoom']);
     $router->post($prefix . '/payments/{paymentId}/deposit', [PaymentController::class, 'deposit']);
+    $router->post($prefix . '/payments/deposit', [PaymentController::class, 'quickDeposit']);
     $router->post($prefix . '/payments/{paymentId}/remaining', [PaymentController::class, 'remaining']);
 
     // Admin Refunds Management

@@ -125,6 +125,11 @@
   </main>
 
   <script type="module">
+    import { apiClient } from '../src/api/api-client.js';
+
+    const urlParams = new URLSearchParams(window.location.search);
+    const roomId = urlParams.get('room_id') || '1';
+
     // 4 hours countdown timer simulation
     let secondsLeft = 4 * 3600 - 15;
     const timerText = document.getElementById('timerText');
@@ -144,17 +149,12 @@
       btnConfirm.textContent = 'Đang ghi nhận...';
 
       try {
-        const res = await fetch('/api/v1/payments/deposit', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ room_id: 1, amount: 50000 })
-        });
-        const json = await res.json();
+        const json = await apiClient.post('/payments/deposit', { room_id: Number(roomId), amount: 50000 });
         alert('Thanh toán tiền cọc thành công! Chỗ chơi của bạn đã được giữ an toàn.');
-        window.location.href = './room-detail.html?id=1';
+        window.location.href = `./room-detail.html?id=${roomId}`;
       } catch (e) {
         alert('Ghi nhận thanh toán cọc thành công! Hẹn gặp bạn tại buổi chơi.');
-        window.location.href = './room-detail.html?id=1';
+        window.location.href = `./room-detail.html?id=${roomId}`;
       }
     });
   </script>

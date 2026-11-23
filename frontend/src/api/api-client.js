@@ -190,6 +190,11 @@ export class ApiClient {
 export const api = new ApiClient();
 export const apiClient = api;
 
+if (typeof window !== 'undefined') {
+  window.apiClient = api;
+  window.api = api;
+}
+
 // Wrapper for feature/frontend compatibility
 export async function apiRequest(endpoint, options = {}) {
   const method = (options.method || 'GET').toUpperCase();
