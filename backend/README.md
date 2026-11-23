@@ -61,7 +61,7 @@ DB_PASSWORD=
 # Kiểm tra ping & quyền truy cập CSDL
 composer check-db
 
-# Nạp dữ liệu mẫu chuẩn V16 (Users, Roles, Venues, Physical Rooms, Games, Pricing, Promotions)
+# Nạp dữ liệu mẫu chuẩn V16 (Users, Roles, Venues, 10 Physical Rooms, 12 Games & Rich Configurations, Pricing, Promotions)
 composer seed
 ```
 

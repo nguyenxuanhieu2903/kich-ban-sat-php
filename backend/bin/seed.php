@@ -58,18 +58,25 @@ try {
     ");
 
     // 4. Seed Physical Rooms
-    echo "[4/6] Seeding physical rooms...\n";
+    echo "[4/7] Seeding 10 physical rooms across venues...\n";
     $pdo->exec("
         INSERT INTO `physical_rooms` (`id`, `venue_id`, `name`, `capacity`, `description`, `status`)
         VALUES
             (1, 1, 'Phòng Sherlock Holmes', 8, 'Phòng phong cách phòng khách quý tộc Anh quốc, ánh sáng ấm cúng', 'ACTIVE'),
             (2, 1, 'Phòng VIP Huyết Tộc Dracula', 10, 'Phòng VIP rộng rãi, hệ thống âm thanh vòm và đèn đổi màu theo bối cảnh', 'ACTIVE'),
-            (3, 2, 'Phòng Cổ Trang Á Đông', 8, 'Bối cảnh dinh thự phong kiến, trà cụ và phục trang kèm theo', 'ACTIVE')
-        ON DUPLICATE KEY UPDATE `name` = VALUES(`name`);
+            (3, 2, 'Phòng Cổ Trang Á Đông', 8, 'Bối cảnh dinh thự phong kiến, trà cụ và phục trang kèm theo', 'ACTIVE'),
+            (4, 1, 'Phòng Biệt Thự Thám Tử', 8, 'Không gian cổ điển Châu Âu với giá sách bí mật và két sắt cổ', 'ACTIVE'),
+            (5, 1, 'Phòng Mật Thất Gothic', 10, 'Thiết kế hầm rượu Gothic bí ẩn, phù hợp kịch bản kinh dị giật gân', 'ACTIVE'),
+            (6, 1, 'Phòng Tòa Án Phán Xét', 12, 'Mô phỏng phiên tòa tranh luận kịch tính, bục thẩm phán và nhân chứng', 'ACTIVE'),
+            (7, 2, 'Phòng Trinh Thám Hiện Đại', 8, 'Văn phòng thám tử tư New York thập niên 90 với bảng manh mối và máy ghi âm', 'ACTIVE'),
+            (8, 2, 'Phòng Quán Rượu Thập Niên 80', 10, 'Quán pub hoài niệm ánh đèn neon, thích hợp kịch bản xã hội đen và gián điệp', 'ACTIVE'),
+            (9, 2, 'Phòng Tàu Hỏa Phương Đông', 8, 'Khoang tàu lửa sang trọng trên tuyến tốc hành xuyên biên giới', 'ACTIVE'),
+            (10, 2, 'Phòng Bệnh Viện Bỏ Hoang', 10, 'Không gian hành lang bệnh viện u ám với đèn chớp tắt và hồ sơ bệnh án cổ', 'ACTIVE')
+        ON DUPLICATE KEY UPDATE `name` = VALUES(`name`), `capacity` = VALUES(`capacity`), `description` = VALUES(`description`), `status` = VALUES(`status`);
     ");
 
     // 5. Seed Games, Configurations & Prices
-    echo "[5/6] Seeding games, configurations & pricing tiers...\n";
+    echo "[5/7] Seeding games, configurations & pricing tiers...\n";
     $pdo->exec("
         INSERT INTO `games` (`id`, `name`, `slug`, `description`, `image_url`, `min_players`, `max_players`, `duration_minutes`, `status`, `display_order`)
         VALUES
@@ -102,7 +109,7 @@ try {
     ");
 
     // 6. Seed Promotions
-    echo "[6/6] Seeding promotions (Tuesday 30% & Student discount)...\n";
+    echo "[6/7] Seeding promotions (Tuesday 30% & Student discount)...\n";
     $pdo->exec("
         INSERT INTO `promotions` (`id`, `code`, `name`, `promotion_type`, `discount_type`, `discount_value`, `start_at`, `end_at`, `rules`, `is_active`)
         VALUES
@@ -110,6 +117,13 @@ try {
             (2, 'HSSV_20000', 'Ưu đãi học sinh sinh viên', 'STUDENT', 'FIXED', 20000, '2026-01-01 00:00:00', '2035-12-31 23:59:59', '{\"weekdays\": [1, 2, 3, 4], \"stackable\": false, \"valid_from\": \"09:00:00\", \"valid_until\": \"19:00:00\", \"discount_per_eligible_person\": 20000, \"requires_student_verification\": true}', 1)
         ON DUPLICATE KEY UPDATE `name` = VALUES(`name`), `rules` = VALUES(`rules`);
     ");
+
+    // 7. Seed 9 additional rich Jubensha scenarios (Total: 12 scenarios)
+    $richCatalogFile = dirname(__DIR__) . '/database/seed_rich_catalog.php';
+    if (file_exists($richCatalogFile)) {
+        echo "[7/7] Seeding full catalog (12 Jubensha scenarios)...\n";
+        require $richCatalogFile;
+    }
 
     echo "\n[SUCCESS] Database seeded successfully!\n";
     exit(0);
