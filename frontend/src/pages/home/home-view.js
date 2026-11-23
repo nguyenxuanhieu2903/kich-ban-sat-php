@@ -213,9 +213,9 @@ export class HomeView {
               <h2 class="section-title" style="font-family: var(--font-display); font-size: 1.8rem; margin: 4px 0 0;">Kịch Bản Jubensha Nổi Bật</h2>
             </div>
             <div style="display: flex; gap: 8px;">
-              <button id="btn-open-price-modal" class="btn btn-ghost btn-sm" style="color: var(--gold); border-color: var(--gold-border);">
-                📊 Xem bảng giá chi tiết
-              </button>
+              <a href="#games" id="btn-view-all-games" class="btn btn-gold btn-sm" data-tab="games" style="font-weight: 700; color: var(--ink-black); text-decoration: none; padding: 8px 16px; display: inline-flex; align-items: center; gap: 6px;">
+                Mở kho kịch bản &rarr;
+              </a>
             </div>
           </div>
 
@@ -375,6 +375,14 @@ export class HomeView {
       viewAllRoomsBtn.addEventListener('click', (e) => {
         e.preventDefault();
         this.onNavigate('rooms');
+      });
+    }
+
+    const viewAllGamesBtn = document.getElementById('btn-view-all-games');
+    if (viewAllGamesBtn) {
+      viewAllGamesBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        this.onNavigate('games');
       });
     }
 
