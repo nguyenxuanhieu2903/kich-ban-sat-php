@@ -20,7 +20,9 @@ class GameRoomRepository extends BaseRepository
             $stmt = $this->pdo->prepare(
                 'SELECT `id`, CONCAT(\'ROOM_\', `id`) AS `room_code`, `creator_id`, `game_id`, `game_configuration_id`,
                         `title`, `description`, `min_players`, `max_players`,
-                        `status`, 1 AS `is_active`,
+                        `status`, `booking_type`, `target_venue_id`, `target_time_slot`,
+                        `total_players`, `confirmed_players`, `required_players`, `guest_slots`, `is_18_plus_acknowledged`,
+                        1 AS `is_active`,
                         `formation_deadline_at` AS `formation_deadline`, `formation_deadline_at`,
                         `description` AS `notes`, `cancel_reason`, `cancelled_at`,
                         `replacement_opened_by`, `replacement_status`, `replacement_deadline_at`,
@@ -84,13 +86,25 @@ class GameRoomRepository extends BaseRepository
 
             $deadline = $data['formation_deadline_at'] ?? $data['formation_deadline'] ?? date('Y-m-d H:i:s', strtotime('+3 days'));
             $desc = $data['description'] ?? $data['notes'] ?? null;
+            $bookingType = $data['booking_type'] ?? 'PUBLIC';
+            $targetVenueId = isset($data['target_venue_id']) ? (int) $data['target_venue_id'] : null;
+            $targetTimeSlot = $data['target_time_slot'] ?? null;
+            $totalPlayers = isset($data['total_players']) ? (int) $data['total_players'] : null;
+            $confirmedPlayers = isset($data['confirmed_players']) ? (int) $data['confirmed_players'] : 1;
+            $requiredPlayers = isset($data['required_players']) ? (int) $data['required_players'] : ($data['min_players'] ?? 4);
+            $guestSlots = isset($data['guest_slots']) ? (int) $data['guest_slots'] : 0;
+            $is18Plus = !empty($data['is_18_plus_acknowledged']) ? 1 : 0;
 
             $stmt = $this->pdo->prepare(
                 'INSERT INTO `game_rooms` (`game_id`, `game_configuration_id`, `creator_id`, `title`,
                                            `description`, `min_players`, `max_players`, `status`,
+                                           `booking_type`, `target_venue_id`, `target_time_slot`,
+                                           `total_players`, `confirmed_players`, `required_players`, `guest_slots`, `is_18_plus_acknowledged`,
                                            `formation_deadline_at`, `created_at`, `updated_at`)
                  VALUES (:game_id, :game_configuration_id, :creator_id, :title,
                          :description, :min_players, :max_players, :status,
+                         :booking_type, :target_venue_id, :target_time_slot,
+                         :total_players, :confirmed_players, :required_players, :guest_slots, :is_18_plus,
                          :formation_deadline_at, NOW(), NOW())'
             );
 
@@ -102,6 +116,14 @@ class GameRoomRepository extends BaseRepository
             $stmt->bindValue(':min_players', $data['min_players'] ?? 4, PDO::PARAM_INT);
             $stmt->bindValue(':max_players', $data['max_players'] ?? 8, PDO::PARAM_INT);
             $stmt->bindValue(':status', $data['status'] ?? 'FORMING', PDO::PARAM_STR);
+            $stmt->bindValue(':booking_type', $bookingType, PDO::PARAM_STR);
+            $stmt->bindValue(':target_venue_id', $targetVenueId, $targetVenueId === null ? PDO::PARAM_NULL : PDO::PARAM_INT);
+            $stmt->bindValue(':target_time_slot', $targetTimeSlot, $targetTimeSlot === null ? PDO::PARAM_NULL : PDO::PARAM_STR);
+            $stmt->bindValue(':total_players', $totalPlayers, $totalPlayers === null ? PDO::PARAM_NULL : PDO::PARAM_INT);
+            $stmt->bindValue(':confirmed_players', $confirmedPlayers, PDO::PARAM_INT);
+            $stmt->bindValue(':required_players', $requiredPlayers, PDO::PARAM_INT);
+            $stmt->bindValue(':guest_slots', $guestSlots, PDO::PARAM_INT);
+            $stmt->bindValue(':is_18_plus', $is18Plus, PDO::PARAM_INT);
             $stmt->bindValue(':formation_deadline_at', $deadline, PDO::PARAM_STR);
 
             $stmt->execute();

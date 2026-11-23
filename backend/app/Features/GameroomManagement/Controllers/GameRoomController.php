@@ -45,9 +45,12 @@ class GameRoomController
 
         $sql = 'SELECT gr.`id`, gr.`game_id`, gr.`creator_id`, gr.`title`, gr.`description`,
                        gr.`min_players`, gr.`max_players`, gr.`status`, gr.`formation_deadline_at`,
+                       gr.`booking_type`, gr.`target_venue_id`, gr.`target_time_slot`,
+                       gr.`total_players`, gr.`confirmed_players`, gr.`required_players`, gr.`guest_slots`, gr.`is_18_plus_acknowledged`,
                        gr.`replacement_status`, gr.`replacement_deadline_at`,
                        g.`name` AS `game_name`, g.`image_url` AS `game_image_url`, g.`duration_minutes`,
                        u.`full_name` AS `creator_name`,
+                       v.`name` AS `target_venue_name`,
                        (SELECT COUNT(*) FROM `room_participants` rp
                         WHERE rp.`game_room_id` = gr.`id`
                           AND rp.`status` IN (\'PENDING_DEPOSIT\', \'DEPOSITED\', \'LEAVE_REQUESTED\')
@@ -55,6 +58,7 @@ class GameRoomController
                 FROM `game_rooms` gr
                 INNER JOIN `games` g ON g.`id` = gr.`game_id`
                 INNER JOIN `users` u ON u.`id` = gr.`creator_id`
+                LEFT JOIN `venues` v ON v.`id` = gr.`target_venue_id`
                 WHERE 1 = 1';
 
         $bindings = [];
@@ -169,6 +173,28 @@ class GameRoomController
             $deadline = date('Y-m-d H:i:s', strtotime('+3 days'));
         }
 
+        // Chống spam: Giới hạn số phòng FORMING một user được mở cùng lúc (tối đa 5 phòng trong môi trường production)
+        if (\App\Infrastructure\Config\Config::get('APP_ENV') === 'production') {
+            $formingCheck = $this->pdo->prepare('SELECT COUNT(*) FROM `game_rooms` WHERE `creator_id` = :uid AND `status` = \'FORMING\'');
+            $formingCheck->bindValue(':uid', $userId, PDO::PARAM_INT);
+            $formingCheck->execute();
+            if ((int) $formingCheck->fetchColumn() >= 5) {
+                return Response::fail('Bạn đang có nhiều phòng chờ ghép đội chưa hoàn tất (tối đa 5 phòng), vui lòng quản lý phòng hiện tại trước khi tạo mới', 'LIMIT_FORMING_ROOMS_EXCEEDED', 422);
+            }
+        }
+
+        // Đọc thông số Public / Private và target venue/slot
+        $bookingType = strtoupper(trim((string) ($body['booking_type'] ?? 'PUBLIC')));
+        if (!in_array($bookingType, ['PUBLIC', 'PRIVATE'], true)) {
+            $bookingType = 'PUBLIC';
+        }
+
+        $targetVenueId = isset($body['target_venue_id']) && (int) $body['target_venue_id'] > 0 ? (int) $body['target_venue_id'] : null;
+        $targetTimeSlot = isset($body['target_time_slot']) ? trim((string) $body['target_time_slot']) : null;
+        $totalPlayers = isset($body['total_players']) && (int) $body['total_players'] > 0 ? (int) $body['total_players'] : null;
+        $guestSlots = isset($body['guest_slots']) ? max(0, (int) $body['guest_slots']) : 0;
+        $is18Plus = !empty($body['is_18_plus_acknowledged']) ? 1 : 0;
+
         // Lấy configuration id v1
         $cfgStmt = $this->pdo->prepare('SELECT `id` FROM `game_configurations` WHERE `game_id` = :game_id ORDER BY `version` DESC LIMIT 1');
         $cfgStmt->bindValue(':game_id', $gameId, PDO::PARAM_INT);
@@ -184,6 +210,14 @@ class GameRoomController
             'min_players' => $minPlayers,
             'max_players' => $maxPlayers,
             'status' => 'FORMING',
+            'booking_type' => $bookingType,
+            'target_venue_id' => $targetVenueId,
+            'target_time_slot' => $targetTimeSlot,
+            'total_players' => $totalPlayers,
+            'confirmed_players' => 1,
+            'required_players' => $minPlayers,
+            'guest_slots' => $guestSlots,
+            'is_18_plus_acknowledged' => $is18Plus,
             'formation_deadline_at' => $deadline,
         ]);
 
@@ -397,6 +431,32 @@ class GameRoomController
             $upStmt = $this->pdo->prepare('UPDATE `room_participants` SET `status` = \'LEFT\', `left_at` = NOW() WHERE `id` = :id');
             $upStmt->bindValue(':id', $partId, PDO::PARAM_INT);
             $upStmt->execute();
+
+            // Nếu người rời phòng là Chủ phòng (Host), chuyển quyền Host cho thành viên tiếp theo
+            if ((int) $room['creator_id'] === $userId) {
+                $nextHostStmt = $this->pdo->prepare(
+                    'SELECT `user_id` FROM `room_participants`
+                     WHERE `game_room_id` = :room_id AND `user_id` != :uid
+                       AND `status` IN (\'PENDING_DEPOSIT\', \'DEPOSITED\')
+                     ORDER BY `joined_at` ASC, `id` ASC LIMIT 1'
+                );
+                $nextHostStmt->bindValue(':room_id', $roomId, PDO::PARAM_INT);
+                $nextHostStmt->bindValue(':uid', $userId, PDO::PARAM_INT);
+                $nextHostStmt->execute();
+                $nextHostId = $nextHostStmt->fetchColumn();
+
+                if ($nextHostId !== false) {
+                    $upHost = $this->pdo->prepare('UPDATE `game_rooms` SET `creator_id` = :next_uid WHERE `id` = :room_id');
+                    $upHost->bindValue(':next_uid', (int) $nextHostId, PDO::PARAM_INT);
+                    $upHost->bindValue(':room_id', $roomId, PDO::PARAM_INT);
+                    $upHost->execute();
+                } else {
+                    // Không còn thành viên nào trong phòng -> Hủy giải tán phòng
+                    $disbandStmt = $this->pdo->prepare('UPDATE `game_rooms` SET `status` = \'CANCELLED\', `cancel_reason` = \'Chủ phòng rời và không còn thành viên nào trong phòng\', `cancelled_at` = NOW() WHERE `id` = :room_id');
+                    $disbandStmt->bindValue(':room_id', $roomId, PDO::PARAM_INT);
+                    $disbandStmt->execute();
+                }
+            }
 
             return Response::success(null, 'Đã rời phòng chơi thành công');
         }

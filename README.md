@@ -600,14 +600,20 @@ Hệ thống được thiết kế khép kín toàn bộ vòng đời trải ngh
 
 ### 10.5. Lệnh chạy kiểm thử tự động để kiểm chứng chất lượng
 
-Để nghiệm thu toàn bộ chất lượng kỹ thuật, người chấm thi có thể mở Terminal chạy 2 câu lệnh sau:
+Để nghiệm thu toàn bộ chất lượng kỹ thuật, người chấm thi có thể mở Terminal chạy các câu lệnh sau:
 
 - Kiểm thử toàn diện Backend (PHPUnit):
   ```bash
   cd backend
   ./vendor/bin/phpunit
   ```
-  Kết quả chuẩn: `OK (125 tests, 555 assertions)` - 100% kiểm thử đạt yêu cầu.
+  Kết quả chuẩn: `OK (129 tests, 581 assertions)` - 100% kiểm thử đạt yêu cầu (bổ sung bộ kiểm thử tính năng P0: V16StandardP0FeaturesTest).
+
+- Kiểm thử động 100% toàn bộ API Routes trên hệ thống (Node.js Dynamic Route Audit):
+  ```bash
+  node scratch/test_all_67_routes.mjs
+  ```
+  Kết quả chuẩn: `73/73` API routes phản hồi chính xác theo mã trạng thái HTTP chuẩn mực.
 
 - Kiểm thử toàn diện Frontend (Node.js Test Runner):
   ```bash
@@ -618,3 +624,23 @@ Hệ thống được thiết kế khép kín toàn bộ vòng đời trải ngh
   node tests/home-e2e.test.mjs
   ```
   Kết quả chuẩn: 24 bài kiểm tra đều vượt qua với trạng thái thông qua 100%.
+
+---
+
+### 10.6. Bổ sung chuẩn hóa tính năng nghiệp vụ cấp độ P0 (V1.6 Standard)
+
+Hệ thống đã hoàn thiện triển khai thực tế và kiểm chứng toàn diện các cải tiến kiến trúc cốt lõi cấp độ P0:
+
+1. Mô hình Đặt phòng Đa dạng (Public Matchmaking vs Private Group Booking):
+   - Chế độ `PUBLIC`: Dành cho khách lẻ gom đội trên Sảnh chờ, công khai hiển thị chi nhánh dự kiến (`target_venue_id`) và khung giờ dự kiến (`target_time_slot`) ngay từ bước tạo phòng, loại bỏ tình trạng khách lẻ "vào phòng mù".
+   - Chế độ `PRIVATE`: Dành cho nhóm bạn đi chung, tính toán sĩ số theo số lượng thực tế của đoàn (`total_players`), mặc định khóa số lượng khách lạ vãng lai (`guest_slots = 0`).
+
+2. Ràng buộc An toàn Tài nguyên & Đệm dọn phòng cứng 30 phút:
+   - Áp dụng đệm dọn phòng cố định tối thiểu 30 phút (`max(30, $bufferMinutes)`) tại tầng Repository, ngăn ngừa tuyệt đối nguy cơ quá tải hoặc không kịp chuẩn bị đạo cụ hiện trường giữa hai ca chơi liên tiếp.
+   - Kiểm tra trạng thái phòng bảo trì (`is_maintenance = 1`).
+   - Cung cấp API chuyên dụng cho Quản trị viên (`POST /api/v1/admin/rooms/offline-block`) để khóa giữ chỗ thủ công cho khách liên hệ qua Hotline hoặc khách vãng lai (Walk-in), ngăn ngừa xung đột lịch với khách đặt trực tuyến.
+
+3. Vòng đời Phòng, Chuyển quyền Host và Bảo vệ Trải nghiệm:
+   - Tự động chuyển giao quyền Chủ phòng (Host Transfer): Khi Host rời phòng ở trạng thái `FORMING`, hệ thống tự động chỉ định thành viên vào phòng sớm nhất tiếp theo làm Host mới (`ORDER BY joined_at ASC, id ASC LIMIT 1`); tự động giải tán phòng (`DISBANDED`) nếu không còn thành viên nào.
+   - Kiểm soát kịch bản giới hạn độ tuổi 18+: Yêu cầu xác nhận độ tuổi (`is_18_plus_acknowledged = 1`) tại giao diện tạo phòng và lưu trữ minh bạch trong cơ sở dữ liệu.
+   - Cơ chế tự động thu hồi ca Quản trò (DM Assignment SLA Timeout): Nền tảng tự động quét và thu hồi các lượt phân công Quản trò ở trạng thái chờ quá 4 giờ thông qua tác vụ định kỳ `BackgroundJobService::runDmAssignmentTimeout()`.

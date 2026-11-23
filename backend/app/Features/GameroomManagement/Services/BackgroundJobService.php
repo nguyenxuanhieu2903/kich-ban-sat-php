@@ -31,6 +31,7 @@ class BackgroundJobService
             'deposit_timeouts' => $this->runDepositTimeout(),
             'replacement_timeouts' => $this->runReplacementTimeout(),
             'proposal_timeouts' => $this->runProposalTimeout(),
+            'dm_assignment_timeouts' => $this->runDmAssignmentTimeout(),
         ];
     }
 
@@ -255,6 +256,25 @@ class BackgroundJobService
             'UPDATE `schedule_proposals`
              SET `status` = \'EXPIRED\'
              WHERE `status` = \'PROPOSED\' AND `expires_at` IS NOT NULL AND `expires_at` <= NOW()'
+        );
+        $stmt->execute();
+
+        return $stmt->rowCount();
+    }
+
+    /**
+     * Job 5: Quét các phân công DM chờ phản hồi quá 4 tiếng (assigned_at <= NOW() - 4H AND status = 'PENDING')
+     * -> Tự động thu hồi và mở lại cơ hội cho DM khác.
+     */
+    public function runDmAssignmentTimeout(): int
+    {
+        $stmt = $this->pdo->prepare(
+            'UPDATE `dm_assignments`
+             SET `status` = \'REVOKED\',
+                 `revoked_at` = NOW(),
+                 `reason` = \'Quá hạn 4 giờ Quản trò không phản hồi tiếp nhận ca trực\',
+                 `updated_at` = NOW()
+             WHERE `status` = \'PENDING\' AND `assigned_at` <= DATE_SUB(NOW(), INTERVAL 4 HOUR)'
         );
         $stmt->execute();
 

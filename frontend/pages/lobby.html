@@ -59,18 +59,22 @@
           <div class="ticket-card" style="display: flex; flex-direction: column; justify-content: space-between;">
             <div>
               <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-                <span class="stamp-badge ${r.status === 'FORMING' ? 'open' : ''}">${r.status}</span>
-                <span style="font-weight: 700; color: #2e7d32;">${r.current_players || 1}/${r.max_players || 8} Slot</span>
+                <div style="display: flex; gap: 6px; align-items: center;">
+                  <span class="stamp-badge ${r.status === 'FORMING' ? 'open' : ''}">${r.status}</span>
+                  ${r.booking_type === 'PRIVATE' ? '<span class="stamp-badge" style="border-color: #b8860b; color: #ffd700;">NHÓM BẠN</span>' : '<span class="stamp-badge" style="border-color: #2e7d32; color: #81c784;">CÔNG KHAI</span>'}
+                </div>
+                <span style="font-weight: 700; color: #2e7d32;">${r.current_players || 1}/${r.total_players || r.max_players || 8} Slot</span>
               </div>
               <h3 style="margin-bottom: 8px; font-family: var(--font-serif);">${r.title || 'Phòng Án Mạng Nhập Vai'}</h3>
-              <p style="font-size: 0.9rem; color: var(--text-muted); margin-bottom: 12px;">${r.game_name || 'Đêm Đoạt Mệnh Tại Trang Viên'}</p>
+              <p style="font-size: 0.9rem; color: var(--text-muted); margin-bottom: 8px;">${r.game_name || 'Đêm Đoạt Mệnh Tại Trang Viên'}</p>
+              ${r.target_venue_name || r.target_time_slot ? `<div style="font-size: 0.82rem; color: #c9a25e; margin-bottom: 10px; background: rgba(201,162,94,0.08); padding: 4px 8px; border-radius: 4px;">Địa điểm: ${r.target_venue_name || 'Chi nhánh Q.1'} | Ca: ${r.target_time_slot || 'Khung giờ linh hoạt'}</div>` : ''}
               <p style="font-size: 0.85rem; line-height: 1.5; margin-bottom: 16px;">${r.description || 'Tìm thám tử cùng phá án, thân thiện, không toxic!'}</p>
             </div>
             <div>
               <hr class="ticket-divider" />
               <div style="display: flex; gap: 8px;">
                 <a href="./room-detail.html?id=${r.id}" class="btn btn-outline" style="flex: 1; text-align: center;">Chi tiết</a>
-                <button type="button" class="btn btn-primary" onclick="joinRoom(${r.id})" style="flex: 1;">Vào Phòng</button>
+                ${r.booking_type === 'PRIVATE' && (r.guest_slots || 0) === 0 ? `<a href="./room-detail.html?id=${r.id}" class="btn btn-outline" style="flex: 1; text-align: center;">Nhóm Riêng</a>` : `<button type="button" class="btn btn-primary" onclick="joinRoom(${r.id})" style="flex: 1;">Vào Phòng</button>`}
               </div>
             </div>
           </div>

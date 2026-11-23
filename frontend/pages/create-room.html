@@ -74,13 +74,53 @@
         </div>
 
         <div class="form-group">
-          <label for="roomTitle">2. Tiêu Đề Phòng Chơi *</label>
+          <label for="bookingTypeSelect">2. Hình Thức Đặt Phòng *</label>
+          <select id="bookingTypeSelect" class="form-control" required>
+            <option value="PUBLIC" selected>Ghép Thám Tử Công Khai (Mở sảnh cho người lạ tham gia)</option>
+            <option value="PRIVATE">Nhóm Bạn Riêng Tư (Đi cùng nhóm bạn, không nhận khách ngoài)</option>
+          </select>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+          <div class="form-group">
+            <label for="venueSelect">3. Chi Nhánh Dự Kiến *</label>
+            <select id="venueSelect" class="form-control" required>
+              <option value="1" selected>Chi nhánh Quận 1 (128 Hai Bà Trưng, P. Đa Kao)</option>
+              <option value="2">Chi nhánh Bình Thạnh (45 Đinh Bộ Lĩnh, P. 26)</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="timeSlotSelect">4. Khung Giờ Dự Kiến *</label>
+            <select id="timeSlotSelect" class="form-control" required>
+              <option value="09:00 - 13:00">Ca Sáng (09:00 - 13:00, Giá 180k)</option>
+              <option value="14:00 - 18:00" selected>Ca Chiều (14:00 - 18:00, Giá 220k)</option>
+              <option value="18:30 - 22:30">Ca Tối (18:30 - 22:30, Giá 250k)</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="roomTitle">5. Tiêu Đề Phòng Chơi *</label>
           <input type="text" id="roomTitle" class="form-control" required placeholder="Ví dụ: Tuyển 4 bạn phá án tối Thứ Bảy không toxic" />
         </div>
 
         <div class="form-group">
-          <label for="roomDesc">3. Lời Nhắn Đến Thành Viên Mới</label>
+          <label for="roomDesc">6. Lời Nhắn Đến Thành Viên Mới</label>
           <textarea id="roomDesc" class="form-control" rows="3" placeholder="Giới thiệu phong cách chơi, yêu cầu trang phục hoặc lưu ý..."></textarea>
+        </div>
+
+        <div id="privateGroupFields" style="display: none; background: rgba(201, 162, 94, 0.08); padding: 14px; border-radius: 4px; margin-bottom: 20px; border: 1px dashed rgba(201, 162, 94, 0.4);">
+          <div style="font-weight: 600; color: var(--color-gold); margin-bottom: 8px;">Cấu hình cho Nhóm Bạn Riêng Tư:</div>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+            <div class="form-group" style="margin-bottom: 0;">
+              <label for="totalPlayersInput">Số bạn đi cùng thực tế</label>
+              <input type="number" id="totalPlayersInput" class="form-control" value="6" min="4" max="10" />
+            </div>
+            <div class="form-group" style="margin-bottom: 0;">
+              <label for="guestSlotsInput">Số slot mở ghép thêm nếu thiếu</label>
+              <input type="number" id="guestSlotsInput" class="form-control" value="0" min="0" max="4" />
+            </div>
+          </div>
         </div>
 
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
@@ -101,6 +141,13 @@
             <option value="2">Trong vòng 48 giờ</option>
             <option value="3" selected>Trong vòng 3 ngày</option>
           </select>
+        </div>
+
+        <div class="form-group" style="background: rgba(255, 255, 255, 0.03); padding: 10px; border-radius: 4px;">
+          <label style="display: flex; align-items: center; gap: 8px; font-weight: normal; cursor: pointer;">
+            <input type="checkbox" id="ageConfirmed" style="width: 18px; height: 18px; accent-color: var(--color-gold);" checked />
+            <span>Tôi xác nhận toàn bộ thành viên đều từ đủ 18 tuổi trở lên đối với các kịch bản có yếu tố kinh dị/tâm lý phức tạp.</span>
+          </label>
         </div>
 
         <hr class="ticket-divider" />
@@ -143,19 +190,36 @@
       gameSelect.value = preselectedGameId;
     }
 
+    const bookingTypeSelect = document.getElementById('bookingTypeSelect');
+    const privateGroupFields = document.getElementById('privateGroupFields');
+
+    bookingTypeSelect.addEventListener('change', () => {
+      privateGroupFields.style.display = bookingTypeSelect.value === 'PRIVATE' ? 'block' : 'none';
+    });
+
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
       alertBox.style.display = 'none';
       btnSubmit.disabled = true;
       btnSubmit.textContent = 'Đang khởi tạo phòng...';
 
+      const bookingType = bookingTypeSelect.value;
       const payload = {
         game_id: Number(gameSelect.value),
         title: document.getElementById('roomTitle').value.trim(),
         description: document.getElementById('roomDesc').value.trim(),
         min_players: Number(document.getElementById('minPlayers').value),
-        max_players: Number(document.getElementById('maxPlayers').value)
+        max_players: Number(document.getElementById('maxPlayers').value),
+        booking_type: bookingType,
+        target_venue_id: Number(document.getElementById('venueSelect').value),
+        target_time_slot: document.getElementById('timeSlotSelect').value,
+        is_18_plus_acknowledged: document.getElementById('ageConfirmed')?.checked ? 1 : 0
       };
+
+      if (bookingType === 'PRIVATE') {
+        payload.total_players = Number(document.getElementById('totalPlayersInput').value);
+        payload.guest_slots = Number(document.getElementById('guestSlotsInput').value);
+      }
 
       try {
         const json = await apiClient.post('/rooms', payload);

@@ -286,4 +286,115 @@ class AdminOperationsController
             'student_verified' => $studentVerified,
         ], 'Cập nhật trạng thái xác minh sinh viên thành công');
     }
+
+    /**
+     * POST /api/v1/admin/rooms/offline-block
+     * Khóa phòng vật lý thủ công cho khách đặt qua Hotline / Khách vãng lai (Walk-in)
+     */
+    public function offlineBlock(Request $request): Response
+    {
+        $auth = AuthMiddleware::authenticate($request, ['ADMIN']);
+        if ($auth instanceof Response) {
+            return $auth;
+        }
+
+        $adminId = (int) $auth['id'];
+        $body = $request->getBodyParams();
+
+        $venueId = (int) ($body['venue_id'] ?? 0);
+        $physicalRoomId = (int) ($body['physical_room_id'] ?? 0);
+        $startAt = trim((string) ($body['start_at'] ?? ''));
+        $endAt = trim((string) ($body['end_at'] ?? ''));
+        $customerName = trim((string) ($body['customer_name'] ?? ''));
+        $customerPhone = trim((string) ($body['customer_phone'] ?? ''));
+        $notes = isset($body['notes']) ? trim((string) $body['notes']) : null;
+
+        if ($venueId <= 0 || $physicalRoomId <= 0 || $startAt === '' || $endAt === '' || $customerName === '' || $customerPhone === '') {
+            return Response::fail('Vui lòng điền đầy đủ thông tin: chi nhánh, phòng vật lý, giờ bắt đầu, giờ kết thúc, tên và số điện thoại khách hàng', 'VALIDATION_ERROR', 422);
+        }
+
+        if (strtotime($startAt) >= strtotime($endAt)) {
+            return Response::fail('Thời gian bắt đầu phải trước thời gian kết thúc', 'VALIDATION_ERROR', 422);
+        }
+
+        // Kiểm tra phòng vật lý tồn tại và active
+        $prStmt = $this->pdo->prepare('SELECT `id`, `name`, `status` FROM `physical_rooms` WHERE `id` = :id AND `venue_id` = :vid LIMIT 1');
+        $prStmt->bindValue(':id', $physicalRoomId, PDO::PARAM_INT);
+        $prStmt->bindValue(':vid', $venueId, PDO::PARAM_INT);
+        $prStmt->execute();
+        $pr = $prStmt->fetch(PDO::FETCH_ASSOC);
+
+        if ($pr === false) {
+            return Response::fail('Phòng vật lý không tồn tại hoặc không thuộc chi nhánh đã chọn', 'PHYSICAL_ROOM_NOT_FOUND', 404);
+        }
+
+        // Kiểm tra xung đột với Session đã có
+        $conflictStmt = $this->pdo->prepare(
+            'SELECT COUNT(*) FROM `sessions`
+             WHERE `physical_room_id` = :pr_id
+               AND `status` IN (\'SCHEDULED\', \'IN_PROGRESS\')
+               AND `start_at` < :end_at AND `end_at` > :start_at'
+        );
+        $conflictStmt->bindValue(':pr_id', $physicalRoomId, PDO::PARAM_INT);
+        $conflictStmt->bindValue(':end_at', $endAt, PDO::PARAM_STR);
+        $conflictStmt->bindValue(':start_at', $startAt, PDO::PARAM_STR);
+        $conflictStmt->execute();
+        if ((int) $conflictStmt->fetchColumn() > 0) {
+            return Response::fail('Phòng vật lý đã có lịch chơi trong khung giờ này', 'PHYSICAL_ROOM_CONFLICT', 409);
+        }
+
+        // Kiểm tra xung đột với offline block khác
+        $blockConflictStmt = $this->pdo->prepare(
+            'SELECT COUNT(*) FROM `offline_room_blocks`
+             WHERE `physical_room_id` = :pr_id
+               AND `start_at` < :end_at AND `end_at` > :start_at'
+        );
+        $blockConflictStmt->bindValue(':pr_id', $physicalRoomId, PDO::PARAM_INT);
+        $blockConflictStmt->bindValue(':end_at', $endAt, PDO::PARAM_STR);
+        $blockConflictStmt->bindValue(':start_at', $startAt, PDO::PARAM_STR);
+        $blockConflictStmt->execute();
+        if ((int) $blockConflictStmt->fetchColumn() > 0) {
+            return Response::fail('Phòng vật lý đã được khóa giữ chỗ thủ công trong khung giờ này', 'OFFLINE_BLOCK_CONFLICT', 409);
+        }
+
+        $insStmt = $this->pdo->prepare(
+            'INSERT INTO `offline_room_blocks` (`venue_id`, `physical_room_id`, `start_at`, `end_at`, `customer_name`, `customer_phone`, `notes`, `created_by`, `created_at`)
+             VALUES (:vid, :prid, :start, :end, :cname, :cphone, :notes, :created_by, NOW())'
+        );
+        $insStmt->bindValue(':vid', $venueId, PDO::PARAM_INT);
+        $insStmt->bindValue(':prid', $physicalRoomId, PDO::PARAM_INT);
+        $insStmt->bindValue(':start', $startAt, PDO::PARAM_STR);
+        $insStmt->bindValue(':end', $endAt, PDO::PARAM_STR);
+        $insStmt->bindValue(':cname', $customerName, PDO::PARAM_STR);
+        $insStmt->bindValue(':cphone', $customerPhone, PDO::PARAM_STR);
+        $insStmt->bindValue(':notes', $notes, $notes === null ? PDO::PARAM_NULL : PDO::PARAM_STR);
+        $insStmt->bindValue(':created_by', $adminId, PDO::PARAM_INT);
+        $insStmt->execute();
+
+        $blockId = (int) $this->pdo->lastInsertId();
+
+        $this->auditService->log(
+            actorId: $adminId,
+            action: 'OFFLINE_ROOM_BLOCK_CREATED',
+            entityType: 'physical_room',
+            entityId: $physicalRoomId,
+            metadata: [
+                'block_id' => $blockId,
+                'customer_name' => $customerName,
+                'customer_phone' => $customerPhone,
+                'start_at' => $startAt,
+                'end_at' => $endAt,
+            ]
+        );
+
+        return Response::success([
+            'block_id' => $blockId,
+            'physical_room_id' => $physicalRoomId,
+            'physical_room_name' => $pr['name'],
+            'start_at' => $startAt,
+            'end_at' => $endAt,
+            'customer_name' => $customerName,
+            'customer_phone' => $customerPhone,
+        ], 'Đã khóa phòng vật lý thủ công thành công cho khách Hotline/Walk-in', null, 201);
+    }
 }

@@ -334,11 +334,12 @@
             updateCalculatedEndTime();
           }
           document.getElementById('roomTitle').textContent = r.title || 'Phòng Án Mạng Nhập Vai';
-          document.getElementById('roomGameName').textContent = `Kịch bản: ${r.game?.name || 'Đêm Đoạt Mệnh Tại Trang Viên'}`;
+          const typeLabel = r.booking_type === 'PRIVATE' ? ' [Nhóm Bạn Riêng]' : ' [Ghép Công Khai]';
+          document.getElementById('roomGameName').textContent = `Kịch bản: ${r.game?.name || 'Đêm Đoạt Mệnh Tại Trang Viên'}${typeLabel}${r.target_time_slot ? ' • Ca dự kiến: ' + r.target_time_slot : ''}`;
           document.getElementById('roomDesc').textContent = r.description || 'Tìm thám tử cùng phá án, thân thiện, không toxic!';
           document.getElementById('roomStatusBadge').textContent = r.status || 'FORMING';
 
-          const max = r.max_players || 8;
+          const max = r.total_players || r.max_players || 8;
           const participants = r.participants || [];
           document.getElementById('slotCount').textContent = participants.length;
           document.getElementById('maxSlots').textContent = max;

@@ -127,6 +127,7 @@ HTML;
     $router->post($prefix . '/admin/rooms/{id}/revoke-dm', [AdminOperationsController::class, 'revokeRoomDm']);
     $router->post($prefix . '/admin/rooms/{id}/assign-venue', [AdminOperationsController::class, 'assignVenue']);
     $router->post($prefix . '/admin/rooms/{id}/assign-physical-room', [AdminOperationsController::class, 'assignVenue']);
+    $router->post($prefix . '/admin/rooms/offline-block', [AdminOperationsController::class, 'offlineBlock']);
     $router->post($prefix . '/admin/rooms/{id}/disband', [AdminGameRoomController::class, 'cancel']);
     $router->put($prefix . '/admin/users/{id}/student-verification', [AdminOperationsController::class, 'updateStudentVerification']);
     $router->post($prefix . '/admin/users/{id}/verify-student', [AdminOperationsController::class, 'updateStudentVerification']);

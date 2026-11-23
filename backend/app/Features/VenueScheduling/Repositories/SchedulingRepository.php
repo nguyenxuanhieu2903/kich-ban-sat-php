@@ -102,7 +102,8 @@ class SchedulingRepository extends BaseRepository
     }
 
     /**
-     * Find an active physical room with sufficient capacity and no conflicting session (with cascading buffer: 30m -> 15m -> 0m).
+     * Find an active physical room with sufficient capacity and no conflicting session or offline block.
+     * Enforces strict buffer (default 30m) without degrading to 0m.
      *
      * @return array<string, mixed>|null
      */
@@ -112,14 +113,8 @@ class SchedulingRepository extends BaseRepository
         string $endAt,
         int $bufferMinutes = 30
     ): ?array {
-        $buffers = array_unique([max(0, $bufferMinutes), 15, 0]);
-        foreach ($buffers as $buf) {
-            $room = $this->querySingleAvailablePhysicalRoom($minCapacity, $startAt, $endAt, $buf);
-            if ($room !== null) {
-                return $room;
-            }
-        }
-        return null;
+        $strictBuffer = max(30, $bufferMinutes);
+        return $this->querySingleAvailablePhysicalRoom($minCapacity, $startAt, $endAt, $strictBuffer);
     }
 
     protected function querySingleAvailablePhysicalRoom(
@@ -135,21 +130,32 @@ class SchedulingRepository extends BaseRepository
                  INNER JOIN `venues` v ON v.`id` = pr.`venue_id` AND v.`status` = \'ACTIVE\'
                  WHERE pr.`status` = \'ACTIVE\'
                    AND pr.`capacity` >= :min_capacity
+                   AND (pr.`is_maintenance` = 0 OR pr.`is_maintenance` IS NULL)
                    AND NOT EXISTS (
                        SELECT 1 FROM `sessions` s
                        WHERE s.`physical_room_id` = pr.`id`
                          AND s.`status` IN (\'SCHEDULED\', \'IN_PROGRESS\')
-                         AND s.`start_at` < DATE_ADD(:end_at, INTERVAL :buf1 MINUTE)
-                         AND s.`end_at` > DATE_SUB(:start_at, INTERVAL :buf2 MINUTE)
+                         AND s.`start_at` < DATE_ADD(:end_at1, INTERVAL :buf1 MINUTE)
+                         AND s.`end_at` > DATE_SUB(:start_at1, INTERVAL :buf2 MINUTE)
+                   )
+                   AND NOT EXISTS (
+                       SELECT 1 FROM `offline_room_blocks` orb
+                       WHERE orb.`physical_room_id` = pr.`id`
+                         AND orb.`start_at` < DATE_ADD(:end_at2, INTERVAL :buf3 MINUTE)
+                         AND orb.`end_at` > DATE_SUB(:start_at2, INTERVAL :buf4 MINUTE)
                    )
                  ORDER BY pr.`capacity` ASC, pr.`id` ASC
                  LIMIT 1'
             );
             $stmt->bindValue(':min_capacity', max(1, $minCapacity), PDO::PARAM_INT);
-            $stmt->bindValue(':end_at', $endAt, PDO::PARAM_STR);
-            $stmt->bindValue(':start_at', $startAt, PDO::PARAM_STR);
+            $stmt->bindValue(':end_at1', $endAt, PDO::PARAM_STR);
+            $stmt->bindValue(':start_at1', $startAt, PDO::PARAM_STR);
+            $stmt->bindValue(':end_at2', $endAt, PDO::PARAM_STR);
+            $stmt->bindValue(':start_at2', $startAt, PDO::PARAM_STR);
             $stmt->bindValue(':buf1', max(0, $bufferMinutes), PDO::PARAM_INT);
             $stmt->bindValue(':buf2', max(0, $bufferMinutes), PDO::PARAM_INT);
+            $stmt->bindValue(':buf3', max(0, $bufferMinutes), PDO::PARAM_INT);
+            $stmt->bindValue(':buf4', max(0, $bufferMinutes), PDO::PARAM_INT);
             $stmt->execute();
 
             $result = $stmt->fetch(PDO::FETCH_ASSOC);
