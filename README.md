@@ -10,7 +10,7 @@ Tài liệu này được biên soạn chi tiết, minh bạch, sử dụng ngô
 | :--- | :--- | :--- | :--- |
 | Mức độ hoàn thiện tổng thể | Khoảng 65% - 70% | 100% hoàn chỉnh, sẵn sàng vận hành thực tế | Đã khép kín toàn bộ quy trình từ tạo phòng, ghép người, biểu quyết lịch, phân công DM, đặt cọc, hoàn cọc đến báo cáo doanh thu. |
 | Giai đoạn Backend | Dừng lại ở Stage 2 (thiếu phần lớn nghiệp vụ vận hành quản trị) | Hoàn tất 100% cả 3 giai đoạn: Stage 1, Stage 2 và Stage 3 | Cung cấp đầy đủ nghiệp vụ quản trị, phân công DM, thu hồi ca trực, gán phòng vật lý, báo cáo doanh thu và nhật ký kiểm toán. |
-| Kiểm thử tự động (Automated Tests) | 14 test cơ bản (chưa được cấu hình đầy đủ để chạy) | 149 test tự động (125 test PHPUnit backend + 24 test Node.js E2E frontend) đạt tỷ lệ vượt qua 100% | Hệ thống được bảo vệ bởi mạng lưới kiểm thử tự động dày đặc, kiểm chứng mọi điều kiện biên và logic nghiệp vụ. |
+| Kiểm thử tự động (Automated Tests) | 14 test cơ bản (chưa được cấu hình đầy đủ để chạy) | 150 test tự động (126 test PHPUnit backend + 24 test Node.js E2E frontend) đạt tỷ lệ vượt qua 100% | Hệ thống được bảo vệ bởi mạng lưới kiểm thử tự động dày đặc, kiểm chứng mọi điều kiện biên và logic nghiệp vụ. |
 | Xử lý tranh chấp phòng (Race Condition) | Kiểm tra số lượng người thông thường, dễ bị vượt quá max_players khi nhiều người bấm cùng lúc | Sử dụng cơ chế khóa bi quan (Pessimistic Locking: SELECT ... FOR UPDATE) trong Database Transaction | Đảm bảo tuyệt đối không bao giờ xảy ra tình trạng phòng 6 người mà có 7 người vào được. |
 | Kiểm soát ưu đãi Sinh viên | Tự động áp dụng giảm 20.000đ cho tất cả người dùng không kiểm tra thẻ | Bắt buộc người dùng phải được Admin xét duyệt thẻ sinh viên (student_verified = 1) | Bảo vệ doanh thu, loại bỏ triệt để nguy cơ gian lận ưu đãi. |
 | Cơ chế ngăn chặn hoàn cọc sát giờ | Cho phép truyền cờ force_refund từ phía client để lấy lại 100% tiền cọc | Chặn cờ force_refund từ client; chỉ duy nhất Admin có quyền phê duyệt đặc cách trong trường hợp bất khả kháng | Người chơi hủy trước 24h được hoàn 100%, hủy dưới 24h bị mất cọc 100% theo quy chế V16 của quán. |
@@ -193,6 +193,30 @@ Triển khai 4 cron job tự động hóa nghiệp vụ:
 | 13 | POST | `/api/v1/notifications/mark-read` | Notifications | Đánh dấu tất cả thông báo là đã đọc |
 | 14 | GET | `/docs` | Documentation | Giao diện Swagger UI tài liệu API tương tác |
 | 15 | GET | `/openapi.json` | Documentation | Tệp đặc tả tiêu chuẩn OpenAPI 3.0 |
+| 16 | GET | `/api/v1/auth/my-rooms` | Identity & Rooms | Lấy lịch sử tất cả phòng chơi của tài khoản, trạng thái cọc và điều kiện hoàn tiền |
+
+### 4.12. Lịch sử Phòng chơi Động và Yêu cầu Hoàn cọc Trực tiếp (AuthController.php & profile.html)
+- Endpoint: `GET /api/v1/auth/my-rooms` (tại AuthController.php).
+- Chức năng: Cho phép người chơi truy vấn toàn bộ lịch sử các phòng chơi đã tham gia, bao gồm mã phòng, tên phòng, trạng thái phòng (`OPEN`, `FORMING`, `SCHEDULE_PROPOSED`, `CONFIRMED`, `COMPLETED`, `CANCELLED`), tên kịch bản, thời gian phiên chơi (`session_start_at`), số tiền cọc đã đóng (`paid_amount`, mặc định 50.000 VNĐ), trạng thái hoàn cọc (`refund_status`), và cờ kiểm tra điều kiện hoàn tiền (`can_refund`).
+- Đồng thời cung cấp hướng dẫn hoàn tiền trực quan (`refund_hint`): Nếu thời gian còn lại trước giờ chơi >= 24 giờ, hệ thống thông báo người chơi đủ điều kiện được hoàn cọc 100%; nếu dưới 24 giờ, hệ thống cảnh báo sẽ bị mất cọc theo quy chế quán; nếu phòng đã hủy thì hiển thị đã được xử lý hoàn tiền.
+- Tích hợp giao diện `frontend/pages/profile.html`: Thay thế hoàn toàn dữ liệu tĩnh mẫu bằng bảng nạp dữ liệu động từ API. Hiển thị nhãn trạng thái sinh động, nút "Xem Chi Tiết Phòng" và nút "Yêu Cầu Hoàn Cọc" cho phép người chơi kích hoạt trực tiếp `POST /api/v1/payments/refund-request` ngay tại trang cá nhân với hộp thoại xác nhận an toàn.
+
+### 4.13. Cơ chế Khóa và Tự động Tính Giờ kết thúc theo Thời lượng Kịch bản (SchedulingController.php & room-detail.html)
+- Tại Backend `SchedulingController.php`:
+  - Khi người dùng gửi đề xuất thời gian chơi, hệ thống tự động tra cứu thời lượng chuẩn (`duration_minutes`) của kịch bản đã chọn trong cơ sở dữ liệu (ví dụ: Án Mạng Trang Viên Đêm Tuyết là 240 phút = 4 giờ; Án Mạng Trên Chuyến Tàu Tuyết là 210 phút = 3.5 giờ).
+  - Nếu client không truyền thời gian kết thúc (`proposed_end_at`), backend tự động tính toán chính xác `$endAt = $startAt + $gameDuration phút`.
+  - Kiểm tra tính hợp lệ về mặt thời gian: Nếu thời lượng đề xuất thực tế nhỏ hơn 60 phút, hệ thống từ chối với mã lỗi `DURATION_TOO_SHORT (422)` nhằm bảo đảm buổi chơi Jubensha có đủ thời lượng cho việc đọc kịch bản, tra án và tranh luận.
+- Tại Frontend `frontend/pages/room-detail.html`:
+  - Tự động lắng nghe sự kiện thay đổi giờ bắt đầu (`propTimeInput`), lấy thời lượng `r.game.duration_minutes` từ dữ liệu phòng và tự động cộng dồn để điền chính xác vào ô giờ kết thúc (`propEndTimeInput`).
+  - Thiết lập thuộc tính `readonly` cho trường giờ kết thúc kèm bảng ghi chú thời lượng kịch bản, ngăn chặn việc người chơi chỉnh sửa giờ kết thúc tùy tiện gây xung đột thời gian hoặc chiếm dụng phòng chơi vật lý.
+
+### 4.14. Tài liệu Đặc tả Kiến trúc Vận hành Toàn diện và Bản Tự kiểm điểm Hệ thống (docs/TAI_LIEU_VAN_HANH_TOAN_DIEN_HE_THONG.md)
+- Bổ sung tài liệu chuyên sâu 5 chương, phân tích toàn diện:
+  1. Bản chất trò chơi Kịch Bản Sát (Jubensha): Giải thích vì sao người dùng không thể tự "chơi online" mà hệ thống đóng vai trò nền tảng ghép đội, xếp lịch và phân bổ tài nguyên cho buổi chơi trực tiếp tại bàn ngoài đời thực.
+  2. Ma trận 4 Actor (Khách Vãng Lai, Người Chơi / Chủ Phòng, Quản Trò DM, Quản Trị Viên Admin) và sự phân định rõ ràng giữa phòng chơi ảo (Game Room) và phòng vật lý tại chi nhánh (Physical Room).
+  3. Vòng đời buổi chơi 5 giai đoạn: Tạo lập -> Khớp lịch -> Chuẩn bị phòng & DM -> Buổi chơi thực tế -> Hậu kỳ và hoàn cọc.
+  4. Bản tự kiểm điểm hệ thống: Giải đáp cặn kẽ vì sao các phòng mới tạo hiển thị 1/8 slot (Chủ phòng là thành viên đầu tiên, cần ghép đủ người theo kịch bản trước khi khóa lịch); giải thích kho 42 kịch bản tiếp thị và dữ liệu hạt giống; làm rõ điều kiện chuyển trạng thái phòng.
+  5. Lộ trình nâng cấp 3 bước: Mở rộng danh mục kịch bản lên 12-15 bản ghi phong phú, tích hợp chức năng hủy phòng linh hoạt cho Host, và hoàn thiện giao diện hoàn tiền trực quan.
 
 ---
 
@@ -292,11 +316,11 @@ Cơ sở dữ liệu của dự án sử dụng hệ quản trị MySQL 8.x vớ
 
 ---
 
-## 7. KẾT QUẢ KIỂM THỬ TOÀN DIỆN (149 BÀI KIỂM TRA TỰ ĐỘNG)
+## 7. KẾT QUẢ KIỂM THỬ TOÀN DIỆN (150 BÀI KIỂM TRA TỰ ĐỘNG)
 
-Hệ thống được bảo vệ bởi tổng cộng 149 bài kiểm tra tự động chạy trên môi trường thực tế, đạt tỷ lệ thành công 100%:
+Hệ thống được bảo vệ bởi tổng cộng 150 bài kiểm tra tự động chạy trên môi trường thực tế, đạt tỷ lệ thành công 100%:
 
-### 7.1. Kiểm thử Backend (125 tests, 555 assertions - 100% Pass)
+### 7.1. Kiểm thử Backend (126 tests, 566 assertions - 100% Pass)
 - Kiểm thử đơn vị (Unit Tests):
   - `RoomSchedulingServiceTest.php`: Kiểm tra tính toán khoảng thời gian, phát hiện xung đột trùng giờ, kiểm tra ràng buộc khoảng đệm 30 phút giữa 2 ca chơi liền kề.
 - Kiểm thử chức năng (Feature Tests):
@@ -363,11 +387,11 @@ composer seed
 ```
 Hệ thống tự động nạp đầy đủ vai trò, tài khoản người dùng, chi nhánh, phòng vật lý, kịch bản, cấu hình đạo cụ và bảng giá.
 
-Bước 3: Chạy toàn bộ 125 bài kiểm tra tự động Backend:
+Bước 3: Chạy toàn bộ 126 bài kiểm tra tự động Backend:
 ```bash
 composer test
 ```
-Kết quả hiển thị: `OK (125 tests, 555 assertions)`.
+Kết quả hiển thị: `OK (126 tests, 566 assertions)`.
 
 Bước 4: Khởi động máy chủ ứng dụng:
 ```bash
@@ -540,8 +564,11 @@ Hệ thống được thiết kế khép kín toàn bộ vòng đời trải ngh
    - Nhấn "+ Đề Xuất Lịch Mới", chọn ngày giờ và phòng chơi, nhấn "Gửi Đề Xuất". Các thành viên trong phòng cùng tham gia nhấn "Đồng Ý (Yes)".
    - Khi lịch được chốt, nhấn nút "Thanh Toán Cọc (50k)" để chuyển sang trang `/pages/booking-status.html`.
    - Hệ thống hiển thị đồng hồ đếm ngược 4 giờ giữ chỗ kèm mã VietQR Napas 247 động đúng số tiền 50.000đ. Nhấn nút "Xác Nhận Đã Chuyển Khoản" để hệ thống ghi nhận trạng thái đã cọc.
-5. Kiểm tra hồ sơ cá nhân:
-   - Truy cập `/pages/profile.html` để xem thông tin cá nhân, lịch sử đặt phòng và trạng thái xác minh thẻ sinh viên (HSSV) được hưởng quyền giảm 20.000đ/người.
+5. Kiểm tra hồ sơ cá nhân và yêu cầu hoàn cọc:
+   - Truy cập `/pages/profile.html` để xem thông tin cá nhân, trạng thái xác minh thẻ sinh viên (HSSV) được hưởng quyền giảm 20.000đ/người.
+   - Bảng "Lịch Sử Phòng Chơi" hiển thị động toàn bộ các phòng đã tham gia: tên phòng, kịch bản, thời gian phiên chơi, trạng thái tham gia, số tiền cọc (50.000đ), trạng thái hoàn tiền và hướng dẫn hoàn cọc.
+   - Nút "Xem Chi Tiết Phòng" dẫn trực tiếp đến trang phòng chơi tương ứng.
+   - Khi đáp ứng điều kiện (đã cọc và phòng chưa kết thúc/chưa hủy), người chơi có thể nhấn nút "Yêu Cầu Hoàn Cọc" trực tiếp trên trang cá nhân để gửi yêu cầu đến hệ thống theo quy chế hoàn tiền 24 giờ mà không cần thao tác phức tạp.
 
 #### Luồng 2: Quản trò (DM) tiếp nhận và điều phối ca dẫn truyện
 1. Đăng nhập tài khoản Quản trò:

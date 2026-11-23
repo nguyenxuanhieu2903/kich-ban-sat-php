@@ -68,7 +68,7 @@ composer seed
 ```bash
 composer test
 ```
-*Kết quả:* **124 tests, 551 assertions, 100% OK (0 failures, 0 errors)**.
+*Kết quả:* **126 tests, 566 assertions, 100% OK (0 failures, 0 errors)**.
 
 ### 5. Khởi chạy Máy chủ Cục bộ (Local Development Server)
 ```bash
@@ -117,6 +117,7 @@ Hệ thống hỗ trợ cả 2 tiền tố URL: `/api/v1/...` (chuẩn V16) và 
 - `POST /api/v1/auth/register`: Đăng ký tài khoản người chơi.
 - `POST /api/v1/auth/login`: Đăng nhập, cấp phiên làm việc an toàn.
 - `GET /api/v1/auth/me`: Thông tin người dùng hiện tại và vai trò.
+- `GET /api/v1/auth/my-rooms`: Lấy danh sách lịch sử phòng đã tham gia kèm trạng thái cọc và hoàn tiền.
 - `POST /api/v1/auth/logout`: Hủy phiên làm việc.
 - `GET /api/v1/admin/users`: Danh sách người dùng (phân trang, lọc theo role).
 - `GET /api/v1/admin/users/{id}`: Chi tiết người dùng.
@@ -203,7 +204,7 @@ backend/
 ├── routes/
 │   └── api.php                         # Route Definitions
 ├── tests/
-│   └── Feature/                        # 118 Unit & Feature Automated Tests
+│   └── Feature/                        # 126 Unit & Feature Automated Tests
 ├── composer.json                       # PSR-4 Autoloading, Dev Dependencies & Scripts
 ├── phpunit.xml                         # Test Configuration
 └── README.md                           # System Documentation
@@ -214,5 +215,5 @@ backend/
 ## 🛡️ TIÊU CHUẨN NGHIỆM THU ĐỒ ÁN (DEFENSE READY)
 
 1. **Clean Code & No Framework Magic:** Toàn bộ luồng dữ liệu, mã hóa mật khẩu, truy vấn SQL đều được viết mạch lạc, dễ giải trình trước hội đồng chấm thi.
-2. **Kiểm thử tự động phủ kín:** 118 unit & feature tests kiểm chứng chặt chẽ mọi kịch bản biên (concurrency race conditions, cutoff times, non-stackable promotions, role escalation checks).
+2. **Kiểm thử tự động phủ kín:** 126 unit & feature tests kiểm chứng chặt chẽ mọi kịch bản biên (concurrency race conditions, cutoff times, non-stackable promotions, role escalation checks).
 3. **Sẵn sàng triển khai:** Cung cấp đầy đủ script CLI, tài liệu OpenAPI tương tác và bộ seeder một chạm cho buổi thuyết trình.
