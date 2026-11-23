@@ -53,7 +53,9 @@ Hệ thống hoạt động theo nguyên tắc vàng: **"Xếp Lịch & Gom Đ�
 3. **Nộp tiền cọc (50.000 VNĐ):**
    - Sau khi lịch được chốt, hệ thống mở cổng nộp cọc trong vòng 02 giờ.
    - Bấm "Nộp Cọc 50.000đ" và quét mã QR chuyển khoản. Khi toàn bộ thành viên nộp đủ, phòng được xác nhận chính thức.
-4. **Tại quầy chi nhánh:**
+4. **Nhận thông báo nhắc lịch tự động trước 24 giờ:**
+   - Hệ thống tự động phát thông báo nhắc nhở đến tài khoản của người chơi và Quản trò (DM) trước giờ chơi đúng 24 giờ, nêu rõ thời gian, kịch bản, tên phòng vật lý và địa chỉ chi nhánh để chủ động sắp xếp thời gian di chuyển.
+5. **Tại quầy chi nhánh:**
    - Đến trước giờ chơi 15 phút để làm thủ tục.
    - Nếu là học sinh / sinh viên: Xuất trình thẻ HSSV vật lý cho Quản trò/Thu ngân để được giảm ngay 10% giá vé.
    - Nhận kịch bản giấy từ DM, đọc lời giới thiệu nhân vật và bắt đầu nhập vai.
@@ -124,6 +126,18 @@ Thu ngân / Lễ tân chịu trách nhiệm kiểm soát dòng tiền tại ch�
    - **Thu phụ phí phát sinh (Extra Fees / Prop Damage):** Nếu khách làm rách kịch bản, làm hỏng trang phục hóa trang hoặc gọi thêm đồ uống, Thu ngân nhập số tiền phụ phí vào ô "Phụ phí" kèm lý do đền bù trước khi xác nhận tất toán.
 3. Bấm xác nhận đã thu đủ tiền để hệ thống chuyển trạng thái thanh toán sang `SETTLED`. Nếu phát sinh tranh chấp hoặc khách nợ tiền, bấm ghi nhận cờ `PAYMENT_DISPUTE` để chuyển kế toán đối soát.
 
+### 4.3. Quy tắc tính giá vé chuẩn hóa khi Ca chơi vắt qua 2 khung giờ (Majority Time Block Rule)
+1. **Bảng giá phân định 3 khung giờ:**
+   - Ca Sáng (09:00 - 13:00): 180.000 VNĐ / vé.
+   - Ca Chiều (13:00 - 18:00): 220.000 VNĐ / vé.
+   - Ca Tối (18:00 - 23:00): 250.000 VNĐ / vé.
+2. **Quy tắc khung giờ chiếm đa số (Majority Time Block Rule):**
+   - Giá vé được tự động xác định theo khung giờ chiếm đa số thời lượng của buổi chơi ($\ge 50\%$ tổng thời lượng).
+   - Ví dụ: Ca chơi 240 phút từ 11:30 đến 15:30 vắt từ Ca Sáng (90 phút = 37.5%) sang Ca Chiều (150 phút = 62.5%): Tự động áp dụng mức giá Ca Chiều **220.000 VNĐ / vé**.
+3. **Quy tắc hòa tỷ lệ 50 - 50 (Split 50-50 Tie Rule):**
+   - Nếu buổi chơi chia đều chính xác 50% - 50% thời lượng cho 2 khung giờ (ví dụ từ 16:00 đến 20:00: Ca Chiều 120 phút và Ca Tối 120 phút): Hệ thống tự động tính giá vé theo **trung bình cộng** của 2 khung giờ: `(220.000 + 250.000) / 2 = 235.000 VNĐ / vé`.
+4. **Minh bạch hóa dữ liệu:** Toàn bộ tỷ lệ thời lượng, số phút giao thoa và quy tắc tính giá được lưu vết trong snapshot `game_rooms.price_details` để lễ tân và khách hàng có thể tra cứu đối soát minh bạch tại bất kỳ thời điểm nào.
+
 ---
 
 ## 5. HƯỚNG DẪN DÀNH CHO QUẢN TRỊ VIÊN & CHỦ CƠ SỞ (ADMIN)
@@ -145,6 +159,11 @@ Quản trị viên sử dụng Cổng Quản Trị tại `admin-portal.html` đ�
    - Admin trực tiếp liên hệ điều động Quản trò cơ hữu của quán hoặc gọi điện thoại thống nhất với khách đổi sang khung giờ kế tiếp.
 3. **Phân công và thu hồi DM:**
    - Bấm nút "Phân Công DM" hoặc "Thu Hồi DM" để can thiệp cưỡng chế nhân sự khi có sự cố phát sinh.
+4. **Bảo trì phòng vật lý & Tự động điều chuyển phòng chơi (Dynamic Rerouting):**
+   - Khi phát hiện phòng bị hỏng đèn, máy lạnh hoặc hư hỏng đạo cụ, Admin bấm "Bật Bảo Trì" (`POST /api/v1/admin/physical-rooms/{id}/maintenance`).
+   - Hệ thống tự động kích hoạt thuật toán điều chuyển thông minh: Quét các ca chơi tương lai của phòng đó và gán tự động sang phòng trống tương đương tại cùng chi nhánh với thời gian đệm an toàn 30 phút (`BUFFER_MINUTES = 30`).
+   - Tự động phát thông báo hệ thống tới Host và DM về việc đổi phòng thực tế.
+   - Khi hoàn tất sửa chữa, Admin bấm "Tắt Bảo Trì" để đưa phòng trở lại trạng thái sẵn sàng đón khách.
 
 ### 5.3. Phê duyệt và hoàn tất hoàn tiền cọc (Refunds Management)
 1. Tại tab "Quản Lý Hoàn Cọc":
