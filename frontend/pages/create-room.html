@@ -189,15 +189,6 @@
         btnSubmit.disabled = false;
         btnSubmit.textContent = 'Xác Nhận Mở Phòng';
       }
-      } catch (err) {
-        alertBox.style.display = 'block';
-        alertBox.style.background = 'rgba(153, 43, 43, 0.2)';
-        alertBox.style.border = '1px solid #992b2b';
-        alertBox.style.color = '#ef9a9a';
-        alertBox.textContent = err.message || 'Lỗi khi tạo phòng, vui lòng đăng nhập trước';
-        btnSubmit.disabled = false;
-        btnSubmit.textContent = 'Xác Nhận Mở Phòng';
-      }
     });
   </script>
 </body>

@@ -194,6 +194,7 @@ class GameRoomController
 
         return Response::success([
             'room' => $createdRoom,
+            'game_room' => $createdRoom,
         ], 'Tạo phòng chơi thành công', null, 201);
     }
 

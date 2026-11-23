@@ -136,6 +136,7 @@ class AuthController
         $_SESSION['role_code'] = (string) ($user['role_code'] ?? 'PLAYER');
 
         unset($user['password_hash']);
+        $user['role'] = $user['role_code'] ?? 'PLAYER';
 
         return Response::success([
             'user' => $user,
@@ -153,6 +154,7 @@ class AuthController
         }
 
         unset($authUser['password_hash']);
+        $authUser['role'] = $authUser['role_code'] ?? 'PLAYER';
 
         return Response::success([
             'user' => $authUser,
@@ -234,7 +236,7 @@ class AuthController
         }
 
         $body = $request->getBodyParams();
-        $studentId = trim((string) ($body['student_id'] ?? $body['student_card_number'] ?? ''));
+        $studentId = trim((string) ($body['student_id'] ?? $body['student_card_number'] ?? $body['student_card_id'] ?? ''));
         $schoolName = trim((string) ($body['school_name'] ?? $body['university'] ?? ''));
 
         if ($studentId === '') {

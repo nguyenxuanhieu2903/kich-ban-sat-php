@@ -140,6 +140,14 @@ class SchedulingController
 
             return Response::success([
                 'proposal_id' => $proposalId,
+                'proposal' => [
+                    'id' => $proposalId,
+                    'game_room_id' => $roomId,
+                    'proposed_start_at' => $startAt,
+                    'proposed_end_at' => $endAt,
+                    'status' => 'PROPOSED',
+                    'expires_at' => $expiresAt,
+                ],
                 'game_room_id' => $roomId,
                 'proposed_start_at' => $startAt,
                 'proposed_end_at' => $endAt,

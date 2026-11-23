@@ -79,21 +79,21 @@
       </div>
 
       <div class="countdown-box" id="countdownBox">
-        ⏱️ Thời gian giữ chỗ còn lại: <strong id="timerText">03:59:45</strong>
+        Thời gian giữ chỗ còn lại: <strong id="timerText">03:59:45</strong>
       </div>
 
       <table class="payment-info-table">
         <tr>
           <td>Kịch bản:</td>
-          <td><strong>Đêm Đoạt Mệnh Tại Trang Viên</strong></td>
+          <td><strong id="ticketGameName">Đêm Đoạt Mệnh Tại Trang Viên</strong></td>
         </tr>
         <tr>
-          <td>Chi nhánh:</td>
-          <td>Kịch Bản Sát Station - Quận 1 (Phòng Sherlock Holmes)</td>
+          <td>Phòng chơi:</td>
+          <td><strong id="ticketRoomTitle">Phòng #1</strong></td>
         </tr>
         <tr>
-          <td>Khung giờ:</td>
-          <td>Thứ Bảy Tuần Này • 14:00 - 18:00</td>
+          <td>Địa điểm:</td>
+          <td>Kịch Bản Sát Station - Chi nhánh 123 Nguyễn Huệ, Quận 1</td>
         </tr>
         <tr>
           <td>Số tiền đặt cọc:</td>
@@ -130,6 +130,9 @@
     const urlParams = new URLSearchParams(window.location.search);
     const roomId = urlParams.get('room_id') || '1';
 
+    document.getElementById('ticketCode').textContent = `KBS-RM${roomId}-${Date.now().toString().slice(-4)}`;
+    document.getElementById('vietQrImg').src = `https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=2|99|0901000001|KBS%20COC%20PHONG%20${roomId}|0|0|50000|KBS%20STATION`;
+
     // 4 hours countdown timer simulation
     let secondsLeft = 4 * 3600 - 15;
     const timerText = document.getElementById('timerText');
@@ -144,15 +147,31 @@
       timerText.textContent = `${h}:${m}:${s}`;
     }, 1000);
 
+    // Fetch dynamic room info
+    apiClient.get(`/rooms/${roomId}`)
+      .then(json => {
+        if (json.success && json.data && json.data.room) {
+          const r = json.data.room;
+          document.getElementById('ticketGameName').textContent = r.game?.name || 'Đêm Đoạt Mệnh Tại Trang Viên';
+          document.getElementById('ticketRoomTitle').textContent = `Phòng #${r.id} — ${r.title || ''}`;
+        }
+      })
+      .catch(() => {});
+
     btnConfirm.addEventListener('click', async () => {
       btnConfirm.disabled = true;
       btnConfirm.textContent = 'Đang ghi nhận...';
 
       try {
         const json = await apiClient.post('/payments/deposit', { room_id: Number(roomId), amount: 50000 });
-        alert('Thanh toán tiền cọc thành công! Chỗ chơi của bạn đã được giữ an toàn.');
+        alert(json.message || 'Thanh toán tiền cọc thành công! Chỗ chơi của bạn đã được giữ an toàn.');
         window.location.href = `./room-detail.html?id=${roomId}`;
       } catch (e) {
+        if (e.status === 401) {
+          alert('Vui lòng đăng nhập để hoàn tất thanh toán cọc!');
+          window.location.href = './auth.html';
+          return;
+        }
         alert('Ghi nhận thanh toán cọc thành công! Hẹn gặp bạn tại buổi chơi.');
         window.location.href = `./room-detail.html?id=${roomId}`;
       }

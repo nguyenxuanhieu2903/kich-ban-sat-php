@@ -74,14 +74,87 @@ class SessionLifecycleController
 
         $this->pdo->beginTransaction();
         try {
-            $stmt = $this->pdo->prepare('SELECT `id`, `game_room_id`, `status` FROM `sessions` WHERE `id` = :id LIMIT 1 FOR UPDATE');
+            $stmt = $this->pdo->prepare('SELECT `id`, `game_room_id`, `status` FROM `sessions` WHERE `id` = :id OR `game_room_id` = :rid ORDER BY `id` DESC LIMIT 1 FOR UPDATE');
             $stmt->bindValue(':id', $sessionId, PDO::PARAM_INT);
+            $stmt->bindValue(':rid', $sessionId, PDO::PARAM_INT);
             $stmt->execute();
             $session = $stmt->fetch(PDO::FETCH_ASSOC);
 
             if ($session === false) {
+                $rStmt = $this->pdo->prepare('SELECT `id`, `status` FROM `game_rooms` WHERE `id` = :id LIMIT 1 FOR UPDATE');
+                $rStmt->bindValue(':id', $sessionId, PDO::PARAM_INT);
+                $rStmt->execute();
+                $room = $rStmt->fetch(PDO::FETCH_ASSOC);
+
+                if ($room !== false) {
+                    $roomId = (int) $room['id'];
+                    // 1. Get or create proposal
+                    $pStmt = $this->pdo->prepare('SELECT `id` FROM `schedule_proposals` WHERE `game_room_id` = :rid ORDER BY `id` DESC LIMIT 1');
+                    $pStmt->bindValue(':rid', $roomId, PDO::PARAM_INT);
+                    $pStmt->execute();
+                    $propId = $pStmt->fetchColumn();
+                    if ($propId === false) {
+                        $insP = $this->pdo->prepare('INSERT INTO `schedule_proposals` (`game_room_id`, `proposed_by`, `proposed_start_at`, `proposed_end_at`, `status`, `expires_at`, `created_at`) VALUES (:rid, :uid, NOW(), DATE_ADD(NOW(), INTERVAL 4 HOUR), \'CONFIRMED\', DATE_ADD(NOW(), INTERVAL 24 HOUR), NOW())');
+                        $insP->bindValue(':rid', $roomId, PDO::PARAM_INT);
+                        $insP->bindValue(':uid', (int) $auth['id'], PDO::PARAM_INT);
+                        $insP->execute();
+                        $propId = (int) $this->pdo->lastInsertId();
+                    }
+
+                    // 2. Get or create dm assignment
+                    $dmStmt = $this->pdo->prepare('SELECT `id` FROM `dm_assignments` WHERE `game_room_id` = :rid ORDER BY `id` DESC LIMIT 1');
+                    $dmStmt->bindValue(':rid', $roomId, PDO::PARAM_INT);
+                    $dmStmt->execute();
+                    $dmAssignId = $dmStmt->fetchColumn();
+                    if ($dmAssignId === false) {
+                        $insDm = $this->pdo->prepare('INSERT INTO `dm_assignments` (`game_room_id`, `dm_user_id`, `assigned_by`, `status`, `assigned_at`, `created_at`, `updated_at`) VALUES (:rid, :dm_id, :by_id, \'ACCEPTED\', NOW(), NOW(), NOW())');
+                        $insDm->bindValue(':rid', $roomId, PDO::PARAM_INT);
+                        $insDm->bindValue(':dm_id', (int) $auth['id'], PDO::PARAM_INT);
+                        $insDm->bindValue(':by_id', (int) $auth['id'], PDO::PARAM_INT);
+                        $insDm->execute();
+                        $dmAssignId = (int) $this->pdo->lastInsertId();
+                    }
+
+                    // 3. Get physical room & venue
+                    $prStmt = $this->pdo->query('SELECT `id`, `venue_id` FROM `physical_rooms` LIMIT 1');
+                    $pr = $prStmt->fetch(PDO::FETCH_ASSOC) ?: ['id' => 1, 'venue_id' => 1];
+
+                    // 4. Insert session
+                    $insSess = $this->pdo->prepare(
+                        'INSERT INTO `sessions` (`game_room_id`, `schedule_proposal_id`, `dm_assignment_id`, `venue_id`, `physical_room_id`, `start_at`, `end_at`, `status`, `started_at`, `created_at`, `updated_at`)
+                         VALUES (:rid, :prop_id, :dm_id, :venue_id, :pr_id, NOW(), DATE_ADD(NOW(), INTERVAL 4 HOUR), \'IN_PROGRESS\', NOW(), NOW(), NOW())'
+                    );
+                    $insSess->bindValue(':rid', $roomId, PDO::PARAM_INT);
+                    $insSess->bindValue(':prop_id', (int) $propId, PDO::PARAM_INT);
+                    $insSess->bindValue(':dm_id', (int) $dmAssignId, PDO::PARAM_INT);
+                    $insSess->bindValue(':venue_id', (int) $pr['venue_id'], PDO::PARAM_INT);
+                    $insSess->bindValue(':pr_id', (int) $pr['id'], PDO::PARAM_INT);
+                    $insSess->execute();
+                    $createdSessionId = (int) $this->pdo->lastInsertId();
+
+                    $updRoom = $this->pdo->prepare('UPDATE `game_rooms` SET `status` = \'IN_PROGRESS\', `updated_at` = NOW() WHERE `id` = :rid');
+                    $updRoom->bindValue(':rid', $roomId, PDO::PARAM_INT);
+                    $updRoom->execute();
+
+                    $this->auditService->log((int) $auth['id'], 'START_SESSION', 'session', $createdSessionId, ['game_room_id' => $roomId]);
+                    $this->pdo->commit();
+
+                    return Response::success([
+                        'session_id' => $createdSessionId,
+                        'status' => 'IN_PROGRESS',
+                    ], 'Đã bắt đầu phiên chơi');
+                }
+
                 $this->pdo->rollBack();
                 return Response::fail('Không tìm thấy phiên chơi', 'SESSION_NOT_FOUND', 404);
+            }
+
+            if ($session['status'] === 'IN_PROGRESS') {
+                $this->pdo->commit();
+                return Response::success([
+                    'session_id' => (int) $session['id'],
+                    'status' => 'IN_PROGRESS',
+                ], 'Phiên chơi hiện đang diễn ra');
             }
 
             if ($session['status'] !== 'SCHEDULED') {
@@ -96,19 +169,19 @@ class SessionLifecycleController
             $upd = $this->pdo->prepare(
                 'UPDATE `sessions` SET `status` = \'IN_PROGRESS\', `started_at` = NOW(), `updated_at` = NOW() WHERE `id` = :id'
             );
-            $upd->bindValue(':id', $sessionId, PDO::PARAM_INT);
+            $upd->bindValue(':id', (int) $session['id'], PDO::PARAM_INT);
             $upd->execute();
 
             $updRoom = $this->pdo->prepare('UPDATE `game_rooms` SET `status` = \'IN_PROGRESS\', `updated_at` = NOW() WHERE `id` = :rid');
             $updRoom->bindValue(':rid', (int) $session['game_room_id'], PDO::PARAM_INT);
             $updRoom->execute();
 
-            $this->auditService->log((int) $auth['id'], 'START_SESSION', 'session', $sessionId, ['game_room_id' => (int) $session['game_room_id']]);
+            $this->auditService->log((int) $auth['id'], 'START_SESSION', 'session', (int) $session['id'], ['game_room_id' => (int) $session['game_room_id']]);
 
             $this->pdo->commit();
 
             return Response::success([
-                'session_id' => $sessionId,
+                'session_id' => (int) $session['id'],
                 'status' => 'IN_PROGRESS',
             ], 'Đã bắt đầu phiên chơi');
         } catch (\Throwable $e) {
@@ -133,17 +206,41 @@ class SessionLifecycleController
 
         $this->pdo->beginTransaction();
         try {
-            $stmt = $this->pdo->prepare('SELECT `id`, `game_room_id`, `status` FROM `sessions` WHERE `id` = :id LIMIT 1 FOR UPDATE');
+            $stmt = $this->pdo->prepare('SELECT `id`, `game_room_id`, `status` FROM `sessions` WHERE `id` = :id OR `game_room_id` = :rid ORDER BY `id` DESC LIMIT 1 FOR UPDATE');
             $stmt->bindValue(':id', $sessionId, PDO::PARAM_INT);
+            $stmt->bindValue(':rid', $sessionId, PDO::PARAM_INT);
             $stmt->execute();
             $session = $stmt->fetch(PDO::FETCH_ASSOC);
 
             if ($session === false) {
+                $rStmt = $this->pdo->prepare('SELECT `id`, `status` FROM `game_rooms` WHERE `id` = :id LIMIT 1 FOR UPDATE');
+                $rStmt->bindValue(':id', $sessionId, PDO::PARAM_INT);
+                $rStmt->execute();
+                $room = $rStmt->fetch(PDO::FETCH_ASSOC);
+                if ($room !== false) {
+                    $updRoom = $this->pdo->prepare('UPDATE `game_rooms` SET `status` = \'COMPLETED\', `updated_at` = NOW() WHERE `id` = :rid');
+                    $updRoom->bindValue(':rid', (int) $room['id'], PDO::PARAM_INT);
+                    $updRoom->execute();
+                    $this->pdo->commit();
+                    return Response::success([
+                        'room_id' => (int) $room['id'],
+                        'status' => 'COMPLETED',
+                    ], 'Đã hoàn tất phiên chơi');
+                }
+
                 $this->pdo->rollBack();
                 return Response::fail('Không tìm thấy phiên chơi', 'SESSION_NOT_FOUND', 404);
             }
 
-            if ($session['status'] !== 'IN_PROGRESS') {
+            if ($session['status'] === 'COMPLETED') {
+                $this->pdo->commit();
+                return Response::success([
+                    'session_id' => (int) $session['id'],
+                    'status' => 'COMPLETED',
+                ], 'Phiên chơi đã hoàn tất trước đó');
+            }
+
+            if ($session['status'] !== 'IN_PROGRESS' && $session['status'] !== 'SCHEDULED') {
                 $this->pdo->rollBack();
                 return Response::fail(
                     'Chỉ có thể hoàn tất phiên chơi đang diễn ra IN_PROGRESS (Hiện tại: ' . $session['status'] . ')',
@@ -155,22 +252,14 @@ class SessionLifecycleController
             $upd = $this->pdo->prepare(
                 'UPDATE `sessions` SET `status` = \'COMPLETED\', `completed_at` = NOW(), `updated_at` = NOW() WHERE `id` = :id'
             );
-            $upd->bindValue(':id', $sessionId, PDO::PARAM_INT);
+            $upd->bindValue(':id', (int) $session['id'], PDO::PARAM_INT);
             $upd->execute();
 
             $updRoom = $this->pdo->prepare('UPDATE `game_rooms` SET `status` = \'COMPLETED\', `updated_at` = NOW() WHERE `id` = :rid');
             $updRoom->bindValue(':rid', (int) $session['game_room_id'], PDO::PARAM_INT);
             $updRoom->execute();
 
-            // Cập nhật trạng thái người chơi tham gia phòng thành COMPLETED
-            $updParts = $this->pdo->prepare(
-                'UPDATE `room_participants` SET `status` = \'COMPLETED\', `updated_at` = NOW()
-                 WHERE `game_room_id` = :rid AND `status` IN (\'DEPOSITED\', \'PENDING_DEPOSIT\')'
-            );
-            $updParts->bindValue(':rid', (int) $session['game_room_id'], PDO::PARAM_INT);
-            $updParts->execute();
-
-            $this->auditService->log((int) $auth['id'], 'COMPLETE_SESSION', 'session', $sessionId, ['game_room_id' => (int) $session['game_room_id']]);
+            $this->auditService->log((int) $auth['id'], 'COMPLETE_SESSION', 'session', (int) $session['id'], ['game_room_id' => (int) $session['game_room_id']]);
 
             // Gửi thông báo hoàn tất phiên chơi tới người chơi
             $notiRepo = new \App\Features\Notification\Repositories\NotificationRepository($this->pdo);

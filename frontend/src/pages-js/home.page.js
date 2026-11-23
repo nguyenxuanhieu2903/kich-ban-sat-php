@@ -1,5 +1,6 @@
 // src/pages-js/home.page.js
 import { SCENARIOS } from '../data/scripts.data.js';
+import { apiClient } from '../api/api-client.js';
 
 const gridEl = document.getElementById('featuredScenariosGrid');
 const filterBarEl = document.getElementById('homeGenreFilters');
@@ -37,7 +38,7 @@ function renderScenarios(genreFilter = 'ALL') {
               </div>
               <h3>${item.title}</h3>
               <div class="home-card-tags">
-                <span>👥 ${item.players.male} Nam / ${item.players.female} Nữ</span>
+                <span>${item.players.male} Nam / ${item.players.female} Nữ</span>
                 <strong>${formatPrice(item.price)}</strong>
               </div>
             </div>
@@ -118,22 +119,43 @@ ageConfirmBtn.addEventListener('click', () => {
 });
 
 // Bộ chuyển nhanh 4 vai trò để demo báo cáo
-roleSelectEl.addEventListener('change', (e) => {
+roleSelectEl.addEventListener('change', async (e) => {
   const role = e.target.value;
   localStorage.setItem('kbs_demo_role', role);
 
+  const dmNavBtn = document.getElementById('nav-btn-dm');
+  const adminNavBtn = document.getElementById('nav-btn-admin');
+
   if (role === 'guest') {
+    try { await apiClient.post('/auth/logout'); } catch (err) {}
     authActionBtn.textContent = 'Đăng nhập';
     authActionBtn.href = './pages/auth.html';
+    if (dmNavBtn) dmNavBtn.style.display = 'none';
+    if (adminNavBtn) adminNavBtn.style.display = 'none';
   } else if (role === 'player') {
-    authActionBtn.textContent = 'Hồ sơ Player (HSSV ✓)';
+    try {
+      await apiClient.post('/auth/login', { email: 'player.hieu@kichbansat.vn', password: 'password123' });
+    } catch (err) {}
+    authActionBtn.textContent = 'Hồ sơ Player (HSSV)';
     authActionBtn.href = './pages/profile.html';
+    if (dmNavBtn) dmNavBtn.style.display = 'none';
+    if (adminNavBtn) adminNavBtn.style.display = 'none';
   } else if (role === 'dm') {
+    try {
+      await apiClient.post('/auth/login', { email: 'dm.nam@kichbansat.vn', password: 'password123' });
+    } catch (err) {}
     authActionBtn.textContent = 'Cổng Quản Trò (DM)';
     authActionBtn.href = './pages/dm-portal.html';
+    if (dmNavBtn) dmNavBtn.style.display = 'inline-block';
+    if (adminNavBtn) adminNavBtn.style.display = 'none';
   } else if (role === 'admin') {
+    try {
+      await apiClient.post('/auth/login', { email: 'admin@kichbansat.vn', password: 'password123' });
+    } catch (err) {}
     authActionBtn.textContent = 'Cổng Admin';
     authActionBtn.href = './pages/admin-portal.html';
+    if (dmNavBtn) dmNavBtn.style.display = 'none';
+    if (adminNavBtn) adminNavBtn.style.display = 'inline-block';
   }
 });
 

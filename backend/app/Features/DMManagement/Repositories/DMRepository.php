@@ -153,11 +153,13 @@ class DMRepository extends BaseRepository
                            a.`created_at`, a.`updated_at`,
                            gr.`title` AS `room_title`, gr.`status` AS `room_status`,
                            g.`id` AS `game_id`, g.`name` AS `game_name`,
-                           u.`full_name` AS `dm_name`
+                           u.`full_name` AS `dm_name`,
+                           s.`id` AS `session_id`, s.`status` AS `session_status`, s.`start_at`, s.`end_at`
                     FROM `dm_assignments` a
                     INNER JOIN `game_rooms` gr ON gr.`id` = a.`game_room_id`
                     INNER JOIN `games` g ON g.`id` = gr.`game_id`
                     INNER JOIN `users` u ON u.`id` = a.`dm_user_id`
+                    LEFT JOIN `sessions` s ON s.`game_room_id` = a.`game_room_id`
                     WHERE {$whereSql}
                     ORDER BY a.`id` DESC";
 

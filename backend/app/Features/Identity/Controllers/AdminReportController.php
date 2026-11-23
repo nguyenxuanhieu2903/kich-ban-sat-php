@@ -71,6 +71,9 @@ class AdminReportController
         $netRevenue = max(0, $totalCollected - $totalRefunded);
 
         return Response::success([
+            'total_net_revenue' => $netRevenue,
+            'total_deposit' => (int) $revData['deposit_collected'],
+            'completed_sessions' => $completedSessions,
             'revenue' => [
                 'total_collected' => $totalCollected,
                 'deposit_collected' => (int) $revData['deposit_collected'],

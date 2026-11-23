@@ -64,7 +64,7 @@
       <div class="ticket-card" style="margin-bottom: 24px;">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
           <h3>Xác Minh Ưu Đãi Học Sinh - Sinh Viên</h3>
-          <span class="stamp-badge open" id="hssvBadge">ĐÃ XÁC MINH ✓</span>
+          <span class="stamp-badge open" id="hssvBadge">ĐÃ XÁC MINH</span>
         </div>
         <p style="font-size: 0.9rem; line-height: 1.6; color: var(--text-muted); margin-bottom: 16px;">
           Tài khoản đã xác minh thẻ HSSV sẽ được <strong>giảm ngay 20.000đ/người</strong> khi tham gia các buổi chơi từ Thứ 2 đến Thứ 5 (09:00 - 19:59).
@@ -112,7 +112,7 @@
           document.getElementById('profileEmail').textContent = u.email || '';
           document.getElementById('profileRole').textContent = `${u.role_code || 'PLAYER'} (Role)`;
           if (u.student_verified) {
-            document.getElementById('hssvBadge').textContent = 'ĐÃ XÁC MINH ✓';
+            document.getElementById('hssvBadge').textContent = 'ĐÃ XÁC MINH';
             document.getElementById('hssvBadge').className = 'stamp-badge open';
           } else {
             document.getElementById('hssvBadge').textContent = 'CHƯA XÁC MINH';
