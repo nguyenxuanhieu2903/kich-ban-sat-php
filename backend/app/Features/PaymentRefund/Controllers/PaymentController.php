@@ -188,7 +188,7 @@ class PaymentController
         $amount = (int) ($body['amount'] ?? 50000);
 
         // Hỗ trợ nộp cọc trọn gói cho nhóm bạn riêng (Điểm 3 & Điểm 21)
-        $isLumpSum = !empty($body['is_lump_sum']) || ($body['deposit_type'] ?? '') === 'LUMP_SUM';
+        $isLumpSum = !empty($body['is_lump_sum']) || !empty($body['is_group_lump_sum']) || ($body['deposit_type'] ?? '') === 'LUMP_SUM';
         if ($isLumpSum) {
             $rStmt = $this->pdo->prepare('SELECT `id`, `booking_type`, `total_players`, `guest_slots`, `creator_id` FROM `game_rooms` WHERE `id` = :rid LIMIT 1');
             $rStmt->execute([':rid' => $roomId]);
