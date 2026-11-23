@@ -644,3 +644,19 @@ Hệ thống đã hoàn thiện triển khai thực tế và kiểm chứng toà
    - Tự động chuyển giao quyền Chủ phòng (Host Transfer): Khi Host rời phòng ở trạng thái `FORMING`, hệ thống tự động chỉ định thành viên vào phòng sớm nhất tiếp theo làm Host mới (`ORDER BY joined_at ASC, id ASC LIMIT 1`); tự động giải tán phòng (`DISBANDED`) nếu không còn thành viên nào.
    - Kiểm soát kịch bản giới hạn độ tuổi 18+: Yêu cầu xác nhận độ tuổi (`is_18_plus_acknowledged = 1`) tại giao diện tạo phòng và lưu trữ minh bạch trong cơ sở dữ liệu.
    - Cơ chế tự động thu hồi ca Quản trò (DM Assignment SLA Timeout): Nền tảng tự động quét và thu hồi các lượt phân công Quản trò ở trạng thái chờ quá 4 giờ thông qua tác vụ định kỳ `BackgroundJobService::runDmAssignmentTimeout()`.
+
+---
+
+### 10.7. Chuẩn hóa 9 quy tắc nghiệp vụ vận hành toàn diện (Hệ thống V16 Standard)
+
+Nhằm hoàn thiện tài liệu vận hành và triệt tiêu toàn bộ các điểm nghẽn nghiệp vụ, 9 quy tắc cốt lõi đã được chuẩn hóa thống nhất trong tài liệu đặc tả [TAI_LIEU_VAN_HANH_TOAN_DIEN_HE_THONG.md](docs/TAI_LIEU_VAN_HANH_TOAN_DIEN_HE_THONG.md):
+
+1. **Thống nhất quyền tài chính tại quầy của DM & vai trò Thu ngân:** DM tuyệt đối không can thiệp cọc/hoàn tiền online; tại quầy cơ sở, DM hoặc Thu ngân / Lễ tân chi nhánh có quyền kiểm tra đối chiếu thẻ HSSV vật lý và xác nhận tất toán phần tiền còn lại sau buổi chơi.
+2. **Sửa luồng khóa tài khoản ở phòng FORMING:** Khóa tài khoản chỉ chuyển quyền Host hoặc giải tán phòng nếu người bị khóa là Chủ phòng (Host); nếu là thành viên thường (Member) thì chỉ loại khỏi phòng, giảm sĩ số và mở lại vị trí tuyển quân trên Sảnh ghép.
+3. **Tách bạch cọc gộp cho phòng PRIVATE:** Host chỉ nộp cọc gộp cho số thành viên trong nhóm bạn riêng của mình (`private_group_size * 50.000 VNĐ`), các vị trí `guest_slots` mở thêm cho khách lẻ sẽ do khách lẻ tự thanh toán phần cọc của mình khi tham gia.
+4. **Cơ chế biểu quyết mốc lịch 12 giờ:** Chỉ áp dụng cho phòng `PUBLIC` (phòng `PRIVATE` do Host chốt trực tiếp). Hết 12 giờ nếu không ai từ chối nhưng chưa đạt 80% đồng thuận thì tự động hủy đề xuất và quay về `FORMING`.
+5. **Điểm dừng khi xoay tua DM:** Sau khi xoay tua hết danh sách DM đạt chuẩn kỹ năng tại chi nhánh, hệ thống phát cảnh báo khẩn cấp lên Dashboard Admin để điều động DM cơ hữu hoặc từ chối đề xuất đổi sang giờ khác mà không làm mất phòng của nhóm (do chưa thu cọc).
+6. **Chặn mốc đóng cửa sổ tìm người thế chỗ:** Đóng cửa sổ tìm người thế chỗ trước giờ bắt đầu phiên chơi tối thiểu 04 giờ để tránh rủi ro người mới không kịp chuẩn bị; kích hoạt phương án DM đóng thế NPC hỗ trợ.
+7. **Sửa kịch bản ngoại lệ 3 & 4 sau cọc:** Chuyển thành sự cố phát sinh sau khi đã cọc (DM hủy ca đột xuất/bị khóa tài khoản, hoặc phòng vật lý gặp sự cố cơ sở/bảo trì khẩn cấp), kích hoạt điều chuyển phòng hoặc hủy phòng hoàn cọc 100% kèm voucher đền bù.
+8. **Thống nhất SLA hoàn tiền, trạng thái & mốc thông báo:** Thống nhất mốc SLA 02 giờ làm việc (tự động qua cổng thanh toán) và tối đa 24 giờ (thủ công / tra soát ngoại mạng); tích hợp đầy đủ các trạng thái `NEED_SUBSTITUTE`, `PAYMENT_DISPUTE`, `FORFEITED`, `CANCELLED_ON_SITE` vào 4 State Machine; tách rõ mốc thông báo `DEPOSIT_REQUIRED` và `BOOKING_CONFIRMED`.
+9. **Phân cấp xử lý No-show:** Thiếu 1 người thì DM/nhân viên đóng thế NPC và tịch thu cọc người vắng mặt; thiếu từ 2 người trở lên hoặc cả nhóm bùng lịch thì hủy ca tại chỗ (`CANCELLED_ON_SITE`), tịch thu 100% cọc người vắng mặt và bảo vệ quyền lợi hoàn cọc 100% hoặc đổi sang chơi Board Game tại sảnh cho người đến đúng giờ.
