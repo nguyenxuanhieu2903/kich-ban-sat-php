@@ -821,5 +821,22 @@ Nhằm giải quyết triệt để bài toán tính giá vé khi ca chơi vắt
    - Quét các phiên chơi `SCHEDULED` sắp diễn ra trong 24 giờ tới và gửi thông báo nhắc nhở đến người chơi và Quản trò (DM) phụ trách, kiểm tra chặt chẽ chống gửi trùng lặp.
 6. **Cập nhật đồng bộ Sổ tay vận hành (SOP):**
    - Cập nhật mục 4.3 trong `CACH_VAN_HANH.md` và mục 5.5 trong `docs/TAI_LIEU_VAN_HANH_TOAN_DIEN_HE_THONG.md` bảo đảm toàn bộ nhân sự lễ tân, quản trò và kế toán nắm rõ nguyên tắc tính giá minh bạch.
+---
 
+### 10.15. Bộ câu hỏi phản biện bảo vệ đồ án và Kịch bản thao diễn thực chiến 5 phút (docs/BO_CAU_HOI_PHAN_BIEN_VA_KICH_BAN_DEMO.md)
 
+Nhằm chuẩn bị tối đa cho buổi bảo vệ đồ án tốt nghiệp trước hội đồng chấm thi:
+1. **Kịch bản thao diễn phần mềm thực chiến 5 phút (5-Minute Walkthrough):**
+   - Hướng dẫn tuần tự 5 bước demo: Khám phá kịch bản & Tạo phòng (1m) -> Thống nhất lịch & Khóa tài nguyên tự động (1.5m) -> Nộp cọc minh bạch & Snapshot giá (1m) -> Quản trò tiếp nhận & Điều phối ca chơi (1.5m) -> Bảng điều khiển Quản trị viên & Xử lý ngoại lệ (1m).
+   - Tích hợp sẵn bảng tài khoản mẫu (Player, DM, Admin) với mật khẩu chuẩn hóa `password123`.
+2. **Bộ 10 câu hỏi phản biện kỹ thuật hóc búa nhất của Hội đồng & Câu trả lời đạt điểm tối đa:**
+   - Câu 1: Tại sao dời bước nộp cọc ra sau khi chốt lịch (tránh giam vốn, giảm áp lực hoàn cọc, tăng tỷ lệ chốt bàn).
+   - Câu 2: Xử lý xung đột phòng vật lý và thời gian dọn dẹp (đệm cứng 30 phút, ràng buộc khóa ngoại kép, kiểm tra offline block).
+   - Câu 3: Thuật toán tính giá vé Majority Time Block Rule và Split 50-50 Tie Rule khi ca chơi vắt qua 2 khung giờ.
+   - Câu 4: Xử lý sự cố DM bỏ quên ca trực (SLA 120 phút, tự động xoay tua, cảnh báo đỏ ADMIN_ALERT sau 3 lần từ chối).
+   - Câu 5: Phòng chống gian lận thẻ Học sinh - Sinh viên (10%) và bảo vệ an toàn cho kịch bản 18+ (xác thực đa tầng trực tuyến và đối soát tại quầy).
+   - Câu 6: Chính sách hoàn cọc cân bằng lợi ích (mốc 24 giờ, quy trình No-show nhân văn).
+   - Câu 7: Thuật toán Dynamic Room Rerouting tự động điều chuyển phòng khi phòng cũ bảo trì kỹ thuật.
+   - Câu 8: Cơ chế thực thi tiến trình nền (Background Jobs) bất biến (Idempotent) trên nền tảng PHP thuần.
+   - Câu 9: Kiến trúc Feature-Driven Design, bảo mật PDO Prepared Statements, chống XSS/CSRF và phân quyền RBAC.
+   - Câu 10: Tự động hóa khởi tạo một chạm (`php bin/seed.php`) và bộ kiểm thử tự động 150/150 bài test PASS.
