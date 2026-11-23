@@ -89,6 +89,16 @@ class AdminOperationsController
             ]
         );
 
+        // Gửi thông báo phân công ca cho Quản trò (DM)
+        $notiRepo = new \App\Features\Notification\Repositories\NotificationRepository($this->pdo);
+        $notiRepo->createNotification(
+            'Bạn được phân công ca trực mới',
+            "Quản trị viên đã phân công bạn phụ trách ca chơi phòng #{$roomId}. Vui lòng truy cập Cổng Quản Trò để phản hồi ca trực trong vòng 02 giờ.",
+            'DM_ASSIGNMENT',
+            (int) $auth['id'],
+            [$dmUserId]
+        );
+
         return Response::success([
             'assignment_id' => $assignmentId,
             'game_room_id' => $roomId,
@@ -131,6 +141,17 @@ class AdminOperationsController
                 'dm_user_id' => $assignment['dm_user_id'] ?? null,
             ]
         );
+
+        if (!empty($assignment['dm_user_id'])) {
+            $notiRepo = new \App\Features\Notification\Repositories\NotificationRepository($this->pdo);
+            $notiRepo->createNotification(
+                'Ca trực đã được thu hồi',
+                "Ca phân công quản trò của bạn đã được Quản trị viên thu hồi. Lý do: {$reason}.",
+                'DM_ASSIGNMENT',
+                (int) $auth['id'],
+                [(int) $assignment['dm_user_id']]
+            );
+        }
 
         return Response::success([
             'assignment_id' => $assignmentId,

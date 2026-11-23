@@ -169,6 +169,40 @@ class AdminGameRoomController
                 );
             }
 
+            // Thông báo cho Quản trò (DM) được phân công nếu có
+            $dmStmt = $this->pdo->prepare('SELECT DISTINCT `dm_user_id` FROM `dm_assignments` WHERE `game_room_id` = :room_id AND `status` IN (\'PENDING\', \'ACCEPTED\')');
+            $dmStmt->bindValue(':room_id', $roomId, PDO::PARAM_INT);
+            $dmStmt->execute();
+            $assignedDmIds = array_map('intval', $dmStmt->fetchAll(PDO::FETCH_COLUMN));
+
+            if (!empty($assignedDmIds)) {
+                $this->notiRepo->createNotification(
+                    'Ca trực đã bị hủy bởi quản trị viên',
+                    "Ca trực phòng '{$room['title']}' đã bị hủy bởi quản trị viên. Lý do: {$reason}.",
+                    'DM_ASSIGNMENT',
+                    (int) $auth['id'],
+                    $assignedDmIds
+                );
+            }
+
+            // Thông báo cho các thành viên chưa nộp cọc hoặc không phát sinh hoàn tiền
+            $allPartsStmt = $this->pdo->prepare('SELECT DISTINCT `user_id` FROM `room_participants` WHERE `game_room_id` = :room_id');
+            $allPartsStmt->bindValue(':room_id', $roomId, PDO::PARAM_INT);
+            $allPartsStmt->execute();
+            $allPartUserIds = array_map('intval', $allPartsStmt->fetchAll(PDO::FETCH_COLUMN));
+            $notifiedUserIds = array_column($refundRecords, 'user_id');
+            $unpaidUserIds = array_values(array_diff($allPartUserIds, $notifiedUserIds));
+
+            if (!empty($unpaidUserIds)) {
+                $this->notiRepo->createNotification(
+                    'Phòng chơi đã bị hủy bởi quản trị viên',
+                    "Phòng '{$room['title']}' đã bị hủy bởi quản trị viên. Lý do: {$reason}.",
+                    'ROOM',
+                    (int) $auth['id'],
+                    $unpaidUserIds
+                );
+            }
+
             $this->pdo->commit();
 
             return Response::success([
