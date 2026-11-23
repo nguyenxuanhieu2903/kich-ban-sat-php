@@ -145,6 +145,11 @@ Quản trị viên sử dụng Cổng Quản Trị tại `admin-portal.html` đ�
    - Admin trực tiếp liên hệ điều động Quản trò cơ hữu của quán hoặc gọi điện thoại thống nhất với khách đổi sang khung giờ kế tiếp.
 3. **Phân công và thu hồi DM:**
    - Bấm nút "Phân Công DM" hoặc "Thu Hồi DM" để can thiệp cưỡng chế nhân sự khi có sự cố phát sinh.
+4. **Bảo trì phòng vật lý & Tự động điều chuyển phòng chơi (Dynamic Rerouting):**
+   - Khi phát hiện phòng bị hỏng đèn, máy lạnh hoặc hư hỏng đạo cụ, Admin bấm "Bật Bảo Trì" (`POST /api/v1/admin/physical-rooms/{id}/maintenance`).
+   - Hệ thống tự động kích hoạt thuật toán điều chuyển thông minh: Quét các ca chơi tương lai của phòng đó và gán tự động sang phòng trống tương đương tại cùng chi nhánh với thời gian đệm an toàn 30 phút (`BUFFER_MINUTES = 30`).
+   - Tự động phát thông báo hệ thống tới Host và DM về việc đổi phòng thực tế.
+   - Khi hoàn tất sửa chữa, Admin bấm "Tắt Bảo Trì" để đưa phòng trở lại trạng thái sẵn sàng đón khách.
 
 ### 5.3. Phê duyệt và hoàn tất hoàn tiền cọc (Refunds Management)
 1. Tại tab "Quản Lý Hoàn Cọc":

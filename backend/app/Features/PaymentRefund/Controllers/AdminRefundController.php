@@ -281,8 +281,8 @@ class AdminRefundController
             $upStmt->bindValue(':id', $refundId, PDO::PARAM_INT);
             $upStmt->execute();
 
-            // Cập nhật trạng thái player_payments sang REFUNDED
-            $upPay = $this->pdo->prepare('UPDATE `player_payments` SET `status` = \'REFUNDED\', `updated_at` = NOW() WHERE `id` = :pid');
+            // Cập nhật trạng thái player_payments sang CANCELLED (hoàn tiền hoàn tất)
+            $upPay = $this->pdo->prepare('UPDATE `player_payments` SET `status` = \'CANCELLED\', `updated_at` = NOW() WHERE `id` = :pid');
             $upPay->bindValue(':pid', (int) $refund['player_payment_id'], PDO::PARAM_INT);
             $upPay->execute();
 

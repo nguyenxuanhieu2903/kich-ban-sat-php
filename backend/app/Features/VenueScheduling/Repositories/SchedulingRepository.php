@@ -164,6 +164,64 @@ class SchedulingRepository extends BaseRepository
     }
 
     /**
+     * Find an alternative available physical room in the same venue excluding the current room.
+     *
+     * @return array<string, mixed>|null
+     */
+    public function findAlternativePhysicalRoom(
+        int $venueId,
+        int $excludePhysicalRoomId,
+        int $minCapacity,
+        string $startAt,
+        string $endAt,
+        int $bufferMinutes = 30
+    ): ?array {
+        return $this->executeQuery(function () use ($venueId, $excludePhysicalRoomId, $minCapacity, $startAt, $endAt, $bufferMinutes): ?array {
+            $strictBuffer = max(30, $bufferMinutes);
+            $stmt = $this->pdo->prepare(
+                'SELECT pr.`id`, pr.`venue_id`, pr.`name`, pr.`capacity`
+                 FROM `physical_rooms` pr
+                 INNER JOIN `venues` v ON v.`id` = pr.`venue_id` AND v.`status` = \'ACTIVE\'
+                 WHERE pr.`status` = \'ACTIVE\'
+                   AND pr.`venue_id` = :venue_id
+                   AND pr.`id` != :exclude_id
+                   AND pr.`capacity` >= :min_capacity
+                   AND (pr.`is_maintenance` = 0 OR pr.`is_maintenance` IS NULL)
+                   AND NOT EXISTS (
+                       SELECT 1 FROM `sessions` s
+                       WHERE s.`physical_room_id` = pr.`id`
+                         AND s.`status` IN (\'SCHEDULED\', \'IN_PROGRESS\')
+                         AND s.`start_at` < DATE_ADD(:end_at1, INTERVAL :buf1 MINUTE)
+                         AND s.`end_at` > DATE_SUB(:start_at1, INTERVAL :buf2 MINUTE)
+                   )
+                   AND NOT EXISTS (
+                       SELECT 1 FROM `offline_room_blocks` orb
+                       WHERE orb.`physical_room_id` = pr.`id`
+                         AND orb.`start_at` < DATE_ADD(:end_at2, INTERVAL :buf3 MINUTE)
+                         AND orb.`end_at` > DATE_SUB(:start_at2, INTERVAL :buf4 MINUTE)
+                   )
+                 ORDER BY pr.`capacity` ASC, pr.`id` ASC
+                 LIMIT 1'
+            );
+            $stmt->bindValue(':venue_id', $venueId, PDO::PARAM_INT);
+            $stmt->bindValue(':exclude_id', $excludePhysicalRoomId, PDO::PARAM_INT);
+            $stmt->bindValue(':min_capacity', max(1, $minCapacity), PDO::PARAM_INT);
+            $stmt->bindValue(':end_at1', $endAt, PDO::PARAM_STR);
+            $stmt->bindValue(':start_at1', $startAt, PDO::PARAM_STR);
+            $stmt->bindValue(':end_at2', $endAt, PDO::PARAM_STR);
+            $stmt->bindValue(':start_at2', $startAt, PDO::PARAM_STR);
+            $stmt->bindValue(':buf1', $strictBuffer, PDO::PARAM_INT);
+            $stmt->bindValue(':buf2', $strictBuffer, PDO::PARAM_INT);
+            $stmt->bindValue(':buf3', $strictBuffer, PDO::PARAM_INT);
+            $stmt->bindValue(':buf4', $strictBuffer, PDO::PARAM_INT);
+            $stmt->execute();
+
+            $result = $stmt->fetch(PDO::FETCH_ASSOC);
+            return $result !== false ? $result : null;
+        });
+    }
+
+    /**
      * Find an active DM user who does not have an overlapping session.
      */
     public function findAvailableDmUserId(string $startAt, string $endAt, int $bufferMinutes = 30): ?int

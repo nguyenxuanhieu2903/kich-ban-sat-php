@@ -18,7 +18,7 @@ export const getRoleConfigs = () => {
       code: 'PLAYER',
       name: 'Người Chơi',
       shortName: 'Player',
-      icon: '🎲',
+      icon: '',
       color: '#3b82f6',
       activeClass: 'role-player',
       badgeBg: 'rgba(59, 130, 246, 0.15)',
@@ -32,7 +32,7 @@ export const getRoleConfigs = () => {
       code: 'DM',
       name: 'Quản Trò (DM)',
       shortName: 'Dungeon Master',
-      icon: '📜',
+      icon: '',
       color: '#f59e0b',
       activeClass: 'role-dm',
       badgeBg: 'rgba(245, 158, 11, 0.15)',
@@ -46,7 +46,7 @@ export const getRoleConfigs = () => {
       code: 'ADMIN',
       name: 'Quản Trị Viên (Admin)',
       shortName: 'Administrator',
-      icon: '🛡️',
+      icon: '',
       color: '#ef4444',
       activeClass: 'role-admin',
       badgeBg: 'rgba(239, 68, 68, 0.15)',
@@ -145,7 +145,7 @@ export class AuthModal {
               data-role="PLAYER"
               style="padding: 10px 6px; display: flex; flex-direction: column; align-items: center; gap: 4px; border-radius: 8px; border: 1px solid ${this.selectedRole === 'PLAYER' ? '#3b82f6' : 'var(--color-border)'}; background: ${this.selectedRole === 'PLAYER' ? 'rgba(59, 130, 246, 0.18)' : 'rgba(15, 23, 42, 0.6)'}; color: ${this.selectedRole === 'PLAYER' ? '#93c5fd' : 'var(--color-text-muted)'}; cursor: pointer; transition: all 0.2s;"
             >
-              <span style="font-size: 1.3rem;">🎲</span>
+              <span style="font-size: 1.3rem;"></span>
               <strong style="font-size: 0.85rem;">Player</strong>
               <span style="font-size: 0.7rem; opacity: 0.85;">Người chơi</span>
             </button>
@@ -156,7 +156,7 @@ export class AuthModal {
               data-role="DM"
               style="padding: 10px 6px; display: flex; flex-direction: column; align-items: center; gap: 4px; border-radius: 8px; border: 1px solid ${this.selectedRole === 'DM' ? '#f59e0b' : 'var(--color-border)'}; background: ${this.selectedRole === 'DM' ? 'rgba(245, 158, 11, 0.18)' : 'rgba(15, 23, 42, 0.6)'}; color: ${this.selectedRole === 'DM' ? '#fbbf24' : 'var(--color-text-muted)'}; cursor: pointer; transition: all 0.2s;"
             >
-              <span style="font-size: 1.3rem;">📜</span>
+              <span style="font-size: 1.3rem;"></span>
               <strong style="font-size: 0.85rem;">DM</strong>
               <span style="font-size: 0.7rem; opacity: 0.85;">Quản trò</span>
             </button>
@@ -167,7 +167,7 @@ export class AuthModal {
               data-role="ADMIN"
               style="padding: 10px 6px; display: flex; flex-direction: column; align-items: center; gap: 4px; border-radius: 8px; border: 1px solid ${this.selectedRole === 'ADMIN' ? '#ef4444' : 'var(--color-border)'}; background: ${this.selectedRole === 'ADMIN' ? 'rgba(239, 68, 68, 0.18)' : 'rgba(15, 23, 42, 0.6)'}; color: ${this.selectedRole === 'ADMIN' ? '#fca5a5' : 'var(--color-text-muted)'}; cursor: pointer; transition: all 0.2s;"
             >
-              <span style="font-size: 1.3rem;">🛡️</span>
+              <span style="font-size: 1.3rem;"></span>
               <strong style="font-size: 0.85rem;">Admin</strong>
               <span style="font-size: 0.7rem; opacity: 0.85;">Quản trị</span>
             </button>
@@ -187,7 +187,7 @@ export class AuthModal {
                 style="background: rgba(255, 255, 255, 0.1); border: 1px solid rgba(255, 255, 255, 0.2); color: #f8fafc; font-size: 0.72rem; padding: 3px 8px; border-radius: 4px; cursor: pointer;"
                 title="Điền tự động tài khoản mẫu (Chỉ khả dụng trong môi trường phát triển)"
               >
-                ⚡ Điền mẫu
+                 Điền mẫu
               </button>
             ` : ''}
           </div>
@@ -249,7 +249,7 @@ export class AuthModal {
           class="btn btn-primary"
           style="margin-top: 6px; width: 100%; padding: 10px; font-size: 0.95rem; font-weight: 600; border-radius: 6px; display: flex; align-items: center; justify-content: center; gap: 8px;"
         >
-          <span>🔐</span>
+          <span></span>
           <span id="auth-submit-text">
             ${this.isRegisterMode ? 'Đăng ký tài khoản' : `Đăng nhập (${roleConfig.name})`}
           </span>

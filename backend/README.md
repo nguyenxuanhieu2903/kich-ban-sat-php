@@ -1,10 +1,10 @@
-# 🎭 KỊCH BẢN SÁT V16 - PRODUCTION BACKEND SYSTEM
+#  KỊCH BẢN SÁT V16 - PRODUCTION BACKEND SYSTEM
 
 Hệ thống Backend chuẩn công nghiệp cho nền tảng đặt phòng, quản lý kịch bản, điều phối Game Master (DM) và thanh toán cho hệ thống trò chơi nhập vai **Kịch Bản Sát (Jubensha)**. Hệ thống được phát triển theo kiến trúc Native PHP PSR-4, kết nối PDO Prepared Statements, CSDL MySQL 8.4, bảo mật đa tầng và kiểm thử tự động 100%.
 
 ---
 
-## 🚀 ĐẶC ĐIỂM KỸ THUẬT CỐT LÕI (TECHNICAL HIGHLIGHTS)
+##  ĐẶC ĐIỂM KỸ THUẬT CỐT LÕI (TECHNICAL HIGHLIGHTS)
 
 1. **Kiến trúc Native PHP PSR-4 Hiện đại:**
    - Không phụ thuộc vào heavy framework (Laravel/Symfony), tối ưu hóa tài nguyên và độ trễ CPU/Memory (Memory footprint < 16MB).
@@ -25,7 +25,7 @@ Hệ thống Backend chuẩn công nghiệp cho nền tảng đặt phòng, qu�
 
 ---
 
-## 🛠️ YÊU CẦU MÔI TRƯỜNG (PREREQUISITES)
+##  YÊU CẦU MÔI TRƯỜNG (PREREQUISITES)
 
 - **PHP:** >= 8.2 (Khuyến nghị PHP 8.3+)
   - Tiện ích mở rộng bắt buộc: `pdo`, `pdo_mysql`, `json`, `mbstring`, `session`.
@@ -34,7 +34,7 @@ Hệ thống Backend chuẩn công nghiệp cho nền tảng đặt phòng, qu�
 
 ---
 
-## 📦 CÀI ĐẶT & KHỞI CHẠY (QUICK START)
+##  CÀI ĐẶT & KHỞI CHẠY (QUICK START)
 
 ### 1. Cài đặt Dependencies
 ```bash
@@ -103,7 +103,7 @@ php bin/cron.php --job=proposal-timeout
 
 ---
 
-## 📖 TÀI LIỆU API & DANH MỤC 50 ENDPOINTS
+##  TÀI LIỆU API & DANH MỤC 50 ENDPOINTS
 
 Hệ thống hỗ trợ cả 2 tiền tố URL: `/api/v1/...` (chuẩn V16) và `/api/...` (fallback tương thích).
 
@@ -174,7 +174,7 @@ Hệ thống hỗ trợ cả 2 tiền tố URL: `/api/v1/...` (chuẩn V16) và 
 
 ---
 
-## 🏛️ CẤU TRÚC DỰ ÁN (PROJECT DIRECTORY TREE)
+##  CẤU TRÚC DỰ ÁN (PROJECT DIRECTORY TREE)
 
 ```
 backend/
@@ -212,7 +212,7 @@ backend/
 
 ---
 
-## 🛡️ TIÊU CHUẨN NGHIỆM THU ĐỒ ÁN (DEFENSE READY)
+##  TIÊU CHUẨN NGHIỆM THU ĐỒ ÁN (DEFENSE READY)
 
 1. **Clean Code & No Framework Magic:** Toàn bộ luồng dữ liệu, mã hóa mật khẩu, truy vấn SQL đều được viết mạch lạc, dễ giải trình trước hội đồng chấm thi.
 2. **Kiểm thử tự động phủ kín:** 126 unit & feature tests kiểm chứng chặt chẽ mọi kịch bản biên (concurrency race conditions, cutoff times, non-stackable promotions, role escalation checks).

@@ -378,4 +378,150 @@ class V16StandardP2PerfectionTest extends TestCase
         $this->assertSame($pRoomId, (int) $data['data']['physical_room_id']);
         $this->assertNotNull($data['data']['block_id']);
     }
+
+    /**
+     * Test 9: Admin lấy danh sách phòng vật lý
+     */
+    public function testAdminListPhysicalRooms(): void
+    {
+        $request = new Request(
+            method: 'GET',
+            path: '/api/admin/physical-rooms',
+            queryParams: [],
+            bodyParams: [],
+            headers: [
+                'Authorization' => 'Bearer 1', // Admin
+            ]
+        );
+
+        $response = $this->app->dispatch($request);
+        $this->assertSame(200, $response->getStatusCode());
+        $data = json_decode($response->getContent(), true);
+        $this->assertTrue($data['success']);
+        $this->assertIsArray($data['data']);
+        $this->assertNotEmpty($data['data']);
+        $this->assertArrayHasKey('name', $data['data'][0]);
+        $this->assertArrayHasKey('capacity', $data['data'][0]);
+        $this->assertArrayHasKey('is_maintenance', $data['data'][0]);
+    }
+
+    /**
+     * Test 10: Admin kích hoạt bảo trì phòng vật lý và tự động điều chuyển ca chơi (Dynamic Rerouting)
+     */
+    public function testAdminTogglePhysicalRoomMaintenanceAndAutoRerouting(): void
+    {
+        // 1. Tạo 2 phòng vật lý cùng venue 1
+        $this->pdo->exec("INSERT INTO `physical_rooms` (`venue_id`, `name`, `capacity`, `status`, `is_maintenance`, `created_at`, `updated_at`) VALUES (1, 'Phòng Cũ " . uniqid() . "', 8, 'ACTIVE', 0, NOW(), NOW())");
+        $oldRoomId = (int) $this->pdo->lastInsertId();
+
+        $this->pdo->exec("INSERT INTO `physical_rooms` (`venue_id`, `name`, `capacity`, `status`, `is_maintenance`, `created_at`, `updated_at`) VALUES (1, 'Phòng Mới " . uniqid() . "', 10, 'ACTIVE', 0, NOW(), NOW())");
+        $newRoomId = (int) $this->pdo->lastInsertId();
+
+        // 2. Tạo game room và session tương lai gán vào phòng cũ
+        $startAt = date('Y-m-d H:i:s', strtotime('+3 days 14:00:00'));
+        $endAt = date('Y-m-d H:i:s', strtotime('+3 days 18:00:00'));
+
+        $this->pdo->exec("INSERT INTO `game_rooms` (`game_id`, `game_configuration_id`, `creator_id`, `title`, `min_players`, `max_players`, `total_players`, `status`, `formation_deadline_at`, `created_at`, `updated_at`) VALUES (1, 1, 1, 'Phòng Reroute Test', 6, 8, 6, 'CONFIRMED', DATE_ADD(NOW(), INTERVAL 2 DAY), NOW(), NOW())");
+        $gameRoomId = (int) $this->pdo->lastInsertId();
+
+        $this->pdo->exec("INSERT INTO `schedule_proposals` (`game_room_id`, `proposed_by`, `proposed_start_at`, `proposed_end_at`, `status`, `expires_at`, `created_at`) VALUES ({$gameRoomId}, 1, '{$startAt}', '{$endAt}', 'CONFIRMED', DATE_ADD(NOW(), INTERVAL 24 HOUR), NOW())");
+        $propId = (int) $this->pdo->lastInsertId();
+
+        $this->pdo->exec("INSERT INTO `dm_assignments` (`game_room_id`, `dm_user_id`, `assigned_by`, `status`, `assigned_at`, `created_at`, `updated_at`) VALUES ({$gameRoomId}, 2, 1, 'ACCEPTED', NOW(), NOW(), NOW())");
+        $dmAssignId = (int) $this->pdo->lastInsertId();
+
+        $this->pdo->exec("INSERT INTO `sessions` (`game_room_id`, `schedule_proposal_id`, `dm_assignment_id`, `physical_room_id`, `venue_id`, `status`, `start_at`, `end_at`, `created_at`, `updated_at`) VALUES ({$gameRoomId}, {$propId}, {$dmAssignId}, {$oldRoomId}, 1, 'SCHEDULED', '{$startAt}', '{$endAt}', NOW(), NOW())");
+        $sessionId = (int) $this->pdo->lastInsertId();
+
+        // 3. Admin bật bảo trì cho phòng cũ
+        $request = new Request(
+            method: 'POST',
+            path: "/api/admin/physical-rooms/{$oldRoomId}/maintenance",
+            queryParams: [],
+            bodyParams: [
+                'is_maintenance' => true,
+                'reason' => 'Bảo trì máy lạnh và hệ thống âm thanh',
+            ],
+            headers: [
+                'Authorization' => 'Bearer 1',
+            ]
+        );
+
+        $response = $this->app->dispatch($request);
+        $this->assertSame(200, $response->getStatusCode());
+        $data = json_decode($response->getContent(), true);
+        $this->assertTrue($data['success']);
+        $this->assertTrue($data['data']['is_maintenance']);
+        $this->assertNotEmpty($data['data']['rerouted_sessions']);
+        $this->assertSame($sessionId, (int) $data['data']['rerouted_sessions'][0]['session_id']);
+
+        // 4. Kiểm tra session trong DB đã được chuyển sang phòng khác (khác phòng cũ đang bảo trì)
+        $sessRow = $this->pdo->query("SELECT `physical_room_id` FROM `sessions` WHERE `id` = {$sessionId}")->fetch(PDO::FETCH_ASSOC);
+        $this->assertNotSame($oldRoomId, (int) $sessRow['physical_room_id']);
+        $this->assertGreaterThan(0, (int) $sessRow['physical_room_id']);
+
+        // 5. Admin tắt bảo trì cho phòng cũ
+        $requestOff = new Request(
+            method: 'POST',
+            path: "/api/admin/physical-rooms/{$oldRoomId}/maintenance",
+            queryParams: [],
+            bodyParams: [
+                'is_maintenance' => false,
+            ],
+            headers: [
+                'Authorization' => 'Bearer 1',
+            ]
+        );
+
+        $resOff = $this->app->dispatch($requestOff);
+        $this->assertSame(200, $resOff->getStatusCode());
+        $dataOff = json_decode($resOff->getContent(), true);
+        $this->assertFalse($dataOff['data']['is_maintenance']);
+    }
+
+    /**
+     * Test 11: Admin hoàn tất chi trả hoàn tiền cọc (Refunds Lifecycle to COMPLETED)
+     */
+    public function testAdminCompleteRefundLifecycle(): void
+    {
+        // 1. Tạo game room, participant, payment và refund ở trạng thái APPROVED
+        $this->pdo->exec("INSERT INTO `game_rooms` (`game_id`, `game_configuration_id`, `creator_id`, `title`, `min_players`, `max_players`, `total_players`, `status`, `formation_deadline_at`, `created_at`, `updated_at`) VALUES (1, 1, 1, 'Phòng Refund Complete Test', 6, 8, 6, 'CANCELLED', DATE_ADD(NOW(), INTERVAL 2 DAY), NOW(), NOW())");
+        $grId = (int) $this->pdo->lastInsertId();
+
+        $this->pdo->exec("INSERT INTO `room_participants` (`game_room_id`, `user_id`, `status`, `joined_at`, `created_at`, `updated_at`) VALUES ({$grId}, 3, 'DEPOSITED', NOW(), NOW(), NOW())");
+        $partId = (int) $this->pdo->lastInsertId();
+
+        $this->pdo->exec("INSERT INTO `player_payments` (`room_participant_id`, `payment_type`, `amount`, `paid_amount`, `status`, `paid_at`, `created_at`, `updated_at`) VALUES ({$partId}, 'DEPOSIT', 50000, 50000, 'PAID', NOW(), NOW(), NOW())");
+        $payId = (int) $this->pdo->lastInsertId();
+
+        $this->pdo->exec("INSERT INTO `refunds` (`player_payment_id`, `amount`, `reason`, `status`, `requested_at`, `reviewed_by`, `reviewed_at`, `created_at`, `updated_at`) VALUES ({$payId}, 50000, 'Hủy phòng trước 24h', 'APPROVED', NOW(), 1, NOW(), NOW(), NOW())");
+        $refundId = (int) $this->pdo->lastInsertId();
+
+        // 2. Kế toán/Admin hoàn tất chi tiền cọc (Complete)
+        $request = new Request(
+            method: 'POST',
+            path: "/api/admin/refunds/{$refundId}/complete",
+            queryParams: [],
+            bodyParams: [
+                'bank_reference_code' => 'UNC_VIETCOMBANK_20261124',
+            ],
+            headers: [
+                'Authorization' => 'Bearer 1', // Admin
+            ]
+        );
+
+        $response = $this->app->dispatch($request);
+        $this->assertSame(200, $response->getStatusCode());
+        $data = json_decode($response->getContent(), true);
+        $this->assertTrue($data['success']);
+
+        // 3. Kiểm tra DB: refunds status = 'COMPLETED' và player_payments status = 'REFUNDED'
+        $refRow = $this->pdo->query("SELECT `status`, `completed_at`, `review_reason` FROM `refunds` WHERE `id` = {$refundId}")->fetch(PDO::FETCH_ASSOC);
+        $this->assertSame('COMPLETED', $refRow['status']);
+        $this->assertNotNull($refRow['completed_at']);
+        $this->assertStringContainsString('UNC_VIETCOMBANK_20261124', (string) $refRow['review_reason']);
+
+        $payRow = $this->pdo->query("SELECT `status` FROM `player_payments` WHERE `id` = {$payId}")->fetch(PDO::FETCH_ASSOC);
+        $this->assertSame('CANCELLED', $payRow['status']);
+    }
 }

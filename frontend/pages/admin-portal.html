@@ -171,6 +171,73 @@
       </div>
     </div>
 
+    <!-- Physical Rooms & Maintenance Management Card -->
+    <div class="ticket-card" style="margin-bottom: 24px;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 10px;">
+        <div>
+          <h3 style="margin: 0;">Quản Lý Phòng Vật Lý & Bảo Trì Kỹ Thuật (Dynamic Rerouting)</h3>
+          <p style="font-size: 0.85rem; color: var(--text-muted); margin-top: 2px;">
+            Tự động điều chuyển ca chơi sang phòng trống cùng chi nhánh khi kích hoạt bảo trì kỹ thuật (Buffer 30 phút)
+          </p>
+        </div>
+        <span class="stamp-badge open">PHYSICAL ROOMS</span>
+      </div>
+
+      <div style="overflow-x: auto;">
+        <table class="admin-table">
+          <thead>
+            <tr>
+              <th>Mã Phòng</th>
+              <th>Tên Phòng & Chi Nhánh</th>
+              <th>Sức Chứa</th>
+              <th>Chuyên Đề</th>
+              <th>Trạng Thái</th>
+              <th>Ca Chơi Tiếp Theo</th>
+              <th>Thao Tác</th>
+            </tr>
+          </thead>
+          <tbody id="physicalRoomsTableBody">
+            <tr>
+              <td colspan="7" style="text-align: center; padding: 20px; color: var(--text-muted);">Đang tải danh sách phòng vật lý...</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Refunds Ledger Management Card -->
+    <div class="ticket-card" style="margin-bottom: 24px;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 10px;">
+        <div>
+          <h3 style="margin: 0;">Sổ Cái & Xét Duyệt Hoàn Tiền Cọc (Refunds Ledger)</h3>
+          <p style="font-size: 0.85rem; color: var(--text-muted); margin-top: 2px;">
+            Xử lý yêu cầu hoàn cọc 50.000 VNĐ: Duyệt (Approve), Từ chối (Reject), Hoàn tất chi trả kế toán (Complete)
+          </p>
+        </div>
+        <span class="stamp-badge open">REFUNDS AUDIT</span>
+      </div>
+
+      <div style="overflow-x: auto;">
+        <table class="admin-table">
+          <thead>
+            <tr>
+              <th>Mã Hoàn Tiền</th>
+              <th>Người Chơi</th>
+              <th>Số Tiền Cọc</th>
+              <th>Trạng Thái</th>
+              <th>Lý Do</th>
+              <th>Thao Tác Kế Toán</th>
+            </tr>
+          </thead>
+          <tbody id="refundsTableBody">
+            <tr>
+              <td colspan="6" style="text-align: center; padding: 20px; color: var(--text-muted);">Đang tải danh sách yêu cầu hoàn tiền...</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
     <!-- Student Verification & Audit Logs -->
     <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(360px, 1fr)); gap: 24px;">
       <!-- Student Card Approval -->
@@ -537,9 +604,195 @@
       }
     }
 
+    window.togglePhysicalRoomMaintenance = async function(roomId, isMaint, roomName) {
+      const action = isMaint ? 'tắt chế độ bảo trì' : 'kích hoạt chế độ bảo trì và tự động điều chuyển ca chơi';
+      if (!confirm(`Xác nhận ${action} cho phòng "${roomName}"?`)) return;
+
+      let reason = 'Bảo trì trang thiết bị kỹ thuật';
+      if (!isMaint) {
+        const input = prompt('Nhập lý do bảo trì phòng (VD: Hỏng đèn chiếu, phục chế đạo cụ...):', reason);
+        if (input) reason = input;
+      }
+
+      try {
+        const res = await apiClient.post(`/admin/physical-rooms/${roomId}/maintenance`, {
+          is_maintenance: !isMaint,
+          reason: reason
+        });
+        let msg = res.message || 'Cập nhật trạng thái bảo trì thành công!';
+        if (res.data?.rerouted_sessions && res.data.rerouted_sessions.length > 0) {
+          msg += ` Đã tự động điều chuyển ${res.data.rerouted_sessions.length} ca chơi sang phòng trống khác.`;
+        }
+        alert(msg);
+        loadPhysicalRooms();
+        loadRooms();
+      } catch (err) {
+        alert(err.message || 'Không thể cập nhật bảo trì');
+      }
+    };
+
+    async function loadPhysicalRooms() {
+      const tbody = document.getElementById('physicalRoomsTableBody');
+      if (!tbody) return;
+      try {
+        const res = await apiClient.get('/admin/physical-rooms');
+        const rooms = res.data || [];
+
+        if (rooms.length === 0) {
+          tbody.innerHTML = `
+            <tr>
+              <td colspan="7" style="text-align: center; padding: 20px; color: var(--text-muted);">
+                Chưa có phòng vật lý nào được cấu hình trong hệ thống.
+              </td>
+            </tr>
+          `;
+          return;
+        }
+
+        tbody.innerHTML = rooms.map(pr => {
+          let statusBadge = pr.is_maintenance ?
+            `<span class="stamp-badge" style="color: #f87171; border-color: #f87171;">BẢO TRÌ</span>` :
+            `<span class="stamp-badge open">SẴN SÀNG</span>`;
+          let nextSession = 'Không có ca sắp tới';
+          if (pr.upcoming_session_info) {
+            const parts = pr.upcoming_session_info.split(':');
+            nextSession = parts.slice(2).join(' ');
+          }
+
+          return `
+            <tr>
+              <td><strong>#PR-${pr.id}</strong></td>
+              <td>
+                <div><strong>${pr.name}</strong></div>
+                <div style="font-size: 0.8rem; color: var(--text-muted);">${pr.venue_name || 'Chi nhánh #' + pr.venue_id}</div>
+              </td>
+              <td>${pr.capacity} người</td>
+              <td><span class="stamp-badge" style="font-size: 0.75rem;">${pr.theme_code || 'GENERAL'}</span></td>
+              <td>${statusBadge}</td>
+              <td style="font-size: 0.8rem; color: var(--text-muted); max-width: 200px;">${nextSession}</td>
+              <td>
+                <button type="button" class="btn ${pr.is_maintenance ? 'btn-primary' : 'btn-outline'}" style="font-size: 0.8rem; padding: 4px 10px;" onclick="togglePhysicalRoomMaintenance(${pr.id}, ${pr.is_maintenance ? 'true' : 'false'}, '${pr.name.replace(/'/g, "\\'")}')">
+                  ${pr.is_maintenance ? 'Tắt Bảo Trì' : 'Bật Bảo Trì'}
+                </button>
+              </td>
+            </tr>
+          `;
+        }).join('');
+      } catch (e) {
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="7" style="text-align: center; padding: 20px; color: var(--text-muted);">
+              Không thể tải danh sách phòng vật lý.
+            </td>
+          </tr>
+        `;
+      }
+    }
+
+    window.approveRefund = async function(refundId) {
+      if (!confirm('Xác nhận DUYỆT yêu cầu hoàn cọc này?')) return;
+      try {
+        const res = await apiClient.post(`/admin/refunds/${refundId}/approve`);
+        alert(res.message || 'Đã duyệt yêu cầu hoàn tiền thành công!');
+        loadRefunds();
+      } catch (err) {
+        alert(err.message || 'Không thể duyệt hoàn tiền');
+      }
+    };
+
+    window.rejectRefund = async function(refundId) {
+      const reason = prompt('Nhập lý do từ chối hoàn tiền:', 'Vi phạm chính sách hủy muộn dưới 24 giờ');
+      if (!reason) return;
+      try {
+        const res = await apiClient.post(`/admin/refunds/${refundId}/reject`, { reason });
+        alert(res.message || 'Đã từ chối hoàn tiền!');
+        loadRefunds();
+      } catch (err) {
+        alert(err.message || 'Không thể từ chối hoàn tiền');
+      }
+    };
+
+    window.completeRefund = async function(refundId) {
+      const bankRef = prompt('Nhập mã ủy nhiệm chi / mã giao dịch chuyển khoản ngân hàng:', 'UNC_' + Date.now());
+      if (!bankRef) return;
+      try {
+        const res = await apiClient.post(`/admin/refunds/${refundId}/complete`, { bank_reference_code: bankRef });
+        alert(res.message || 'Đã đóng hồ sơ chi trả tiền cọc thành công!');
+        loadRefunds();
+      } catch (err) {
+        alert(err.message || 'Không thể cập nhật hoàn tất hoàn tiền');
+      }
+    };
+
+    async function loadRefunds() {
+      const tbody = document.getElementById('refundsTableBody');
+      if (!tbody) return;
+      try {
+        const res = await apiClient.get('/admin/refunds');
+        const refunds = res.data || [];
+
+        if (refunds.length === 0) {
+          tbody.innerHTML = `
+            <tr>
+              <td colspan="6" style="text-align: center; padding: 20px; color: var(--text-muted);">
+                Chưa có yêu cầu hoàn cọc nào trong hệ thống.
+              </td>
+            </tr>
+          `;
+          return;
+        }
+
+        tbody.innerHTML = refunds.map(r => {
+          let statusBadge = '';
+          let actions = '';
+          if (r.status === 'PENDING') {
+            statusBadge = `<span class="stamp-badge" style="color: var(--color-gold); border-color: var(--color-gold);">CHỜ DUYỆT</span>`;
+            actions = `
+              <button type="button" class="btn btn-primary" style="font-size: 0.8rem; padding: 4px 10px;" onclick="approveRefund(${r.id})">Duyệt</button>
+              <button type="button" class="btn btn-outline" style="font-size: 0.8rem; padding: 4px 10px;" onclick="rejectRefund(${r.id})">Từ Chối</button>
+            `;
+          } else if (r.status === 'APPROVED') {
+            statusBadge = `<span class="stamp-badge open">ĐÃ DUYỆT</span>`;
+            actions = `
+              <button type="button" class="btn btn-gold" style="font-size: 0.8rem; padding: 4px 10px;" onclick="completeRefund(${r.id})">Chi Tiền (UNC)</button>
+            `;
+          } else if (r.status === 'COMPLETED') {
+            statusBadge = `<span class="stamp-badge open" style="color: #60a5fa; border-color: #60a5fa;">ĐÃ CHI TRẢ</span>`;
+            actions = `<span style="font-size: 0.8rem; color: #60a5fa;">Hoàn tất kế toán</span>`;
+          } else {
+            statusBadge = `<span class="stamp-badge" style="color: #f87171; border-color: #f87171;">TỪ CHỐI</span>`;
+            actions = `<span style="font-size: 0.8rem; color: #f87171;">Đã bác bỏ</span>`;
+          }
+
+          return `
+            <tr>
+              <td><strong>#REF-${r.id}</strong></td>
+              <td>${r.user_name || 'Người chơi #' + (r.user_id || '')}</td>
+              <td style="font-weight: 700; color: var(--color-gold);">${Number(r.amount || 50000).toLocaleString('vi-VN')} đ</td>
+              <td>${statusBadge}</td>
+              <td style="font-size: 0.8rem; color: var(--text-muted); max-width: 220px;">${r.reason || 'N/A'}</td>
+              <td>
+                <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+                  ${actions}
+                </div>
+              </td>
+            </tr>
+          `;
+        }).join('');
+      } catch (e) {
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="6" style="text-align: center; padding: 20px; color: var(--text-muted);">
+              Không thể tải danh sách hoàn tiền.
+            </td>
+          </tr>
+        `;
+      }
+    }
+
     async function loadAdminDashboard() {
       await checkAuth();
-      await Promise.all([loadRooms(), loadProposals(), loadStudents(), loadAuditLogs(), loadReports()]);
+      await Promise.all([loadRooms(), loadProposals(), loadPhysicalRooms(), loadRefunds(), loadStudents(), loadAuditLogs(), loadReports()]);
     }
 
     document.getElementById('btnOfflineBlock')?.addEventListener('click', async () => {

@@ -773,4 +773,27 @@ Nhằm đảm bảo sản phẩm đạt mức hoàn hảo tuyệt đối mà ng�
 6. **Kiểm thử trình duyệt thực tế Headless Chrome CDP (12/12 trang PASS):**
    - Toàn bộ 12 trang web đạt chuẩn hoàn hảo trên cả Desktop (1440px) và Mobile (375px), 0 lỗi console, 0 exception, 0 lỗi tràn ngang.
 
+---
+
+### 10.13. Gói nâng cấp hoàn thiện toàn diện Stage 3.4 (Physical Room Maintenance, Dynamic Rerouting & Zero Emojis)
+
+Nhằm đưa toàn bộ nền tảng đạt chuẩn hoàn hảo 100% tuyệt đối, không còn bất kỳ điểm cấn nào về kỹ thuật hay vận hành:
+1. **Quản lý phòng vật lý & Tự động điều chuyển ca chơi khi bảo trì (Dynamic Room Rerouting):**
+   - Endpoint: `GET /api/v1/admin/physical-rooms` (liệt kê danh sách phòng, chi nhánh, sức chứa, chuyên đề, trạng thái bảo trì và ca chơi tiếp theo).
+   - Endpoint: `POST /api/v1/admin/physical-rooms/{id}/maintenance` (kích hoạt hoặc tắt chế độ bảo trì).
+   - Khi kích hoạt bảo trì, hệ thống tự động quét toàn bộ ca chơi tương lai (`SCHEDULED`) đang gán vào phòng đó và gọi `SchedulingRepository::findAlternativePhysicalRoom` để điều chuyển sang phòng trống cùng chi nhánh với thời gian đệm bắt buộc 30 phút (`BUFFER_MINUTES = 30`).
+   - Tự động phát thông báo hệ thống tới Chủ phòng (Host) và Quản trò (DM) thông báo về việc đổi phòng thực tế.
+2. **Khép kín vòng đời chi trả hoàn tiền cọc cho kế toán (Refunds Full Lifecycle):**
+   - Endpoint: `POST /api/v1/admin/refunds/{id}/complete` tiếp nhận mã chứng từ ủy nhiệm chi ngân hàng (`bank_reference_code`).
+   - Chuyển trạng thái yêu cầu hoàn tiền sang `COMPLETED`, lưu thời điểm hoàn tất `completed_at`, đồng thời cập nhật bản ghi thanh toán `player_payments` sang `CANCELLED`.
+   - Bổ sung nút bấm "Chi Tiền (UNC)" trực quan trên cả `admin-view.js` và `admin-portal.html`.
+3. **Chuẩn hóa giao diện & Triệt tiêu hoàn toàn Emoji (Zero Icons / Zero Emojis):**
+   - Đã quét và làm sạch 100% các ký tự emoji, biểu tượng hình ảnh không chuẩn mực trên toàn bộ các file mã nguồn Frontend, Backend và tài liệu.
+   - Bảng điều khiển quản trị Admin Portal (`admin-portal.html` và `admin-view.js`) được bổ sung đầy đủ 4 phân hệ cốt lõi: Quản lý người dùng, Quản lý phòng chơi & hủy 24h, Sổ cái hoàn tiền cọc, Quản lý phòng vật lý & bảo trì kỹ thuật.
+4. **Bộ kiểm thử tự động đạt kỷ lục 146/146 bài test PASS (100%):**
+   - Bổ sung 3 ca kiểm thử: `testAdminListPhysicalRooms`, `testAdminTogglePhysicalRoomMaintenanceAndAutoRerouting`, `testAdminCompleteRefundLifecycle`.
+   - Kết quả: **146/146 tests PASS (100%)**, 700 assertions, 0 errors, 0 failures, thời gian chạy ~3.8 giây.
+5. **Kiểm thử trình duyệt thực tế Chrome CDP 12/12 trang PASS (100%):**
+   - Toàn bộ 12 trang web đạt chuẩn hoàn hảo trên cả Desktop (1440px) và Mobile (375px), 0 lỗi console, 0 exception, 0 lỗi tràn ngang.
+
 

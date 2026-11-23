@@ -29,7 +29,7 @@ export class HomeView {
       <!-- 1. HERO SECTION -->
       <section class="home-hero-section">
         <div class="home-hero-badge">
-          <span>✨</span> NỀN TẢNG KỊCH BẢN SÁT & JUBENSHA CHUYÊN NGHIỆP
+          <span></span> NỀN TẢNG KỊCH BẢN SÁT & JUBENSHA CHUYÊN NGHIỆP
         </div>
 
         <h1 class="home-hero-title">
@@ -43,41 +43,41 @@ export class HomeView {
 
         <div class="home-hero-actions">
           <button id="hero-cta-games" class="btn btn-primary" style="padding: 12px 24px; font-size: 1rem; border-radius: var(--radius-md);">
-            🎯 Khám Phá Kịch Bản
+             Khám Phá Kịch Bản
           </button>
           <button id="hero-cta-rooms" class="btn btn-secondary" style="padding: 12px 24px; font-size: 1rem; border-radius: var(--radius-md); background: rgba(30, 41, 59, 0.8); border: 1px solid var(--color-border); color: #f8fafc;">
-            🎲 Xem Sảnh Phòng Chờ
+             Xem Sảnh Phòng Chờ
           </button>
           <button id="hero-cta-dm" class="btn" style="padding: 12px 20px; font-size: 0.95rem; border-radius: var(--radius-md); background: transparent; border: 1px solid rgba(245, 158, 11, 0.4); color: #fbbf24;">
-            📜 Dành Cho Quản Trò (DM)
+             Dành Cho Quản Trò (DM)
           </button>
         </div>
 
         <!-- Hero Feature Pillars -->
         <div class="home-hero-features">
           <div class="home-feature-pill">
-            <span class="home-feature-icon">🎭</span>
+            <span class="home-feature-icon"></span>
             <div>
               <div class="home-feature-title">Kịch Bản Chọn Lọc</div>
               <div class="home-feature-sub">Đa dạng thể loại & độ khó</div>
             </div>
           </div>
           <div class="home-feature-pill">
-            <span class="home-feature-icon">⚡</span>
+            <span class="home-feature-icon"></span>
             <div>
               <div class="home-feature-title">Ghép Phòng Linh Hoạt</div>
               <div class="home-feature-sub">Tìm đồng đội trong vài phút</div>
             </div>
           </div>
           <div class="home-feature-pill">
-            <span class="home-feature-icon">💰</span>
+            <span class="home-feature-icon"></span>
             <div>
               <div class="home-feature-title">Cọc Cố Định 50.000đ</div>
               <div class="home-feature-sub">Chuẩn V16 không phát sinh phí ẩn</div>
             </div>
           </div>
           <div class="home-feature-pill">
-            <span class="home-feature-icon">🛡️</span>
+            <span class="home-feature-icon"></span>
             <div>
               <div class="home-feature-title">Hoàn Tiền Trước 24h</div>
               <div class="home-feature-sub">Quy tắc vàng bảo vệ quyền lợi</div>
@@ -90,7 +90,7 @@ export class HomeView {
       <section class="home-section" id="section-discovery">
         <div class="home-search-bar">
           <div class="home-search-input-wrap">
-            <span class="home-search-icon">🔍</span>
+            <span class="home-search-icon"></span>
             <input
               type="text"
               id="home-search-input"
@@ -125,7 +125,7 @@ export class HomeView {
       <section class="home-section" id="section-featured-games">
         <div class="home-section-header">
           <div class="home-section-title-wrap">
-            <h2><span>🔥</span> Kịch Bản Nổi Bật</h2>
+            <h2><span>[CAN NGUOI THE CHO]</span> Kịch Bản Nổi Bật</h2>
             <p>Những vụ án ly kỳ được cộng đồng yêu thích nhất, sẵn sàng khởi tạo phòng chơi ngay</p>
           </div>
           <button id="btn-see-all-games" class="btn" style="background: transparent; border: 1px solid var(--color-border); color: #60a5fa; font-size: 0.88rem; gap: 6px;">
@@ -142,7 +142,7 @@ export class HomeView {
       <section class="home-section" id="section-promotions">
         <div class="home-section-header">
           <div class="home-section-title-wrap">
-            <h2><span>🎁</span> Chương Trình Ưu Đãi Đang Áp Dụng</h2>
+            <h2><span></span> Chương Trình Ưu Đãi Đang Áp Dụng</h2>
             <p>Ưu đãi được tính toán tự động tại Backend theo quy chuẩn V16 khi đặt phòng và thanh toán</p>
           </div>
         </div>
@@ -156,7 +156,7 @@ export class HomeView {
       <section class="home-section" id="section-how-it-works">
         <div class="home-section-header">
           <div class="home-section-title-wrap">
-            <h2><span>🧭</span> Quy Trình Trải Nghiệm Đơn Giản</h2>
+            <h2><span></span> Quy Trình Trải Nghiệm Đơn Giản</h2>
             <p>4 bước nhanh chóng từ việc chọn kịch bản đến buổi phá án đầy cảm xúc</p>
           </div>
         </div>
@@ -189,7 +189,7 @@ export class HomeView {
       <section class="home-section" id="section-venues">
         <div class="home-section-header">
           <div class="home-section-title-wrap">
-            <h2><span>📍</span> Hệ Thống Chi Nhánh Chuyên Nghiệp</h2>
+            <h2><span></span> Hệ Thống Chi Nhánh Chuyên Nghiệp</h2>
             <p>Không gian nhập vai chủ đề được đầu tư bài bản, âm thanh và ánh sáng chuẩn điện ảnh</p>
           </div>
         </div>
@@ -201,14 +201,14 @@ export class HomeView {
               <span class="badge" style="background: rgba(16, 185, 129, 0.2); color: #34d399;">Hoạt động</span>
             </div>
             <div class="venue-address">
-              <span>📌</span> 123 Nguyễn Huệ, Phường Bến Nghé, Quận 1, TP. Hồ Chí Minh
+              <span></span> 123 Nguyễn Huệ, Phường Bến Nghé, Quận 1, TP. Hồ Chí Minh
             </div>
             <p style="font-size: 0.85rem; color: var(--color-text-muted); line-height: 1.5; margin: 0 0 14px 0;">
               Chi nhánh trung tâm với không gian nhập vai phong cách Châu Âu cổ điển.
               Trang bị: <em>Phòng Sherlock Holmes, Phòng VIP Huyết Tộc Dracula</em>.
             </p>
             <div style="font-size: 0.82rem; color: #60a5fa; margin-top: auto;">
-              📞 Hotline đặt phòng: 0901 234 567
+               Hotline đặt phòng: 0901 234 567
             </div>
           </div>
 
@@ -218,14 +218,14 @@ export class HomeView {
               <span class="badge" style="background: rgba(16, 185, 129, 0.2); color: #34d399;">Hoạt động</span>
             </div>
             <div class="venue-address">
-              <span>📌</span> 45 Điện Biên Phủ, Phường 15, Quận Bình Thạnh, TP. Hồ Chí Minh
+              <span></span> 45 Điện Biên Phủ, Phường 15, Quận Bình Thạnh, TP. Hồ Chí Minh
             </div>
             <p style="font-size: 0.85rem; color: var(--color-text-muted); line-height: 1.5; margin: 0 0 14px 0;">
               Không gian hiện đại chuyên kịch bản kinh dị & trinh thám Á Đông huyền bí.
               Trang bị: <em>Phòng Cổ Trang Á Đông, hệ thống âm thanh vòm và đạo cụ thực tế</em>.
             </p>
             <div style="font-size: 0.82rem; color: #60a5fa; margin-top: auto;">
-              📞 Hotline đặt phòng: 0907 654 321
+               Hotline đặt phòng: 0907 654 321
             </div>
           </div>
         </div>
@@ -366,7 +366,7 @@ export class HomeView {
     if (!this.games || this.games.length === 0) {
       container.innerHTML = `
         <div class="state-empty">
-          <div class="state-icon">🔍</div>
+          <div class="state-icon"></div>
           <h3 class="state-title">Không tìm thấy kịch bản phù hợp</h3>
           <p class="state-desc">Hãy thử thay đổi từ khóa tìm kiếm hoặc lọc theo số người chơi khác để khám phá các vụ án.</p>
           <button id="btn-empty-reset-games" class="btn btn-primary" style="padding: 8px 18px;">
@@ -406,11 +406,11 @@ export class HomeView {
             <div class="game-card">
               <div class="game-card-img-wrap">
                 ${safeImgUrl
-                  ? `<img src="${safeImgUrl}" alt="${escapeHtml(game.name)}" class="game-card-img" loading="lazy" onerror="this.src=''; this.parentElement.innerHTML='<div style=\\'font-size:3.5rem; opacity:0.3;\\'>🎭</div>';">`
-                  : `<div style="font-size: 3.5rem; opacity: 0.3;">🎭</div>`
+                  ? `<img src="${safeImgUrl}" alt="${escapeHtml(game.name)}" class="game-card-img" loading="lazy" onerror="this.src=''; this.parentElement.innerHTML='<div style=\\'font-size:3.5rem; opacity:0.3;\\'></div>';">`
+                  : `<div style="font-size: 3.5rem; opacity: 0.3;"></div>`
                 }
                 <span class="game-card-badge status">Đang mở đặt</span>
-                <span class="game-card-badge duration">⏱️ ${Number(game.duration_minutes) || 240} phút</span>
+                <span class="game-card-badge duration">⏱ ${Number(game.duration_minutes) || 240} phút</span>
               </div>
 
               <div class="game-card-body">
@@ -420,8 +420,8 @@ export class HomeView {
                 </p>
 
                 <div class="game-card-meta">
-                  <span>👥 ${Number(game.min_players)} - ${Number(game.max_players)} người chơi</span>
-                  <span>📍 Chi nhánh TP.HCM</span>
+                  <span> ${Number(game.min_players)} - ${Number(game.max_players)} người chơi</span>
+                  <span> Chi nhánh TP.HCM</span>
                 </div>
 
                 <div class="game-card-price-row">
@@ -438,10 +438,10 @@ export class HomeView {
 
                 <div class="game-card-actions">
                   <button class="btn btn-view-prices" data-id="${Number(game.id)}" style="font-size: 0.85rem; padding: 8px; background: rgba(30, 41, 59, 0.8); border: 1px solid var(--color-border); color: #94a3b8;">
-                    🏷️ Bảng giá
+                     Bảng giá
                   </button>
                   <button class="btn btn-primary btn-join-room" data-id="${Number(game.id)}" style="font-size: 0.85rem; padding: 8px;">
-                    🚀 Ghép phòng
+                     Ghép phòng
                   </button>
                 </div>
               </div>
@@ -477,11 +477,11 @@ export class HomeView {
 
     container.innerHTML = `
       <div class="state-error">
-        <div class="state-icon">⚠️</div>
+        <div class="state-icon">[Luu y]</div>
         <h3 class="state-title">Lỗi tải danh sách kịch bản</h3>
         <p class="state-desc">${escapeHtml(this.gamesError)}</p>
         <button id="btn-retry-games" class="btn btn-primary" style="padding: 8px 18px;">
-          🔄 Thử lại
+           Thử lại
         </button>
       </div>
     `;
@@ -534,7 +534,7 @@ export class HomeView {
     if (!this.promotions || this.promotions.length === 0) {
       container.innerHTML = `
         <div class="state-empty">
-          <div class="state-icon">🏷️</div>
+          <div class="state-icon"></div>
           <h3 class="state-title">Chưa có ưu đãi mới</h3>
           <p class="state-desc">Hãy theo dõi thường xuyên để không bỏ lỡ các chương trình khuyến mãi đặc sắc từ Kịch Bản Sát.</p>
         </div>
@@ -568,11 +568,11 @@ export class HomeView {
               <h3 class="promo-card-title">${escapeHtml(promo.name)}</h3>
 
               <ul class="promo-card-rules">
-                ${weekdayText ? `<li><span class="bullet">✔</span> Áp dụng: <strong>${escapeHtml(weekdayText)}</strong></li>` : ''}
-                <li><span class="bullet">✔</span> Khung giờ: <strong>09:00 – 19:00</strong></li>
-                ${rules.minimum_booking_hours ? `<li><span class="bullet">✔</span> Đặt trước tối thiểu <strong>${Number(rules.minimum_booking_hours)} giờ</strong></li>` : ''}
-                ${rules.requires_student_verification ? `<li><span class="bullet">✔</span> Xuất trình thẻ HSSV hợp lệ khi nhận phòng</li>` : ''}
-                <li><span class="bullet">✔</span> Chuẩn V16: Không áp dụng đồng thời với ưu đãi khác</li>
+                ${weekdayText ? `<li><span class="bullet"></span> Áp dụng: <strong>${escapeHtml(weekdayText)}</strong></li>` : ''}
+                <li><span class="bullet"></span> Khung giờ: <strong>09:00 – 19:00</strong></li>
+                ${rules.minimum_booking_hours ? `<li><span class="bullet"></span> Đặt trước tối thiểu <strong>${Number(rules.minimum_booking_hours)} giờ</strong></li>` : ''}
+                ${rules.requires_student_verification ? `<li><span class="bullet"></span> Xuất trình thẻ HSSV hợp lệ khi nhận phòng</li>` : ''}
+                <li><span class="bullet"></span> Chuẩn V16: Không áp dụng đồng thời với ưu đãi khác</li>
               </ul>
 
               <div class="promo-code-bar">
@@ -581,7 +581,7 @@ export class HomeView {
                   <span class="promo-code-text">${escapeHtml(promo.code)}</span>
                 </div>
                 <button class="btn-copy-code" data-code="${escapeHtml(promo.code)}">
-                  📋 Sao chép mã
+                   Sao chép mã
                 </button>
               </div>
             </div>
@@ -605,11 +605,11 @@ export class HomeView {
 
     container.innerHTML = `
       <div class="state-error">
-        <div class="state-icon">⚠️</div>
+        <div class="state-icon">[Luu y]</div>
         <h3 class="state-title">Lỗi tải khuyến mãi</h3>
         <p class="state-desc">${escapeHtml(this.promotionsError)}</p>
         <button id="btn-retry-promotions" class="btn btn-primary" style="padding: 8px 18px;">
-          🔄 Thử lại
+           Thử lại
         </button>
       </div>
     `;
@@ -701,7 +701,7 @@ export class HomeView {
             Đóng
           </button>
           <button id="modal-btn-book" class="btn btn-primary">
-            🚀 Ghép phòng kịch bản này
+             Ghép phòng kịch bản này
           </button>
         </div>
       `;

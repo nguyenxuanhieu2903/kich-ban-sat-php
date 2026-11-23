@@ -105,7 +105,7 @@ class App {
       this.hamburgerBtn.addEventListener('click', () => {
         const isOpen = this.mobileDrawer.classList.toggle('open');
         if (this.hamburgerIcon) {
-          this.hamburgerIcon.textContent = isOpen ? '✕' : '☰';
+          this.hamburgerIcon.textContent = isOpen ? '[Huy]' : '';
         }
       });
 
@@ -126,7 +126,7 @@ class App {
     if (this.mobileDrawer && this.mobileDrawer.classList.contains('open')) {
       this.mobileDrawer.classList.remove('open');
       if (this.hamburgerIcon) {
-        this.hamburgerIcon.textContent = '☰';
+        this.hamburgerIcon.textContent = '';
       }
     }
   }
@@ -235,7 +235,7 @@ class App {
               ${escapeHtml(user.role)}
             </span>
             <strong style="color: var(--color-text-main); font-size: 0.85rem;">${escapeHtml(user.name)}</strong>
-            <span style="font-size: 0.7rem; color: var(--color-text-muted);">🔄 Đổi vai trò</span>
+            <span style="font-size: 0.7rem; color: var(--color-text-muted);"> Đổi vai trò</span>
           </div>
           <button id="btn-logout" class="btn" style="padding: 6px 12px; font-size: 0.8rem; background: transparent; border: 1px solid var(--color-border); color: var(--color-text-muted);" title="Đăng xuất khỏi hệ thống">
             Đăng xuất

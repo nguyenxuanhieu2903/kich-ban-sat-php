@@ -24,7 +24,7 @@ export class NotificationsView {
     this.container.innerHTML = `
       <div style="margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
         <div>
-          <h2 style="font-size: 1.4rem; font-weight: 700; margin: 0 0 4px 0;">🔔 Trung Tâm Thông Báo</h2>
+          <h2 style="font-size: 1.4rem; font-weight: 700; margin: 0 0 4px 0;"> Trung Tâm Thông Báo</h2>
           <p style="color: var(--color-text-muted); margin: 0; font-size: 0.85rem;">Thông báo thời gian thực về ghép phòng, biểu quyết giờ chơi, tiền cọc và quản trò</p>
         </div>
         <div style="display: flex; gap: 8px;">
@@ -32,7 +32,7 @@ export class NotificationsView {
             ${this.unreadOnly ? 'Xem tất cả' : 'Chỉ xem chưa đọc'}
           </button>
           <button id="btn-refresh-notifications" class="btn" style="background: var(--color-bg-card); border: 1px solid var(--color-border); color: var(--color-text-main); font-size: 0.85rem;">
-            🔄 Làm mới
+             Làm mới
           </button>
         </div>
       </div>
@@ -66,7 +66,7 @@ export class NotificationsView {
       if (this.notifications.length === 0) {
         listEl.innerHTML = `
           <div class="card" style="text-align: center; padding: 40px 20px; color: var(--color-text-muted);">
-            <div style="font-size: 2.5rem; margin-bottom: 12px;">📭</div>
+            <div style="font-size: 2.5rem; margin-bottom: 12px;"></div>
             <p style="margin: 0; font-size: 0.95rem;">Bạn không có thông báo nào ${this.unreadOnly ? 'chưa đọc' : ''}.</p>
           </div>
         `;
@@ -109,7 +109,7 @@ export class NotificationsView {
             ${n.content || ''}
           </p>
           <span style="font-size: 0.75rem; color: var(--color-text-muted);">
-            🕒 ${new Date(n.created_at).toLocaleString('vi-VN')}
+             ${new Date(n.created_at).toLocaleString('vi-VN')}
           </span>
         </div>
         ${isUnread ? `

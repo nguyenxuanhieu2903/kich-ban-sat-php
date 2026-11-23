@@ -513,12 +513,14 @@ gantt
 - Triển khai nghiệp vụ chuyển quyền Host và cửa sổ tìm người thay thế khi có thành viên rút lui.
 - Triển khai thông báo tự động nhắc lịch trước 24 giờ.
 
-#### Gói P2 (Ưu tiên trung bình - Hoàn thiện trải nghiệm & Nghiệp vụ mở rộng):
-- Nạp bổ sung 12 kịch bản đa dạng thể loại vào CSDL qua seeder.
-- Xây dựng tính năng khóa phòng thủ công cho khách gọi điện hotline / khách vãng lai.
-- Triển khai quy tắc tính giá khi ca chơi vắt qua hai khung giờ (Majority Time Block Rule).
-- Hoàn thiện kiểm soát chống chơi lại kịch bản cũ và xác thực tag 18+.
-- Bổ sung quy trình bảo trì phòng vật lý và tự động điều chuyển phòng.
+#### Gói P2 (Ưu tiên trung bình - Hoàn thiện trải nghiệm & Nghiệp vụ mở rộng - ĐÃ HOÀN THÀNH 100%):
+- Nạp bổ sung 12 kịch bản đa dạng thể loại vào CSDL qua seeder (`seed_rich_catalog.php` - Hoàn thành 100%).
+- Xây dựng tính năng khóa phòng thủ công cho khách gọi điện hotline / khách vãng lai (`POST /api/v1/admin/rooms/offline-block` - Hoàn thành 100%).
+- Triển khai quy tắc tính giá khi ca chơi vắt qua hai khung giờ (Majority Time Block Rule trong `PricingService.php` - Hoàn thành 100%).
+- Hoàn thiện kiểm soát chống chơi lại kịch bản cũ và chống trùng lịch ca chơi (`ALREADY_COMPLETED_SCENARIO`, `PLAYER_SCHEDULE_CONFLICT` - Hoàn thành 100%).
+- Bổ sung quy trình bảo trì phòng vật lý và tự động điều chuyển phòng (Dynamic Room Rerouting qua `POST /api/v1/admin/physical-rooms/{id}/maintenance` - Hoàn thành 100%).
+- Hoàn tất vòng đời chi trả hoàn tiền cọc kế toán sang COMPLETED (`POST /api/v1/admin/refunds/{id}/complete` - Hoàn thành 100%).
+- Bộ kiểm thử tự động đạt mốc 146/146 tests PASS (100%), 700 assertions và 12/12 trang web đạt chuẩn hoàn hảo qua Chrome DevTools Protocol.
 
 ---
 

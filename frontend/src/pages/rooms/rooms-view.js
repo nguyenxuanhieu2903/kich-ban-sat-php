@@ -25,7 +25,7 @@ export class RoomsView {
             <option value="ALL">Tất cả các phòng</option>
           </select>
           <button id="btn-open-create-room" class="btn btn-primary" style="display: flex; align-items: center; gap: 6px;">
-            <span>➕</span> Tạo phòng mới
+            <span>+</span> Tạo phòng mới
           </button>
         </div>
       </div>
@@ -56,7 +56,7 @@ export class RoomsView {
       if (this.rooms.length === 0) {
         content.innerHTML = `
           <div style="text-align: center; padding: 60px; background: var(--color-bg-card); border-radius: var(--radius-md); border: 1px dashed var(--color-border);">
-            <div style="font-size: 2.5rem; margin-bottom: 12px;">🎲</div>
+            <div style="font-size: 2.5rem; margin-bottom: 12px;"></div>
             <h3 style="margin: 0 0 8px 0;">Hiện chưa có phòng nào đang mở</h3>
             <p style="color: var(--color-text-muted); font-size: 0.9rem; margin: 0 0 16px 0;">Hãy là người đầu tiên tạo phòng để tập hợp đồng đội!</p>
             <button class="btn btn-primary" id="btn-empty-create">Tạo phòng ngay</button>
@@ -74,20 +74,20 @@ export class RoomsView {
               <div class="card room-card" data-id="${room.id}" style="padding: 20px; cursor: pointer; transition: transform 0.2s, border-color 0.2s; display: flex; flex-direction: column;">
                 <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px;">
                   <span class="badge" style="background: ${isReplacementOpen ? 'rgba(239, 68, 68, 0.2)' : 'rgba(59, 130, 246, 0.2)'}; color: ${isReplacementOpen ? '#ef4444' : '#60a5fa'}; border: 1px solid ${isReplacementOpen ? '#ef4444' : '#3b82f6'};">
-                    ${isReplacementOpen ? '🔥 CẦN NGƯỜI THẾ CHỖ' : room.status}
+                    ${isReplacementOpen ? '[CAN NGUOI THE CHO] CẦN NGƯỜI THẾ CHỖ' : room.status}
                   </span>
                   <span style="font-size: 0.8rem; color: #94a3b8;">Mã: #${room.id}</span>
                 </div>
                 <h3 style="font-size: 1.15rem; font-weight: 700; margin: 0 0 6px 0; color: #f8fafc;">${room.title}</h3>
                 <div style="font-size: 0.85rem; color: #38bdf8; font-weight: 500; margin-bottom: 12px;">
-                  🎭 Kịch bản: ${room.game_name}
+                   Kịch bản: ${room.game_name}
                 </div>
                 <div style="font-size: 0.85rem; color: var(--color-text-muted); margin-bottom: 16px; flex-grow: 1;">
                   Host: <strong>${room.creator_name}</strong>
                 </div>
                 <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1px solid var(--color-border); padding-top: 14px;">
                   <span style="font-size: 0.85rem; font-weight: 600; color: ${room.current_players >= room.max_players ? '#ef4444' : '#10b981'};">
-                    👥 ${room.current_players} / ${room.max_players} người
+                     ${room.current_players} / ${room.max_players} người
                   </span>
                   <button class="btn btn-secondary btn-view-room" data-id="${room.id}" style="padding: 6px 14px; font-size: 0.85rem;">
                     Vào phòng &rarr;
@@ -148,7 +148,7 @@ export class RoomsView {
               </span>
               ${isReplacementOpen ? `
                 <span class="badge" style="background: rgba(239, 68, 68, 0.2); color: #ef4444; border: 1px solid #ef4444;">
-                  🔥 CẦN NGƯỜI THAY THẾ
+                  [CAN NGUOI THE CHO] CẦN NGƯỜI THAY THẾ
                 </span>
               ` : ''}
             </div>
@@ -161,11 +161,11 @@ export class RoomsView {
           <div style="display: flex; gap: 10px;">
             ${!isJoined ? `
               <button id="btn-join-room" class="btn btn-primary" style="padding: 10px 20px;">
-                ${isReplacementOpen ? '⚡ Vào thế chỗ (Takeover)' : '➕ Tham gia phòng'}
+                ${isReplacementOpen ? ' Vào thế chỗ (Takeover)' : '+ Tham gia phòng'}
               </button>
             ` : `
               <button id="btn-leave-room" class="btn btn-danger" style="padding: 10px 20px;">
-                🚪 Rời phòng / Tìm người thay thế
+                 Rời phòng / Tìm người thay thế
               </button>
             `}
           </div>
@@ -179,7 +179,7 @@ export class RoomsView {
           <div class="card" style="padding: 20px;">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
               <h3 style="font-size: 1.15rem; font-weight: 700; margin: 0;">
-                👥 Thành viên tham gia (${participants.length} / ${room.max_players})
+                 Thành viên tham gia (${participants.length} / ${room.max_players})
               </h3>
               <span style="font-size: 0.85rem; color: #10b981; font-weight: 600;">
                 Cọc cố định: 50.000đ / người
@@ -213,7 +213,7 @@ export class RoomsView {
           <!-- Card: Biểu quyết Lịch chơi & Session -->
           <div class="card" style="padding: 20px;">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
-              <h3 style="font-size: 1.15rem; font-weight: 700; margin: 0;">📅 Biểu quyết Lịch Chơi (Schedule Voting)</h3>
+              <h3 style="font-size: 1.15rem; font-weight: 700; margin: 0;"> Biểu quyết Lịch Chơi (Schedule Voting)</h3>
             </div>
             <div id="proposal-section">
               ${this.renderProposalSection()}
@@ -223,9 +223,9 @@ export class RoomsView {
           <!-- Card: Bảng tính giá & Khuyến mãi (Pricing Snapshot) -->
           <div class="card" style="padding: 20px;">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
-              <h3 style="font-size: 1.15rem; font-weight: 700; margin: 0;">💰 Hóa đơn & Bảng giá theo khung giờ</h3>
+              <h3 style="font-size: 1.15rem; font-weight: 700; margin: 0;"> Hóa đơn & Bảng giá theo khung giờ</h3>
               <button id="btn-calc-price" class="btn btn-secondary" style="font-size: 0.85rem; padding: 6px 12px;">
-                🔄 Tính toán lại giá
+                 Tính toán lại giá
               </button>
             </div>
             <div id="pricing-summary-section">
@@ -239,14 +239,14 @@ export class RoomsView {
           <!-- Card: Thanh toán cọc mô phỏng -->
           <div class="card" style="padding: 20px; border-left: 4px solid #10b981;">
             <h3 style="font-size: 1.1rem; font-weight: 700; margin: 0 0 10px 0; color: #10b981;">
-              💳 Thanh Toán Cọc Giữ Chỗ
+               Thanh Toán Cọc Giữ Chỗ
             </h3>
             <p style="font-size: 0.85rem; color: var(--color-text-muted); line-height: 1.5; margin: 0 0 16px 0;">
               Theo quy định V16, mức cọc bắt buộc là <strong>50.000 VNĐ / người</strong> để phòng được chốt lịch chính thức.
             </p>
             <div style="display: flex; flex-direction: column; gap: 10px;">
               <button id="btn-pay-deposit" class="btn btn-success" style="width: 100%; padding: 10px;">
-                📲 Quét mã nộp cọc 50.000đ
+                 Quét mã nộp cọc 50.000đ
               </button>
             </div>
           </div>
@@ -254,7 +254,7 @@ export class RoomsView {
           <!-- Card: Quy định hoàn tiền 24h -->
           <div class="card" style="padding: 20px; border-left: 4px solid #f59e0b;">
             <h4 style="font-size: 0.95rem; font-weight: 700; margin: 0 0 8px 0; color: #f59e0b;">
-              ⚠️ Quy tắc Vàng 24h & Rút phòng:
+              [Luu y] Quy tắc Vàng 24h & Rút phòng:
             </h4>
             <ul style="font-size: 0.85rem; color: var(--color-text-muted); margin: 0; padding-left: 18px; line-height: 1.6;">
               <li>Nếu hủy phòng trước <strong>24 tiếng</strong> so với giờ chơi: Đủ điều kiện hoàn cọc 100%.</li>
@@ -301,7 +301,7 @@ export class RoomsView {
         <div style="text-align: center; padding: 20px; background: rgba(255, 255, 255, 0.02); border-radius: 8px;">
           <p style="color: #94a3b8; font-size: 0.85rem; margin: 0 0 12px 0;">Chưa có đề xuất lịch chơi nào được mở.</p>
           <button id="btn-open-propose-modal" class="btn btn-secondary" style="font-size: 0.85rem; padding: 6px 14px;">
-            🕒 Tạo đề xuất mốc giờ chơi
+             Tạo đề xuất mốc giờ chơi
           </button>
         </div>
       `;
@@ -326,17 +326,17 @@ export class RoomsView {
 
         ${isConfirmed ? `
           <div style="background: rgba(16, 185, 129, 0.15); border: 1px solid #10b981; border-radius: 6px; padding: 10px; color: #10b981; font-size: 0.85rem; font-weight: 600;">
-            🎉 100% thành viên đã đồng ý! Buổi chơi đã được chốt lịch chính thức vào hệ thống.
+             100% thành viên đã đồng ý! Buổi chơi đã được chốt lịch chính thức vào hệ thống.
           </div>
         ` : ''}
 
         ${isProposed ? `
           <div style="display: flex; gap: 10px; margin-top: 14px; border-top: 1px solid var(--color-border); padding-top: 14px;">
             <button class="btn btn-success btn-vote" data-id="${activeProposal.id}" data-vote="ACCEPTED" style="flex: 1; padding: 8px;">
-              👍 Đồng ý mốc giờ này
+               Đồng ý mốc giờ này
             </button>
             <button class="btn btn-danger btn-vote" data-id="${activeProposal.id}" data-vote="REJECTED" style="flex: 1; padding: 8px;">
-              👎 Không tham gia được
+               Không tham gia được
             </button>
           </div>
         ` : ''}

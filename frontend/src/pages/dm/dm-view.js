@@ -15,7 +15,7 @@ export class DmView {
     if (!user) {
       this.container.innerHTML = `
         <div class="card" style="text-align: center; padding: 48px 24px; max-width: 600px; margin: 40px auto;">
-          <div style="font-size: 3rem; margin-bottom: 16px;">📜</div>
+          <div style="font-size: 3rem; margin-bottom: 16px;"></div>
           <h2 style="font-size: 1.5rem; font-weight: 700; margin-bottom: 8px;">Cổng Quản Trò (DM Portal)</h2>
           <p style="color: var(--color-text-muted); margin-bottom: 24px;">
             Vui lòng đăng nhập với tài khoản Quản Trò (DM) để quản lý các ca dẫn truyện được phân công.
@@ -32,13 +32,13 @@ export class DmView {
     if (user.role !== 'DM' && user.role !== 'ADMIN') {
       this.container.innerHTML = `
         <div class="card" style="text-align: center; padding: 48px 24px; max-width: 600px; margin: 40px auto; border-color: var(--color-warning);">
-          <div style="font-size: 3rem; margin-bottom: 16px;">⚠️</div>
+          <div style="font-size: 3rem; margin-bottom: 16px;">[Luu y]</div>
           <h2 style="font-size: 1.5rem; font-weight: 700; margin-bottom: 8px; color: var(--color-warning);">Yêu cầu quyền Quản Trò (DM)</h2>
           <p style="color: var(--color-text-muted); margin-bottom: 16px;">
             Tài khoản hiện tại của bạn (<strong>${user.name}</strong>) có vai trò <strong>${user.role}</strong>. Cổng này chỉ dành riêng cho Quản Trò hoặc Quản Trị Viên.
           </p>
           <p style="color: var(--color-text-muted); font-size: 0.9rem; margin-bottom: 24px;">
-            💡 <em>Mẹo Demo: Dùng "Chuyển nhanh tài khoản" trong bảng Đăng nhập để vào bằng tài khoản DM Hoàng Nam.</em>
+             <em>Mẹo Demo: Dùng "Chuyển nhanh tài khoản" trong bảng Đăng nhập để vào bằng tài khoản DM Hoàng Nam.</em>
           </p>
           <button id="btn-dm-switch" class="btn btn-primary" style="padding: 10px 24px;">
             Chuyển sang tài khoản DM (1-click)
@@ -59,7 +59,7 @@ export class DmView {
         </div>
         <div>
           <button id="btn-dm-refresh" class="btn" style="background: var(--color-bg-card); border: 1px solid var(--color-border); color: var(--color-text-main); display: flex; align-items: center; gap: 6px;">
-            <span>🔄</span> Tải lại ca làm việc
+            <span></span> Tải lại ca làm việc
           </button>
         </div>
       </div>
@@ -152,7 +152,7 @@ export class DmView {
       if (this.assignments.length === 0) {
         listEl.innerHTML = `
           <div class="card" style="text-align: center; padding: 40px; color: var(--color-text-muted);">
-            <div style="font-size: 2.5rem; margin-bottom: 12px;">☕</div>
+            <div style="font-size: 2.5rem; margin-bottom: 12px;"></div>
             <h4 style="margin: 0 0 6px 0; color: var(--color-text-main);">Hiện tại không có ca phân công nào</h4>
             <p style="margin: 0; font-size: 0.85rem;">Khi có phòng chơi chốt lịch và được ghép Quản trò, phân công sẽ hiển thị ở đây.</p>
           </div>
@@ -211,7 +211,7 @@ export class DmView {
           <div>
             <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 6px;">
               <h3 style="margin: 0; font-size: 1.2rem; font-weight: 700;">
-                🎭 ${a.game_title || 'Kịch bản sát'}
+                 ${a.game_title || 'Kịch bản sát'}
               </h3>
               ${statusBadge}
             </div>
@@ -223,10 +223,10 @@ export class DmView {
           <div style="display: flex; gap: 8px;">
             ${a.status === 'PENDING' ? `
               <button id="btn-accept-${a.id}" class="btn" style="background: var(--color-success); color: white; border: none; padding: 6px 14px; font-size: 0.85rem;">
-                ✓ Chấp nhận ca
+                [Xac nhan] Chấp nhận ca
               </button>
               <button id="btn-reject-${a.id}" class="btn" style="background: var(--color-error); color: white; border: none; padding: 6px 14px; font-size: 0.85rem;">
-                ✕ Từ chối ca
+                [Huy] Từ chối ca
               </button>
             ` : ''}
           </div>
@@ -242,13 +242,13 @@ export class DmView {
           <div>
             <div style="font-size: 0.75rem; color: var(--color-text-muted); text-transform: uppercase; font-weight: 600;">Dự kiến kết thúc</div>
             <div style="font-size: 0.95rem; font-weight: 600; color: var(--color-text-main); margin-top: 2px;">
-              🏁 ${sessionEnd}
+               ${sessionEnd}
             </div>
           </div>
           <div>
             <div style="font-size: 0.75rem; color: var(--color-text-muted); text-transform: uppercase; font-weight: 600;">Địa điểm & Phòng</div>
             <div style="font-size: 0.95rem; font-weight: 600; color: var(--color-text-main); margin-top: 2px;">
-              📍 ${a.venue_name || 'Chi nhánh trung tâm'} — Phòng ${a.room_name || 'Phòng Diễn'}
+               ${a.venue_name || 'Chi nhánh trung tâm'} — Phòng ${a.room_name || 'Phòng Diễn'}
             </div>
           </div>
         </div>

@@ -397,4 +397,182 @@ class AdminOperationsController
             'customer_phone' => $customerPhone,
         ], 'Đã khóa phòng vật lý thủ công thành công cho khách Hotline/Walk-in', null, 201);
     }
+
+    /**
+     * GET /api/v1/admin/physical-rooms
+     * Danh sách phòng vật lý tại tất cả chi nhánh kèm trạng thái bảo trì và ca chơi tiếp theo
+     */
+    public function listPhysicalRooms(Request $request): Response
+    {
+        $auth = AuthMiddleware::authenticate($request, ['ADMIN']);
+        if ($auth instanceof Response) {
+            return $auth;
+        }
+
+        $stmt = $this->pdo->query(
+            'SELECT pr.`id`, pr.`venue_id`, v.`name` AS `venue_name`, pr.`name`, pr.`capacity`,
+                    pr.`description`, pr.`status`, COALESCE(pr.`is_maintenance`, 0) AS `is_maintenance`,
+                    pr.`theme_code`,
+                    (
+                        SELECT CONCAT(s.`id`, \':\', s.`status`, \':\', s.`start_at`, \':\', s.`end_at`, \':\', gr.`title`)
+                        FROM `sessions` s
+                        INNER JOIN `game_rooms` gr ON gr.`id` = s.`game_room_id`
+                        WHERE s.`physical_room_id` = pr.`id`
+                          AND s.`status` IN (\'SCHEDULED\', \'IN_PROGRESS\')
+                          AND s.`end_at` > NOW()
+                        ORDER BY s.`start_at` ASC
+                        LIMIT 1
+                    ) AS `upcoming_session_info`
+             FROM `physical_rooms` pr
+             INNER JOIN `venues` v ON v.`id` = pr.`venue_id`
+             ORDER BY pr.`venue_id` ASC, pr.`id` ASC'
+        );
+        $rooms = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        $data = array_map(function ($r) {
+            $r['id'] = (int) $r['id'];
+            $r['venue_id'] = (int) $r['venue_id'];
+            $r['capacity'] = (int) $r['capacity'];
+            $r['is_maintenance'] = (int) $r['is_maintenance'] === 1;
+            return $r;
+        }, $rooms);
+
+        return Response::success($data, 'Lấy danh sách phòng vật lý thành công');
+    }
+
+    /**
+     * POST /api/v1/admin/physical-rooms/{id}/maintenance
+     * Bật/tắt chế độ bảo trì phòng vật lý và tự động điều chuyển ca chơi (Dynamic Room Rerouting)
+     */
+    public function togglePhysicalRoomMaintenance(Request $request, string $id): Response
+    {
+        $auth = AuthMiddleware::authenticate($request, ['ADMIN']);
+        if ($auth instanceof Response) {
+            return $auth;
+        }
+
+        $adminId = (int) $auth['id'];
+        $roomId = (int) $id;
+        $body = $request->getBodyParams();
+
+        $prStmt = $this->pdo->prepare('SELECT `id`, `venue_id`, `name`, `capacity`, `is_maintenance`, `status` FROM `physical_rooms` WHERE `id` = :id LIMIT 1');
+        $prStmt->bindValue(':id', $roomId, PDO::PARAM_INT);
+        $prStmt->execute();
+        $pr = $prStmt->fetch(PDO::FETCH_ASSOC);
+
+        if ($pr === false) {
+            return Response::fail('Không tìm thấy phòng vật lý', 'PHYSICAL_ROOM_NOT_FOUND', 404);
+        }
+
+        $currentMaint = (int) ($pr['is_maintenance'] ?? 0);
+        $newMaint = isset($body['is_maintenance']) ? ($body['is_maintenance'] ? 1 : 0) : ($currentMaint === 1 ? 0 : 1);
+        $reason = trim((string) ($body['reason'] ?? 'Bảo trì trang thiết bị và đạo cụ phòng'));
+
+        $this->pdo->beginTransaction();
+        try {
+            $upStmt = $this->pdo->prepare('UPDATE `physical_rooms` SET `is_maintenance` = :m, `updated_at` = NOW() WHERE `id` = :id');
+            $upStmt->bindValue(':m', $newMaint, PDO::PARAM_INT);
+            $upStmt->bindValue(':id', $roomId, PDO::PARAM_INT);
+            $upStmt->execute();
+
+            $reroutedSessions = [];
+            $unresolvedSessions = [];
+
+            if ($newMaint === 1) {
+                // Quét các ca chơi tương lai đang gán vào phòng này
+                $sessStmt = $this->pdo->prepare(
+                    'SELECT s.`id`, s.`game_room_id`, s.`start_at`, s.`end_at`, s.`dm_assignment_id`,
+                            dma.`dm_user_id`, gr.`title` AS `room_title`, gr.`creator_id`,
+                            COALESCE(gr.`total_players`, gr.`min_players`, 6) AS `total_players`
+                     FROM `sessions` s
+                     INNER JOIN `game_rooms` gr ON gr.`id` = s.`game_room_id`
+                     LEFT JOIN `dm_assignments` dma ON dma.`id` = s.`dm_assignment_id`
+                     WHERE s.`physical_room_id` = :pr_id
+                       AND s.`status` = \'SCHEDULED\'
+                       AND s.`end_at` > NOW()
+                     ORDER BY s.`start_at` ASC'
+                );
+                $sessStmt->bindValue(':pr_id', $roomId, PDO::PARAM_INT);
+                $sessStmt->execute();
+                $upcoming = $sessStmt->fetchAll(PDO::FETCH_ASSOC);
+
+                $schedRepo = new \App\Features\VenueScheduling\Repositories\SchedulingRepository($this->pdo);
+                $notiRepo = new \App\Features\Notification\Repositories\NotificationRepository($this->pdo);
+
+                foreach ($upcoming as $sess) {
+                    $altRoom = $schedRepo->findAlternativePhysicalRoom(
+                        (int) $pr['venue_id'],
+                        $roomId,
+                        (int) $sess['total_players'],
+                        $sess['start_at'],
+                        $sess['end_at'],
+                        30
+                    );
+
+                    if ($altRoom !== null) {
+                        $reStmt = $this->pdo->prepare('UPDATE `sessions` SET `physical_room_id` = :alt_id, `updated_at` = NOW() WHERE `id` = :sid');
+                        $reStmt->bindValue(':alt_id', (int) $altRoom['id'], PDO::PARAM_INT);
+                        $reStmt->bindValue(':sid', (int) $sess['id'], PDO::PARAM_INT);
+                        $reStmt->execute();
+
+                        $reroutedSessions[] = [
+                            'session_id' => (int) $sess['id'],
+                            'game_room_id' => (int) $sess['game_room_id'],
+                            'room_title' => $sess['room_title'],
+                            'from_room' => $pr['name'],
+                            'to_room' => $altRoom['name'],
+                        ];
+
+                        // Gửi thông báo tới Host và DM
+                        $recipients = array_values(array_filter([(int) $sess['creator_id'], (int) ($sess['dm_user_id'] ?? 0)]));
+                        if (!empty($recipients)) {
+                            $notiRepo->createNotification(
+                                'Điều chuyển phòng chơi vật lý',
+                                "Phòng '{$sess['room_title']}' đã được tự động điều chuyển từ {$pr['name']} sang {$altRoom['name']} do phòng cũ bảo trì kỹ thuật.",
+                                'SYSTEM',
+                                $adminId,
+                                $recipients
+                            );
+                        }
+                    } else {
+                        $unresolvedSessions[] = [
+                            'session_id' => (int) $sess['id'],
+                            'game_room_id' => (int) $sess['game_room_id'],
+                            'room_title' => $sess['room_title'],
+                            'reason' => 'Không tìm thấy phòng vật lý thay thế trống trong khung giờ này',
+                        ];
+                    }
+                }
+            }
+
+            $this->auditService->log(
+                actorId: $adminId,
+                action: $newMaint === 1 ? 'SET_PHYSICAL_ROOM_MAINTENANCE' : 'CLEAR_PHYSICAL_ROOM_MAINTENANCE',
+                entityType: 'physical_room',
+                entityId: $roomId,
+                metadata: [
+                    'room_name' => $pr['name'],
+                    'is_maintenance' => $newMaint === 1,
+                    'reason' => $reason,
+                    'rerouted_sessions' => $reroutedSessions,
+                    'unresolved_sessions' => $unresolvedSessions,
+                ]
+            );
+
+            $this->pdo->commit();
+
+            return Response::success([
+                'physical_room_id' => $roomId,
+                'name' => $pr['name'],
+                'is_maintenance' => $newMaint === 1,
+                'rerouted_sessions' => $reroutedSessions,
+                'unresolved_sessions' => $unresolvedSessions,
+            ], $newMaint === 1 ? 'Đã kích hoạt chế độ bảo trì và tự động điều chuyển ca chơi' : 'Đã tắt chế độ bảo trì phòng vật lý');
+        } catch (\Throwable $e) {
+            if ($this->pdo->inTransaction()) {
+                $this->pdo->rollBack();
+            }
+            throw $e;
+        }
+    }
 }
