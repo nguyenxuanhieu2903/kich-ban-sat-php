@@ -42,7 +42,7 @@ class BackgroundJobService
     public function runFormationTimeout(): int
     {
         // Lấy danh sách các phòng FORMING đã quá hạn
-        $sql = "SELECT gr.`id`, gr.`title`, gr.`min_players`,
+        $sql = "SELECT gr.`id`, gr.`title`, gr.`min_players`, gr.`replacement_reason`,
                        (SELECT COUNT(*) FROM `room_participants` rp
                         WHERE rp.`game_room_id` = gr.`id`
                           AND rp.`status` IN ('PENDING_DEPOSIT', 'DEPOSITED', 'LEAVE_REQUESTED')
@@ -60,6 +60,20 @@ class BackgroundJobService
             $currentPlayers = (int) $room['current_players'];
             $minPlayers = (int) $room['min_players'];
             $roomId = (int) $room['id'];
+
+            // Cơ chế gia hạn thông minh: Nếu phòng đã gom được >= 70% sĩ số và chưa từng gia hạn, tự động gia hạn thêm 24h
+            if ($currentPlayers < $minPlayers && $currentPlayers >= (int) ceil($minPlayers * 0.7) && ($room['replacement_reason'] ?? '') !== 'AUTO_EXTENDED_24H') {
+                $upExt = $this->pdo->prepare(
+                    'UPDATE `game_rooms`
+                     SET `formation_deadline_at` = DATE_ADD(NOW(), INTERVAL 24 HOUR),
+                         `replacement_reason` = \'AUTO_EXTENDED_24H\',
+                         `updated_at` = NOW()
+                     WHERE `id` = :room_id'
+                );
+                $upExt->bindValue(':room_id', $roomId, PDO::PARAM_INT);
+                $upExt->execute();
+                continue;
+            }
 
             // Nếu số người chơi hiện tại vẫn chưa đủ min_players
             if ($currentPlayers < $minPlayers) {

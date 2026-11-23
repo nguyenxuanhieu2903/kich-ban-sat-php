@@ -118,6 +118,7 @@
                 <h3>${item.title}</h3>
                 <div class="home-card-tags">
                   <span>${item.players?.total || item.min_players || 6} người</span>
+                  <span>${(item.min_players || 6) >= 8 ? '5N - 3N' : '4N - 2N'}</span>
                   <strong>${(item.price || 220000).toLocaleString('vi-VN')}đ</strong>
                 </div>
               </div>
@@ -134,6 +135,7 @@
                 <ul class="home-spec-list">
                   <li><strong>Thời lượng:</strong> ${item.duration || (item.duration_minutes ? item.duration_minutes + ' phút' : '4 tiếng')}</li>
                   <li><strong>Số lượng:</strong> ${item.players?.total || `${item.min_players} - ${item.max_players}`} người chơi</li>
+                  <li><strong>Tỷ lệ vai:</strong> ${(item.min_players || 6) >= 8 ? '5 Nam - 3 Nữ' : '4 Nam - 2 Nữ'} (Hỗ trợ đóng chéo vai)</li>
                   <li><strong>Tiền cọc:</strong> 50.000đ / người (Cố định)</li>
                 </ul>
               </div>

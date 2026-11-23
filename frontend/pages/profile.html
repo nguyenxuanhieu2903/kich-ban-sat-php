@@ -217,6 +217,7 @@
 
               <div style="margin-top: 10px; display: flex; gap: 8px; justify-content: flex-end; align-items: center; flex-wrap: wrap;">
                 <a href="./room-detail.html?id=${r.room_id}" class="btn btn-outline" style="padding: 4px 12px; font-size: 0.8rem;">Xem Chi Tiết Phòng</a>
+                ${(r.session_status === 'COMPLETED' || r.room_status === 'COMPLETED' || r.room_status === 'SETTLED') ? `<button type="button" class="btn btn-gold btn-review-act" data-session-id="${r.session_id || r.room_id}" data-game-name="${r.game_name}" style="padding: 4px 12px; font-size: 0.8rem;">Đánh Giá Buổi Chơi</button>` : ''}
                 ${refundBtn}
               </div>
             </div>
@@ -240,6 +241,30 @@
               loadMyRooms();
             } catch (err) {
               alert(err.message || 'Không thể gửi yêu cầu hoàn tiền');
+            }
+          });
+        });
+
+        // Gắn sự kiện đánh giá buổi chơi sau khi hoàn thành
+        document.querySelectorAll('.btn-review-act').forEach(btn => {
+          btn.addEventListener('click', async (e) => {
+            const sessId = e.target.getAttribute('data-session-id');
+            const gameName = e.target.getAttribute('data-game-name');
+            const dmRating = prompt(`Chấm điểm Quản trò (DM) cho kịch bản "${gameName}" (từ 1 đến 5 sao):`, '5');
+            if (dmRating === null) return;
+            const scenarioRating = prompt(`Chấm điểm chất lượng kịch bản "${gameName}" (từ 1 đến 5 sao):`, '5');
+            if (scenarioRating === null) return;
+            const comment = prompt('Để lại nhận xét hoặc cảm nhận của bạn về buổi chơi:', 'Trải nghiệm tuyệt vời, cốt truyện kịch tính và DM dẫn truyện rất nhiệt tình!');
+
+            try {
+              const res = await apiClient.post(`/sessions/${sessId}/reviews`, {
+                dm_rating: Math.max(1, Math.min(5, Number(dmRating) || 5)),
+                scenario_rating: Math.max(1, Math.min(5, Number(scenarioRating) || 5)),
+                comment: comment || ''
+              });
+              alert(res.message || 'Cảm ơn bạn đã gửi đánh giá! Đánh giá đã được ghi nhận.');
+            } catch (err) {
+              alert(err.message || 'Không thể gửi đánh giá');
             }
           });
         });

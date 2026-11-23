@@ -336,6 +336,8 @@ class SessionLifecycleController
         $body = $request->getBodyParams();
         $isDisputed = !empty($body['is_disputed']);
         $notes = trim((string) ($body['notes'] ?? ''));
+        $extraFee = max(0, (float) ($body['extra_fee'] ?? 0));
+        $extraFeeReason = trim((string) ($body['extra_fee_reason'] ?? ''));
 
         $stmt = $this->pdo->prepare('SELECT `id`, `game_room_id`, `status` FROM `sessions` WHERE `id` = :id OR `game_room_id` = :rid ORDER BY `id` DESC LIMIT 1');
         $stmt->bindValue(':id', $sessionId, PDO::PARAM_INT);
@@ -361,12 +363,16 @@ class SessionLifecycleController
             'status' => $targetStatus,
             'notes' => $notes,
             'room_id' => $roomId,
+            'extra_fee' => $extraFee,
+            'extra_fee_reason' => $extraFeeReason,
         ]);
 
         return Response::success([
             'session_id' => $sessionId,
             'room_id' => $roomId,
             'payment_status' => $targetStatus,
+            'extra_fee' => $extraFee,
+            'extra_fee_reason' => $extraFeeReason,
         ], $isDisputed ? 'Đã ghi nhận cờ tranh chấp tài chính PAYMENT_DISPUTE' : 'Đã xác nhận tất toán đủ tiền tại quầy thành công');
     }
 
@@ -486,5 +492,143 @@ class SessionLifecycleController
             'forfeited_users' => $forfeitedUsers,
             'refunded_users' => $refundedUsers,
         ], 'Đã hủy ca chơi tại chỗ do vắng từ 2 người trở lên. Tiền cọc người vắng mặt bị tịch thu, người đến đúng giờ được duyệt hoàn cọc 100%.');
+    }
+
+    /**
+     * POST /api/v1/sessions/{id}/overtime-alert (hoặc /api/v1/dm/sessions/{id}/overtime-alert)
+     * Quản trò DM gửi cảnh báo ca chơi có nguy cơ kéo dài quá giờ để Admin điều phối phòng
+     */
+    public function overtimeAlert(Request $request, string $id): Response
+    {
+        $auth = AuthMiddleware::authenticate($request, ['ADMIN', 'DM']);
+        if ($auth instanceof Response) {
+            return $auth;
+        }
+
+        $sessionId = (int) $id;
+        $body = $request->getBodyParams();
+        $estimatedMinutes = max(10, min(180, (int) ($body['estimated_minutes'] ?? 30)));
+        $reason = trim((string) ($body['reason'] ?? 'Người chơi tranh luận cao trào, dự kiến kéo dài thêm'));
+
+        $stmt = $this->pdo->prepare('SELECT `id`, `game_room_id`, `physical_room_id`, `venue_id`, `end_at` FROM `sessions` WHERE `id` = :id LIMIT 1');
+        $stmt->bindValue(':id', $sessionId, PDO::PARAM_INT);
+        $stmt->execute();
+        $session = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        if (!$session) {
+            return Response::fail('Không tìm thấy ca chơi', 'SESSION_NOT_FOUND', 404);
+        }
+
+        $this->auditService->log((int) $auth['id'], 'SESSION_OVERTIME_ALERT', 'session', $sessionId, [
+            'estimated_minutes' => $estimatedMinutes,
+            'reason' => $reason,
+            'physical_room_id' => $session['physical_room_id'],
+            'venue_id' => $session['venue_id'],
+            'original_end_at' => $session['end_at'],
+        ]);
+
+        return Response::success([
+            'session_id' => $sessionId,
+            'estimated_minutes' => $estimatedMinutes,
+            'reason' => $reason,
+            'alert_sent' => true,
+        ], "Đã gửi cảnh báo trễ ca thêm {$estimatedMinutes} phút tới Quản trị viên và Chi nhánh");
+    }
+
+    /**
+     * POST /api/v1/sessions/{id}/reviews
+     * Người chơi gửi đánh giá chất lượng DM và kịch bản (1-5 sao) sau khi ca chơi hoàn thành
+     */
+    public function submitReview(Request $request, string $id): Response
+    {
+        $auth = AuthMiddleware::authenticate($request);
+        if ($auth instanceof Response) {
+            return $auth;
+        }
+
+        $sessionId = (int) $id;
+        $userId = (int) $auth['id'];
+        $body = $request->getBodyParams();
+
+        $dmRating = max(1, min(5, (int) ($body['dm_rating'] ?? 5)));
+        $scenarioRating = max(1, min(5, (int) ($body['scenario_rating'] ?? 5)));
+        $comment = trim((string) ($body['comment'] ?? ''));
+
+        $stmt = $this->pdo->prepare('SELECT `id`, `game_room_id`, `status`, `dm_assignment_id` FROM `sessions` WHERE `id` = :id LIMIT 1');
+        $stmt->bindValue(':id', $sessionId, PDO::PARAM_INT);
+        $stmt->execute();
+        $session = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        if (!$session) {
+            return Response::fail('Không tìm thấy ca chơi', 'SESSION_NOT_FOUND', 404);
+        }
+
+        if ($session['status'] !== 'COMPLETED') {
+            return Response::fail('Chỉ có thể đánh giá sau khi buổi chơi đã hoàn thành (Trạng thái: ' . $session['status'] . ')', 'SESSION_NOT_COMPLETED', 400);
+        }
+
+        $partStmt = $this->pdo->prepare(
+            'SELECT `id` FROM `room_participants`
+             WHERE `game_room_id` = :rid AND `user_id` = :uid
+             LIMIT 1'
+        );
+        $partStmt->bindValue(':rid', (int) $session['game_room_id'], PDO::PARAM_INT);
+        $partStmt->bindValue(':uid', $userId, PDO::PARAM_INT);
+        $partStmt->execute();
+        if ($partStmt->fetchColumn() === false && ($auth['role'] ?? '') !== 'ADMIN') {
+            return Response::fail('Bạn không phải là người tham gia ca chơi này', 'FORBIDDEN', 403);
+        }
+
+        $this->auditService->log($userId, 'POST_GAME_REVIEW', 'session', $sessionId, [
+            'dm_rating' => $dmRating,
+            'scenario_rating' => $scenarioRating,
+            'comment' => $comment,
+            'user_name' => $auth['full_name'] ?? $auth['username'] ?? 'Người chơi',
+        ]);
+
+        return Response::success([
+            'session_id' => $sessionId,
+            'dm_rating' => $dmRating,
+            'scenario_rating' => $scenarioRating,
+            'comment' => $comment,
+        ], 'Cảm ơn bạn đã gửi đánh giá buổi chơi! Đánh giá đã được ghi nhận.');
+    }
+
+    /**
+     * GET /api/v1/sessions/{id}/reviews
+     * Lấy danh sách đánh giá của ca chơi
+     */
+    public function getReviews(Request $request, string $id): Response
+    {
+        $sessionId = (int) $id;
+
+        $stmt = $this->pdo->prepare(
+            'SELECT `id`, `actor_id`, `metadata`, `created_at`
+             FROM `audit_logs`
+             WHERE `entity_type` = \'session\' AND `entity_id` = :sid AND `action` = \'POST_GAME_REVIEW\'
+             ORDER BY `id` DESC'
+        );
+        $stmt->bindValue(':sid', $sessionId, PDO::PARAM_INT);
+        $stmt->execute();
+        $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        $reviews = array_map(function ($r) {
+            $meta = json_decode((string) ($r['metadata'] ?? '{}'), true) ?: [];
+            return [
+                'id' => (int) $r['id'],
+                'user_id' => (int) $r['actor_id'],
+                'user_name' => $meta['user_name'] ?? 'Ẩn danh',
+                'dm_rating' => (int) ($meta['dm_rating'] ?? 5),
+                'scenario_rating' => (int) ($meta['scenario_rating'] ?? 5),
+                'comment' => $meta['comment'] ?? '',
+                'created_at' => $r['created_at'],
+            ];
+        }, $rows);
+
+        return Response::success([
+            'session_id' => $sessionId,
+            'reviews' => $reviews,
+            'total_reviews' => count($reviews),
+        ], 'Danh sách đánh giá ca chơi');
     }
 }

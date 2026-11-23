@@ -98,6 +98,7 @@ class GameRoomController
     public function show(Request $request, string $id): Response
     {
         $roomId = (int) $id;
+        $this->performLazyExpirationCheck($roomId);
         $room = $this->roomRepo->findById($roomId);
 
         if ($room === null) {
@@ -514,5 +515,96 @@ class GameRoomController
         }
 
         return (int) $auth['id'];
+    }
+
+    /**
+     * Tự động kiểm tra và chuyển trạng thái quá hạn ngay khi có người xem phòng (Lazy Expiration Check)
+     * Đảm bảo hệ thống vận hành chuẩn xác ngay cả khi chưa có Cron job ngoài chạy.
+     */
+    protected function performLazyExpirationCheck(int $roomId): void
+    {
+        try {
+            // 1. Kiểm tra quá hạn biểu quyết đề xuất lịch (12h)
+            $expProp = $this->pdo->prepare(
+                'UPDATE `schedule_proposals`
+                 SET `status` = \'EXPIRED\', `updated_at` = NOW()
+                 WHERE `game_room_id` = :room_id
+                   AND `status` = \'PROPOSED\'
+                   AND `expires_at` IS NOT NULL
+                   AND `expires_at` <= NOW()'
+            );
+            $expProp->bindValue(':room_id', $roomId, PDO::PARAM_INT);
+            $expProp->execute();
+
+            // 2. Kiểm tra quá hạn nộp cọc (2h) của từng người chơi
+            $expParts = $this->pdo->prepare(
+                'SELECT `id`, `user_id` FROM `room_participants`
+                 WHERE `game_room_id` = :room_id
+                   AND `status` = \'PENDING_DEPOSIT\'
+                   AND `deposit_deadline_at` IS NOT NULL
+                   AND `deposit_deadline_at` <= NOW()'
+            );
+            $expParts->bindValue(':room_id', $roomId, PDO::PARAM_INT);
+            $expParts->execute();
+            $expiredList = $expParts->fetchAll(PDO::FETCH_ASSOC);
+
+            if (!empty($expiredList)) {
+                foreach ($expiredList as $ep) {
+                    $upEp = $this->pdo->prepare(
+                        'UPDATE `room_participants`
+                         SET `status` = \'CANCELLED_UNPAID\',
+                             `cancelled_at` = NOW(),
+                             `cancel_reason` = \'Quá hạn nộp tiền cọc (Lazy Expiration)\',
+                             `updated_at` = NOW()
+                         WHERE `id` = :id AND `status` = \'PENDING_DEPOSIT\''
+                    );
+                    $upEp->bindValue(':id', (int) $ep['id'], PDO::PARAM_INT);
+                    $upEp->execute();
+                }
+
+                // Mở cửa sổ tìm người thay thế
+                $upRoom = $this->pdo->prepare(
+                    'UPDATE `game_rooms`
+                     SET `replacement_status` = \'OPEN\',
+                         `replacement_started_at` = NOW(),
+                         `replacement_deadline_at` = DATE_ADD(NOW(), INTERVAL 24 HOUR),
+                         `replacement_reason` = \'Có thành viên quá hạn đóng tiền cọc cần tìm người thay thế\',
+                         `updated_at` = NOW()
+                     WHERE `id` = :room_id AND `replacement_status` != \'OPEN\''
+                );
+                $upRoom->bindValue(':room_id', $roomId, PDO::PARAM_INT);
+                $upRoom->execute();
+            }
+
+            // 3. Kiểm tra quá hạn gom đội (48h) nếu phòng FORMING
+            $roomStmt = $this->pdo->prepare('SELECT `status`, `min_players`, `formation_deadline_at` FROM `game_rooms` WHERE `id` = :id');
+            $roomStmt->bindValue(':id', $roomId, PDO::PARAM_INT);
+            $roomStmt->execute();
+            $rData = $roomStmt->fetch(PDO::FETCH_ASSOC);
+
+            if ($rData && $rData['status'] === 'FORMING' && !empty($rData['formation_deadline_at'])) {
+                if (strtotime((string) $rData['formation_deadline_at']) <= time()) {
+                    $cntStmt = $this->pdo->prepare(
+                        'SELECT COUNT(*) FROM `room_participants`
+                         WHERE `game_room_id` = :id AND `status` IN (\'PENDING_DEPOSIT\', \'DEPOSITED\', \'LEAVE_REQUESTED\')'
+                    );
+                    $cntStmt->bindValue(':id', $roomId, PDO::PARAM_INT);
+                    $cntStmt->execute();
+                    $activeCount = (int) $cntStmt->fetchColumn();
+
+                    if ($activeCount < (int) $rData['min_players']) {
+                        $upExp = $this->pdo->prepare(
+                            'UPDATE `game_rooms`
+                             SET `status` = \'EXPIRED\', `updated_at` = NOW()
+                             WHERE `id` = :id AND `status` = \'FORMING\''
+                        );
+                        $upExp->bindValue(':id', $roomId, PDO::PARAM_INT);
+                        $upExp->execute();
+                    }
+                }
+            }
+        } catch (\Throwable $e) {
+            // Lazy check never breaks primary read flow
+        }
     }
 }

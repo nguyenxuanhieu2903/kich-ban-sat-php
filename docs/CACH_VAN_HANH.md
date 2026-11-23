@@ -121,6 +121,7 @@ Thu ngân / Lễ tân chịu trách nhiệm kiểm soát dòng tiền tại ch�
 2. Phương thức thu tiền:
    - **Đối với nhóm bạn (PRIVATE):** In 01 mã QR tổng số tiền còn lại để Host thanh toán một lần cho cả bàn.
    - **Đối với khách lẻ ghép đội (PUBLIC):** Hướng dẫn từng người quét mã QR tương ứng với số tiền cá nhân của mình.
+   - **Thu phụ phí phát sinh (Extra Fees / Prop Damage):** Nếu khách làm rách kịch bản, làm hỏng trang phục hóa trang hoặc gọi thêm đồ uống, Thu ngân nhập số tiền phụ phí vào ô "Phụ phí" kèm lý do đền bù trước khi xác nhận tất toán.
 3. Bấm xác nhận đã thu đủ tiền để hệ thống chuyển trạng thái thanh toán sang `SETTLED`. Nếu phát sinh tranh chấp hoặc khách nợ tiền, bấm ghi nhận cờ `PAYMENT_DISPUTE` để chuyển kế toán đối soát.
 
 ---

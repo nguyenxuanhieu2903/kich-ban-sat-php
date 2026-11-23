@@ -724,3 +724,32 @@ Nhằm nâng cao chất lượng dịch vụ tiệm cận chuẩn thực tế c�
 7. **Tất toán quầy phân tách:** Hỗ trợ "Tất toán gộp cả bàn" cho phòng PRIVATE và "Tất toán riêng lẻ từng slot qua QR" cho phòng PUBLIC.
 
 Sổ tay hướng dẫn chi tiết từng bước cho từng Actor được lưu trữ độc lập tại: **[CACH_VAN_HANH.md](CACH_VAN_HANH.md)** (hoặc [docs/CACH_VAN_HANH.md](docs/CACH_VAN_HANH.md)).
+
+---
+
+### 10.11. Gói nâng cấp hoàn thiện toàn diện 100% (Stage 3.2 Perfection Release)
+
+Nhằm giải quyết triệt để toàn bộ các điểm cấn nghiệp vụ và đưa sản phẩm đạt chuẩn hoàn thiện 100%, hệ thống đã triển khai và kiểm chứng gói nâng cấp Stage 3.2:
+1. **Sửa Quorum biểu quyết 80% trong mã nguồn (`SchedulingController.php`):**
+   - Thay thế điều kiện 100% bằng công thức `$quorumThreshold = max(1, (int) ceil($totalActive * 0.8))`.
+   - Đề xuất tự động chốt và chuyển sang giữ phòng vật lý + giữ lịch DM ngay khi đạt 80% thành viên đồng ý (ví dụ 4/5, 5/6 hoặc 7/8 người) mà không ai từ chối, xóa bỏ hoàn toàn nguy cơ phòng bị treo cứng do 1 người quên vote.
+2. **Cơ chế Lazy Expiration Check tự động cho phòng chơi (`GameRoomController.php`):**
+   - Tự động kiểm tra và cập nhật trạng thái hết hạn (48h gom đội, 12h biểu quyết, 2h nộp cọc) ngay khi người dùng gọi API xem phòng (`GET /rooms/{id}`).
+   - Đảm bảo hệ thống vận hành đúng giờ tuyệt đối ngay cả khi chưa thiết lập Cron job định kỳ bên ngoài.
+3. **Phụ phí và Đền bù hỏng hóc đạo cụ tại quầy (`SessionLifecycleController.php`):**
+   - API tất toán quầy `/api/v1/sessions/{id}/settle` chấp nhận thêm tham số `extra_fee` và `extra_fee_reason`.
+   - Thu ngân chi nhánh có thể thu phụ phí rách kịch bản, hỏng trang phục hoặc đồ uống phát sinh, ghi nhận chính xác 100% vào vết kiểm toán tài chính `audit_logs`.
+4. **Tính năng Báo trễ ca chơi (Overtime Alert) cho DM (`SessionLifecycleController.php`):**
+   - Bổ sung API `POST /api/v1/sessions/{id}/overtime-alert` và nút bấm trực tiếp trên giao diện `dm-portal.html`.
+   - DM có thể gửi cảnh báo trễ ca (10-180 phút kèm lý do) về Admin Dashboard để chủ động điều phối phòng vật lý tiếp theo.
+5. **Module Đánh giá & Chấm điểm sau ca chơi (Post-game Reviews & Ratings 1-5 sao):**
+   - Bổ sung 2 endpoint: `POST /api/v1/sessions/{id}/reviews` và `GET /api/v1/sessions/{id}/reviews`.
+   - Người chơi sau khi hoàn thành buổi chơi (`COMPLETED`) có thể chấm điểm DM (1-5 sao), kịch bản (1-5 sao) và nhận xét ngay trên trang `profile.html`.
+6. **Cơ chế Gia hạn thông minh 24 giờ cho phòng gom đội (`BackgroundJobService.php`):**
+   - Khi quét quá hạn 48h, nếu phòng đã gom được >= 70% sĩ số tối thiểu (ví dụ 5/6 người) và chưa từng gia hạn, hệ thống tự động gia hạn thêm 24h và đánh dấu `replacement_reason = 'AUTO_EXTENDED_24H'` thay vì giải tán phòng.
+7. **Hiển thị Tỷ lệ Giới tính (Gender Ratio) trên Giao diện Kịch bản:**
+   - Cập nhật `scenarios.html` và `scenario-detail.html` hiển thị nhãn cấu trúc vai (ví dụ: `4 Nam - 2 Nữ`, `5 Nam - 3 Nữ` kèm ghi chú hỗ trợ đóng chéo vai).
+8. **Mở rộng bộ kiểm thử tự động lên 140/140 bài test PASS (100%):**
+   - Bổ sung file kiểm thử `backend/tests/Feature/V16StandardP2PerfectionTest.php` bao phủ toàn bộ 5 tính năng mới (Quorum 80%, Overtime alert, Extra fee, Reviews, Smart extension).
+   - Toàn bộ 140 bài test đạt 100% PASS, 634 assertions.
+

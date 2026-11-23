@@ -56,6 +56,7 @@
             </div>
             <p><strong>Thời lượng:</strong> <span id="detailDuration">4 tiếng</span></p>
             <p><strong>Số người chơi:</strong> <span id="detailPlayers">6 - 8 người</span></p>
+            <p><strong>Tỷ lệ vai:</strong> <span id="detailGenderRatio">4 Nam - 2 Nữ (Hỗ trợ đóng chéo vai)</span></p>
             <p><strong>Độ khó:</strong> <span id="detailDifficulty">Trung bình</span></p>
             <hr class="ticket-divider" />
             <p><strong>Giá niêm yết:</strong> <span id="detailPrice" style="color: var(--color-gold); font-size: 1.25rem; font-weight: 700;">220.000đ</span> / người</p>
@@ -150,6 +151,8 @@
       document.getElementById('detailGenre').textContent = data.genre;
       document.getElementById('detailDuration').textContent = data.duration;
       document.getElementById('detailPlayers').textContent = `${data.players?.total || '6 - 8'} người chơi`;
+      const minP = Number(data.min_players || 6);
+      document.getElementById('detailGenderRatio').textContent = minP >= 8 ? '5 Nam - 3 Nữ (Hỗ trợ đóng chéo vai)' : '4 Nam - 2 Nữ (Hỗ trợ đóng chéo vai)';
       document.getElementById('detailDifficulty').textContent = data.difficulty || 'Trung bình';
       document.getElementById('detailPrice').textContent = (data.price || 220000).toLocaleString('vi-VN') + 'đ';
       document.getElementById('detailSummary').textContent = data.summary;

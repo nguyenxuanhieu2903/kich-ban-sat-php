@@ -352,9 +352,15 @@ class SchedulingController
             $sessionId = null;
             $assignedPhysicalRoomId = null;
             $assignedVenueId = null;
+            $proposalConfirmed = false;
 
-            // Nếu 100% thành viên ACCEPTED -> Tìm phòng trống + DM rảnh + Chốt session + Sinh hóa đơn cọc
-            if ($acceptedCount >= count($activeParticipantIds) && count($activeParticipantIds) > 0) {
+            // Ngưỡng Quorum 80% thành viên đồng ý (SOP Điểm 4: 80% Quorum chốt đề xuất)
+            $totalActive = count($activeParticipantIds);
+            $quorumThreshold = max(1, (int) ceil($totalActive * 0.8));
+
+            // Nếu đạt Quorum >= 80% thành viên ACCEPTED -> Tìm phòng trống + DM rảnh + Chốt session + Sinh hóa đơn cọc
+            if ($acceptedCount >= $quorumThreshold && $totalActive > 0) {
+                $proposalConfirmed = true;
                 $startAt = (string) $proposal['proposed_start_at'];
                 $endAt = (string) $proposal['proposed_end_at'];
 
@@ -458,12 +464,13 @@ class SchedulingController
             return Response::success([
                 'proposal_id' => $proposalId,
                 'accepted_votes' => $acceptedCount,
-                'total_required' => count($activeParticipantIds),
-                'proposal_confirmed' => $sessionCreated,
+                'total_required' => $totalActive,
+                'quorum_threshold' => $quorumThreshold,
+                'proposal_confirmed' => $proposalConfirmed,
                 'session_id' => $sessionId,
                 'venue_id' => $assignedVenueId,
                 'physical_room_id' => $assignedPhysicalRoomId,
-            ], 'Đã ghi nhận biểu quyết của bạn');
+            ], $sessionCreated ? 'Đề xuất đạt Quorum 80% biểu quyết đồng ý! Phòng vật lý và Quản trò đã được giữ tạm.' : 'Đã ghi nhận biểu quyết của bạn');
         } catch (\Throwable $e) {
             if ($this->pdo->inTransaction()) {
                 $this->pdo->rollBack();

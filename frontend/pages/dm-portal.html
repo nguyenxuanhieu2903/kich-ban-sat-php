@@ -302,7 +302,8 @@
 
                   ${isAccepted && isInProgress ? `
                     <button type="button" class="btn btn-gold" onclick="completeSession(${sessId})">Hoàn Tất Buổi Chơi</button>
-                    <button type="button" class="btn btn-outline" style="border-color: #d97706; color: #fbbf24;" onclick="reportNoShow(${sessId})">Báo Cáo No-show</button>
+                    <button type="button" class="btn btn-outline" style="border-color: #d97706; color: #fbbf24;" onclick="triggerOvertimeAlert(${sessId})">Báo Trễ Ca</button>
+                    <button type="button" class="btn btn-outline" style="border-color: #ef4444; color: #fca5a5;" onclick="reportNoShow(${sessId})">Báo Cáo No-show</button>
                   ` : ''}
 
                   ${isCompleted ? `
@@ -364,13 +365,38 @@
     };
 
     window.settlePaymentAtCounter = async function(sessId) {
-      if (!confirm('Xác nhận khách đã thanh toán nốt phần tiền còn lại tại quầy lễ tân?')) return;
+      const extraFeeStr = prompt('Nhập phụ phí đền bù đạo cụ/trang phục hoặc dịch vụ phát sinh (VNĐ, nhập 0 nếu không có):', '0');
+      if (extraFeeStr === null) return;
+      const extraFee = Number(extraFeeStr) || 0;
+      let extraReason = '';
+      if (extraFee > 0) {
+        extraReason = prompt('Nhập lý do thu phụ phí (ví dụ: Đền bù rách trang phục kịch bản):', 'Phụ phí đạo cụ phát sinh tại quầy') || '';
+      }
+
       try {
-        const json = await apiClient.post(`/dm/sessions/${sessId}/settle`);
+        const json = await apiClient.post(`/dm/sessions/${sessId}/settle`, {
+          extra_fee: extraFee,
+          extra_fee_reason: extraReason
+        });
         alert(json.message || 'Đã xác nhận tất toán đủ tiền tại quầy thành công!');
         loadDmDashboard();
       } catch (err) {
         alert(err.message || 'Không thể xác nhận tất toán');
+      }
+    };
+
+    window.triggerOvertimeAlert = async function(sessionId) {
+      const minutes = prompt('Nhập số phút dự kiến ca chơi sẽ kéo dài quá giờ (ví dụ: 30):', '30');
+      if (!minutes) return;
+      const reason = prompt('Lý do ca chơi bị kéo dài quá giờ:', 'Người chơi tranh luận cao trào, đang thảo luận giải mật mã cuối');
+      try {
+        const json = await apiClient.post(`/dm/sessions/${sessionId}/overtime-alert`, {
+          estimated_minutes: Number(minutes) || 30,
+          reason: reason || ''
+        });
+        alert(json.message || 'Đã gửi cảnh báo trễ ca thành công tới Quản trị viên!');
+      } catch (err) {
+        alert(err.message || 'Không thể gửi cảnh báo trễ ca');
       }
     };
 
