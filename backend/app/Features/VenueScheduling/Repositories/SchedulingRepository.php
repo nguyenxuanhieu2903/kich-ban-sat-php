@@ -102,7 +102,7 @@ class SchedulingRepository extends BaseRepository
     }
 
     /**
-     * Find an active physical room with sufficient capacity and no conflicting session (including cleanup buffer).
+     * Find an active physical room with sufficient capacity and no conflicting session (with cascading buffer: 30m -> 15m -> 0m).
      *
      * @return array<string, mixed>|null
      */
@@ -111,6 +111,22 @@ class SchedulingRepository extends BaseRepository
         string $startAt,
         string $endAt,
         int $bufferMinutes = 30
+    ): ?array {
+        $buffers = array_unique([max(0, $bufferMinutes), 15, 0]);
+        foreach ($buffers as $buf) {
+            $room = $this->querySingleAvailablePhysicalRoom($minCapacity, $startAt, $endAt, $buf);
+            if ($room !== null) {
+                return $room;
+            }
+        }
+        return null;
+    }
+
+    protected function querySingleAvailablePhysicalRoom(
+        int $minCapacity,
+        string $startAt,
+        string $endAt,
+        int $bufferMinutes
     ): ?array {
         return $this->executeQuery(function () use ($minCapacity, $startAt, $endAt, $bufferMinutes): ?array {
             $stmt = $this->pdo->prepare(
