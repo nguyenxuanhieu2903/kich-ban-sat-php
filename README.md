@@ -12,7 +12,7 @@ Tài liệu hướng dẫn vận hành chuẩn hóa thực tế (SOP) dành cho 
 | :--- | :--- | :--- | :--- |
 | Mức độ hoàn thiện tổng thể | Khoảng 65% - 70% | 100% hoàn chỉnh, sẵn sàng vận hành thực tế | Đã khép kín toàn bộ quy trình từ tạo phòng, ghép người, biểu quyết lịch, phân công DM, đặt cọc, hoàn cọc đến báo cáo doanh thu. |
 | Giai đoạn Backend | Dừng lại ở Stage 2 (thiếu phần lớn nghiệp vụ vận hành quản trị) | Hoàn tất 100% cả 3 giai đoạn: Stage 1, Stage 2 và Stage 3 | Cung cấp đầy đủ nghiệp vụ quản trị, phân công DM, thu hồi ca trực, gán phòng vật lý, báo cáo doanh thu và nhật ký kiểm toán. |
-| Kiểm thử tự động (Automated Tests) | 14 test cơ bản (chưa được cấu hình đầy đủ để chạy) | 150 test tự động (126 test PHPUnit backend + 24 test Node.js E2E frontend) đạt tỷ lệ vượt qua 100% | Hệ thống được bảo vệ bởi mạng lưới kiểm thử tự động dày đặc, kiểm chứng mọi điều kiện biên và logic nghiệp vụ. |
+| Kiểm thử tự động (Automated Tests) | 14 test cơ bản (chưa được cấu hình đầy đủ để chạy) | 150 test PHPUnit backend (731 assertions) + 24 test Node.js E2E frontend đạt tỷ lệ vượt qua 100% | Hệ thống được bảo vệ bởi mạng lưới kiểm thử tự động dày đặc, kiểm chứng mọi điều kiện biên và logic nghiệp vụ. |
 | Xử lý tranh chấp phòng (Race Condition) | Kiểm tra số lượng người thông thường, dễ bị vượt quá max_players khi nhiều người bấm cùng lúc | Sử dụng cơ chế khóa bi quan (Pessimistic Locking: SELECT ... FOR UPDATE) trong Database Transaction | Đảm bảo tuyệt đối không bao giờ xảy ra tình trạng phòng 6 người mà có 7 người vào được. |
 | Kiểm soát ưu đãi Sinh viên | Tự động áp dụng giảm 20.000đ cho tất cả người dùng không kiểm tra thẻ | Bắt buộc người dùng phải được Admin xét duyệt thẻ sinh viên (student_verified = 1) | Bảo vệ doanh thu, loại bỏ triệt để nguy cơ gian lận ưu đãi. |
 | Cơ chế ngăn chặn hoàn cọc sát giờ | Cho phép truyền cờ force_refund từ phía client để lấy lại 100% tiền cọc | Chặn cờ force_refund từ client; chỉ duy nhất Admin có quyền phê duyệt đặc cách trong trường hợp bất khả kháng | Người chơi hủy trước 24h được hoàn 100%, hủy dưới 24h bị mất cọc 100% theo quy chế V16 của quán. |
@@ -320,14 +320,14 @@ Cơ sở dữ liệu của dự án sử dụng hệ quản trị MySQL 8.x vớ
 
 ---
 
-## 7. KẾT QUẢ KIỂM THỬ TOÀN DIỆN (150 BÀI KIỂM TRA TỰ ĐỘNG)
+## 7. KẾT QUẢ KIỂM THỬ TOÀN DIỆN (174 BÀI KIỂM TRA TỰ ĐỘNG)
 
-Hệ thống được bảo vệ bởi tổng cộng 150 bài kiểm tra tự động chạy trên môi trường thực tế, đạt tỷ lệ thành công 100%:
+Hệ thống được bảo vệ bởi mạng lưới kiểm thử tự động dày đặc chạy trên môi trường thực tế, đạt tỷ lệ thành công 100%:
 
-### 7.1. Kiểm thử Backend (126 tests, 566 assertions - 100% Pass)
+### 7.1. Kiểm thử Backend (150 tests, 731 assertions - 100% Pass)
 - Kiểm thử đơn vị (Unit Tests):
   - `RoomSchedulingServiceTest.php`: Kiểm tra tính toán khoảng thời gian, phát hiện xung đột trùng giờ, kiểm tra ràng buộc khoảng đệm 30 phút giữa 2 ca chơi liền kề.
-- Kiểm thử chức năng (Feature Tests):
+- Kiểm thử chức năng (Feature Tests - Giai đoạn 1 & 2):
   - `AuthApiTest.php`: Đăng ký, đăng nhập sai mật khẩu, đăng nhập đúng, lấy thông tin cá nhân, đăng xuất.
   - `AdminUserApiTest.php`: Danh sách người dùng, cập nhật vai trò, duyệt thẻ sinh viên HSSV.
   - `PricingCalculationApiTest.php`: Tính giá ca sáng, ca chiều, ca tối; áp dụng giảm 30% Thứ Ba; áp dụng giảm 20.000đ HSSV; ngăn chặn cộng dồn khuyến mãi.
@@ -336,6 +336,10 @@ Hệ thống được bảo vệ bởi tổng cộng 150 bài kiểm tra tự đ
   - `BackgroundJobTest.php`: Tiến trình tự động giải tán phòng quá hạn gom người và quá hạn đặt cọc.
   - `Stage3ApiTest.php`: Gán phòng vật lý, thu hồi DM, ghi nhận sự cố buổi chơi, báo cáo doanh thu tài chính, tra cứu nhật ký kiểm toán.
   - `ApplicationTest.php`: Khởi tạo container, kiểm tra kết nối CSDL và endpoint sức khỏe hệ thống.
+- Kiểm thử tiêu chuẩn nâng cấp V16 (Feature Tests - Giai đoạn 3 & Hoàn thiện):
+  - `V16StandardP0FeaturesTest.php` (8 tests): Kiểm tra 4 State Machines độc lập, phân định ranh giới quyền hạn, đảo thứ tự lịch trước cọc sau, đệm 30 phút dọn phòng.
+  - `V16StandardP1FeaturesTest.php` (8 tests): Kiểm tra gắn chi nhánh/giờ dự kiến lúc tạo phòng, link mời bạn bè, DM console 240 phút, luồng chuyển quyền Host và cửa sổ tìm người thế chỗ.
+  - `V16StandardP2PerfectionTest.php` (8 tests): Kiểm tra quy tắc Majority Time Block vắt khung giờ, kho 12 kịch bản đa dạng thể loại, chống chơi lại kịch bản cũ, khóa phòng thủ công hotline/walk-in, điều chuyển phòng bảo trì.
 
 ### 7.2. Kiểm thử Frontend & E2E (24 tests - 100% Pass)
 - `tests/home-e2e.test.mjs` (7 tests):
