@@ -80,7 +80,8 @@ class PaymentRefundRequestController
 
         if ($startAt !== false && $startAt !== null) {
             $diffHours = (strtotime((string) $startAt) - time()) / 3600;
-            if ($diffHours < 24 && empty($body['force_refund'])) {
+            $allowForceRefund = ($roleCode === 'ADMIN' && !empty($body['force_refund']));
+            if ($diffHours < 24 && !$allowForceRefund) {
                 return Response::fail(
                     'Chỉ có thể yêu cầu hoàn tiền trước giờ chơi ít nhất 24 giờ',
                     'REFUND_WINDOW_EXPIRED',

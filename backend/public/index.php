@@ -9,6 +9,22 @@ declare(strict_types=1);
 $requestUri = $_SERVER['REQUEST_URI'] ?? '/';
 $path = parse_url($requestUri, PHP_URL_PATH) ?? '/';
 
+// Serve OpenAPI spec directly if requested at root
+if ($path === '/openapi.json') {
+    $openapiFile = __DIR__ . '/openapi.json';
+    if (file_exists($openapiFile)) {
+        header('Content-Type: application/json; charset=utf-8');
+        header('Cache-Control: public, max-age=3600');
+        readfile($openapiFile);
+        exit;
+    }
+}
+
+if ($path === '/docs') {
+    header('Location: /api/v1/docs');
+    exit;
+}
+
 // Serve frontend static files if request is not an API call
 if (!str_starts_with($path, '/api')) {
     $projectRoot = dirname(__DIR__, 2);

@@ -28,5 +28,11 @@
     "config": {
         "optimize-autoloader": true,
         "sort-packages": true
+    },
+    "scripts": {
+        "test": "phpunit",
+        "cron": "php bin/cron.php",
+        "seed": "php bin/seed.php",
+        "check-db": "php database/verify-connection.php"
     }
 }

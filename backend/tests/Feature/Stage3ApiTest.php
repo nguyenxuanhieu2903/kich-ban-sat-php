@@ -92,4 +92,41 @@ class Stage3ApiTest extends TestCase
         $readAllRes = $this->app->dispatch($readAllReq);
         $this->assertSame(200, $readAllRes->getStatusCode());
     }
+
+    public function testAdminAssignVenue(): void
+    {
+        $venueReq = new Request(
+            method: 'POST',
+            path: '/api/v1/admin/rooms/1/assign-venue',
+            queryParams: [],
+            bodyParams: [
+                'venue_id' => 1,
+                'physical_room_id' => 2,
+            ],
+            headers: ['Authorization' => 'Bearer 1']
+        );
+        $venueRes = $this->app->dispatch($venueReq);
+        $this->assertSame(200, $venueRes->getStatusCode());
+        $venueData = json_decode($venueRes->getContent(), true);
+        $this->assertTrue($venueData['success']);
+        $this->assertSame(1, (int) $venueData['data']['venue_id']);
+        $this->assertSame(2, (int) $venueData['data']['physical_room_id']);
+    }
+
+    public function testCanGetSessionDetail(): void
+    {
+        $req = new Request(
+            method: 'GET',
+            path: '/api/v1/sessions/1',
+            queryParams: [],
+            bodyParams: [],
+            headers: ['Authorization' => 'Bearer 1']
+        );
+        $res = $this->app->dispatch($req);
+        $this->assertSame(200, $res->getStatusCode());
+        $data = json_decode($res->getContent(), true);
+        $this->assertTrue($data['success']);
+        $this->assertArrayHasKey('session', $data['data']);
+        $this->assertSame(1, (int) $data['data']['session']['id']);
+    }
 }

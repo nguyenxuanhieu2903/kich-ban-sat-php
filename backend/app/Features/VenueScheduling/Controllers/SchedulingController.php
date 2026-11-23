@@ -79,6 +79,10 @@ class SchedulingController
             return Response::fail('Thời gian bắt đầu phải trước thời gian kết thúc', 'VALIDATION_ERROR', 422);
         }
 
+        if (strtotime($startAt) <= time()) {
+            return Response::fail('Thời gian đề xuất chơi phải ở trong tương lai', 'VALIDATION_ERROR', 422);
+        }
+
         // Kiểm tra xem user có phải là thành viên active trong phòng không
         $partStmt = $this->pdo->prepare(
             'SELECT `id` FROM `room_participants`

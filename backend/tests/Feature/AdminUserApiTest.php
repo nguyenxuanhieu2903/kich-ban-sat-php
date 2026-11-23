@@ -203,4 +203,46 @@ class AdminUserApiTest extends TestCase
         $this->assertFalse($data['success']);
         $this->assertSame('CANNOT_DEMOTE_SELF', $data['error']['code']);
     }
+
+    public function testAdminCanViewRevenueReport(): void
+    {
+        $request = new Request(
+            method: 'GET',
+            path: '/api/v1/admin/reports/revenue',
+            queryParams: [],
+            bodyParams: [],
+            headers: [
+                'Authorization' => 'Bearer 1',
+            ]
+        );
+
+        $response = $this->app->dispatch($request);
+        $this->assertSame(200, $response->getStatusCode());
+
+        $data = json_decode($response->getContent(), true);
+        $this->assertTrue($data['success']);
+        $this->assertArrayHasKey('revenue', $data['data']);
+        $this->assertArrayHasKey('statistics', $data['data']);
+        $this->assertArrayHasKey('total_collected', $data['data']['revenue']);
+    }
+
+    public function testAdminCanListPayments(): void
+    {
+        $request = new Request(
+            method: 'GET',
+            path: '/api/v1/admin/payments',
+            queryParams: ['per_page' => '10'],
+            bodyParams: [],
+            headers: [
+                'Authorization' => 'Bearer 1',
+            ]
+        );
+
+        $response = $this->app->dispatch($request);
+        $this->assertSame(200, $response->getStatusCode());
+
+        $data = json_decode($response->getContent(), true);
+        $this->assertTrue($data['success']);
+        $this->assertArrayHasKey('pagination', $data['meta']);
+    }
 }

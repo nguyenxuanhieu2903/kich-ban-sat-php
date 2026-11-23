@@ -186,4 +186,57 @@ class AuthApiTest extends TestCase
 
         $this->assertArrayNotHasKey('user_id', $_SESSION);
     }
+
+    public function testCanUpdateProfile(): void
+    {
+        $email = 'profile_' . uniqid() . '@test.vn';
+        $regRequest = new Request('POST', '/api/auth/register', [], [
+            'full_name' => 'Profile Original',
+            'email' => $email,
+            'password' => 'password123',
+        ]);
+        $regResponse = $this->app->dispatch($regRequest);
+        $userId = json_decode($regResponse->getContent(), true)['data']['user']['id'];
+
+        $updateRequest = new Request(
+            method: 'PATCH',
+            path: '/api/v1/auth/profile',
+            queryParams: [],
+            bodyParams: ['full_name' => 'Profile Updated', 'phone' => '0988776655'],
+            headers: ['Authorization' => "Bearer {$userId}"]
+        );
+
+        $response = $this->app->dispatch($updateRequest);
+        $this->assertSame(200, $response->getStatusCode());
+        $data = json_decode($response->getContent(), true);
+        $this->assertTrue($data['success']);
+        $this->assertSame('Profile Updated', $data['data']['user']['full_name']);
+        $this->assertSame('0988776655', $data['data']['user']['phone']);
+    }
+
+    public function testCanRequestStudentVerification(): void
+    {
+        $email = 'student_' . uniqid() . '@test.vn';
+        $regRequest = new Request('POST', '/api/auth/register', [], [
+            'full_name' => 'Student User',
+            'email' => $email,
+            'password' => 'password123',
+        ]);
+        $regResponse = $this->app->dispatch($regRequest);
+        $userId = json_decode($regResponse->getContent(), true)['data']['user']['id'];
+
+        $req = new Request(
+            method: 'POST',
+            path: '/api/v1/auth/student-verification',
+            queryParams: [],
+            bodyParams: ['student_id' => 'SV20261199', 'school_name' => 'Đại học Bách Khoa'],
+            headers: ['Authorization' => "Bearer {$userId}"]
+        );
+
+        $response = $this->app->dispatch($req);
+        $this->assertSame(200, $response->getStatusCode());
+        $data = json_decode($response->getContent(), true);
+        $this->assertTrue($data['success']);
+        $this->assertSame('PENDING_APPROVAL', $data['data']['status']);
+    }
 }

@@ -30,6 +30,7 @@ class BackgroundJobService
             'formation_timeouts' => $this->runFormationTimeout(),
             'deposit_timeouts' => $this->runDepositTimeout(),
             'replacement_timeouts' => $this->runReplacementTimeout(),
+            'proposal_timeouts' => $this->runProposalTimeout(),
         ];
     }
 
@@ -242,5 +243,21 @@ class BackgroundJobService
         }
 
         return $closedCount;
+    }
+
+    /**
+     * Job 4: Quét các đề xuất lịch biểu quyết quá hạn (expires_at <= NOW() AND status = 'PROPOSED')
+     * -> Tự động chuyển thành EXPIRED.
+     */
+    public function runProposalTimeout(): int
+    {
+        $stmt = $this->pdo->prepare(
+            'UPDATE `schedule_proposals`
+             SET `status` = \'EXPIRED\'
+             WHERE `status` = \'PROPOSED\' AND `expires_at` IS NOT NULL AND `expires_at` <= NOW()'
+        );
+        $stmt->execute();
+
+        return $stmt->rowCount();
     }
 }

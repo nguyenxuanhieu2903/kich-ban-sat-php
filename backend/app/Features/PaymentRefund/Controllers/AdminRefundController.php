@@ -135,6 +135,13 @@ class AdminRefundController
             $upStmt->bindValue(':id', $refundId, PDO::PARAM_INT);
             $upStmt->execute();
 
+            // Ghi nhận nhật ký kiểm toán
+            $auditService = new \App\Shared\Services\AuditLogService($this->pdo);
+            $auditService->log((int) $auth['id'], 'APPROVE_REFUND', 'REFUND', $refundId, [
+                'amount' => (int) $refund['amount'],
+                'player_payment_id' => (int) $refund['player_payment_id'],
+            ]);
+
             $this->notiRepo->createNotification(
                 'Yêu cầu hoàn tiền đã được duyệt',
                 "Yêu cầu hoàn tiền " . number_format((int) $refund['amount']) . " VNĐ cho phòng '{$refund['room_title']}' đã được Quản trị viên phê duyệt.",
@@ -211,6 +218,13 @@ class AdminRefundController
             $upStmt->bindValue(':reason', $reason, PDO::PARAM_STR);
             $upStmt->bindValue(':id', $refundId, PDO::PARAM_INT);
             $upStmt->execute();
+
+            // Ghi nhận nhật ký kiểm toán
+            $auditService = new \App\Shared\Services\AuditLogService($this->pdo);
+            $auditService->log((int) $auth['id'], 'REJECT_REFUND', 'REFUND', $refundId, [
+                'reason' => $reason,
+                'amount' => (int) $refund['amount'],
+            ]);
 
             $this->notiRepo->createNotification(
                 'Yêu cầu hoàn tiền bị từ chối',

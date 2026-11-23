@@ -77,7 +77,7 @@ class AdminGameRoomController
             $hoursUntilSession = round($diffSeconds / 3600, 2);
 
             // Quy tắc V16: Ít nhất 24 giờ trước giờ chơi mới đủ điều kiện hoàn tiền
-            if ($diffSeconds < (24 * 3600)) {
+            if ($diffSeconds < (24 * 3600) && !$forceRefund) {
                 $isEligibleForRefund = false;
             }
         }
@@ -135,7 +135,7 @@ class AdminGameRoomController
 
             $refundStatus = $isEligibleForRefund ? 'APPROVED' : 'REJECTED';
             $reviewNote = $isEligibleForRefund
-                ? 'Đủ điều kiện hoàn cọc (hủy trước mốc 24h so với giờ chơi)'
+                ? ($forceRefund && ($hoursUntilSession !== null && $hoursUntilSession < 24) ? 'Được duyệt hoàn cọc đặc biệt theo chỉ đạo của Quản trị viên' : 'Đủ điều kiện hoàn cọc (hủy trước mốc 24h so với giờ chơi)')
                 : 'Không đủ điều kiện hoàn cọc (hủy muộn hơn mốc 24h trước giờ chơi)';
 
             foreach ($paidList as $payment) {

@@ -39,6 +39,11 @@ switch ($targetJob) {
         echo "[SUCCESS] Processed {$count} expired replacement windows.\n";
         break;
 
+    case 'proposal-timeout':
+        $count = $service->runProposalTimeout();
+        echo "[SUCCESS] Processed {$count} expired schedule proposals.\n";
+        break;
+
     case 'all':
     default:
         $stats = $service->runAll();
@@ -46,6 +51,7 @@ switch ($targetJob) {
         echo "  - Formation Timeouts: {$stats['formation_timeouts']} room(s) cancelled.\n";
         echo "  - Deposit Timeouts: {$stats['deposit_timeouts']} participant(s) kicked.\n";
         echo "  - Replacement Timeouts: {$stats['replacement_timeouts']} window(s) expired.\n";
+        echo "  - Proposal Timeouts: {$stats['proposal_timeouts']} proposal(s) expired.\n";
         break;
 }
 

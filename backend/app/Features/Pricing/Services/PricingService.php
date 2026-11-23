@@ -113,7 +113,7 @@ class PricingService
         if ($promotionCode !== null && trim($promotionCode) !== '') {
             $codeUpper = strtoupper(trim($promotionCode));
             $promoStmt = $this->pdo->prepare(
-                'SELECT `id`, `code`, `name`, `promotion_type`, `discount_type`, `discount_value`, `rules`
+                'SELECT `id`, `code`, `name`, `promotion_type`, `discount_type`, `discount_value`, `rules`, `start_at`, `end_at`
                  FROM `promotions`
                  WHERE (`code` = :code OR `code` LIKE :code_like) AND `is_active` = 1
                  LIMIT 1'
@@ -127,10 +127,47 @@ class PricingService
                 $rules = !empty($promo['rules']) ? json_decode((string) $promo['rules'], true) : [];
                 $isEligible = true;
 
+                // Kiểm tra thời hạn hiệu lực của chương trình khuyến mãi (start_at -> end_at)
+                if (!empty($promo['start_at']) && !empty($promo['end_at'])) {
+                    $playTs = strtotime($playDateTime);
+                    $startTs = strtotime((string) $promo['start_at']);
+                    $endTs = strtotime((string) $promo['end_at']);
+                    if ($playTs < $startTs || $playTs > $endTs) {
+                        $isEligible = false;
+                    }
+                }
+
                 // Kiểm tra ngày trong tuần nếu có rule
                 if (!empty($rules['weekdays']) && is_array($rules['weekdays'])) {
                     if (!in_array($dayOfWeek, $rules['weekdays'], true)) {
                         $isEligible = false; // Ví dụ mã Thứ 3 mà đặt ngày khác
+                    }
+                }
+
+                // Kiểm tra khung giờ hợp lệ nếu có rule
+                if ($isEligible && !empty($rules['valid_from']) && !empty($rules['valid_until'])) {
+                    if ($timeOfDay < $rules['valid_from'] || $timeOfDay > $rules['valid_until']) {
+                        $isEligible = false;
+                    }
+                }
+
+                // Kiểm tra xác thực học sinh / sinh viên nếu rule yêu cầu
+                $eligibleParticipantsCount = $totalParticipants;
+                $verifiedUserIds = [];
+                if ($isEligible && !empty($rules['requires_student_verification'])) {
+                    if (!empty($participants)) {
+                        $userIds = array_map(fn($p) => (int) $p['user_id'], $participants);
+                        $placeholders = implode(',', array_fill(0, count($userIds), '?'));
+                        $stuStmt = $this->pdo->prepare("SELECT `id` FROM `users` WHERE `id` IN ($placeholders) AND `student_verified` = 1");
+                        $stuStmt->execute($userIds);
+                        $verifiedUserIds = array_map('intval', $stuStmt->fetchAll(PDO::FETCH_COLUMN));
+                        $eligibleParticipantsCount = count($verifiedUserIds);
+                    } else {
+                        $eligibleParticipantsCount = 0;
+                    }
+
+                    if ($eligibleParticipantsCount === 0) {
+                        $isEligible = false;
                     }
                 }
 
@@ -142,6 +179,7 @@ class PricingService
                         'name' => $promo['name'],
                         'discount_type' => $promo['discount_type'],
                         'discount_value' => (int) $promo['discount_value'],
+                        'eligible_players' => $eligibleParticipantsCount,
                     ];
 
                     if ($promo['discount_type'] === 'PERCENT') {
@@ -149,7 +187,7 @@ class PricingService
                         $discountAmount = (int) round(($subtotal * $percent) / 100);
                     } elseif ($promo['discount_type'] === 'FIXED') {
                         $perPersonDiscount = (int) ($rules['discount_per_eligible_person'] ?? $promo['discount_value']);
-                        $discountAmount = $perPersonDiscount * $totalParticipants;
+                        $discountAmount = $perPersonDiscount * $eligibleParticipantsCount;
                     }
                 }
             }

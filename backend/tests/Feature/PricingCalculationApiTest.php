@@ -134,4 +134,30 @@ class PricingCalculationApiTest extends TestCase
         $this->assertNotNull($snapData['data']['snapshot']['price_calculated_at']);
         $this->assertNotEmpty($snapData['data']['snapshot']['price_details']);
     }
+
+    public function testStudentDiscountAppliesOnlyToVerifiedStudents(): void
+    {
+        $_SESSION['user_id'] = 3;
+        $pdo = \App\Infrastructure\Database\DatabaseConnection::getInstance();
+
+        // Đảm bảo User 3 là student_verified = 1
+        $pdo->exec('UPDATE `users` SET `student_verified` = 1 WHERE `id` = 3');
+
+        $req = new Request(
+            method: 'POST',
+            path: '/api/v1/rooms/1/calculate-price',
+            queryParams: [],
+            bodyParams: [
+                'play_time' => '2026-11-25 14:00:00', // Thứ 4 (trong khoảng Mon-Thu 09:00-19:00 của HSSV_20000)
+                'promotion_code' => 'HSSV_20000',
+            ]
+        );
+        $res = $this->app->dispatch($req);
+        $this->assertSame(200, $res->getStatusCode());
+        $data = json_decode($res->getContent(), true)['data'];
+
+        $this->assertNotNull($data['applied_promotion']);
+        $this->assertSame('HSSV_20000', $data['applied_promotion']['code']);
+        $this->assertGreaterThan(0, $data['discount_amount']);
+    }
 }

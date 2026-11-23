@@ -54,6 +54,26 @@ class Response
     }
 
     /**
+     * Create an HTML response.
+     *
+     * @param array<string, string> $headers
+     */
+    public static function html(string $html, int $statusCode = 200, array $headers = []): self
+    {
+        return new self($html, $statusCode, array_merge(['Content-Type' => 'text/html; charset=utf-8'], $headers));
+    }
+
+    /**
+     * Create a raw response with custom content type.
+     *
+     * @param array<string, string> $headers
+     */
+    public static function raw(string $content, int $statusCode = 200, array $headers = []): self
+    {
+        return new self($content, $statusCode, $headers);
+    }
+
+    /**
      * Standard Success Response Envelope (Kịch Bản Sát V16 Convention).
      */
     public static function success(

@@ -118,4 +118,28 @@ class ApplicationTest extends TestCase
         $this->assertNotEmpty($this->capturedLogs);
         $this->assertStringNotContainsString('Database password secret revealed', $this->capturedLogs[0]);
     }
+
+    public function testOpenApiSpecEndpointReturnsValidJson(): void
+    {
+        $request = new Request('GET', '/api/v1/openapi.json');
+        $response = $this->app->dispatch($request);
+
+        $this->assertSame(200, $response->getStatusCode());
+        $body = json_decode($response->getContent(), true);
+        $this->assertIsArray($body);
+        $this->assertArrayHasKey('openapi', $body);
+        $this->assertSame('3.0.3', $body['openapi']);
+        $this->assertArrayHasKey('paths', $body);
+    }
+
+    public function testDocsEndpointReturnsSwaggerUiHtml(): void
+    {
+        $request = new Request('GET', '/api/v1/docs');
+        $response = $this->app->dispatch($request);
+
+        $this->assertSame(200, $response->getStatusCode());
+        $this->assertStringContainsString('text/html', $response->getHeaders()['Content-Type'] ?? '');
+        $this->assertStringContainsString('SwaggerUIBundle', $response->getContent());
+        $this->assertStringContainsString('/openapi.json', $response->getContent());
+    }
 }

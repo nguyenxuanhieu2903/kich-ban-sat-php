@@ -7,6 +7,7 @@ namespace Tests\Feature;
 use App\Core\Application;
 use App\Core\Request;
 use App\Infrastructure\Config\Config;
+use App\Infrastructure\Database\DatabaseConnection;
 use PHPUnit\Framework\TestCase;
 
 class SchedulingApiTest extends TestCase
@@ -24,6 +25,16 @@ class SchedulingApiTest extends TestCase
         $routesFile = $basePath . '/routes/api.php';
         $router = $this->app->getRouter();
         require $routesFile;
+    }
+
+    protected function tearDown(): void
+    {
+        try {
+            $pdo = DatabaseConnection::getInstance();
+            $pdo->exec("DELETE FROM `sessions` WHERE `start_at` >= DATE_ADD(NOW(), INTERVAL 20 DAY)");
+        } catch (\Throwable) {
+        }
+        parent::tearDown();
     }
 
     public function testCanListVenuesAndPhysicalRooms(): void

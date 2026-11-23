@@ -316,7 +316,34 @@ class GameRoomController
             return Response::fail('Phòng chơi đã đủ số lượng thành viên tối đa (' . $room['max_players'] . ' người)', 'ROOM_FULL', 400);
         }
 
-        $participantId = $this->roomRepo->addParticipant($roomId, $userId);
+        $this->pdo->beginTransaction();
+        try {
+            $lockStmt = $this->pdo->prepare('SELECT `id`, `max_players` FROM `game_rooms` WHERE `id` = :id FOR UPDATE');
+            $lockStmt->bindValue(':id', $roomId, PDO::PARAM_INT);
+            $lockStmt->execute();
+            $maxPlayers = (int) ($lockStmt->fetchColumn(1) ?: $room['max_players']);
+
+            $cntStmt = $this->pdo->prepare(
+                'SELECT COUNT(*) FROM `room_participants`
+                 WHERE `game_room_id` = :id AND `status` IN (\'PENDING_DEPOSIT\', \'DEPOSITED\', \'LEAVE_REQUESTED\')'
+            );
+            $cntStmt->bindValue(':id', $roomId, PDO::PARAM_INT);
+            $cntStmt->execute();
+            $currCount = (int) $cntStmt->fetchColumn();
+
+            if ($currCount >= $maxPlayers) {
+                $this->pdo->rollBack();
+                return Response::fail('Phòng chơi đã đủ số lượng thành viên tối đa (' . $maxPlayers . ' người)', 'ROOM_FULL', 400);
+            }
+
+            $participantId = $this->roomRepo->addParticipant($roomId, $userId);
+            $this->pdo->commit();
+        } catch (\Throwable $e) {
+            if ($this->pdo->inTransaction()) {
+                $this->pdo->rollBack();
+            }
+            throw $e;
+        }
 
         return Response::success([
             'room_id' => $roomId,
@@ -378,17 +405,36 @@ class GameRoomController
         $upStmt->bindValue(':id', $partId, PDO::PARAM_INT);
         $upStmt->execute();
 
+        // Tính replacement_deadline_at không vượt quá giờ bắt đầu Session (Quy tắc V16)
+        $sessStmt = $this->pdo->prepare('SELECT `start_at` FROM `sessions` WHERE `game_room_id` = :room_id AND `status` = \'SCHEDULED\' LIMIT 1');
+        $sessStmt->bindValue(':room_id', $roomId, PDO::PARAM_INT);
+        $sessStmt->execute();
+        $sessStart = $sessStmt->fetchColumn();
+
+        $deadlineExpr = 'DATE_ADD(NOW(), INTERVAL 24 HOUR)';
+        $sessParam = null;
+        if ($sessStart !== false && $sessStart !== null) {
+            $sessTs = strtotime((string) $sessStart);
+            if ($sessTs < (time() + 24 * 3600)) {
+                $deadlineExpr = ':sess_start';
+                $sessParam = (string) $sessStart;
+            }
+        }
+
         $openRw = $this->pdo->prepare(
-            'UPDATE `game_rooms`
+            "UPDATE `game_rooms`
              SET `replacement_opened_by` = :uid,
-                 `replacement_reason` = \'Thành viên bận xin rút và tìm người thay thế\',
-                 `replacement_status` = \'OPEN\',
+                 `replacement_reason` = 'Thành viên bận xin rút và tìm người thay thế',
+                 `replacement_status` = 'OPEN',
                  `replacement_started_at` = NOW(),
-                 `replacement_deadline_at` = DATE_ADD(NOW(), INTERVAL 24 HOUR)
-             WHERE `id` = :room_id'
+                 `replacement_deadline_at` = {$deadlineExpr}
+             WHERE `id` = :room_id"
         );
         $openRw->bindValue(':uid', $userId, PDO::PARAM_INT);
         $openRw->bindValue(':room_id', $roomId, PDO::PARAM_INT);
+        if ($sessParam !== null) {
+            $openRw->bindValue(':sess_start', $sessParam, PDO::PARAM_STR);
+        }
         $openRw->execute();
 
         return Response::success([

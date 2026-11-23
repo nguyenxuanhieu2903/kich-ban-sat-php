@@ -8,18 +8,28 @@ use App\Core\Middleware\AuthMiddleware;
 use App\Core\Request;
 use App\Core\Response;
 use App\Features\DMManagement\Repositories\DMRepository;
+use App\Features\Notification\Repositories\NotificationRepository;
 use App\Infrastructure\Database\DatabaseConnection;
+use App\Shared\Services\AuditLogService;
 use PDO;
 
 class DMAssignmentController
 {
     protected DMRepository $dmRepo;
+    protected NotificationRepository $notiRepo;
+    protected AuditLogService $auditService;
     protected PDO $pdo;
 
-    public function __construct(?DMRepository $dmRepo = null, ?PDO $pdo = null)
-    {
+    public function __construct(
+        ?DMRepository $dmRepo = null,
+        ?NotificationRepository $notiRepo = null,
+        ?AuditLogService $auditService = null,
+        ?PDO $pdo = null
+    ) {
         $this->pdo = $pdo ?? DatabaseConnection::getInstance();
         $this->dmRepo = $dmRepo ?? new DMRepository($this->pdo);
+        $this->notiRepo = $notiRepo ?? new NotificationRepository($this->pdo);
+        $this->auditService = $auditService ?? new AuditLogService($this->pdo);
 
         if (session_status() === PHP_SESSION_NONE && !headers_sent()) {
             @session_start();
@@ -85,6 +95,29 @@ class DMAssignmentController
 
         $this->dmRepo->respondAssignment($assignmentId, 'ACCEPTED');
 
+        // Audit log & thông báo
+        $this->auditService->log((int) $auth['id'], 'ACCEPT_DM_ASSIGNMENT', 'DM_ASSIGNMENT', $assignmentId, [
+            'game_room_id' => $assignment['game_room_id'] ?? null,
+        ]);
+
+        $partsStmt = $this->pdo->prepare(
+            'SELECT `user_id` FROM `room_participants` WHERE `game_room_id` = :room_id AND `status` IN (\'PENDING_DEPOSIT\', \'DEPOSITED\', \'LEAVE_REQUESTED\')'
+        );
+        $partsStmt->bindValue(':room_id', (int) $assignment['game_room_id'], PDO::PARAM_INT);
+        $partsStmt->execute();
+        $targetUserIds = array_map('intval', $partsStmt->fetchAll(PDO::FETCH_COLUMN));
+
+        if (!empty($targetUserIds)) {
+            $dmName = $auth['full_name'] ?? $auth['name'] ?? 'Quản trò';
+            $this->notiRepo->createNotification(
+                'Quản trò đã tiếp nhận phòng',
+                "Quản trò {$dmName} đã chính thức tiếp nhận điều phối phiên chơi cho phòng '{$assignment['room_title']}'.",
+                'ROOM',
+                (int) $auth['id'],
+                $targetUserIds
+            );
+        }
+
         $updated = $this->dmRepo->findAssignmentById($assignmentId);
 
         return Response::success([
@@ -129,6 +162,26 @@ class DMAssignmentController
         }
 
         $this->dmRepo->respondAssignment($assignmentId, 'REJECTED', $reason);
+
+        // Audit log & thông báo Admin
+        $this->auditService->log((int) $auth['id'], 'REJECT_DM_ASSIGNMENT', 'DM_ASSIGNMENT', $assignmentId, [
+            'game_room_id' => $assignment['game_room_id'] ?? null,
+            'reason' => $reason,
+        ]);
+
+        $adminStmt = $this->pdo->query('SELECT u.`id` FROM `users` u JOIN `roles` r ON r.`id` = u.`role_id` WHERE r.`code` = \'ADMIN\' AND u.`status` = \'ACTIVE\'');
+        $adminIds = array_map('intval', $adminStmt->fetchAll(PDO::FETCH_COLUMN));
+
+        if (!empty($adminIds)) {
+            $dmName = $auth['full_name'] ?? $auth['name'] ?? 'Quản trò';
+            $this->notiRepo->createNotification(
+                'Quản trò từ chối ca làm việc',
+                "Quản trò {$dmName} đã từ chối nhận ca làm việc tại phòng '{$assignment['room_title']}'. Lý do: {$reason}.",
+                'ADMIN',
+                (int) $auth['id'],
+                $adminIds
+            );
+        }
 
         $updated = $this->dmRepo->findAssignmentById($assignmentId);
 

@@ -185,4 +185,71 @@ class AuthController
 
         return Response::success(null, 'Đăng xuất thành công');
     }
+
+    /**
+     * PATCH /api/v1/auth/profile (UC-P01: Quản lý hồ sơ cá nhân)
+     */
+    public function updateProfile(Request $request): Response
+    {
+        $authUser = AuthMiddleware::authenticate($request);
+        if ($authUser instanceof Response) {
+            return $authUser;
+        }
+
+        $body = $request->getBodyParams();
+        $fields = [];
+        if (isset($body['full_name'])) {
+            $fullName = trim((string) $body['full_name']);
+            if ($fullName === '') {
+                return Response::fail('Họ và tên không được để trống', 'VALIDATION_ERROR', 422);
+            }
+            $fields['full_name'] = $fullName;
+        }
+
+        if (isset($body['phone'])) {
+            $fields['phone'] = trim((string) $body['phone']);
+        }
+
+        if (empty($fields)) {
+            return Response::fail('Không có dữ liệu cập nhật', 'BAD_REQUEST', 400);
+        }
+
+        $this->userRepo->update((int) $authUser['id'], $fields);
+        $updatedUser = $this->userRepo->findById((int) $authUser['id']);
+        if ($updatedUser !== null) {
+            unset($updatedUser['password_hash']);
+        }
+
+        return Response::success(['user' => $updatedUser], 'Cập nhật thông tin cá nhân thành công');
+    }
+
+    /**
+     * POST /api/v1/auth/student-verification (UC-P02: Cập nhật thông tin xác minh HSSV)
+     */
+    public function requestStudentVerification(Request $request): Response
+    {
+        $authUser = AuthMiddleware::authenticate($request);
+        if ($authUser instanceof Response) {
+            return $authUser;
+        }
+
+        $body = $request->getBodyParams();
+        $studentId = trim((string) ($body['student_id'] ?? $body['student_card_number'] ?? ''));
+        $schoolName = trim((string) ($body['school_name'] ?? $body['university'] ?? ''));
+
+        if ($studentId === '') {
+            return Response::fail('Mã số sinh viên không được để trống', 'VALIDATION_ERROR', 422);
+        }
+
+        $this->userRepo->update((int) $authUser['id'], [
+            'student_verified' => 0,
+        ]);
+
+        return Response::success([
+            'user_id' => (int) $authUser['id'],
+            'student_id' => $studentId,
+            'school_name' => $schoolName,
+            'status' => 'PENDING_APPROVAL',
+        ], 'Yêu cầu xác thực sinh viên đã được gửi tới quản trị viên');
+    }
 }

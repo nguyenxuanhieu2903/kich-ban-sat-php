@@ -127,6 +127,13 @@ class AdminUserController
 
         if (!empty($updateData)) {
             $this->userRepo->update($targetUserId, $updateData);
+            (new \App\Shared\Services\AuditLogService($this->pdo))->log(
+                (int) $auth['id'],
+                'UPDATE_USER',
+                'USER',
+                $targetUserId,
+                $updateData
+            );
         }
 
         $updated = $this->userRepo->findById($targetUserId);
@@ -175,6 +182,14 @@ class AdminUserController
         }
 
         $this->userRepo->assignRole($targetUserId, (int) $role['id']);
+
+        (new \App\Shared\Services\AuditLogService($this->pdo))->log(
+            (int) $auth['id'],
+            'ASSIGN_ROLE',
+            'USER',
+            $targetUserId,
+            ['role_id' => (int) $role['id'], 'role_code' => $role['code']]
+        );
 
         $updated = $this->userRepo->findById($targetUserId);
         if ($updated !== null) {

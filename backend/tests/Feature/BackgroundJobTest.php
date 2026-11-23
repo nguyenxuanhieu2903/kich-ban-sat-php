@@ -84,4 +84,19 @@ class BackgroundJobTest extends TestCase
         $partStatus = $this->pdo->query("SELECT `status` FROM `room_participants` WHERE `game_room_id` = {$roomId} AND `user_id` = 4")->fetchColumn();
         $this->assertSame('LEFT', $partStatus);
     }
+
+    public function testProposalTimeoutMarksExpiredProposals(): void
+    {
+        $this->pdo->exec("INSERT INTO `game_rooms` (`game_id`, `game_configuration_id`, `creator_id`, `title`, `min_players`, `max_players`, `status`, `formation_deadline_at`, `created_at`, `updated_at`) VALUES (1, 1, 3, 'Phòng test proposal timeout', 6, 8, 'FORMING', DATE_ADD(NOW(), INTERVAL 3 DAY), NOW(), NOW())");
+        $roomId = (int) $this->pdo->lastInsertId();
+
+        $this->pdo->exec("INSERT INTO `schedule_proposals` (`game_room_id`, `proposed_by`, `proposed_start_at`, `proposed_end_at`, `status`, `expires_at`, `created_at`) VALUES ({$roomId}, 3, DATE_ADD(NOW(), INTERVAL 5 DAY), DATE_ADD(DATE_ADD(NOW(), INTERVAL 5 DAY), INTERVAL 2 HOUR), 'PROPOSED', DATE_SUB(NOW(), INTERVAL 1 HOUR), NOW())");
+        $propId = (int) $this->pdo->lastInsertId();
+
+        $count = $this->jobService->runProposalTimeout();
+        $this->assertGreaterThanOrEqual(1, $count);
+
+        $status = $this->pdo->query("SELECT `status` FROM `schedule_proposals` WHERE `id` = {$propId}")->fetchColumn();
+        $this->assertSame('EXPIRED', $status);
+    }
 }

@@ -195,4 +195,26 @@ class DMRepository extends BaseRepository
             return $stmt->rowCount() > 0;
         });
     }
+
+    /**
+     * Revoke DM assignment (Admin operation).
+     */
+    public function revokeAssignment(int $id, ?string $reason = null): bool
+    {
+        return $this->executeQuery(function () use ($id, $reason): bool {
+            $stmt = $this->pdo->prepare(
+                'UPDATE `dm_assignments`
+                 SET `status` = \'REVOKED\',
+                     `revoked_at` = NOW(),
+                     `reason` = COALESCE(:reason, `reason`),
+                     `updated_at` = NOW()
+                 WHERE `id` = :id'
+            );
+            $stmt->bindValue(':reason', $reason, $reason === null ? PDO::PARAM_NULL : PDO::PARAM_STR);
+            $stmt->bindValue(':id', $id, PDO::PARAM_INT);
+            $stmt->execute();
+
+            return $stmt->rowCount() > 0;
+        });
+    }
 }

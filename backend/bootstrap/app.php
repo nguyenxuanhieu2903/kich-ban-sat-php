@@ -20,6 +20,7 @@ $app = new App\Core\Application($basePath);
 // Register global middleware
 $app->addMiddleware(new App\Core\Middleware\CorsMiddleware());
 $app->addMiddleware(new App\Core\Middleware\CsrfMiddleware());
+$app->addMiddleware(new App\Core\Middleware\RateLimitMiddleware());
 
 // Register routes (use require so multiple instantiations in testing register routes)
 $router = $app->getRouter();
