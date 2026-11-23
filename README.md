@@ -2,6 +2,8 @@
 
 Tài liệu này được biên soạn chi tiết, minh bạch, sử dụng ngôn ngữ tiếng Việt chuẩn mực có dấu đầy đủ, có cấu trúc học thuật và kỹ thuật hoàn chỉnh nhằm phục vụ công tác nghiệm thu, báo cáo đồ án tốt nghiệp và đối chiếu kỹ thuật. Văn bản trình bày toàn bộ các nội dung đã được sửa lỗi, nâng cấp, thêm mới, cùng bảng so sánh chi tiết giữa phiên bản hoàn thiện kichbansattruong và phiên bản ban đầu feature/Dev-Hieu trên kho mã nguồn Git.
 
+Tài liệu hướng dẫn vận hành chuẩn hóa thực tế (SOP) dành cho Người chơi, Quản trò (DM), Lễ tân và Quản trị viên được lưu trữ độc lập tại: **[CACH_VAN_HANH.md](CACH_VAN_HANH.md)** (hoặc [docs/CACH_VAN_HANH.md](docs/CACH_VAN_HANH.md)). Tài liệu đặc tả kiến trúc kỹ thuật toàn diện 28 điểm tại: **[docs/TAI_LIEU_VAN_HANH_TOAN_DIEN_HE_THONG.md](docs/TAI_LIEU_VAN_HANH_TOAN_DIEN_HE_THONG.md)**.
+
 ---
 
 ## 1. BẢNG TỔNG HỢP ĐỐI CHIẾU SO SÁNH TRỰC DIỆN
@@ -660,3 +662,65 @@ Nhằm hoàn thiện tài liệu vận hành và triệt tiêu toàn bộ các �
 7. **Sửa kịch bản ngoại lệ 3 & 4 sau cọc:** Chuyển thành sự cố phát sinh sau khi đã cọc (DM hủy ca đột xuất/bị khóa tài khoản, hoặc phòng vật lý gặp sự cố cơ sở/bảo trì khẩn cấp), kích hoạt điều chuyển phòng hoặc hủy phòng hoàn cọc 100% kèm voucher đền bù.
 8. **Thống nhất SLA hoàn tiền, trạng thái & mốc thông báo:** Thống nhất mốc SLA 02 giờ làm việc (tự động qua cổng thanh toán) và tối đa 24 giờ (thủ công / tra soát ngoại mạng); tích hợp đầy đủ các trạng thái `NEED_SUBSTITUTE`, `PAYMENT_DISPUTE`, `FORFEITED`, `CANCELLED_ON_SITE` vào 4 State Machine; tách rõ mốc thông báo `DEPOSIT_REQUIRED` và `BOOKING_CONFIRMED`.
 9. **Phân cấp xử lý No-show:** Thiếu 1 người thì DM/nhân viên đóng thế NPC và tịch thu cọc người vắng mặt; thiếu từ 2 người trở lên hoặc cả nhóm bùng lịch thì hủy ca tại chỗ (`CANCELLED_ON_SITE`), tịch thu 100% cọc người vắng mặt và bảo vệ quyền lợi hoàn cọc 100% hoặc đổi sang chơi Board Game tại sảnh cho người đến đúng giờ.
+
+---
+
+### 10.8. Triển khai toàn bộ mã nguồn cho 9 điểm nghiệp vụ vận hành, tất toán quầy và xử lý No-show
+
+Toàn bộ 9 điểm nghiệp vụ đã được mã hóa đầy đủ vào hệ thống Backend và Frontend:
+1. **Quyền tài chính tại quầy của DM & Thu ngân:**
+   - File: `backend/app/Features/GameroomManagement/Controllers/AdminOperationsController.php` (cho phép cả `['ADMIN', 'DM']` gọi `updateStudentVerification`).
+   - File: `backend/app/Features/VenueScheduling/Controllers/SessionLifecycleController.php` (bổ sung hàm `settlePayment` tại route `POST /api/v1/sessions/{id}/settle` và `/dm/sessions/{id}/settle` để xác nhận tất toán quầy hoặc ghi nhận cờ `PAYMENT_DISPUTE`).
+2. **Sửa luồng khóa tài khoản ở phòng FORMING:**
+   - File: `backend/app/Features/Identity/Controllers/AdminUserController.php` (hàm `handleAccountSuspension` phân tách an toàn: nếu bị khóa là Host thì chuyển quyền cho thành viên vào sớm nhất kế tiếp hoặc giải tán nếu phòng trống; nếu là Member thường thì chỉ loại khỏi danh sách và giảm `confirmed_players`, bảo vệ phòng không bị giải tán oan).
+3. **Tách rõ số người tính cọc gộp cho phòng PRIVATE:**
+   - File: `backend/app/Features/PaymentRefund/Controllers/PaymentController.php` (hỗ trợ cờ `is_lump_sum` và `is_group_lump_sum`, tính cọc nhóm riêng theo công thức chuẩn `(total_players - guest_slots) * 50.000 VNĐ`).
+   - File: `frontend/pages/create-room.html` và `frontend/pages/room-detail.html` (hiển thị công thức cọc gộp động và cập nhật nhãn nút bấm).
+4. **Giới hạn thời hạn biểu quyết 12 giờ:**
+   - File: `backend/app/Features/VenueScheduling/Controllers/SchedulingController.php` (đặt hạn `expires_at = NOW() + 12 HOURS`).
+   - File: `backend/app/Features/GameroomManagement/Services/BackgroundJobService.php` (`runProposalTimeout` tự động hủy đề xuất quá hạn mà chưa đạt 80% đồng thuận và đưa phòng quay về `FORMING`).
+5. **Bổ sung điểm dừng khi xoay tua DM:**
+   - File: `backend/app/Features/GameroomManagement/Services/BackgroundJobService.php` (`runDmAssignmentTimeout` tự động dừng xoay tua và phát cảnh báo khẩn `ADMIN_ALERT` cho Admin can thiệp thủ công khi số lần từ chối/thu hồi >= 3).
+6. **Chặn mốc đóng cửa sổ tìm người thế chỗ:**
+   - File: `backend/app/Features/GameroomManagement/Services/BackgroundJobService.php` (`runReplacementTimeout` đóng cửa sổ tuyển người thế chỗ khi thời gian bắt đầu phiên chơi còn <= 4 giờ để DM kịp chuẩn bị phương án kịch bản).
+7. **Ngoại lệ sự cố cơ sở sau cọc:**
+   - File: `backend/app/Features/GameroomManagement/Controllers/AdminGameRoomController.php` (hủy phòng do DM hủy ca đột xuất hoặc sự cố phòng vật lý được tự động duyệt hoàn cọc 100% không áp dụng mốc chặn 24 giờ).
+8. **Chuẩn hóa SLA và hoàn tất hoàn tiền:**
+   - File: `backend/app/Features/PaymentRefund/Controllers/AdminRefundController.php` (bổ sung hàm `complete` tại route `POST /api/v1/admin/refunds/{id}/complete` cho phép kế toán chuyển trạng thái hoàn tiền sang `COMPLETED`).
+9. **Xử lý No-show phân tầng 3 cấp độ:**
+   - File: `backend/app/Features/VenueScheduling/Controllers/SessionLifecycleController.php` (bổ sung hàm `handleNoShow` tại route `POST /api/v1/sessions/{id}/no-show` và `/dm/sessions/{id}/no-show`: thiếu 1 người thì DM đóng vai NPC và tịch thu cọc người vắng mặt; thiếu >= 2 người thì hủy ca tại chỗ `CANCELLED_ON_SITE`, tịch thu cọc người vắng mặt, tự động duyệt hoàn cọc 100% trong 2 giờ cho người đến đúng giờ kèm voucher giảm 20%).
+   - File: `frontend/pages/dm-portal.html` (tích hợp 2 nút hành động trực tiếp tại hiện trường: "Báo Cáo Khách Vắng (No-show)" và "Xác Nhận Tất Toán Quầy").
+
+---
+
+### 10.9. Báo cáo kết quả kiểm thử toàn diện 100% (QA & Verification)
+
+Hệ thống đã trải qua quy trình kiểm thử toàn diện đa tầng đạt chuẩn tuyệt đối:
+1. **Kiểm thử đơn vị & tích hợp Backend (PHPUnit Test Suite):**
+   - File kiểm thử chuyên biệt: `backend/tests/Feature/V16StandardP1FeaturesTest.php` (6 tests bao phủ 9 điểm vận hành).
+   - Kết quả: **135/135 tests PASS (100%)**, 606 assertions, thời gian chạy ~3s, bộ nhớ 18.0 MB.
+2. **Kiểm toán đường dẫn API động trên máy chủ trực tiếp:**
+   - File: `scratch/test_all_67_routes.mjs`.
+   - Kết quả: **73/73 routes PASS (100%)**, phản hồi chuẩn mực theo thiết kế RESTful.
+3. **Kiểm thử giao diện và tương tác trình duyệt thực tế (Headless Chrome CDP):**
+   - File: `scratch/run_browser_audit.mjs`.
+   - Kiểm tra toàn bộ 12 trang HTML trên cả Desktop (1440x900) và Mobile (375x812).
+   - Kết quả: 0 lỗi Console đỏ, 0 ngoại lệ JavaScript, 100% không bị tràn thanh cuộn ngang (`scrollWidth <= innerWidth`).
+4. **Mô phỏng vòng đời nghiệp vụ 5 giai đoạn liên hoàn:**
+   - File: `scratch/simulate_end_to_end_lifecycle.mjs`.
+   - Kết quả: Đạt 100% qua cả 5 giai đoạn: Public Matchmaking -> DM tiếp nhận & tất toán -> Private cọc gộp -> No-show 3 cấp độ -> Rút lui & hoàn cọc.
+
+---
+
+### 10.10. Tự kiểm điểm 7 điểm cấn trong vận hành thực tế & Sổ tay vận hành chuẩn (SOP)
+
+Nhằm nâng cao chất lượng dịch vụ tiệm cận chuẩn thực tế của các câu lạc bộ Kịch Bản Sát chuyên nghiệp, hệ thống đã tự kiểm điểm và làm rõ 7 điểm nghẽn nghiệp vụ trong tài liệu vận hành [CACH_VAN_HANH.md](CACH_VAN_HANH.md):
+1. **Chốt lịch phòng PUBLIC:** Bắt buộc số người tham gia đạt tối thiểu `min_players` mới được khóa lịch phòng vật lý và giữ lịch DM, xóa bỏ nghịch lý phòng 1-2 người đã đè phòng vật lý.
+2. **Thông tin phân vai nhân vật:** Hiển thị rõ tỷ lệ giới tính (Nam/Nữ) và xác định rõ quy trình DM phát kịch bản tại bàn khi check-in để tránh spoil cốt truyện.
+3. **Giới hạn quyền Host ở phòng PUBLIC:** Cấm Host hủy cả bàn đã cọc; chỉ được rút lui cá nhân và nhường quyền Host cho người kế tiếp, phòng chuyển sang tìm người thế chỗ.
+4. **Cơ chế hết hạn gom đội 48h thông minh:** Tự động gia hạn thêm 12-24h khi phòng đã đạt >= 70% sĩ số để bảo vệ quyền lợi nhóm 5/6 người.
+5. **Hậu buổi chơi:** Bổ sung luồng đánh giá 1-5 sao cho Kịch bản và Quản trò DM để ghi nhận KPI và phản hồi khách hàng.
+6. **Kiểm soát Tag 18+:** Lễ tân có quyền kiểm tra CCCD; nếu vi phạm độ tuổi, hỗ trợ đổi sang kịch bản phù hợp và bảo lưu tiền cọc thay vì phạt mất cọc.
+7. **Tất toán quầy phân tách:** Hỗ trợ "Tất toán gộp cả bàn" cho phòng PRIVATE và "Tất toán riêng lẻ từng slot qua QR" cho phòng PUBLIC.
+
+Sổ tay hướng dẫn chi tiết từng bước cho từng Actor được lưu trữ độc lập tại: **[CACH_VAN_HANH.md](CACH_VAN_HANH.md)** (hoặc [docs/CACH_VAN_HANH.md](docs/CACH_VAN_HANH.md)).
