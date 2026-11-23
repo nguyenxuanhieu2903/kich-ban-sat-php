@@ -71,8 +71,13 @@ class SchedulingController
         $startAt = trim((string) ($body['proposed_start_at'] ?? ''));
         $endAt = trim((string) ($body['proposed_end_at'] ?? ''));
 
-        if ($startAt === '' || $endAt === '') {
-            return Response::fail('Vui lòng chọn thời gian bắt đầu và kết thúc', 'VALIDATION_ERROR', 422);
+        if ($startAt === '') {
+            return Response::fail('Vui lòng chọn thời gian bắt đầu', 'VALIDATION_ERROR', 422);
+        }
+
+        // Tu dong tinh thoi gian ket thuc (+4 gio) neu khong duoc truyen hoac de trong
+        if ($endAt === '') {
+            $endAt = date('Y-m-d H:i:s', strtotime($startAt . ' +4 hours'));
         }
 
         if (strtotime($startAt) >= strtotime($endAt)) {

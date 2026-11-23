@@ -100,14 +100,18 @@
 
       <!-- Form đề xuất -->
       <form id="proposeForm" style="display: none; padding: 16px; background: rgba(13,12,11,0.6); border-radius: 4px; margin-bottom: 20px;">
-        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin-bottom: 12px;">
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin-bottom: 12px;">
           <div>
-            <label style="display: block; font-size: 0.85rem; margin-bottom: 4px;">Ngày bắt đầu</label>
+            <label style="display: block; font-size: 0.85rem; margin-bottom: 4px;">Ngày chơi *</label>
             <input type="date" id="propDate" class="form-control" style="width: 100%; padding: 8px; background: var(--bg-surface); color: white;" required />
           </div>
           <div>
-            <label style="display: block; font-size: 0.85rem; margin-bottom: 4px;">Giờ bắt đầu</label>
+            <label style="display: block; font-size: 0.85rem; margin-bottom: 4px;">Giờ bắt đầu *</label>
             <input type="time" id="propTime" class="form-control" value="14:00" style="width: 100%; padding: 8px; background: var(--bg-surface); color: white;" required />
+          </div>
+          <div>
+            <label style="display: block; font-size: 0.85rem; margin-bottom: 4px;">Giờ kết thúc *</label>
+            <input type="time" id="propEndTime" class="form-control" value="18:00" style="width: 100%; padding: 8px; background: var(--bg-surface); color: white;" required />
           </div>
           <div>
             <label style="display: block; font-size: 0.85rem; margin-bottom: 4px;">Chi nhánh</label>
@@ -117,7 +121,7 @@
             </select>
           </div>
         </div>
-        <button type="submit" class="btn btn-primary" style="font-size: 0.9rem;">Gửi Đề Xuất</button>
+        <button type="submit" class="btn btn-primary" style="font-size: 0.9rem;">Gửi Đề Xuất Lịch Chơi</button>
       </form>
 
       <div id="proposalsList">
@@ -148,6 +152,18 @@
     const slotsGrid = document.getElementById('slotsGrid');
     const btnTogglePropose = document.getElementById('btnTogglePropose');
     const proposeForm = document.getElementById('proposeForm');
+    const propDateInput = document.getElementById('propDate');
+    const propTimeInput = document.getElementById('propTime');
+    const propEndTimeInput = document.getElementById('propEndTime');
+
+    // Default proposal date to tomorrow to ensure future scheduling
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const tomorrowStr = tomorrow.toISOString().split('T')[0];
+    if (propDateInput) {
+      propDateInput.value = tomorrowStr;
+      propDateInput.min = tomorrowStr;
+    }
 
     btnTogglePropose.addEventListener('click', () => {
       proposeForm.style.display = proposeForm.style.display === 'none' ? 'block' : 'none';
@@ -155,18 +171,43 @@
 
     proposeForm.addEventListener('submit', async (e) => {
       e.preventDefault();
-      const date = document.getElementById('propDate').value;
-      const time = document.getElementById('propTime').value;
+      const date = propDateInput.value;
+      const startTime = propTimeInput.value;
+      const endTime = propEndTimeInput.value || '18:00';
       const venueId = document.getElementById('propVenue').value;
-      if (!date || !time) return;
-      const startAt = `${date} ${time}:00`;
+
+      if (!date || !startTime || !endTime) {
+        alert('Vui lòng chọn ngày, giờ bắt đầu và giờ kết thúc!');
+        return;
+      }
+
+      const startAt = `${date} ${startTime}:00`;
+      const endAt = `${date} ${endTime}:00`;
+
+      if (new Date(startAt) >= new Date(endAt)) {
+        alert('Giờ kết thúc phải diễn ra sau giờ bắt đầu!');
+        return;
+      }
+
       try {
-        const json = await apiClient.post(`/rooms/${roomId}/proposals`, { proposed_start_at: startAt, venue_id: Number(venueId) });
-        alert('Đã gửi đề xuất lịch thành công! Các thành viên sẽ cùng biểu quyết.');
+        const json = await apiClient.post(`/rooms/${roomId}/proposals`, {
+          proposed_start_at: startAt,
+          proposed_end_at: endAt,
+          venue_id: Number(venueId)
+        });
+        alert(`Đã gửi đề xuất lịch thành công! Khung giờ: ${startTime} - ${endTime} ngày ${date}. Các thành viên sẽ cùng biểu quyết.`);
         proposeForm.reset();
+        propDateInput.value = tomorrowStr;
+        propTimeInput.value = '14:00';
+        propEndTimeInput.value = '18:00';
         proposeForm.style.display = 'none';
         loadRoomDetail();
       } catch (err) {
+        if (err.status === 401) {
+          alert('Vui lòng đăng nhập tài khoản trước khi đề xuất lịch chơi!');
+          window.location.href = './auth.html';
+          return;
+        }
         alert(err.message || 'Đã ghi nhận đề xuất lịch chơi!');
         proposeForm.style.display = 'none';
       }
