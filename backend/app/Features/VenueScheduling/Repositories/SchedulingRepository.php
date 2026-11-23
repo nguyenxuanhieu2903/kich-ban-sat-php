@@ -159,6 +159,9 @@ class SchedulingRepository extends BaseRepository
             $stmt->bindValue(':buf2', max(0, $bufferMinutes), PDO::PARAM_INT);
             $stmt->bindValue(':buf3', max(0, $bufferMinutes), PDO::PARAM_INT);
             $stmt->bindValue(':buf4', max(0, $bufferMinutes), PDO::PARAM_INT);
+            if ($venueId !== null && $venueId > 0) {
+                $stmt->bindValue(':target_venue_id', $venueId, PDO::PARAM_INT);
+            }
             $stmt->execute();
 
             $result = $stmt->fetch(PDO::FETCH_ASSOC);

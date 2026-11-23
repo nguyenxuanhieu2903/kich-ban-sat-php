@@ -606,7 +606,19 @@ class SchedulingController
                     return Response::fail('Phòng vật lý được chọn đã có lịch trùng', 'PHYSICAL_ROOM_CONFLICT', 409);
                 }
             } else {
-                $availableRoom = $this->schedRepo->findAvailablePhysicalRoom(max(1, $participantCount), $startAt, $endAt, 30);
+                $targetVenueId = null;
+                $rVenueStmt = $this->pdo->prepare('SELECT `target_venue_id` FROM `game_rooms` WHERE `id` = :room_id LIMIT 1');
+                $rVenueStmt->bindValue(':room_id', $roomId, PDO::PARAM_INT);
+                $rVenueStmt->execute();
+                $tVid = (int) $rVenueStmt->fetchColumn();
+                $targetVenueId = $tVid > 0 ? $tVid : null;
+
+                $availableRoom = $targetVenueId !== null
+                    ? $this->schedRepo->findAvailablePhysicalRoom(max(1, $participantCount), $startAt, $endAt, 30, $targetVenueId)
+                    : null;
+                if ($availableRoom === null) {
+                    $availableRoom = $this->schedRepo->findAvailablePhysicalRoom(max(1, $participantCount), $startAt, $endAt, 30);
+                }
                 if ($availableRoom === null) {
                     $this->pdo->rollBack();
                     return Response::fail('Không còn phòng vật lý trống đủ sức chứa trong khung giờ này', 'PHYSICAL_ROOM_CONFLICT', 409);
