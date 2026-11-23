@@ -164,13 +164,19 @@ HTML;
     $router->post($prefix . '/admin/rooms/{id}/cancel', [AdminGameRoomController::class, 'cancel']);
 
     // =============================================================
-    // DOMAIN 4 & 5: SCHEDULING, VOTING & VENUES API
+    // DOMAIN 4 & 5: SCHEDULING, PROPOSALS & VENUES API
     // =============================================================
     $router->get($prefix . '/venues', [SchedulingController::class, 'venues']);
     $router->post($prefix . '/rooms/{id}/proposals', [SchedulingController::class, 'propose']);
+    $router->get($prefix . '/proposals', [SchedulingController::class, 'listProposals']);
+    $router->get($prefix . '/admin/proposals', [SchedulingController::class, 'listProposals']);
     $router->get($prefix . '/proposals/{id}', [SchedulingController::class, 'showProposal']);
     $router->post($prefix . '/proposals/{id}/vote', [SchedulingController::class, 'vote']);
     $router->post($prefix . '/scheduling/proposals/{id}/vote', [SchedulingController::class, 'vote']);
+    $router->post($prefix . '/proposals/{id}/approve', [SchedulingController::class, 'approveProposal']);
+    $router->post($prefix . '/admin/proposals/{id}/approve', [SchedulingController::class, 'approveProposal']);
+    $router->post($prefix . '/proposals/{id}/reject', [SchedulingController::class, 'rejectProposal']);
+    $router->post($prefix . '/admin/proposals/{id}/reject', [SchedulingController::class, 'rejectProposal']);
 
     // =============================================================
     // DOMAIN 6: DM ASSIGNMENT API

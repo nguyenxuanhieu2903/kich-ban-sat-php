@@ -447,6 +447,317 @@ class SchedulingController
     }
 
     /**
+     * GET /api/v1/proposals hoặc GET /api/v1/admin/proposals
+     * Lấy danh sách đề xuất lịch chơi (hỗ trợ lọc theo status, room_id)
+     */
+    public function listProposals(Request $request): Response
+    {
+        $queryParams = $request->getQueryParams();
+        $status = trim((string) ($queryParams['status'] ?? ''));
+        $roomId = (int) ($queryParams['room_id'] ?? 0);
+
+        $sql = 'SELECT sp.`id`, sp.`game_room_id`, sp.`proposed_by`, sp.`proposed_start_at`, sp.`proposed_end_at`,
+                       sp.`status`, sp.`expires_at`, sp.`confirmed_at`, sp.`rejected_at`, sp.`created_at`,
+                       u.`full_name` AS `proposer_name`, u.`email` AS `proposer_email`,
+                       gr.`title` AS `room_title`, gr.`status` AS `room_status`,
+                       g.`name` AS `game_name`
+                FROM `schedule_proposals` sp
+                INNER JOIN `users` u ON u.`id` = sp.`proposed_by`
+                INNER JOIN `game_rooms` gr ON gr.`id` = sp.`game_room_id`
+                INNER JOIN `games` g ON g.`id` = gr.`game_id`
+                WHERE 1=1';
+
+        $params = [];
+        if ($status !== '') {
+            $sql .= ' AND sp.`status` = :status';
+            $params[':status'] = $status;
+        }
+        if ($roomId > 0) {
+            $sql .= ' AND sp.`game_room_id` = :room_id';
+            $params[':room_id'] = $roomId;
+        }
+
+        $sql .= ' ORDER BY sp.`id` DESC';
+
+        $stmt = $this->pdo->prepare($sql);
+        foreach ($params as $k => $v) {
+            $stmt->bindValue($k, $v);
+        }
+        $stmt->execute();
+        $proposals = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        return Response::success([
+            'proposals' => $proposals,
+            'total' => count($proposals),
+        ], 'Danh sách đơn đề xuất lịch chơi');
+    }
+
+    /**
+     * POST /api/v1/admin/proposals/{id}/approve hoặc POST /api/v1/proposals/{id}/approve
+     * Quản trị viên (Admin) hoặc Quản trò (DM) phê duyệt đơn đề xuất lịch chơi,
+     * tự động xếp phòng vật lý, phân công DM, chốt Session và kích hoạt thu cọc.
+     */
+    public function approveProposal(Request $request, string $id): Response
+    {
+        $auth = AuthMiddleware::authenticate($request, ['ADMIN', 'DM']);
+        if ($auth instanceof Response) {
+            return $auth;
+        }
+
+        $proposalId = (int) $id;
+        $body = $request->getBodyParams();
+
+        $this->pdo->beginTransaction();
+        try {
+            // Khóa proposal FOR UPDATE
+            $pStmt = $this->pdo->prepare(
+                'SELECT `id`, `game_room_id`, `status`, `proposed_start_at`, `proposed_end_at`, `expires_at`
+                 FROM `schedule_proposals`
+                 WHERE `id` = :id
+                 LIMIT 1 FOR UPDATE'
+            );
+            $pStmt->bindValue(':id', $proposalId, PDO::PARAM_INT);
+            $pStmt->execute();
+            $proposal = $pStmt->fetch(PDO::FETCH_ASSOC);
+
+            if ($proposal === false) {
+                $this->pdo->rollBack();
+                return Response::fail('Đề xuất lịch chơi không tồn tại', 'PROPOSAL_NOT_FOUND', 404);
+            }
+
+            if ($proposal['status'] !== 'PROPOSED') {
+                $this->pdo->rollBack();
+                return Response::fail('Đơn đề xuất này không ở trạng thái chờ duyệt (Trạng thái: ' . $proposal['status'] . ')', 'PROPOSAL_NOT_PENDING', 400);
+            }
+
+            $roomId = (int) $proposal['game_room_id'];
+            $startAt = (string) $proposal['proposed_start_at'];
+            $endAt = (string) $proposal['proposed_end_at'];
+
+            // Khóa game_room FOR UPDATE
+            $rStmt = $this->pdo->prepare('SELECT `id`, `title`, `status` FROM `game_rooms` WHERE `id` = :room_id FOR UPDATE');
+            $rStmt->bindValue(':room_id', $roomId, PDO::PARAM_INT);
+            $rStmt->execute();
+            $room = $rStmt->fetch(PDO::FETCH_ASSOC);
+
+            if ($room === false) {
+                $this->pdo->rollBack();
+                return Response::fail('Không tìm thấy phòng chơi liên kết', 'ROOM_NOT_FOUND', 404);
+            }
+
+            // Đếm số người chơi active trong phòng
+            $partStmt = $this->pdo->prepare(
+                'SELECT COUNT(*) FROM `room_participants`
+                 WHERE `game_room_id` = :room_id
+                   AND `status` IN (\'PENDING_DEPOSIT\', \'DEPOSITED\', \'LEAVE_REQUESTED\')'
+            );
+            $partStmt->bindValue(':room_id', $roomId, PDO::PARAM_INT);
+            $partStmt->execute();
+            $participantCount = (int) $partStmt->fetchColumn();
+
+            // 1. Xác định hoặc tự động xếp phòng chơi vật lý
+            $physicalRoomId = (int) ($body['physical_room_id'] ?? 0);
+            $venueId = (int) ($body['venue_id'] ?? 0);
+
+            if ($physicalRoomId > 0 && $venueId > 0) {
+                $conflict = $this->schedRepo->hasPhysicalRoomConflict($physicalRoomId, date('Y-m-d', strtotime($startAt)), date('H:i:s', strtotime($startAt)), date('H:i:s', strtotime($endAt)));
+                if ($conflict) {
+                    $this->pdo->rollBack();
+                    return Response::fail('Phòng vật lý được chọn đã có lịch trùng', 'PHYSICAL_ROOM_CONFLICT', 409);
+                }
+            } else {
+                $availableRoom = $this->schedRepo->findAvailablePhysicalRoom(max(1, $participantCount), $startAt, $endAt, 30);
+                if ($availableRoom === null) {
+                    $this->pdo->rollBack();
+                    return Response::fail('Không còn phòng vật lý trống đủ sức chứa trong khung giờ này', 'PHYSICAL_ROOM_CONFLICT', 409);
+                }
+                $physicalRoomId = (int) $availableRoom['id'];
+                $venueId = (int) $availableRoom['venue_id'];
+            }
+
+            // 2. Xác định hoặc phân công Quản trò (DM)
+            $callerRole = strtoupper((string) ($auth['role_code'] ?? 'ADMIN'));
+            $dmUserId = (int) ($body['dm_user_id'] ?? 0);
+
+            if ($dmUserId <= 0) {
+                if ($callerRole === 'DM') {
+                    $dmUserId = (int) $auth['id'];
+                } else {
+                    $dmCheck = $this->pdo->prepare(
+                        'SELECT `dm_user_id` FROM `dm_assignments`
+                         WHERE `game_room_id` = :room_id AND `status` IN (\'PENDING\', \'ACCEPTED\')
+                         ORDER BY `id` DESC LIMIT 1'
+                    );
+                    $dmCheck->bindValue(':room_id', $roomId, PDO::PARAM_INT);
+                    $dmCheck->execute();
+                    $existingDmId = $dmCheck->fetchColumn();
+
+                    if ($existingDmId !== false) {
+                        $dmUserId = (int) $existingDmId;
+                    } else {
+                        $autoDm = $this->schedRepo->findAvailableDmUserId($startAt, $endAt, 30);
+                        if ($autoDm !== null) {
+                            $dmUserId = $autoDm;
+                        } else {
+                            $fallbackDmStmt = $this->pdo->query('SELECT u.`id` FROM `users` u INNER JOIN `roles` r ON r.`id` = u.`role_id` WHERE r.`code` = \'DM\' AND u.`status` = \'ACTIVE\' LIMIT 1');
+                            $fallbackDmId = $fallbackDmStmt->fetchColumn();
+                            $dmUserId = $fallbackDmId !== false ? (int) $fallbackDmId : (int) $auth['id'];
+                        }
+                    }
+                }
+            }
+
+            // Tạo hoặc cập nhật dm_assignments
+            $dmAssignStmt = $this->pdo->prepare(
+                'SELECT `id` FROM `dm_assignments`
+                 WHERE `game_room_id` = :room_id AND `dm_user_id` = :dm_user_id
+                 ORDER BY `id` DESC LIMIT 1'
+            );
+            $dmAssignStmt->bindValue(':room_id', $roomId, PDO::PARAM_INT);
+            $dmAssignStmt->bindValue(':dm_user_id', $dmUserId, PDO::PARAM_INT);
+            $dmAssignStmt->execute();
+            $dmAssignmentId = $dmAssignStmt->fetchColumn();
+
+            if ($dmAssignmentId === false) {
+                $insDm = $this->pdo->prepare(
+                    'INSERT INTO `dm_assignments` (`game_room_id`, `dm_user_id`, `assigned_by`, `status`, `assigned_at`, `created_at`, `updated_at`)
+                     VALUES (:room_id, :dm_user_id, :assigned_by, \'ACCEPTED\', NOW(), NOW(), NOW())'
+                );
+                $insDm->bindValue(':room_id', $roomId, PDO::PARAM_INT);
+                $insDm->bindValue(':dm_user_id', $dmUserId, PDO::PARAM_INT);
+                $insDm->bindValue(':assigned_by', (int) $auth['id'], PDO::PARAM_INT);
+                $insDm->execute();
+                $dmAssignmentId = (int) $this->pdo->lastInsertId();
+            } else {
+                $dmAssignmentId = (int) $dmAssignmentId;
+                $upDm = $this->pdo->prepare('UPDATE `dm_assignments` SET `status` = \'ACCEPTED\', `updated_at` = NOW() WHERE `id` = :id');
+                $upDm->bindValue(':id', $dmAssignmentId, PDO::PARAM_INT);
+                $upDm->execute();
+            }
+
+            // 3. Cập nhật Proposal -> CONFIRMED
+            $upProp = $this->pdo->prepare('UPDATE `schedule_proposals` SET `status` = \'CONFIRMED\', `confirmed_at` = NOW() WHERE `id` = :id');
+            $upProp->bindValue(':id', $proposalId, PDO::PARAM_INT);
+            $upProp->execute();
+
+            // 4. Tạo hoặc cập nhật Session chính thức
+            $sessStmt = $this->pdo->prepare('SELECT `id` FROM `sessions` WHERE `game_room_id` = :room_id LIMIT 1');
+            $sessStmt->bindValue(':room_id', $roomId, PDO::PARAM_INT);
+            $sessStmt->execute();
+            $existingSessionId = $sessStmt->fetchColumn();
+
+            if ($existingSessionId === false) {
+                $insSess = $this->pdo->prepare(
+                    'INSERT INTO `sessions` (`game_room_id`, `schedule_proposal_id`, `dm_assignment_id`, `venue_id`, `physical_room_id`, `start_at`, `end_at`, `status`, `created_at`, `updated_at`)
+                     VALUES (:room_id, :proposal_id, :dm_id, :venue_id, :physical_room_id, :start_at, :end_at, \'SCHEDULED\', NOW(), NOW())'
+                );
+                $insSess->bindValue(':room_id', $roomId, PDO::PARAM_INT);
+                $insSess->bindValue(':proposal_id', $proposalId, PDO::PARAM_INT);
+                $insSess->bindValue(':dm_id', $dmAssignmentId, PDO::PARAM_INT);
+                $insSess->bindValue(':venue_id', $venueId, PDO::PARAM_INT);
+                $insSess->bindValue(':physical_room_id', $physicalRoomId, PDO::PARAM_INT);
+                $insSess->bindValue(':start_at', $startAt, PDO::PARAM_STR);
+                $insSess->bindValue(':end_at', $endAt, PDO::PARAM_STR);
+                $insSess->execute();
+                $sessionId = (int) $this->pdo->lastInsertId();
+            } else {
+                $sessionId = (int) $existingSessionId;
+                $upSess = $this->pdo->prepare(
+                    'UPDATE `sessions`
+                     SET `schedule_proposal_id` = :proposal_id, `dm_assignment_id` = :dm_id,
+                         `venue_id` = :venue_id, `physical_room_id` = :physical_room_id,
+                         `start_at` = :start_at, `end_at` = :end_at, `status` = \'SCHEDULED\', `updated_at` = NOW()
+                     WHERE `id` = :id'
+                );
+                $upSess->bindValue(':proposal_id', $proposalId, PDO::PARAM_INT);
+                $upSess->bindValue(':dm_id', $dmAssignmentId, PDO::PARAM_INT);
+                $upSess->bindValue(':venue_id', $venueId, PDO::PARAM_INT);
+                $upSess->bindValue(':physical_room_id', $physicalRoomId, PDO::PARAM_INT);
+                $upSess->bindValue(':start_at', $startAt, PDO::PARAM_STR);
+                $upSess->bindValue(':end_at', $endAt, PDO::PARAM_STR);
+                $upSess->bindValue(':id', $sessionId, PDO::PARAM_INT);
+                $upSess->execute();
+            }
+
+            // 5. Cập nhật trạng thái phòng -> SCHEDULED
+            $upRoom = $this->pdo->prepare('UPDATE `game_rooms` SET `status` = \'SCHEDULED\', `updated_at` = NOW() WHERE `id` = :room_id');
+            $upRoom->bindValue(':room_id', $roomId, PDO::PARAM_INT);
+            $upRoom->execute();
+
+            // 6. Tự động sinh hóa đơn cọc (50.000đ/người)
+            $this->paymentRepo->ensureDepositPaymentsForRoom($roomId, PricingService::DEPOSIT_PER_PERSON, 2);
+
+            $this->pdo->commit();
+
+            return Response::success([
+                'proposal_id' => $proposalId,
+                'status' => 'CONFIRMED',
+                'session_id' => $sessionId,
+                'venue_id' => $venueId,
+                'physical_room_id' => $physicalRoomId,
+                'dm_user_id' => $dmUserId,
+                'dm_assignment_id' => $dmAssignmentId,
+            ], 'Đã phê duyệt đơn đề xuất lịch chơi, chỉ định phòng vật lý & phân công quản trò thành công');
+        } catch (\Throwable $e) {
+            if ($this->pdo->inTransaction()) {
+                $this->pdo->rollBack();
+            }
+            throw $e;
+        }
+    }
+
+    /**
+     * POST /api/v1/admin/proposals/{id}/reject hoặc POST /api/v1/proposals/{id}/reject
+     * Quản trị viên (Admin) hoặc Quản trò (DM) từ chối đơn đề xuất lịch chơi
+     */
+    public function rejectProposal(Request $request, string $id): Response
+    {
+        $auth = AuthMiddleware::authenticate($request, ['ADMIN', 'DM']);
+        if ($auth instanceof Response) {
+            return $auth;
+        }
+
+        $proposalId = (int) $id;
+        $body = $request->getBodyParams();
+        $reason = trim((string) ($body['reason'] ?? 'Không phù hợp lịch hoặc phòng'));
+
+        $this->pdo->beginTransaction();
+        try {
+            $pStmt = $this->pdo->prepare('SELECT `id`, `status` FROM `schedule_proposals` WHERE `id` = :id FOR UPDATE');
+            $pStmt->bindValue(':id', $proposalId, PDO::PARAM_INT);
+            $pStmt->execute();
+            $proposal = $pStmt->fetch(PDO::FETCH_ASSOC);
+
+            if ($proposal === false) {
+                $this->pdo->rollBack();
+                return Response::fail('Đề xuất lịch chơi không tồn tại', 'PROPOSAL_NOT_FOUND', 404);
+            }
+
+            if ($proposal['status'] !== 'PROPOSED') {
+                $this->pdo->rollBack();
+                return Response::fail('Đơn đề xuất này không ở trạng thái chờ duyệt (Trạng thái: ' . $proposal['status'] . ')', 'PROPOSAL_NOT_PENDING', 400);
+            }
+
+            $rejStmt = $this->pdo->prepare('UPDATE `schedule_proposals` SET `status` = \'REJECTED\', `rejected_at` = NOW() WHERE `id` = :id');
+            $rejStmt->bindValue(':id', $proposalId, PDO::PARAM_INT);
+            $rejStmt->execute();
+
+            $this->pdo->commit();
+
+            return Response::success([
+                'proposal_id' => $proposalId,
+                'status' => 'REJECTED',
+                'reason' => $reason,
+            ], 'Đã từ chối đơn đề xuất lịch chơi thành công');
+        } catch (\Throwable $e) {
+            if ($this->pdo->inTransaction()) {
+                $this->pdo->rollBack();
+            }
+            throw $e;
+        }
+    }
+
+    /**
      * Resolve current user ID from session or header.
      */
     protected function resolveCurrentUserId(Request $request): ?int

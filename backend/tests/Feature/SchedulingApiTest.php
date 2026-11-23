@@ -131,4 +131,131 @@ class SchedulingApiTest extends TestCase
         $this->assertTrue($voteData['data']['proposal_confirmed']);
         $this->assertNotNull($voteData['data']['session_id']);
     }
+
+    public function testAdminAndDmCanManageAndApproveProposals(): void
+    {
+        // 1. Tạo phòng mới với User 3 (Player)
+        $createReq = new Request(
+            method: 'POST',
+            path: '/api/rooms',
+            queryParams: [],
+            bodyParams: [
+                'game_id' => 1,
+                'title' => 'Phòng test admin & dm duyệt đề xuất',
+            ],
+            headers: [
+                'Authorization' => 'Bearer 3',
+            ]
+        );
+        $createRes = $this->app->dispatch($createReq);
+        $createData = json_decode($createRes->getContent(), true);
+        $roomId = (int) $createData['data']['room']['id'];
+
+        // 2. User 3 tạo đề xuất lịch
+        $start = date('Y-m-d H:i:s', strtotime('+35 days 14:00:00'));
+        $end = date('Y-m-d H:i:s', strtotime('+35 days 18:00:00'));
+
+        $propReq = new Request(
+            method: 'POST',
+            path: "/api/rooms/{$roomId}/proposals",
+            queryParams: [],
+            bodyParams: [
+                'proposed_start_at' => $start,
+                'proposed_end_at' => $end,
+            ],
+            headers: [
+                'Authorization' => 'Bearer 3',
+            ]
+        );
+        $propRes = $this->app->dispatch($propReq);
+        $propData = json_decode($propRes->getContent(), true);
+        $proposalId = (int) $propData['data']['proposal_id'];
+
+        // 3. User thường (User 4) không có quyền duyệt đề xuất -> 403 Forbidden
+        $unauthApprove = new Request(
+            method: 'POST',
+            path: "/api/admin/proposals/{$proposalId}/approve",
+            queryParams: [],
+            bodyParams: [],
+            headers: [
+                'Authorization' => 'Bearer 4',
+            ]
+        );
+        $unauthRes = $this->app->dispatch($unauthApprove);
+        $this->assertSame(403, $unauthRes->getStatusCode());
+
+        // 4. Admin (User 1) lấy danh sách đề xuất đang chờ
+        $listReq = new Request(
+            method: 'GET',
+            path: '/api/admin/proposals',
+            queryParams: ['status' => 'PROPOSED'],
+            bodyParams: [],
+            headers: [
+                'Authorization' => 'Bearer 1',
+            ]
+        );
+        $listRes = $this->app->dispatch($listReq);
+        $this->assertSame(200, $listRes->getStatusCode());
+        $listData = json_decode($listRes->getContent(), true);
+        $this->assertTrue($listData['success']);
+        $this->assertNotEmpty($listData['data']['proposals']);
+
+        // 5. Admin (User 1) duyệt đề xuất lịch
+        $approveReq = new Request(
+            method: 'POST',
+            path: "/api/admin/proposals/{$proposalId}/approve",
+            queryParams: [],
+            bodyParams: [],
+            headers: [
+                'Authorization' => 'Bearer 1',
+            ]
+        );
+        $approveRes = $this->app->dispatch($approveReq);
+        $this->assertSame(200, $approveRes->getStatusCode());
+        $approveData = json_decode($approveRes->getContent(), true);
+        $this->assertTrue($approveData['success']);
+        $this->assertSame('CONFIRMED', $approveData['data']['status']);
+        $this->assertNotNull($approveData['data']['session_id']);
+
+        // 6. Tạo đề xuất khác để kiểm tra DM từ chối
+        $start2 = date('Y-m-d H:i:s', strtotime('+36 days 09:00:00'));
+        $end2 = date('Y-m-d H:i:s', strtotime('+36 days 13:00:00'));
+        $createReq2 = new Request(
+            method: 'POST',
+            path: '/api/rooms',
+            queryParams: [],
+            bodyParams: [
+                'game_id' => 1,
+                'title' => 'Phòng test DM từ chối đề xuất',
+            ],
+            headers: ['Authorization' => 'Bearer 3']
+        );
+        $roomId2 = (int) json_decode($this->app->dispatch($createReq2)->getContent(), true)['data']['room']['id'];
+
+        $propReq2 = new Request(
+            method: 'POST',
+            path: "/api/rooms/{$roomId2}/proposals",
+            queryParams: [],
+            bodyParams: [
+                'proposed_start_at' => $start2,
+                'proposed_end_at' => $end2,
+            ],
+            headers: ['Authorization' => 'Bearer 3']
+        );
+        $propId2 = (int) json_decode($this->app->dispatch($propReq2)->getContent(), true)['data']['proposal_id'];
+
+        // DM (User 2) từ chối đề xuất
+        $rejectReq = new Request(
+            method: 'POST',
+            path: "/api/proposals/{$propId2}/reject",
+            queryParams: [],
+            bodyParams: ['reason' => 'Trùng lịch phòng và kịch bản'],
+            headers: ['Authorization' => 'Bearer 2']
+        );
+        $rejectRes = $this->app->dispatch($rejectReq);
+        $this->assertSame(200, $rejectRes->getStatusCode());
+        $rejectData = json_decode($rejectRes->getContent(), true);
+        $this->assertTrue($rejectData['success']);
+        $this->assertSame('REJECTED', $rejectData['data']['status']);
+    }
 }

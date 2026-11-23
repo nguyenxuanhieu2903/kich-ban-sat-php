@@ -90,7 +90,7 @@
       <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 8px;">
         <div>
           <h3>Lịch Chơi & Địa Điểm Đề Xuất</h3>
-          <p style="font-size: 0.85rem; color: var(--text-muted);">Tất cả thành viên cùng biểu quyết để chốt khung giờ chính thức</p>
+          <p style="font-size: 0.85rem; color: var(--text-muted);">Người chơi gửi đơn đề xuất khung giờ & địa điểm; Quản trị viên (Admin) hoặc Quản trò (DM) sẽ thẩm định, xếp phòng và phê duyệt chính thức</p>
         </div>
         <button type="button" class="btn btn-outline" id="btnTogglePropose" style="font-size: 0.85rem;">+ Đề Xuất Lịch Mới</button>
       </div>
@@ -255,14 +255,45 @@
       }
     };
 
+    window.approveProposal = async function(propId) {
+      if (!confirm('Xác nhận phê duyệt đề xuất lịch này? Hệ thống sẽ tự động xếp phòng vật lý, chỉ định quản trò và chốt lịch thi đấu.')) {
+        return;
+      }
+      try {
+        const json = await apiClient.post(`/admin/proposals/${propId}/approve`);
+        alert(json.message || 'Đã duyệt đề xuất lịch chơi và chốt lịch thành công!');
+        loadRoomDetail();
+      } catch (err) {
+        alert(err.message || 'Không thể phê duyệt đề xuất lịch');
+        loadRoomDetail();
+      }
+    };
+
+    window.rejectProposal = async function(propId) {
+      const reason = prompt('Nhập lý do từ chối đề xuất lịch này:', 'Trùng phòng vật lý hoặc lịch quản trò bận');
+      if (reason === null) return;
+      try {
+        const json = await apiClient.post(`/admin/proposals/${propId}/reject`, { reason });
+        alert(json.message || 'Đã từ chối đề xuất lịch thành công!');
+        loadRoomDetail();
+      } catch (err) {
+        alert(err.message || 'Không thể từ chối đề xuất lịch');
+        loadRoomDetail();
+      }
+    };
+
     async function loadRoomDetail() {
       let currentUserId = null;
+      let currentUserRole = (localStorage.getItem('kbs_demo_role') || 'player').toUpperCase();
       try {
         const me = await apiClient.get('/auth/me');
         if (me.success && me.data && me.data.user) {
           currentUserId = me.data.user.id;
+          currentUserRole = String(me.data.user.role_code || me.data.user.role || currentUserRole).toUpperCase();
         }
       } catch (e) {}
+
+      const isAdminOrDm = currentUserRole === 'ADMIN' || currentUserRole === 'DM';
 
       try {
         const json = await apiClient.get(`/rooms/${roomId}`);
@@ -333,6 +364,45 @@
             proposalsList.innerHTML = proposals.map(p => {
               const isClosed = p.status === 'CONFIRMED' || p.status === 'EXPIRED' || p.status === 'REJECTED';
               const timeDisplay = `${p.proposed_start_at} - ${p.proposed_end_at ? p.proposed_end_at.split(' ')[1] : ''}`;
+              
+              let actionHtml = '';
+              if (isAdminOrDm) {
+                if (p.status === 'PROPOSED') {
+                  actionHtml = `
+                    <button type="button" class="btn btn-primary" style="font-size: 0.85rem;" onclick="approveProposal(${p.id})">Duyệt & Chốt Lịch</button>
+                    <button type="button" class="btn btn-outline" style="font-size: 0.85rem;" onclick="rejectProposal(${p.id})">Từ Chối</button>
+                  `;
+                } else if (p.status === 'CONFIRMED') {
+                  actionHtml = `<span style="font-size: 0.85rem; color: #4ade80;">Đã phê duyệt & chốt session</span>`;
+                } else if (p.status === 'REJECTED') {
+                  actionHtml = `<span style="font-size: 0.85rem; color: #f87171;">Đã từ chối đơn</span>`;
+                } else {
+                  actionHtml = `<span style="font-size: 0.85rem; color: var(--text-muted);">${p.status}</span>`;
+                }
+              } else {
+                if (p.status === 'PROPOSED') {
+                  actionHtml = `
+                    <span style="font-size: 0.85rem; color: var(--color-gold); background: rgba(201,162,94,0.1); padding: 5px 12px; border-radius: 4px; border: 1px solid rgba(201,162,94,0.3);">
+                      Chờ Admin / DM Phê Duyệt
+                    </span>
+                  `;
+                } else if (p.status === 'CONFIRMED') {
+                  actionHtml = `
+                    <span style="font-size: 0.85rem; color: #4ade80; background: rgba(74,222,128,0.1); padding: 5px 12px; border-radius: 4px; border: 1px solid rgba(74,222,128,0.3);">
+                      Đã Được Phê Duyệt
+                    </span>
+                  `;
+                } else if (p.status === 'REJECTED') {
+                  actionHtml = `
+                    <span style="font-size: 0.85rem; color: #f87171; background: rgba(248,113,113,0.1); padding: 5px 12px; border-radius: 4px; border: 1px solid rgba(248,113,113,0.3);">
+                      Đã Bị Từ Chối
+                    </span>
+                  `;
+                } else {
+                  actionHtml = `<span style="font-size: 0.85rem; color: var(--text-muted);">${p.status}</span>`;
+                }
+              }
+
               return `
                 <div style="padding: 16px; border: 1px solid rgba(201,162,94,0.3); border-radius: 4px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 12px;">
                   <div>
@@ -342,13 +412,8 @@
                     </p>
                     <span class="stamp-badge ${p.status === 'CONFIRMED' ? 'open' : ''}" style="margin-top: 6px;">${p.status}</span>
                   </div>
-                  <div style="display: flex; gap: 8px;">
-                    ${!isClosed ? `
-                      <button type="button" class="btn btn-primary" onclick="voteProposal(${p.id}, 'YES')">Đồng Ý (Yes)</button>
-                      <button type="button" class="btn btn-outline" onclick="voteProposal(${p.id}, 'NO')">Không Tiện (No)</button>
-                    ` : `
-                      <span style="font-size: 0.85rem; color: var(--text-muted);">Biểu quyết đã hoàn tất</span>
-                    `}
+                  <div style="display: flex; gap: 8px; align-items: center;">
+                    ${actionHtml}
                   </div>
                 </div>
               `;

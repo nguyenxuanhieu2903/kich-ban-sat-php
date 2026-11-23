@@ -71,6 +71,23 @@
       <p style="text-align: center; padding: 30px 0; color: var(--text-muted);">Đang tải danh sách ca phân công...</p>
     </div>
 
+    <!-- Pending Proposals for DM Card -->
+    <div class="ticket-card" style="margin-top: 24px; margin-bottom: 24px;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+        <div>
+          <h3>Đơn Đề Xuất Lịch Chơi Cần Quản Trò Thẩm Định & Nhận Ca</h3>
+          <p style="font-size: 0.85rem; color: var(--text-muted); margin-top: 2px;">
+            Quản trò (DM) có thể duyệt đơn đề xuất lịch của người chơi, nhận ca dẫn phiên và chốt lịch chơi
+          </p>
+        </div>
+        <span class="stamp-badge open">PROPOSAL REVIEW</span>
+      </div>
+
+      <div id="dmProposalsContainer">
+        <p style="text-align: center; padding: 20px 0; color: var(--text-muted);">Đang tải danh sách đơn đề xuất lịch...</p>
+      </div>
+    </div>
+
     <!-- Quick Clues & Script Info -->
     <div class="ticket-card" style="margin-top: 24px;">
       <h3 style="margin-bottom: 12px;">Tài Liệu Hỗ Trợ Quản Trò (DM Quick Reference)</h3>
@@ -319,7 +336,81 @@
       }
     }
 
-    loadDmAssignments();
+    window.approveProposalByDm = async function(propId) {
+      if (!confirm('Bạn có đồng ý nhận ca dẫn truyện và phê duyệt đề xuất lịch này không? Hệ thống sẽ gán bạn làm Quản trò chính của phiên chơi.')) {
+        return;
+      }
+      try {
+        const json = await apiClient.post(`/proposals/${propId}/approve`);
+        alert(json.message || 'Đã nhận ca và phê duyệt đề xuất lịch thành công!');
+        loadDmDashboard();
+      } catch (err) {
+        alert(err.message || 'Không thể phê duyệt đề xuất');
+      }
+    };
+
+    window.rejectProposalByDm = async function(propId) {
+      const reason = prompt('Nhập lý do từ chối đơn đề xuất lịch:', 'Trùng lịch bận cá nhân');
+      if (reason === null) return;
+      try {
+        const json = await apiClient.post(`/proposals/${propId}/reject`, { reason });
+        alert(json.message || 'Đã từ chối đơn đề xuất lịch!');
+        loadDmDashboard();
+      } catch (err) {
+        alert(err.message || 'Không thể từ chối đề xuất');
+      }
+    };
+
+    async function loadDmProposals() {
+      const dmProposalsContainer = document.getElementById('dmProposalsContainer');
+      if (!dmProposalsContainer) return;
+      try {
+        const res = await apiClient.get('/proposals?status=PROPOSED');
+        const proposals = res.data?.proposals || [];
+
+        if (proposals.length === 0) {
+          dmProposalsContainer.innerHTML = `
+            <div style="padding: 20px; text-align: center; border: 1px dashed rgba(201,162,94,0.3); border-radius: 4px; color: var(--text-muted); font-size: 0.9rem;">
+              Hiện không có đơn đề xuất lịch chơi nào đang chờ duyệt.
+            </div>
+          `;
+          return;
+        }
+
+        dmProposalsContainer.innerHTML = proposals.map(p => {
+          const time = `${p.proposed_start_at} - ${p.proposed_end_at ? p.proposed_end_at.split(' ')[1] : ''}`;
+          return `
+            <div style="padding: 14px; border: 1px solid rgba(201,162,94,0.3); border-radius: 4px; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+              <div>
+                <strong>#PP-${p.id}: Phòng #${p.game_room_id} — ${p.room_title || 'Phòng Chơi'}</strong>
+                <p style="font-size: 0.85rem; color: var(--text-muted); margin-top: 2px;">
+                  Kịch bản: <strong>${p.game_name || 'Kịch bản trinh thám'}</strong> • Người đề xuất: ${p.proposer_name || 'Thành viên'}
+                </p>
+                <p style="font-size: 0.85rem; color: var(--color-gold); margin-top: 2px;">
+                  Thời gian: ${time}
+                </p>
+              </div>
+              <div style="display: flex; gap: 8px;">
+                <button type="button" class="btn btn-primary" style="font-size: 0.85rem;" onclick="approveProposalByDm(${p.id})">Nhận Ca & Duyệt Lịch</button>
+                <button type="button" class="btn btn-outline" style="font-size: 0.85rem;" onclick="rejectProposalByDm(${p.id})">Từ Chối</button>
+              </div>
+            </div>
+          `;
+        }).join('');
+      } catch (e) {
+        dmProposalsContainer.innerHTML = `
+          <div style="padding: 16px; text-align: center; color: var(--text-muted);">
+            Không thể tải danh sách đề xuất lịch.
+          </div>
+        `;
+      }
+    }
+
+    async function loadDmDashboard() {
+      await Promise.all([loadDmAssignments(), loadDmProposals()]);
+    }
+
+    loadDmDashboard();
   </script>
 </body>
 </html>

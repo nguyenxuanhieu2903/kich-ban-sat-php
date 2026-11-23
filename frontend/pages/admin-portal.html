@@ -135,6 +135,39 @@
       </div>
     </div>
 
+    <!-- Schedule Proposals Management Card -->
+    <div class="ticket-card" style="margin-bottom: 24px;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+        <div>
+          <h3>Quản Lý & Duyệt Đơn Đề Xuất Lịch Chơi (Schedule Proposals)</h3>
+          <p style="font-size: 0.85rem; color: var(--text-muted); margin-top: 2px;">
+            Thẩm định khung giờ người chơi đề xuất, chỉ định phòng vật lý, phân công quản trò và chốt lịch chơi
+          </p>
+        </div>
+        <span class="stamp-badge open">PROPOSAL APPROVAL</span>
+      </div>
+
+      <div style="overflow-x: auto;">
+        <table class="admin-table">
+          <thead>
+            <tr>
+              <th>Mã Đơn</th>
+              <th>Phòng & Kịch Bản</th>
+              <th>Người Đề Xuất</th>
+              <th>Khung Giờ Đề Xuất</th>
+              <th>Trạng Thái</th>
+              <th>Thao Tác Quản Trị</th>
+            </tr>
+          </thead>
+          <tbody id="proposalsTableBody">
+            <tr>
+              <td colspan="6" style="text-align: center; padding: 20px; color: var(--text-muted);">Đang tải danh sách đơn đề xuất lịch...</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
     <!-- Student Verification & Audit Logs -->
     <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(360px, 1fr)); gap: 24px;">
       <!-- Student Card Approval -->
@@ -408,9 +441,102 @@
       } catch (e) {}
     }
 
+    window.approveProposal = async function(propId) {
+      if (!confirm('Xác nhận phê duyệt đơn đề xuất lịch này? Hệ thống sẽ tự động xếp phòng vật lý trống, chỉ định quản trò và chốt lịch chơi.')) {
+        return;
+      }
+      try {
+        const json = await apiClient.post(`/admin/proposals/${propId}/approve`);
+        alert(json.message || 'Đã duyệt đơn đề xuất lịch chơi và chốt lịch thành công!');
+        loadAdminDashboard();
+      } catch (err) {
+        alert(err.message || 'Không thể phê duyệt đơn đề xuất');
+      }
+    };
+
+    window.rejectProposal = async function(propId) {
+      const reason = prompt('Nhập lý do từ chối đơn đề xuất lịch:', 'Trùng lịch phòng hoặc không đủ quản trò');
+      if (reason === null) return;
+      try {
+        const json = await apiClient.post(`/admin/proposals/${propId}/reject`, { reason });
+        alert(json.message || 'Đã từ chối đơn đề xuất lịch thành công!');
+        loadAdminDashboard();
+      } catch (err) {
+        alert(err.message || 'Không thể từ chối đơn đề xuất');
+      }
+    };
+
+    async function loadProposals() {
+      const proposalsTableBody = document.getElementById('proposalsTableBody');
+      if (!proposalsTableBody) return;
+      try {
+        const res = await apiClient.get('/admin/proposals');
+        const proposals = res.data?.proposals || [];
+
+        if (proposals.length === 0) {
+          proposalsTableBody.innerHTML = `
+            <tr>
+              <td colspan="6" style="text-align: center; padding: 20px; color: var(--text-muted);">
+                Chưa có đơn đề xuất lịch chơi nào từ người chơi.
+              </td>
+            </tr>
+          `;
+          return;
+        }
+
+        proposalsTableBody.innerHTML = proposals.map(p => {
+          const time = `${p.proposed_start_at} - ${p.proposed_end_at ? p.proposed_end_at.split(' ')[1] : ''}`;
+          let statusBadge = `<span class="stamp-badge">${p.status}</span>`;
+          let actionButtons = '';
+
+          if (p.status === 'PROPOSED') {
+            statusBadge = `<span class="stamp-badge" style="color: var(--color-gold); border-color: var(--color-gold);">CHỜ DUYỆT</span>`;
+            actionButtons = `
+              <button type="button" class="btn btn-primary" style="font-size: 0.8rem; padding: 4px 10px;" onclick="approveProposal(${p.id})">Duyệt & Chốt</button>
+              <button type="button" class="btn btn-outline" style="font-size: 0.8rem; padding: 4px 10px;" onclick="rejectProposal(${p.id})">Từ Chối</button>
+            `;
+          } else if (p.status === 'CONFIRMED') {
+            statusBadge = `<span class="stamp-badge open">ĐÃ CHỐT</span>`;
+            actionButtons = `<span style="font-size: 0.8rem; color: #4ade80;">Đã phê duyệt</span>`;
+          } else if (p.status === 'REJECTED') {
+            statusBadge = `<span class="stamp-badge" style="color: #f87171; border-color: #f87171;">TỪ CHỐI</span>`;
+            actionButtons = `<span style="font-size: 0.8rem; color: #f87171;">Đã bác bỏ</span>`;
+          } else {
+            actionButtons = `<span style="font-size: 0.8rem; color: var(--text-muted);">${p.status}</span>`;
+          }
+
+          return `
+            <tr>
+              <td><strong>#PP-${p.id}</strong></td>
+              <td>
+                <div><strong>Phòng #${p.game_room_id}: ${p.room_title || 'Phòng Chơi'}</strong></div>
+                <div style="font-size: 0.8rem; color: var(--text-muted);">Kịch bản: ${p.game_name || 'Đêm Đoạt Mệnh Tại Trang Viên'}</div>
+              </td>
+              <td>${p.proposer_name || 'Thành viên'}<br><span style="font-size: 0.75rem; color: var(--text-muted);">${p.proposer_email || ''}</span></td>
+              <td>${time}</td>
+              <td>${statusBadge}</td>
+              <td>
+                <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+                  ${actionButtons}
+                </div>
+              </td>
+            </tr>
+          `;
+        }).join('');
+      } catch (e) {
+        proposalsTableBody.innerHTML = `
+          <tr>
+            <td colspan="6" style="text-align: center; padding: 20px; color: var(--text-muted);">
+              Không thể tải danh sách đơn đề xuất lịch.
+            </td>
+          </tr>
+        `;
+      }
+    }
+
     async function loadAdminDashboard() {
       await checkAuth();
-      await Promise.all([loadRooms(), loadStudents(), loadAuditLogs(), loadReports()]);
+      await Promise.all([loadRooms(), loadProposals(), loadStudents(), loadAuditLogs(), loadReports()]);
     }
 
     loadAdminDashboard();
