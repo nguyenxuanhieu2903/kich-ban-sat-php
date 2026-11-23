@@ -107,8 +107,8 @@
             <input type="time" id="propTime" class="form-control" value="14:00" style="width: 100%; padding: 8px; background: var(--bg-surface); color: white;" required />
           </div>
           <div>
-            <label style="display: block; font-size: 0.85rem; margin-bottom: 4px;">Giờ kết thúc *</label>
-            <input type="time" id="propEndTime" class="form-control" value="18:00" style="width: 100%; padding: 8px; background: var(--bg-surface); color: white;" required />
+            <label style="display: block; font-size: 0.85rem; margin-bottom: 4px;">Giờ kết thúc (Tự tính theo kịch bản) *</label>
+            <input type="time" id="propEndTime" class="form-control" value="18:00" style="width: 100%; padding: 8px; background: rgba(255,255,255,0.06); color: #cbd5e1; cursor: not-allowed;" readonly required />
           </div>
           <div>
             <label style="display: block; font-size: 0.85rem; margin-bottom: 4px;">Chi nhánh</label>
@@ -117,6 +117,9 @@
               <option value="2">Chi nhánh Bình Thạnh (45 Điện Biên Phủ)</option>
             </select>
           </div>
+        </div>
+        <div id="propDurationNote" style="font-size: 0.8rem; color: var(--color-gold); margin-bottom: 14px; font-style: italic;">
+          Thời lượng kịch bản: 240 phút (4 tiếng) — Giờ kết thúc tự động khóa chuẩn xác theo thời lượng vụ án.
         </div>
         <button type="submit" class="btn btn-primary" style="font-size: 0.9rem;">Gửi Đề Xuất Lịch Chơi</button>
       </form>
@@ -153,8 +156,35 @@
       propDateInput.min = tomorrowStr;
     }
 
+    let currentGameDuration = 240;
+
+    function updateCalculatedEndTime() {
+      if (!propTimeInput || !propEndTimeInput) return;
+      const startTime = propTimeInput.value || '14:00';
+      const [h, m] = startTime.split(':').map(Number);
+      const startMins = (h || 0) * 60 + (m || 0);
+      const endMinsTotal = startMins + currentGameDuration;
+      const endH = Math.floor(endMinsTotal / 60) % 24;
+      const endM = endMinsTotal % 60;
+      propEndTimeInput.value = `${String(endH).padStart(2, '0')}:${String(endM).padStart(2, '0')}`;
+
+      const noteEl = document.getElementById('propDurationNote');
+      if (noteEl) {
+        const hoursDecimal = (currentGameDuration / 60).toFixed(1).replace('.0', '');
+        noteEl.textContent = `Thời lượng kịch bản: ${currentGameDuration} phút (~${hoursDecimal} tiếng) — Giờ kết thúc tự động tính toán chính xác theo kịch bản.`;
+      }
+    }
+
+    if (propTimeInput) {
+      propTimeInput.addEventListener('change', updateCalculatedEndTime);
+      propTimeInput.addEventListener('input', updateCalculatedEndTime);
+    }
+
     btnTogglePropose.addEventListener('click', () => {
       proposeForm.style.display = proposeForm.style.display === 'none' ? 'block' : 'none';
+      if (proposeForm.style.display === 'block') {
+        updateCalculatedEndTime();
+      }
     });
 
     proposeForm.addEventListener('submit', async (e) => {
@@ -299,6 +329,10 @@
         const json = await apiClient.get(`/rooms/${roomId}`);
         if (json.success && json.data && json.data.room) {
           const r = json.data.room;
+          if (r.game && r.game.duration_minutes) {
+            currentGameDuration = Number(r.game.duration_minutes) || 240;
+            updateCalculatedEndTime();
+          }
           document.getElementById('roomTitle').textContent = r.title || 'Phòng Án Mạng Nhập Vai';
           document.getElementById('roomGameName').textContent = `Kịch bản: ${r.game?.name || 'Đêm Đoạt Mệnh Tại Trang Viên'}`;
           document.getElementById('roomDesc').textContent = r.description || 'Tìm thám tử cùng phá án, thân thiện, không toxic!';

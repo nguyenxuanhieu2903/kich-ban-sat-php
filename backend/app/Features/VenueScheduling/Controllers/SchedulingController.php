@@ -75,9 +75,24 @@ class SchedulingController
             return Response::fail('Vui lòng chọn thời gian bắt đầu', 'VALIDATION_ERROR', 422);
         }
 
-        // Tu dong tinh thoi gian ket thuc (+4 gio) neu khong duoc truyen hoac de trong
+        // Lấy thời lượng chuẩn của kịch bản phòng chơi
+        $gameStmt = $this->pdo->prepare(
+            'SELECT g.`name`, g.`duration_minutes` FROM `game_rooms` gr 
+             INNER JOIN `games` g ON g.`id` = gr.`game_id` 
+             WHERE gr.`id` = :room_id LIMIT 1'
+        );
+        $gameStmt->bindValue(':room_id', $roomId, PDO::PARAM_INT);
+        $gameStmt->execute();
+        $gameInfo = $gameStmt->fetch(PDO::FETCH_ASSOC);
+
+        $gameDuration = $gameInfo ? (int) $gameInfo['duration_minutes'] : 240;
+        if ($gameDuration <= 0) {
+            $gameDuration = 240;
+        }
+
+        // Tự động tính thời gian kết thúc dựa trên thời lượng chuẩn của kịch bản nếu không truyền hoặc để trống
         if ($endAt === '') {
-            $endAt = date('Y-m-d H:i:s', strtotime($startAt . ' +4 hours'));
+            $endAt = date('Y-m-d H:i:s', strtotime($startAt . " +{$gameDuration} minutes"));
         }
 
         if (strtotime($startAt) >= strtotime($endAt)) {
@@ -86,6 +101,16 @@ class SchedulingController
 
         if (strtotime($startAt) <= time()) {
             return Response::fail('Thời gian đề xuất chơi phải ở trong tương lai', 'VALIDATION_ERROR', 422);
+        }
+
+        // Kiểm tra thời lượng chơi tối thiểu (ít nhất 60 phút để đảm bảo tiến trình kịch bản)
+        $actualDurationMinutes = (strtotime($endAt) - strtotime($startAt)) / 60;
+        if ($actualDurationMinutes < 60) {
+            return Response::fail(
+                "Khung giờ chơi quá ngắn (yêu cầu tối thiểu 60 phút, hiện tại: {$actualDurationMinutes} phút)",
+                'DURATION_TOO_SHORT',
+                422
+            );
         }
 
         // Kiểm tra xem user có phải là thành viên active trong phòng không
