@@ -53,7 +53,9 @@ Hệ thống hoạt động theo nguyên tắc vàng: **"Xếp Lịch & Gom Đ�
 3. **Nộp tiền cọc (50.000 VNĐ):**
    - Sau khi lịch được chốt, hệ thống mở cổng nộp cọc trong vòng 02 giờ.
    - Bấm "Nộp Cọc 50.000đ" và quét mã QR chuyển khoản. Khi toàn bộ thành viên nộp đủ, phòng được xác nhận chính thức.
-4. **Tại quầy chi nhánh:**
+4. **Nhận thông báo nhắc lịch tự động trước 24 giờ:**
+   - Hệ thống tự động phát thông báo nhắc nhở đến tài khoản của người chơi và Quản trò (DM) trước giờ chơi đúng 24 giờ, nêu rõ thời gian, kịch bản, tên phòng vật lý và địa chỉ chi nhánh để chủ động sắp xếp thời gian di chuyển.
+5. **Tại quầy chi nhánh:**
    - Đến trước giờ chơi 15 phút để làm thủ tục.
    - Nếu là học sinh / sinh viên: Xuất trình thẻ HSSV vật lý cho Quản trò/Thu ngân để được giảm ngay 10% giá vé.
    - Nhận kịch bản giấy từ DM, đọc lời giới thiệu nhân vật và bắt đầu nhập vai.

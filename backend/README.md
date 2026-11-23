@@ -69,7 +69,7 @@ composer seed
 ```bash
 composer test
 ```
-*Kết quả:* **149 tests, 723 assertions, 100% OK (0 failures, 0 errors)**.
+*Kết quả:* **150 tests, 731 assertions, 100% OK (0 failures, 0 errors)**.
 
 ### 5. Khởi chạy Máy chủ Cục bộ (Local Development Server)
 ```bash
@@ -89,6 +89,8 @@ Hệ thống đi kèm công cụ chạy nền tự động xử lý các mốc t
 - Quá hạn nộp cọc (Deposit Timeout -> Đẩy người chơi khỏi phòng để nhường suất).
 - Quá hạn người thay thế (Replacement Window Timeout -> Chốt danh sách phiên chơi).
 - Quá hạn biểu quyết thời gian (Proposal Timeout -> Hủy biểu quyết quá 24h chưa chốt).
+- Quá hạn phản hồi phân công DM (DM Assignment Timeout -> Tự động thu hồi và báo động Admin).
+- Tự động nhắc lịch 24 giờ (Session Reminder -> Phát thông báo tới người chơi và DM trước 24 giờ).
 
 ### Lệnh thực thi:
 ```bash
@@ -100,6 +102,8 @@ php bin/cron.php --job=formation-timeout
 php bin/cron.php --job=deposit-timeout
 php bin/cron.php --job=replacement-timeout
 php bin/cron.php --job=proposal-timeout
+php bin/cron.php --job=dm-assignment-timeout
+php bin/cron.php --job=session-reminder
 ```
 
 ---
@@ -220,5 +224,5 @@ backend/
 ## TIÊU CHUẨN NGHIỆM THU ĐỒ ÁN (DEFENSE READY)
 
 1. **Clean Code & No Framework Magic:** Toàn bộ luồng dữ liệu, mã hóa mật khẩu, truy vấn SQL đều được viết mạch lạc, dễ giải trình trước hội đồng chấm thi.
-2. **Kiểm thử tự động phủ kín:** 149 unit & feature tests kiểm chứng chặt chẽ mọi kịch bản biên (concurrency race conditions, cutoff times, non-stackable promotions, majority time block pricing, auto rerouting).
+2. **Kiểm thử tự động phủ kín:** 150 unit & feature tests kiểm chứng chặt chẽ mọi kịch bản biên (concurrency race conditions, cutoff times, non-stackable promotions, majority time block pricing, auto rerouting, 24h reminders).
 3. **Sẵn sàng triển khai:** Cung cấp đầy đủ script CLI, tài liệu OpenAPI tương tác và bộ seeder một chạm cho buổi thuyết trình.

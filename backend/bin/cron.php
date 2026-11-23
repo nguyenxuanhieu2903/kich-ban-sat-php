@@ -44,6 +44,16 @@ switch ($targetJob) {
         echo "[SUCCESS] Processed {$count} expired schedule proposals.\n";
         break;
 
+    case 'dm-assignment-timeout':
+        $count = $service->runDmAssignmentTimeout();
+        echo "[SUCCESS] Processed {$count} dm assignment timeout(s).\n";
+        break;
+
+    case 'session-reminder':
+        $count = $service->runUpcomingSession24hReminder();
+        echo "[SUCCESS] Sent {$count} 24h session reminder notification(s).\n";
+        break;
+
     case 'all':
     default:
         $stats = $service->runAll();
@@ -53,6 +63,7 @@ switch ($targetJob) {
         echo "  - Replacement Timeouts: {$stats['replacement_timeouts']} window(s) expired.\n";
         echo "  - Proposal Timeouts: {$stats['proposal_timeouts']} proposal(s) expired.\n";
         echo "  - DM Assignment Timeouts: {$stats['dm_assignment_timeouts']} assignment(s) revoked.\n";
+        echo "  - Session Reminders: {$stats['session_reminders']} reminder notification(s) sent.\n";
         break;
 }
 

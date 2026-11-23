@@ -600,4 +600,51 @@ class V16StandardP2PerfectionTest extends TestCase
         $this->assertSame('MAJORITY_TIME_BLOCK', $details['pricing_rule']);
         $this->assertSame(220000, $details['base_price_per_person']);
     }
+
+    /**
+     * Test 15: Tien trinh nen tu dong gui thong bao nhac lich truoc 24 gio cho ca choi sap dien ra
+     */
+    public function testUpcomingSession24hReminderJob(): void
+    {
+        $jobService = new BackgroundJobService($this->pdo);
+
+        // 1. Tao game room va nguoi choi
+        $this->pdo->exec("INSERT INTO `game_rooms` (`game_id`, `game_configuration_id`, `creator_id`, `title`, `min_players`, `max_players`, `total_players`, `status`, `formation_deadline_at`, `created_at`, `updated_at`) VALUES (1, 1, 1, 'Phong Reminder 24h Test', 6, 8, 6, 'CONFIRMED', DATE_ADD(NOW(), INTERVAL 2 DAY), NOW(), NOW())");
+        $grId = (int) $this->pdo->lastInsertId();
+
+        $testPlayerId = $this->createTestUser('Player Reminder Test');
+        $this->pdo->exec("INSERT INTO `room_participants` (`game_room_id`, `user_id`, `status`, `joined_at`, `created_at`, `updated_at`) VALUES ({$grId}, {$testPlayerId}, 'DEPOSITED', NOW(), NOW(), NOW())");
+
+        // 2. Tao proposal va session bat dau sau 12 tieng (trong khoang 0 < start_at <= 24h)
+        $this->pdo->exec("INSERT INTO `schedule_proposals` (`game_room_id`, `proposed_by`, `proposed_start_at`, `proposed_end_at`, `status`, `expires_at`, `created_at`) VALUES ({$grId}, 1, DATE_ADD(NOW(), INTERVAL 12 HOUR), DATE_ADD(NOW(), INTERVAL 16 HOUR), 'CONFIRMED', DATE_ADD(NOW(), INTERVAL 24 HOUR), NOW())");
+        $propId = (int) $this->pdo->lastInsertId();
+
+        $this->pdo->exec("INSERT INTO `dm_assignments` (`game_room_id`, `dm_user_id`, `assigned_by`, `status`, `assigned_at`, `created_at`, `updated_at`) VALUES ({$grId}, 2, 1, 'ACCEPTED', NOW(), NOW(), NOW())");
+        $assignId = (int) $this->pdo->lastInsertId();
+
+        $this->pdo->exec("INSERT INTO `physical_rooms` (`venue_id`, `name`, `capacity`, `status`, `created_at`, `updated_at`) VALUES (1, 'Phong Reminder Test " . uniqid() . "', 10, 'ACTIVE', NOW(), NOW())");
+        $pRoomId = (int) $this->pdo->lastInsertId();
+
+        $this->pdo->exec("INSERT INTO `sessions` (`game_room_id`, `schedule_proposal_id`, `dm_assignment_id`, `venue_id`, `physical_room_id`, `start_at`, `end_at`, `status`, `created_at`, `updated_at`) VALUES ({$grId}, {$propId}, {$assignId}, 1, {$pRoomId}, DATE_ADD(NOW(), INTERVAL 12 HOUR), DATE_ADD(NOW(), INTERVAL 16 HOUR), 'SCHEDULED', NOW(), NOW())");
+        $sessId = (int) $this->pdo->lastInsertId();
+
+        // 3. Chay job nhac lich lan 1 -> Phai gui thong bao cho Player va DM (>= 2 notifications)
+        $sentCount = $jobService->runUpcomingSession24hReminder();
+        $this->assertGreaterThanOrEqual(2, $sentCount);
+
+        // Kiem tra ban ghi trong bang notifications
+        $notiStmt = $this->pdo->prepare("SELECT `type`, `reference_type`, `reference_id`, `title` FROM `notifications` WHERE `user_id` = :uid AND `reference_id` = :sid");
+        $notiStmt->execute([':uid' => $testPlayerId, ':sid' => $sessId]);
+        $noti = $notiStmt->fetch(PDO::FETCH_ASSOC);
+
+        $this->assertNotFalse($noti);
+        $this->assertSame('SESSION_REMINDER_24H', $noti['type']);
+        $this->assertSame('SESSION', $noti['reference_type']);
+        $this->assertSame($sessId, (int) $noti['reference_id']);
+        $this->assertStringContainsString('24h', $noti['title']);
+
+        // 4. Chay job nhac lich lan 2 -> Da gui roi nen khong gui trung (Idempotency = 0)
+        $sentCountSecondRun = $jobService->runUpcomingSession24hReminder();
+        $this->assertSame(0, $sentCountSecondRun);
+    }
 }

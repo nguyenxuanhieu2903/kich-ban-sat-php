@@ -19,15 +19,17 @@ class NotificationRepository extends BaseRepository
         string $message,
         string $notificationType,
         ?int $senderId,
-        array $recipientUserIds
+        array $recipientUserIds,
+        ?string $referenceType = null,
+        ?int $referenceId = null
     ): int {
-        return $this->executeQuery(function () use ($title, $message, $notificationType, $senderId, $recipientUserIds): int {
+        return $this->executeQuery(function () use ($title, $message, $notificationType, $senderId, $recipientUserIds, $referenceType, $referenceId): int {
             $lastId = 0;
             $targets = !empty($recipientUserIds) ? $recipientUserIds : ($senderId !== null ? [$senderId] : []);
 
             $stmt = $this->pdo->prepare(
-                'INSERT INTO `notifications` (`user_id`, `type`, `title`, `content`, `is_read`, `created_at`)
-                 VALUES (:user_id, :type, :title, :content, 0, NOW())'
+                'INSERT INTO `notifications` (`user_id`, `type`, `title`, `content`, `reference_type`, `reference_id`, `is_read`, `created_at`)
+                 VALUES (:user_id, :type, :title, :content, :ref_type, :ref_id, 0, NOW())'
             );
 
             foreach ($targets as $uid) {
@@ -35,6 +37,8 @@ class NotificationRepository extends BaseRepository
                 $stmt->bindValue(':type', $notificationType, PDO::PARAM_STR);
                 $stmt->bindValue(':title', $title, PDO::PARAM_STR);
                 $stmt->bindValue(':content', $message, PDO::PARAM_STR);
+                $stmt->bindValue(':ref_type', $referenceType, $referenceType !== null ? PDO::PARAM_STR : PDO::PARAM_NULL);
+                $stmt->bindValue(':ref_id', $referenceId, $referenceId !== null ? PDO::PARAM_INT : PDO::PARAM_NULL);
                 $stmt->execute();
                 $lastId = (int) $this->pdo->lastInsertId();
             }

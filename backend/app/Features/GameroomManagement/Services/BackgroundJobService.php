@@ -32,6 +32,7 @@ class BackgroundJobService
             'replacement_timeouts' => $this->runReplacementTimeout(),
             'proposal_timeouts' => $this->runProposalTimeout(),
             'dm_assignment_timeouts' => $this->runDmAssignmentTimeout(),
+            'session_reminders' => $this->runUpcomingSession24hReminder(),
         ];
     }
 
@@ -339,5 +340,102 @@ class BackgroundJobService
         }
 
         return $revokedCount;
+    }
+
+    /**
+     * Job 6: Quét các ca chơi sắp diễn ra trong 24 giờ tới (start_at <= NOW() + 24H)
+     * và tự động phát thông báo nhắc lịch cho người chơi và Quản trò (DM) phụ trách ca.
+     */
+    public function runUpcomingSession24hReminder(): int
+    {
+        $sql = "SELECT s.`id` AS `session_id`, s.`game_room_id`, s.`start_at`, s.`venue_id`, s.`physical_room_id`,
+                       gr.`title` AS `room_title`,
+                       pr.`name` AS `physical_room_name`,
+                       v.`name` AS `venue_name`,
+                       g.`name` AS `game_name`
+                FROM `sessions` s
+                INNER JOIN `game_rooms` gr ON gr.`id` = s.`game_room_id`
+                LEFT JOIN `physical_rooms` pr ON pr.`id` = s.`physical_room_id`
+                LEFT JOIN `venues` v ON v.`id` = s.`venue_id`
+                LEFT JOIN `games` g ON g.`id` = gr.`game_id`
+                WHERE s.`status` = 'SCHEDULED'
+                  AND s.`start_at` > NOW()
+                  AND s.`start_at` <= DATE_ADD(NOW(), INTERVAL 24 HOUR)";
+
+        $stmt = $this->pdo->query($sql);
+        $upcomingSessions = $stmt !== false ? $stmt->fetchAll(PDO::FETCH_ASSOC) : [];
+        $notifiedCount = 0;
+
+        foreach ($upcomingSessions as $session) {
+            $sessionId = (int) $session['session_id'];
+            $roomId = (int) $session['game_room_id'];
+            $gameName = $session['game_name'] ?? $session['room_title'];
+            $roomName = $session['physical_room_name'] ?? 'Phòng chỉ định';
+            $venueName = $session['venue_name'] ?? 'Chi nhánh Kịch Bản Sát';
+            $startAtStr = date('H:i d/m/Y', strtotime((string) $session['start_at']));
+
+            // Lấy danh sách người chơi trong phòng
+            $pStmt = $this->pdo->prepare(
+                "SELECT `user_id` FROM `room_participants`
+                 WHERE `game_room_id` = :room_id
+                   AND `status` IN ('DEPOSITED', 'PENDING_DEPOSIT')"
+            );
+            $pStmt->bindValue(':room_id', $roomId, PDO::PARAM_INT);
+            $pStmt->execute();
+            $playerIds = array_map('intval', $pStmt->fetchAll(PDO::FETCH_COLUMN));
+
+            // Lấy Quản trò (DM) được phân công tiếp nhận
+            $dmStmt = $this->pdo->prepare(
+                "SELECT `dm_user_id` FROM `dm_assignments`
+                 WHERE `game_room_id` = :room_id AND `status` = 'ACCEPTED' LIMIT 1"
+            );
+            $dmStmt->bindValue(':room_id', $roomId, PDO::PARAM_INT);
+            $dmStmt->execute();
+            $dmUserId = $dmStmt->fetchColumn();
+
+            $allTargetUserIds = $playerIds;
+            if ($dmUserId !== false && $dmUserId !== null) {
+                $allTargetUserIds[] = (int) $dmUserId;
+            }
+            $allTargetUserIds = array_unique($allTargetUserIds);
+
+            // Kiểm tra xem đã từng gửi thông báo nhắc lịch cho ca chơi này chưa (Idempotency)
+            $checkNotiStmt = $this->pdo->prepare(
+                "SELECT 1 FROM `notifications`
+                 WHERE `user_id` = :user_id
+                   AND `type` = 'SESSION_REMINDER_24H'
+                   AND `reference_type` = 'SESSION'
+                   AND `reference_id` = :session_id
+                 LIMIT 1"
+            );
+
+            $recipientsToNotify = [];
+            foreach ($allTargetUserIds as $uid) {
+                $checkNotiStmt->bindValue(':user_id', $uid, PDO::PARAM_INT);
+                $checkNotiStmt->bindValue(':session_id', $sessionId, PDO::PARAM_INT);
+                $checkNotiStmt->execute();
+                if ($checkNotiStmt->fetchColumn() === false) {
+                    $recipientsToNotify[] = $uid;
+                }
+            }
+
+            if (!empty($recipientsToNotify)) {
+                $title = 'Nhắc lịch ca chơi sắp diễn ra (còn dưới 24h)';
+                $message = "Buổi chơi '{$gameName}' tại phòng '{$roomName}' ({$venueName}) sẽ diễn ra vào lúc {$startAtStr}. Quý khách vui lòng có mặt trước 15 phút để làm thủ tục check-in.";
+
+                $this->notiRepo->createNotification(
+                    $title,
+                    $message,
+                    'SESSION_REMINDER_24H',
+                    null,
+                    $recipientsToNotify,
+                    'SESSION',
+                    $sessionId
+                );
+                $notifiedCount += count($recipientsToNotify);
+            }
+        }
+
+        return $notifiedCount;
     }
 }

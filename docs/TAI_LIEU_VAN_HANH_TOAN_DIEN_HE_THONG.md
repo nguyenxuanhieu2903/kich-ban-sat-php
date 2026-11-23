@@ -520,7 +520,8 @@ gantt
 - Hoàn thiện kiểm soát chống chơi lại kịch bản cũ và chống trùng lịch ca chơi (`ALREADY_COMPLETED_SCENARIO`, `PLAYER_SCHEDULE_CONFLICT` - Hoàn thành 100%).
 - Bổ sung quy trình bảo trì phòng vật lý và tự động điều chuyển phòng (Dynamic Room Rerouting qua `POST /api/v1/admin/physical-rooms/{id}/maintenance` - Hoàn thành 100%).
 - Hoàn tất vòng đời chi trả hoàn tiền cọc kế toán sang COMPLETED (`POST /api/v1/admin/refunds/{id}/complete` - Hoàn thành 100%).
-- Bộ kiểm thử tự động đạt mốc 146/146 tests PASS (100%), 700 assertions và 12/12 trang web đạt chuẩn hoàn hảo qua Chrome DevTools Protocol.
+- Tự động phát thông báo nhắc lịch ca chơi trước 24 giờ cho khách hàng và Quản trò (Job 6 `runUpcomingSession24hReminder` trong `BackgroundJobService.php` - Hoàn thành 100%).
+- Bộ kiểm thử tự động đạt mốc 150/150 tests PASS (100%), 731 assertions và 12/12 trang web đạt chuẩn hoàn hảo qua Chrome DevTools Protocol.
 
 ---
 

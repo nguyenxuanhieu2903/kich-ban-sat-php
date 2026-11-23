@@ -813,10 +813,13 @@ Nhằm giải quyết triệt để bài toán tính giá vé khi ca chơi vắt
    - Trường hợp buổi chơi chia đều chính xác 50% - 50% thời lượng cho 2 khung giờ (ví dụ từ 16:00 đến 20:00: Ca Chiều 120 phút và Ca Tối 120 phút): Hệ thống tự động tính giá vé theo **trung bình cộng** của 2 khung giờ: `(220.000 + 250.000) / 2 = 235.000 VNĐ / vé` nhằm bảo đảm quyền lợi hài hòa giữa khách hàng và quán.
 3. **Lưu vết Snapshot minh bạch vào Cơ sở dữ liệu:**
    - Toàn bộ danh sách số phút giao thoa (`tier_overlaps`), quy tắc tính giá (`pricing_rule: 'MAJORITY_TIME_BLOCK' | 'SPLIT_50_50_AVERAGE' | 'SINGLE_TIER' | 'DEFAULT_FALLBACK'`), thời gian bắt đầu và kết thúc ca chơi được lưu vết đầy đủ trong trường `game_rooms.price_details` và `participant_price_snapshots`.
-4. **Bộ kiểm thử tự động đạt kỷ lục 149/149 bài test PASS (100%):**
-   - Bổ sung 3 ca kiểm thử: `testMajorityTimeBlockPricingRule`, `testSplit5050TiePricingRule`, `testRoomPricingSnapshotWithMajorityRule`.
-   - Kết quả: **149/149 tests PASS (100%)**, 723 assertions, 0 errors, 0 failures, thời gian chạy ~4.2 giây.
-5. **Cập nhật đồng bộ Sổ tay vận hành (SOP):**
+4. **Bộ kiểm thử tự động đạt kỷ lục 150/150 bài test PASS (100%):**
+   - Bổ sung các ca kiểm thử: `testMajorityTimeBlockPricingRule`, `testSplit5050TiePricingRule`, `testRoomPricingSnapshotWithMajorityRule`, `testUpcomingSession24hReminderJob`.
+   - Kết quả: **150/150 tests PASS (100%)**, 731 assertions, 0 errors, 0 failures, thời gian chạy ~4.3 giây.
+5. **Tự động phát thông báo nhắc lịch ca chơi trước 24 giờ (Idempotent 24h Reminder):**
+   - Bổ sung Job 6 `runUpcomingSession24hReminder` trong `BackgroundJobService.php` và lệnh CLI `bin/cron.php --job=session-reminder`.
+   - Quét các phiên chơi `SCHEDULED` sắp diễn ra trong 24 giờ tới và gửi thông báo nhắc nhở đến người chơi và Quản trò (DM) phụ trách, kiểm tra chặt chẽ chống gửi trùng lặp.
+6. **Cập nhật đồng bộ Sổ tay vận hành (SOP):**
    - Cập nhật mục 4.3 trong `CACH_VAN_HANH.md` và mục 5.5 trong `docs/TAI_LIEU_VAN_HANH_TOAN_DIEN_HE_THONG.md` bảo đảm toàn bộ nhân sự lễ tân, quản trò và kế toán nắm rõ nguyên tắc tính giá minh bạch.
 
 
