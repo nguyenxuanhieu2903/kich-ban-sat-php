@@ -109,6 +109,7 @@ HTML;
     $router->post($prefix . '/auth/register', [AuthController::class, 'register']);
     $router->post($prefix . '/auth/login', [AuthController::class, 'login']);
     $router->get($prefix . '/auth/me', [AuthController::class, 'me']);
+    $router->get($prefix . '/auth/my-rooms', [AuthController::class, 'myRooms']);
     $router->post($prefix . '/auth/logout', [AuthController::class, 'logout']);
     $router->patch($prefix . '/auth/profile', [AuthController::class, 'updateProfile']);
     $router->post($prefix . '/auth/student-verification', [AuthController::class, 'requestStudentVerification']);

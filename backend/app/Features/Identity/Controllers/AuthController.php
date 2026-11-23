@@ -10,15 +10,17 @@ use App\Core\Request;
 use App\Core\Response;
 use App\Features\Identity\Repositories\UserRepository;
 use App\Infrastructure\Database\DatabaseConnection;
+use PDO;
 
 class AuthController
 {
     protected UserRepository $userRepo;
+    protected PDO $pdo;
 
     public function __construct(?UserRepository $userRepo = null)
     {
-        $pdo = DatabaseConnection::getInstance();
-        $this->userRepo = $userRepo ?? new UserRepository($pdo);
+        $this->pdo = DatabaseConnection::getInstance();
+        $this->userRepo = $userRepo ?? new UserRepository($this->pdo);
 
         if (session_status() === PHP_SESSION_NONE && !headers_sent()) {
             @session_start();
@@ -253,5 +255,110 @@ class AuthController
             'school_name' => $schoolName,
             'status' => 'PENDING_APPROVAL',
         ], 'Yêu cầu xác thực sinh viên đã được gửi tới quản trị viên');
+    }
+
+    /**
+     * GET /api/v1/auth/my-rooms
+     * Lấy toàn bộ lịch sử phòng chơi và tình trạng cọc / hoàn tiền của người chơi
+     */
+    public function myRooms(Request $request): Response
+    {
+        $authUser = AuthMiddleware::authenticate($request);
+        if ($authUser instanceof Response) {
+            return $authUser;
+        }
+
+        $userId = (int) $authUser['id'];
+
+        $sql = 'SELECT 
+                    gr.`id` AS `room_id`,
+                    gr.`title` AS `room_title`,
+                    gr.`status` AS `room_status`,
+                    gr.`min_players`,
+                    gr.`max_players`,
+                    g.`id` AS `game_id`,
+                    g.`name` AS `game_name`,
+                    g.`image_url` AS `game_image`,
+                    g.`duration_minutes`,
+                    rp.`id` AS `participant_id`,
+                    rp.`status` AS `participant_status`,
+                    rp.`joined_at`,
+                    (SELECT COUNT(*) FROM `room_participants` p2 
+                     WHERE p2.`game_room_id` = gr.`id` 
+                       AND p2.`status` IN (\'PENDING_DEPOSIT\', \'DEPOSITED\', \'LEAVE_REQUESTED\')
+                    ) AS `current_players`,
+                    (SELECT pp.`id` FROM `player_payments` pp WHERE pp.`room_participant_id` = rp.`id` ORDER BY pp.`id` DESC LIMIT 1) AS `payment_id`,
+                    (SELECT pp.`paid_amount` FROM `player_payments` pp WHERE pp.`room_participant_id` = rp.`id` ORDER BY pp.`id` DESC LIMIT 1) AS `paid_amount`,
+                    (SELECT pp.`status` FROM `player_payments` pp WHERE pp.`room_participant_id` = rp.`id` ORDER BY pp.`id` DESC LIMIT 1) AS `payment_status`,
+                    (SELECT ref.`id` FROM `refunds` ref 
+                     INNER JOIN `player_payments` pp2 ON pp2.`id` = ref.`player_payment_id` 
+                     WHERE pp2.`room_participant_id` = rp.`id` ORDER BY ref.`id` DESC LIMIT 1
+                    ) AS `refund_id`,
+                    (SELECT ref.`status` FROM `refunds` ref 
+                     INNER JOIN `player_payments` pp2 ON pp2.`id` = ref.`player_payment_id` 
+                     WHERE pp2.`room_participant_id` = rp.`id` ORDER BY ref.`id` DESC LIMIT 1
+                    ) AS `refund_status`,
+                    (SELECT ref.`amount` FROM `refunds` ref 
+                     INNER JOIN `player_payments` pp2 ON pp2.`id` = ref.`player_payment_id` 
+                     WHERE pp2.`room_participant_id` = rp.`id` ORDER BY ref.`id` DESC LIMIT 1
+                    ) AS `refund_amount`,
+                    (SELECT s.`id` FROM `sessions` s WHERE s.`game_room_id` = gr.`id` ORDER BY s.`id` DESC LIMIT 1) AS `session_id`,
+                    (SELECT s.`start_at` FROM `sessions` s WHERE s.`game_room_id` = gr.`id` ORDER BY s.`id` DESC LIMIT 1) AS `session_start_at`,
+                    (SELECT s.`end_at` FROM `sessions` s WHERE s.`game_room_id` = gr.`id` ORDER BY s.`id` DESC LIMIT 1) AS `session_end_at`,
+                    (SELECT pr.`name` FROM `sessions` s2 INNER JOIN `physical_rooms` pr ON pr.`id` = s2.`physical_room_id` WHERE s2.`game_room_id` = gr.`id` ORDER BY s2.`id` DESC LIMIT 1) AS `physical_room_name`,
+                    (SELECT v.`name` FROM `sessions` s3 INNER JOIN `venues` v ON v.`id` = s3.`venue_id` WHERE s3.`game_room_id` = gr.`id` ORDER BY s3.`id` DESC LIMIT 1) AS `venue_name`
+                FROM `room_participants` rp
+                INNER JOIN `game_rooms` gr ON gr.`id` = rp.`game_room_id`
+                INNER JOIN `games` g ON g.`id` = gr.`game_id`
+                WHERE rp.`user_id` = :user_id
+                ORDER BY rp.`id` DESC';
+
+        $stmt = $this->pdo->prepare($sql);
+        $stmt->bindValue(':user_id', $userId, PDO::PARAM_INT);
+        $stmt->execute();
+        $rooms = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        $now = time();
+        foreach ($rooms as &$r) {
+            $paid = (int) ($r['paid_amount'] ?? 0);
+            $refStatus = $r['refund_status'] ?? null;
+            $startAt = !empty($r['session_start_at']) ? strtotime((string) $r['session_start_at']) : null;
+            $diffHours = $startAt !== null ? ($startAt - $now) / 3600 : null;
+
+            $canRefund = false;
+            $refundHint = '';
+
+            if ($paid > 0) {
+                if ($refStatus === 'PENDING') {
+                    $refundHint = 'Đang chờ Quản trị viên phê duyệt hoàn tiền';
+                } elseif ($refStatus === 'APPROVED') {
+                    $refundHint = 'Đã hoàn tất chuyển tiền cọc về tài khoản';
+                } elseif ($refStatus === null || $refStatus === 'REJECTED') {
+                    if ($r['room_status'] === 'CANCELLED') {
+                        $canRefund = true;
+                        $refundHint = 'Phòng đã bị hủy - Đủ điều kiện nhận lại 100% tiền cọc';
+                    } elseif ($diffHours === null || $diffHours >= 24) {
+                        $canRefund = true;
+                        $refundHint = 'Hủy lịch trước giờ chơi >= 24h - Được hoàn cọc 100%';
+                    } else {
+                        $refundHint = 'Dưới 24h trước giờ chơi - Không thể hoàn cọc theo quy chế';
+                    }
+                }
+            } else {
+                if ($r['participant_status'] === 'PENDING_DEPOSIT') {
+                    $refundHint = 'Chưa đặt cọc giữ chỗ';
+                }
+            }
+
+            $r['paid_amount'] = $paid;
+            $r['can_refund'] = $canRefund;
+            $r['refund_hint'] = $refundHint;
+            $r['diff_hours_to_session'] = $diffHours !== null ? round($diffHours, 1) : null;
+        }
+
+        return Response::success([
+            'rooms' => $rooms,
+            'total' => count($rooms),
+        ], 'Lịch sử phòng chơi và tình trạng cọc');
     }
 }

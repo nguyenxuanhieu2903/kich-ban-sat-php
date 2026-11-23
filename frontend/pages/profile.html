@@ -78,23 +78,12 @@
 
       <!-- History Card -->
       <div class="ticket-card">
-        <h3 style="margin-bottom: 16px;">Lịch Sử Phòng Chơi & Đặt Cọc</h3>
-        <div style="display: flex; flex-direction: column; gap: 12px;">
-          <div style="padding: 12px; border: 1px solid rgba(201,162,94,0.3); border-radius: 4px; display: flex; justify-content: space-between; align-items: center;">
-            <div>
-              <strong>Đêm Đoạt Mệnh Tại Trang Viên</strong>
-              <p style="font-size: 0.85rem; color: var(--text-muted); margin-top: 2px;">Thứ Bảy Tuần Này • 14:00 • Phòng Sherlock Holmes</p>
-            </div>
-            <span class="stamp-badge open">ĐÃ CỌC 50.000Đ</span>
-          </div>
-
-          <div style="padding: 12px; border: 1px solid rgba(201,162,94,0.3); border-radius: 4px; display: flex; justify-content: space-between; align-items: center;">
-            <div>
-              <strong>Biệt Thự Huyết Tộc</strong>
-              <p style="font-size: 0.85rem; color: var(--text-muted); margin-top: 2px;">Chủ Nhật Tuần Trước • 19:00 • Phòng VIP Dracula</p>
-            </div>
-            <span class="stamp-badge">ĐÃ HOÀN THÀNH</span>
-          </div>
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+          <h3 style="margin: 0;">Lịch Sử Phòng Chơi & Đặt Cọc</h3>
+          <button type="button" class="btn btn-outline" id="btnRefreshHistory" style="padding: 4px 12px; font-size: 0.8rem;">Làm Mới</button>
+        </div>
+        <div id="historyList" style="display: flex; flex-direction: column; gap: 12px;">
+          <p style="color: var(--text-muted); font-size: 0.9rem;">Đang tải danh sách phòng chơi...</p>
         </div>
       </div>
     </div>
@@ -165,6 +154,103 @@
         alert(err.message || 'Thông tin thẻ sinh viên đã được ghi nhận!');
       }
     });
+
+    // Dynamic My Rooms & Refund History
+    async function loadMyRooms() {
+      const historyList = document.getElementById('historyList');
+      if (!historyList) return;
+      try {
+        const json = await apiClient.get('/auth/my-rooms');
+        if (!json.success || !json.data?.rooms || json.data.rooms.length === 0) {
+          historyList.innerHTML = `
+            <div style="text-align: center; padding: 24px; color: var(--text-muted); font-size: 0.9rem;">
+              Bạn chưa tham gia phòng chơi nào. Hãy vào <a href="./lobby.html" style="color: var(--color-gold); font-weight: 600;">Sảnh Ghép Phòng</a> hoặc <a href="./create-room.html" style="color: var(--color-gold); font-weight: 600;">Tạo phòng mới</a> để trải nghiệm!
+            </div>
+          `;
+          return;
+        }
+
+        const rooms = json.data.rooms;
+        historyList.innerHTML = rooms.map(r => {
+          let depositBadge = '';
+          if (r.paid_amount > 0) {
+            depositBadge = `<span class="stamp-badge open">ĐÃ CỌC ${Number(r.paid_amount).toLocaleString('vi-VN')}Đ</span>`;
+          } else if (r.participant_status === 'PENDING_DEPOSIT') {
+            depositBadge = `<span class="stamp-badge" style="border-color: #f59e0b; color: #f59e0b;">CHỜ ĐẶT CỌC</span>`;
+          } else {
+            depositBadge = `<span class="stamp-badge">${r.participant_status}</span>`;
+          }
+
+          let refundBadge = '';
+          if (r.refund_status === 'PENDING') {
+            refundBadge = `<span class="stamp-badge" style="border-color: #f59e0b; color: #f59e0b;">CHỜ ADMIN DUYỆT HOÀN CỌC</span>`;
+          } else if (r.refund_status === 'APPROVED') {
+            refundBadge = `<span class="stamp-badge open" style="border-color: #10b981; color: #10b981;">ĐÃ HOÀN TIỀN CỌC</span>`;
+          } else if (r.refund_status === 'REJECTED') {
+            refundBadge = `<span class="stamp-badge" style="border-color: #ef4444; color: #ef4444;">TỪ CHỐI HOÀN CỌC</span>`;
+          }
+
+          let refundBtn = '';
+          if (r.can_refund) {
+            refundBtn = `<button type="button" class="btn btn-outline btn-refund-act" data-room-id="${r.room_id}" data-room-title="${r.room_title}" style="padding: 4px 10px; font-size: 0.8rem; border-color: #ef4444; color: #ef4444;">Yêu Cầu Hoàn Cọc</button>`;
+          }
+
+          let sessionInfo = r.session_start_at 
+            ? `Lịch chơi: ${r.session_start_at.replace('.000', '')} • ${r.venue_name || 'Chi nhánh Quận 1'}`
+            : `Trạng thái: ${r.room_status} (${r.current_players}/${r.max_players} slot)`;
+
+          return `
+            <div style="padding: 14px; border: 1px solid rgba(201,162,94,0.3); border-radius: 6px; background: rgba(0,0,0,0.15);">
+              <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; flex-wrap: wrap;">
+                <div>
+                  <strong style="font-size: 1rem; color: var(--color-gold);">${r.game_name}</strong>
+                  <span style="font-size: 0.85rem; color: var(--text-muted); margin-left: 6px;">(#RM-${r.room_id}: ${r.room_title})</span>
+                  <p style="font-size: 0.85rem; color: var(--text-muted); margin-top: 4px;">${sessionInfo}</p>
+                </div>
+                <div style="display: flex; gap: 6px; flex-wrap: wrap; align-items: center;">
+                  ${depositBadge}
+                  ${refundBadge}
+                </div>
+              </div>
+
+              ${r.refund_hint ? `<p style="font-size: 0.8rem; color: #94a3b8; margin-top: 8px; font-style: italic;">Quy chế cọc: ${r.refund_hint}</p>` : ''}
+
+              <div style="margin-top: 10px; display: flex; gap: 8px; justify-content: flex-end; align-items: center; flex-wrap: wrap;">
+                <a href="./room-detail.html?id=${r.room_id}" class="btn btn-outline" style="padding: 4px 12px; font-size: 0.8rem;">Xem Chi Tiết Phòng</a>
+                ${refundBtn}
+              </div>
+            </div>
+          `;
+        }).join('');
+
+        // Gắn sự kiện gửi yêu cầu hoàn tiền
+        document.querySelectorAll('.btn-refund-act').forEach(btn => {
+          btn.addEventListener('click', async (e) => {
+            const roomId = e.target.getAttribute('data-room-id');
+            const roomTitle = e.target.getAttribute('data-room-title');
+            const confirmMsg = `Bạn có chắc chắn muốn gửi yêu cầu hoàn tiền cọc cho phòng "${roomTitle}" (#RM-${roomId}) không?\n\n(Quy chế: Hoàn cọc 100% nếu trước giờ chơi >= 24h hoặc phòng bị hủy)`;
+            if (!confirm(confirmMsg)) return;
+
+            try {
+              const res = await apiClient.post('/payments/refund-request', {
+                room_id: Number(roomId),
+                reason: 'Người chơi gửi yêu cầu hoàn tiền cọc từ trang cá nhân'
+              });
+              alert(res.message || 'Đã gửi yêu cầu hoàn tiền cọc thành công! Quản trị viên sẽ sớm xử lý.');
+              loadMyRooms();
+            } catch (err) {
+              alert(err.message || 'Không thể gửi yêu cầu hoàn tiền');
+            }
+          });
+        });
+
+      } catch (err) {
+        historyList.innerHTML = `<p style="color: #ef4444; font-size: 0.9rem;">Không thể tải lịch sử phòng chơi: ${err.message || 'Lỗi mạng'}</p>`;
+      }
+    }
+
+    document.getElementById('btnRefreshHistory')?.addEventListener('click', loadMyRooms);
+    loadMyRooms();
   </script>
 </body>
 </html>
