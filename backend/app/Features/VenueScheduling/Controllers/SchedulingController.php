@@ -371,13 +371,20 @@ class SchedulingController
                 $existingSess = $sessCheck->fetch(PDO::FETCH_ASSOC);
 
                 if ($existingSess === false) {
-                    // Tìm phòng vật lý trống đủ sức chứa (có đệm 30 phút dọn phòng)
-                    $availableRoom = $this->schedRepo->findAvailablePhysicalRoom(
-                        count($activeParticipantIds),
-                        $startAt,
-                        $endAt,
-                        30
-                    );
+                    // Tìm phòng vật lý trống đủ sức chứa (ưu tiên target_venue_id nếu có)
+                    $targetVenueId = null;
+                    $rVenueStmt = $this->pdo->prepare('SELECT `target_venue_id` FROM `game_rooms` WHERE `id` = :room_id LIMIT 1');
+                    $rVenueStmt->bindValue(':room_id', $roomId, PDO::PARAM_INT);
+                    $rVenueStmt->execute();
+                    $tVid = (int) $rVenueStmt->fetchColumn();
+                    $targetVenueId = $tVid > 0 ? $tVid : null;
+
+                    $availableRoom = $targetVenueId !== null
+                        ? $this->schedRepo->findAvailablePhysicalRoom(count($activeParticipantIds), $startAt, $endAt, 30, $targetVenueId)
+                        : null;
+                    if ($availableRoom === null) {
+                        $availableRoom = $this->schedRepo->findAvailablePhysicalRoom(count($activeParticipantIds), $startAt, $endAt, 30);
+                    }
 
                     if ($availableRoom === null) {
                         $this->pdo->rollBack();

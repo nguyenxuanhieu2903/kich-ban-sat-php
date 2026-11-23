@@ -73,6 +73,12 @@ class GameRoomController
             $bindings[':game_id'] = [$gameId, PDO::PARAM_INT];
         }
 
+        $bookingType = $request->query('booking_type') !== null ? strtoupper(trim((string) $request->query('booking_type'))) : null;
+        if ($bookingType !== null && in_array($bookingType, ['PUBLIC', 'PRIVATE'], true)) {
+            $sql .= ' AND gr.`booking_type` = :booking_type';
+            $bindings[':booking_type'] = [$bookingType, PDO::PARAM_STR];
+        }
+
         $sql .= ' ORDER BY gr.`id` DESC LIMIT :limit OFFSET :offset';
 
         $stmt = $this->pdo->prepare($sql);

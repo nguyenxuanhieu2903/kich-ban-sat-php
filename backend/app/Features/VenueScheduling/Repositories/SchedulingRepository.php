@@ -111,23 +111,26 @@ class SchedulingRepository extends BaseRepository
         int $minCapacity,
         string $startAt,
         string $endAt,
-        int $bufferMinutes = 30
+        int $bufferMinutes = 30,
+        ?int $venueId = null
     ): ?array {
         $strictBuffer = max(30, $bufferMinutes);
-        return $this->querySingleAvailablePhysicalRoom($minCapacity, $startAt, $endAt, $strictBuffer);
+        return $this->querySingleAvailablePhysicalRoom($minCapacity, $startAt, $endAt, $strictBuffer, $venueId);
     }
 
     protected function querySingleAvailablePhysicalRoom(
         int $minCapacity,
         string $startAt,
         string $endAt,
-        int $bufferMinutes
+        int $bufferMinutes,
+        ?int $venueId = null
     ): ?array {
-        return $this->executeQuery(function () use ($minCapacity, $startAt, $endAt, $bufferMinutes): ?array {
+        return $this->executeQuery(function () use ($minCapacity, $startAt, $endAt, $bufferMinutes, $venueId): ?array {
+            $venueSql = ($venueId !== null && $venueId > 0) ? ' AND pr.`venue_id` = :target_venue_id' : '';
             $stmt = $this->pdo->prepare(
                 'SELECT pr.`id`, pr.`venue_id`, pr.`name`, pr.`capacity`
                  FROM `physical_rooms` pr
-                 INNER JOIN `venues` v ON v.`id` = pr.`venue_id` AND v.`status` = \'ACTIVE\'
+                 INNER JOIN `venues` v ON v.`id` = pr.`venue_id` AND v.`status` = \'ACTIVE\'' . $venueSql . '
                  WHERE pr.`status` = \'ACTIVE\'
                    AND pr.`capacity` >= :min_capacity
                    AND (pr.`is_maintenance` = 0 OR pr.`is_maintenance` IS NULL)

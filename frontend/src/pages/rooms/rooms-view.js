@@ -50,7 +50,11 @@ export class RoomsView {
   async fetchRooms() {
     const content = this.container.querySelector('#rooms-lobby-content');
     try {
-      const res = await api.get(`/rooms?status=${this.currentFilter}`);
+      let endpoint = `/rooms?status=${this.currentFilter}`;
+      if (this.currentFilter === 'PUBLIC' || this.currentFilter === 'PRIVATE') {
+        endpoint = `/rooms?status=FORMING&booking_type=${this.currentFilter}`;
+      }
+      const res = await api.get(endpoint);
       this.rooms = res?.data?.rooms || [];
 
       if (this.rooms.length === 0) {
@@ -153,7 +157,7 @@ export class RoomsView {
               ` : ''}
             </div>
             <p style="color: var(--color-text-muted); margin: 0; font-size: 0.9rem;">
-              Kịch bản: <strong style="color: #38bdf8;">${room.game?.name || 'Kịch bản sát'}</strong> (${room.game?.duration_minutes || 240} phút) | Host: <strong>${room.creator_name || 'Host'}</strong>
+              Kịch bản: <strong style="color: #38bdf8;">${room.game?.name || 'Kịch bản sát'}</strong> (${room.game?.duration_minutes || 240} phút) | Host: <strong>${room.creator_name || 'Host'}</strong>${room.target_venue_name ? ` | Chi nhánh: <strong style="color: #fbbf24;">${room.target_venue_name}</strong>` : ''}
             </p>
           </div>
 
