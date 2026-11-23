@@ -524,4 +524,80 @@ class V16StandardP2PerfectionTest extends TestCase
         $payRow = $this->pdo->query("SELECT `status` FROM `player_payments` WHERE `id` = {$payId}")->fetch(PDO::FETCH_ASSOC);
         $this->assertSame('CANCELLED', $payRow['status']);
     }
+
+    /**
+     * Test 12: Quy tắc tính giá Majority Time Block khi ca chơi vắt qua 2 khung giờ
+     */
+    public function testMajorityTimeBlockPricingRule(): void
+    {
+        $pricingService = new \App\Features\Pricing\Services\PricingService($this->pdo);
+
+        // Ca chơi từ 11:30 đến 15:30 (tổng 240 phút):
+        // Ca sáng (11:30 - 13:00): 90 phút (37.5%)
+        // Ca chiều (13:00 - 15:30): 150 phút (62.5% -> Đa số)
+        $res = $pricingService->calculateBasePriceForGame(1, '2026-12-01 11:30:00', '2026-12-01 15:30:00', 240);
+
+        $this->assertSame('MAJORITY_TIME_BLOCK', $res['pricing_rule']);
+        $this->assertSame(220000, $res['base_price_per_person']);
+        $this->assertSame(240, $res['duration_minutes']);
+        $this->assertCount(2, $res['tier_overlaps']);
+        $this->assertSame(150, $res['tier_overlaps'][0]['overlap_minutes']);
+        $this->assertSame(90, $res['tier_overlaps'][1]['overlap_minutes']);
+    }
+
+    /**
+     * Test 13: Quy tắc tính giá chia đều 50-50 khi 2 khung giờ có thời lượng bằng nhau
+     */
+    public function testSplit5050TiePricingRule(): void
+    {
+        $pricingService = new \App\Features\Pricing\Services\PricingService($this->pdo);
+
+        // Ca chơi từ 16:00 đến 20:00 (tổng 240 phút):
+        // Ca chiều (16:00 - 18:00): 120 phút (50% giá 220.000)
+        // Ca tối (18:00 - 20:00): 120 phút (50% giá 250.000)
+        // Trung bình cộng: (220.000 + 250.000) / 2 = 235.000
+        $res = $pricingService->calculateBasePriceForGame(1, '2026-12-01 16:00:00', '2026-12-01 20:00:00', 240);
+
+        $this->assertSame('SPLIT_50_50_AVERAGE', $res['pricing_rule']);
+        $this->assertSame(235000, $res['base_price_per_person']);
+        $this->assertSame(240, $res['duration_minutes']);
+        $this->assertCount(2, $res['tier_overlaps']);
+        $this->assertSame(120, $res['tier_overlaps'][0]['overlap_minutes']);
+        $this->assertSame(120, $res['tier_overlaps'][1]['overlap_minutes']);
+    }
+
+    /**
+     * Test 14: Tính giá phòng chơi đầy đủ và lưu snapshot CSDL với quy tắc Majority Time Block
+     */
+    public function testRoomPricingSnapshotWithMajorityRule(): void
+    {
+        $pricingService = new \App\Features\Pricing\Services\PricingService($this->pdo);
+
+        $this->pdo->exec("INSERT INTO `game_rooms` (`game_id`, `game_configuration_id`, `creator_id`, `title`, `min_players`, `max_players`, `total_players`, `status`, `formation_deadline_at`, `created_at`, `updated_at`) VALUES (1, 1, 1, 'Phòng Snapshot Pricing Test', 6, 8, 6, 'FORMING', DATE_ADD(NOW(), INTERVAL 2 DAY), NOW(), NOW())");
+        $grId = (int) $this->pdo->lastInsertId();
+
+        for ($i = 1; $i <= 6; $i++) {
+            $uId = $this->createTestUser("Pricing Player {$i}");
+            $this->pdo->exec("INSERT INTO `room_participants` (`game_room_id`, `user_id`, `status`, `joined_at`, `created_at`, `updated_at`) VALUES ({$grId}, {$uId}, 'DEPOSITED', NOW(), NOW(), NOW())");
+        }
+
+        // Chạy calculateAndSnapshot với thời gian 11:30 - 15:30 (240 phút)
+        $snapshot = $pricingService->calculateAndSnapshot($grId, '2026-12-01 11:30:00');
+
+        $this->assertSame(6, $snapshot['total_participants']);
+        $this->assertSame(220000, $snapshot['base_price_per_person']);
+        $this->assertSame('MAJORITY_TIME_BLOCK', $snapshot['pricing_rule']);
+        $this->assertSame(220000 * 6, $snapshot['subtotal']);
+        $this->assertSame(50000, $snapshot['deposit_per_person']);
+        $this->assertSame(300000, $snapshot['deposit_total']);
+        $this->assertSame((220000 * 6) - 300000, $snapshot['remaining_total']);
+
+        // Kiểm tra snapshot được lưu vào database game_rooms
+        $roomRow = $this->pdo->query("SELECT `price_subtotal`, `price_deposit_total`, `price_remaining_total`, `price_details` FROM `game_rooms` WHERE `id` = {$grId}")->fetch(PDO::FETCH_ASSOC);
+        $this->assertSame(220000 * 6, (int) $roomRow['price_subtotal']);
+        $this->assertSame(300000, (int) $roomRow['price_deposit_total']);
+        $details = json_decode((string) $roomRow['price_details'], true);
+        $this->assertSame('MAJORITY_TIME_BLOCK', $details['pricing_rule']);
+        $this->assertSame(220000, $details['base_price_per_person']);
+    }
 }

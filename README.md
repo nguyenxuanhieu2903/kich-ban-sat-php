@@ -799,4 +799,24 @@ Nhằm đưa toàn bộ nền tảng đạt chuẩn hoàn hảo 100% tuyệt đ�
    - Cập nhật tệp đặc tả `openapi.json` mở rộng từ 36 lên 60 endpoints, bao phủ 10 Domain nghiệp vụ với thẻ tag phân tầng rõ ràng (System & Health, Auth & Identity, Admin Operations, Session Lifecycle, Game Catalog, Gameroom Management, Scheduling & Proposals, DM Assignments, Payments & Refunds, Notifications).
    - Truy cập trực tiếp tài liệu tương tác tại route `/docs` hoặc `/api/v1/docs`.
 
+---
+
+### 10.14. Gói nâng cấp hoàn thiện tối cao Stage 3.5 (Majority Time Block Rule, Split 50-50 Tie Pricing & 149/149 Tests PASS)
+
+Nhằm giải quyết triệt để bài toán tính giá vé khi ca chơi vắt qua 2 khung giờ trong thực tế (SOP Điểm 24, Mục 5.5):
+1. **Triển khai Quy tắc Khung giờ chiếm đa số (Majority Time Block Rule):**
+   - Trong `PricingService::calculateBasePriceForGame` và `PricingService::calculateAndSnapshot`:
+     - Tự động phân tích mốc bắt đầu và kết thúc của ca chơi (từ phiên chơi, đề xuất lịch hoặc thời lượng chuẩn của kịch bản).
+     - Truy vấn các khung giờ giá hiệu lực trong `game_prices` và tính toán chính xác số phút giao thoa (`overlap_minutes`) của buổi chơi với từng khung giờ giá.
+     - Tự động áp dụng mức giá của khung giờ chiếm đa số thời lượng buổi chơi ($\ge 50\%$ thời lượng). Ví dụ: Ca 4 tiếng từ 11:30 đến 15:30 (Ca Sáng 90 phút = 37.5%, Ca Chiều 150 phút = 62.5%) -> Tự động áp dụng mức giá Ca Chiều: 220.000 VNĐ / vé.
+2. **Triển khai Quy tắc Hòa tỷ lệ 50-50 (Split 50-50 Tie Pricing Rule):**
+   - Trường hợp buổi chơi chia đều chính xác 50% - 50% thời lượng cho 2 khung giờ (ví dụ từ 16:00 đến 20:00: Ca Chiều 120 phút và Ca Tối 120 phút): Hệ thống tự động tính giá vé theo **trung bình cộng** của 2 khung giờ: `(220.000 + 250.000) / 2 = 235.000 VNĐ / vé` nhằm bảo đảm quyền lợi hài hòa giữa khách hàng và quán.
+3. **Lưu vết Snapshot minh bạch vào Cơ sở dữ liệu:**
+   - Toàn bộ danh sách số phút giao thoa (`tier_overlaps`), quy tắc tính giá (`pricing_rule: 'MAJORITY_TIME_BLOCK' | 'SPLIT_50_50_AVERAGE' | 'SINGLE_TIER' | 'DEFAULT_FALLBACK'`), thời gian bắt đầu và kết thúc ca chơi được lưu vết đầy đủ trong trường `game_rooms.price_details` và `participant_price_snapshots`.
+4. **Bộ kiểm thử tự động đạt kỷ lục 149/149 bài test PASS (100%):**
+   - Bổ sung 3 ca kiểm thử: `testMajorityTimeBlockPricingRule`, `testSplit5050TiePricingRule`, `testRoomPricingSnapshotWithMajorityRule`.
+   - Kết quả: **149/149 tests PASS (100%)**, 723 assertions, 0 errors, 0 failures, thời gian chạy ~4.2 giây.
+5. **Cập nhật đồng bộ Sổ tay vận hành (SOP):**
+   - Cập nhật mục 4.3 trong `CACH_VAN_HANH.md` và mục 5.5 trong `docs/TAI_LIEU_VAN_HANH_TOAN_DIEN_HE_THONG.md` bảo đảm toàn bộ nhân sự lễ tân, quản trò và kế toán nắm rõ nguyên tắc tính giá minh bạch.
+
 

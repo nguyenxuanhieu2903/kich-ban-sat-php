@@ -124,6 +124,18 @@ Thu ngân / Lễ tân chịu trách nhiệm kiểm soát dòng tiền tại ch�
    - **Thu phụ phí phát sinh (Extra Fees / Prop Damage):** Nếu khách làm rách kịch bản, làm hỏng trang phục hóa trang hoặc gọi thêm đồ uống, Thu ngân nhập số tiền phụ phí vào ô "Phụ phí" kèm lý do đền bù trước khi xác nhận tất toán.
 3. Bấm xác nhận đã thu đủ tiền để hệ thống chuyển trạng thái thanh toán sang `SETTLED`. Nếu phát sinh tranh chấp hoặc khách nợ tiền, bấm ghi nhận cờ `PAYMENT_DISPUTE` để chuyển kế toán đối soát.
 
+### 4.3. Quy tắc tính giá vé chuẩn hóa khi Ca chơi vắt qua 2 khung giờ (Majority Time Block Rule)
+1. **Bảng giá phân định 3 khung giờ:**
+   - Ca Sáng (09:00 - 13:00): 180.000 VNĐ / vé.
+   - Ca Chiều (13:00 - 18:00): 220.000 VNĐ / vé.
+   - Ca Tối (18:00 - 23:00): 250.000 VNĐ / vé.
+2. **Quy tắc khung giờ chiếm đa số (Majority Time Block Rule):**
+   - Giá vé được tự động xác định theo khung giờ chiếm đa số thời lượng của buổi chơi ($\ge 50\%$ tổng thời lượng).
+   - Ví dụ: Ca chơi 240 phút từ 11:30 đến 15:30 vắt từ Ca Sáng (90 phút = 37.5%) sang Ca Chiều (150 phút = 62.5%): Tự động áp dụng mức giá Ca Chiều **220.000 VNĐ / vé**.
+3. **Quy tắc hòa tỷ lệ 50 - 50 (Split 50-50 Tie Rule):**
+   - Nếu buổi chơi chia đều chính xác 50% - 50% thời lượng cho 2 khung giờ (ví dụ từ 16:00 đến 20:00: Ca Chiều 120 phút và Ca Tối 120 phút): Hệ thống tự động tính giá vé theo **trung bình cộng** của 2 khung giờ: `(220.000 + 250.000) / 2 = 235.000 VNĐ / vé`.
+4. **Minh bạch hóa dữ liệu:** Toàn bộ tỷ lệ thời lượng, số phút giao thoa và quy tắc tính giá được lưu vết trong snapshot `game_rooms.price_details` để lễ tân và khách hàng có thể tra cứu đối soát minh bạch tại bất kỳ thời điểm nào.
+
 ---
 
 ## 5. HƯỚNG DẪN DÀNH CHO QUẢN TRỊ VIÊN & CHỦ CƠ SỞ (ADMIN)

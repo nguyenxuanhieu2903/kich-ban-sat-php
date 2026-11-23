@@ -32,7 +32,7 @@ class PricingService
         // 1. Lấy thông tin phòng và game
         $rStmt = $this->pdo->prepare(
             'SELECT gr.`id`, gr.`game_id`, gr.`title`, gr.`min_players`, gr.`max_players`, gr.`status`,
-                    g.`name` AS `game_name`
+                    g.`name` AS `game_name`, COALESCE(g.`duration_minutes`, 240) AS `duration_minutes`
              FROM `game_rooms` gr
              INNER JOIN `games` g ON g.`id` = gr.`game_id`
              WHERE gr.`id` = :room_id
@@ -63,46 +63,54 @@ class PricingService
 
         // 3. Xác định mốc thời gian chơi
         $playDateTime = $playTime;
+        $endDateTime = null;
         if ($playDateTime === null || trim($playDateTime) === '') {
             // Thử lấy từ session hoặc confirmed proposal
-            $sessStmt = $this->pdo->prepare('SELECT `start_at` FROM `sessions` WHERE `game_room_id` = :room_id LIMIT 1');
+            $sessStmt = $this->pdo->prepare('SELECT `start_at`, `end_at` FROM `sessions` WHERE `game_room_id` = :room_id LIMIT 1');
             $sessStmt->bindValue(':room_id', $roomId, PDO::PARAM_INT);
             $sessStmt->execute();
-            $sessStart = $sessStmt->fetchColumn();
+            $sessRow = $sessStmt->fetch(PDO::FETCH_ASSOC);
 
-            if ($sessStart !== false && $sessStart !== null) {
-                $playDateTime = (string) $sessStart;
+            if ($sessRow !== false && !empty($sessRow['start_at'])) {
+                $playDateTime = (string) $sessRow['start_at'];
+                $endDateTime = !empty($sessRow['end_at']) ? (string) $sessRow['end_at'] : null;
             } else {
-                $propStmt = $this->pdo->prepare('SELECT `proposed_start_at` FROM `schedule_proposals` WHERE `game_room_id` = :room_id AND `status` = \'CONFIRMED\' LIMIT 1');
+                $propStmt = $this->pdo->prepare('SELECT `proposed_start_at`, `proposed_end_at` FROM `schedule_proposals` WHERE `game_room_id` = :room_id AND `status` = \'CONFIRMED\' LIMIT 1');
                 $propStmt->bindValue(':room_id', $roomId, PDO::PARAM_INT);
                 $propStmt->execute();
-                $propStart = $propStmt->fetchColumn();
-                $playDateTime = $propStart !== false && $propStart !== null ? (string) $propStart : date('Y-m-d 18:00:00');
+                $propRow = $propStmt->fetch(PDO::FETCH_ASSOC);
+
+                if ($propRow !== false && !empty($propRow['proposed_start_at'])) {
+                    $playDateTime = (string) $propRow['proposed_start_at'];
+                    $endDateTime = !empty($propRow['proposed_end_at']) ? (string) $propRow['proposed_end_at'] : null;
+                } else {
+                    $playDateTime = date('Y-m-d 18:00:00');
+                }
             }
         }
 
+        // 4. Tính toán giá gốc áp dụng Majority Time Block Rule và Chia đều 50-50
+        $durationMinutes = !empty($room['duration_minutes']) ? (int) $room['duration_minutes'] : 240;
+        $priceCalc = $this->calculateBasePriceForGame(
+            (int) $room['game_id'],
+            $playDateTime,
+            $endDateTime,
+            $durationMinutes
+        );
+
+        $basePricePerPerson = $priceCalc['base_price_per_person'];
+        $pricingRuleApplied = $priceCalc['pricing_rule'];
+        $endDateTime = $priceCalc['end_datetime'];
+        $durationMinutes = $priceCalc['duration_minutes'];
+        $tierOverlaps = $priceCalc['tier_overlaps'];
+
         $timeOfDay = date('H:i:s', strtotime($playDateTime));
         $dayOfWeek = (int) date('N', strtotime($playDateTime)); // 1 (Mon) -> 7 (Sun)
-
-        // 4. Tìm bảng giá game_prices theo khung giờ (09:00 - 19:59 vs từ 20:00)
-        $priceStmt = $this->pdo->prepare(
-            'SELECT `price_per_person`, `start_time`, `end_time`
-             FROM `game_prices`
-             WHERE `game_id` = :game_id AND `status` = \'ACTIVE\'
-               AND :t1 >= `start_time` AND :t2 <= `end_time`
-             LIMIT 1'
-        );
-        $priceStmt->bindValue(':game_id', (int) $room['game_id'], PDO::PARAM_INT);
-        $priceStmt->bindValue(':t1', $timeOfDay, PDO::PARAM_STR);
-        $priceStmt->bindValue(':t2', $timeOfDay, PDO::PARAM_STR);
-        $priceStmt->execute();
-        $priceRecord = $priceStmt->fetch(PDO::FETCH_ASSOC);
-
-        $basePricePerPerson = $priceRecord !== false ? (int) $priceRecord['price_per_person'] : 250000;
         $subtotal = $basePricePerPerson * $totalParticipants;
 
         // Tiền cọc: Cố định 50.000 VNĐ / người
         $depositPerPerson = self::DEPOSIT_PER_PERSON;
+        $depositTotal = $depositPerPerson * $totalParticipants;
         $depositTotal = $depositPerPerson * $totalParticipants;
 
         // 5. Xử lý khuyến mãi
@@ -209,8 +217,12 @@ class PricingService
             'game_id' => (int) $room['game_id'],
             'game_name' => $room['game_name'],
             'play_datetime' => $playDateTime,
+            'end_datetime' => $endDateTime,
+            'duration_minutes' => $durationMinutes,
             'time_of_day' => $timeOfDay,
-            'is_peak_hours' => strtotime($timeOfDay) >= strtotime('20:00:00'),
+            'pricing_rule' => $pricingRuleApplied,
+            'tier_overlaps' => $tierOverlaps,
+            'is_peak_hours' => strtotime($timeOfDay) >= strtotime('18:00:00'),
             'base_price_per_person' => $basePricePerPerson,
             'deposit_per_person' => $depositPerPerson,
             'per_player_discount' => $perPlayerDiscount,
@@ -282,6 +294,10 @@ class PricingService
                 'game_room_id' => $roomId,
                 'game_name' => $room['game_name'],
                 'play_datetime' => $playDateTime,
+                'end_datetime' => $endDateTime,
+                'duration_minutes' => $durationMinutes,
+                'pricing_rule' => $pricingRuleApplied,
+                'tier_overlaps' => $tierOverlaps,
                 'total_participants' => $totalParticipants,
                 'base_price_per_person' => $basePricePerPerson,
                 'subtotal' => $subtotal,
@@ -305,5 +321,124 @@ class PricingService
             }
             throw $e;
         }
+    }
+
+    /**
+     * Tính toán giá vé cơ bản của kịch bản theo Majority Time Block Rule và Chia đều 50-50.
+     *
+     * @return array<string, mixed>
+     */
+    public function calculateBasePriceForGame(
+        int $gameId,
+        string $startDateTime,
+        ?string $endDateTime = null,
+        int $defaultDurationMinutes = 240
+    ): array {
+        $startTs = strtotime($startDateTime);
+        if ($startTs === false) {
+            $startTs = time();
+            $startDateTime = date('Y-m-d H:i:s', $startTs);
+        }
+
+        if ($endDateTime !== null && trim($endDateTime) !== '') {
+            $endTs = strtotime($endDateTime);
+            if ($endTs > $startTs) {
+                $durationMinutes = (int) round(($endTs - $startTs) / 60);
+            } else {
+                $durationMinutes = $defaultDurationMinutes > 0 ? $defaultDurationMinutes : 240;
+                $endTs = $startTs + ($durationMinutes * 60);
+                $endDateTime = date('Y-m-d H:i:s', $endTs);
+            }
+        } else {
+            $durationMinutes = $defaultDurationMinutes > 0 ? $defaultDurationMinutes : 240;
+            $endTs = $startTs + ($durationMinutes * 60);
+            $endDateTime = date('Y-m-d H:i:s', $endTs);
+        }
+
+        $startDateStr = date('Y-m-d', $startTs);
+        $endDateStr = date('Y-m-d', $endTs);
+
+        $priceStmt = $this->pdo->prepare(
+            'SELECT `id`, `price_per_person`, `start_time`, `end_time`
+             FROM `game_prices`
+             WHERE `game_id` = :game_id AND `status` = \'ACTIVE\'
+               AND (`effective_until` IS NULL OR `effective_until` >= :d1)
+               AND `effective_from` <= :d2
+             ORDER BY `start_time` ASC'
+        );
+        $priceStmt->bindValue(':game_id', $gameId, PDO::PARAM_INT);
+        $priceStmt->bindValue(':d1', $startDateStr, PDO::PARAM_STR);
+        $priceStmt->bindValue(':d2', $endDateStr, PDO::PARAM_STR);
+        $priceStmt->execute();
+        $tiers = $priceStmt->fetchAll(PDO::FETCH_ASSOC);
+
+        $tierOverlaps = [];
+        $candidateDates = array_unique([$startDateStr, $endDateStr]);
+
+        foreach ($tiers as $tier) {
+            $tStart = (string) $tier['start_time'];
+            $tEnd = (string) $tier['end_time'];
+            $overlapSec = 0;
+
+            foreach ($candidateDates as $cDate) {
+                $t1 = strtotime("$cDate $tStart");
+                $t2 = strtotime("$cDate $tEnd");
+                if ($t2 > $t1) {
+                    $oStart = max($startTs, $t1);
+                    $oEnd = min($endTs, $t2);
+                    if ($oEnd > $oStart) {
+                        $overlapSec += ($oEnd - $oStart);
+                    }
+                }
+            }
+
+            $overlapMin = (int) round($overlapSec / 60);
+            if ($overlapMin > 0) {
+                $pct = round(($overlapMin / max(1, $durationMinutes)) * 100, 1);
+                $tierOverlaps[] = [
+                    'id' => (int) $tier['id'],
+                    'price_per_person' => (int) $tier['price_per_person'],
+                    'start_time' => $tStart,
+                    'end_time' => $tEnd,
+                    'overlap_minutes' => $overlapMin,
+                    'overlap_percentage' => $pct,
+                ];
+            }
+        }
+
+        if (empty($tierOverlaps)) {
+            // Fallback nếu không có cấu hình chi tiết theo khung giờ
+            $fbStmt = $this->pdo->prepare('SELECT `price_per_person` FROM `game_prices` WHERE `game_id` = :game_id AND `status` = \'ACTIVE\' LIMIT 1');
+            $fbStmt->bindValue(':game_id', $gameId, PDO::PARAM_INT);
+            $fbStmt->execute();
+            $fbPrice = $fbStmt->fetchColumn();
+
+            $basePrice = ($fbPrice !== false && $fbPrice !== null) ? (int) $fbPrice : 250000;
+            $pricingRule = 'DEFAULT_FALLBACK';
+        } elseif (count($tierOverlaps) === 1) {
+            $basePrice = $tierOverlaps[0]['price_per_person'];
+            $pricingRule = 'SINGLE_TIER';
+        } else {
+            // Sắp xếp giảm dần theo số phút giao thoa
+            usort($tierOverlaps, fn($a, $b) => $b['overlap_minutes'] <=> $a['overlap_minutes']);
+
+            // Kiểm tra trường hợp 50-50 tie giữa 2 khung giờ dẫn đầu
+            if ($tierOverlaps[0]['overlap_minutes'] === $tierOverlaps[1]['overlap_minutes']) {
+                $basePrice = (int) round(($tierOverlaps[0]['price_per_person'] + $tierOverlaps[1]['price_per_person']) / 2);
+                $pricingRule = 'SPLIT_50_50_AVERAGE';
+            } else {
+                $basePrice = $tierOverlaps[0]['price_per_person'];
+                $pricingRule = 'MAJORITY_TIME_BLOCK';
+            }
+        }
+
+        return [
+            'base_price_per_person' => $basePrice,
+            'pricing_rule' => $pricingRule,
+            'start_datetime' => $startDateTime,
+            'end_datetime' => $endDateTime,
+            'duration_minutes' => $durationMinutes,
+            'tier_overlaps' => $tierOverlaps,
+        ];
     }
 }

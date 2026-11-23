@@ -1,10 +1,10 @@
-#  KỊCH BẢN SÁT V16 - PRODUCTION BACKEND SYSTEM
+# KỊCH BẢN SÁT V16 - PRODUCTION BACKEND SYSTEM
 
 Hệ thống Backend chuẩn công nghiệp cho nền tảng đặt phòng, quản lý kịch bản, điều phối Game Master (DM) và thanh toán cho hệ thống trò chơi nhập vai **Kịch Bản Sát (Jubensha)**. Hệ thống được phát triển theo kiến trúc Native PHP PSR-4, kết nối PDO Prepared Statements, CSDL MySQL 8.4, bảo mật đa tầng và kiểm thử tự động 100%.
 
 ---
 
-##  ĐẶC ĐIỂM KỸ THUẬT CỐT LÕI (TECHNICAL HIGHLIGHTS)
+## ĐẶC ĐIỂM KỸ THUẬT CỐT LÕI (TECHNICAL HIGHLIGHTS)
 
 1. **Kiến trúc Native PHP PSR-4 Hiện đại:**
    - Không phụ thuộc vào heavy framework (Laravel/Symfony), tối ưu hóa tài nguyên và độ trễ CPU/Memory (Memory footprint < 16MB).
@@ -20,12 +20,13 @@ Hệ thống Backend chuẩn công nghiệp cho nền tảng đặt phòng, qu�
 3. **Quy tắc Nghiệp vụ Chuẩn V16 (Business Rules Compliance):**
    - **Mức cọc cố định:** 50,000 VNĐ / người chơi cho mọi thể loại game.
    - **Hạn chót hoàn tiền 24 giờ:** Người chơi hủy trước 24h được hoàn 100% cọc; hủy dưới 24h bị mất cọc (ngoại trừ can thiệp của Quản trị viên qua cờ `force_refund`).
+   - **Quy tắc tính giá đa số (Majority Time Block Rule):** Ca chơi vắt qua 2 khung giờ được tính theo khung giờ chiếm đa số thời lượng ($\ge 50\%$). Nếu hòa tỷ lệ 50-50, tính theo giá trung bình cộng 2 khung giờ.
    - **Ưu đãi thứ 3 & HSSV:** Giảm giá 30% vào thứ 3 hàng tuần không cộng dồn với ưu đãi Học sinh - Sinh viên (`HSSV_20000`). Ưu đãi HSSV chỉ áp dụng cho người chơi đã xác thực sinh viên (`student_verified = 1`).
    - **Hạn chót tìm người thay thế:** Không vượt quá thời gian bắt đầu phiên chơi (`LEAST(24h, session_start_at)`).
 
 ---
 
-##  YÊU CẦU MÔI TRƯỜNG (PREREQUISITES)
+## YÊU CẦU MÔI TRƯỜNG (PREREQUISITES)
 
 - **PHP:** >= 8.2 (Khuyến nghị PHP 8.3+)
   - Tiện ích mở rộng bắt buộc: `pdo`, `pdo_mysql`, `json`, `mbstring`, `session`.
@@ -34,7 +35,7 @@ Hệ thống Backend chuẩn công nghiệp cho nền tảng đặt phòng, qu�
 
 ---
 
-##  CÀI ĐẶT & KHỞI CHẠY (QUICK START)
+## CÀI ĐẶT & KHỞI CHẠY (QUICK START)
 
 ### 1. Cài đặt Dependencies
 ```bash
@@ -68,7 +69,7 @@ composer seed
 ```bash
 composer test
 ```
-*Kết quả:* **126 tests, 566 assertions, 100% OK (0 failures, 0 errors)**.
+*Kết quả:* **149 tests, 723 assertions, 100% OK (0 failures, 0 errors)**.
 
 ### 5. Khởi chạy Máy chủ Cục bộ (Local Development Server)
 ```bash
@@ -81,7 +82,7 @@ php -S localhost:8000 -t public
 
 ---
 
-## ⏰ HỆ THỐNG TIẾN TRÌNH NỀN (BACKGROUND JOBS & CRON)
+## HỆ THỐNG TIẾN TRÌNH NỀN (BACKGROUND JOBS & CRON)
 
 Hệ thống đi kèm công cụ chạy nền tự động xử lý các mốc thời gian quá hạn:
 - Quá hạn gom phòng (Formation Timeout -> Hủy phòng và giải phóng lịch).
@@ -103,7 +104,7 @@ php bin/cron.php --job=proposal-timeout
 
 ---
 
-##  TÀI LIỆU API & DANH MỤC 50 ENDPOINTS
+## TÀI LIỆU API & DANH MỤC 60 ENDPOINTS
 
 Hệ thống hỗ trợ cả 2 tiền tố URL: `/api/v1/...` (chuẩn V16) và `/api/...` (fallback tương thích).
 
@@ -136,17 +137,20 @@ Hệ thống hỗ trợ cả 2 tiền tố URL: `/api/v1/...` (chuẩn V16) và 
 - `GET /api/v1/rooms`: Danh sách phòng chơi công khai.
 - `POST /api/v1/rooms`: Tạo phòng chơi mới.
 - `GET /api/v1/rooms/{id}`: Chi tiết phòng, danh sách thành viên và trạng thái.
-- `POST /api/v1/rooms/{id}/join`: Tham gia phòng chơi (Pessimistic lock).
+- `POST /api/v1/rooms/{id}/join`: Tham gia phòng chơi (Pessimistic lock, chống chơi lại kịch bản cũ và chống trùng lịch).
 - `POST /api/v1/rooms/{id}/leave`: Rời phòng (tự động mở cửa sổ tìm người thay thế).
-- `POST /api/v1/rooms/{id}/calculate-price`: Dự tính chi phí và chiết khấu.
+- `POST /api/v1/rooms/{id}/calculate-price`: Dự tính chi phí và chiết khấu (áp dụng Majority Time Block).
 - `GET /api/v1/rooms/{id}/price-snapshot`: Xem bản chốt giá (Price Snapshot).
 - `POST /api/v1/admin/rooms/{id}/cancel`: Quản trị viên hủy phòng (có hỗ trợ `force_refund`).
+- `POST /api/v1/admin/rooms/offline-block`: Khóa giữ chỗ ngoại tuyến qua Hotline.
 
 ### 5. Lịch hẹn & Địa điểm (Venue Scheduling & Voting)
 - `GET /api/v1/venues`: Danh sách chi nhánh và phòng chơi vật lý.
 - `POST /api/v1/rooms/{id}/proposals`: Đề xuất khung giờ chơi.
 - `GET /api/v1/proposals/{id}`: Chi tiết đề xuất lịch.
-- `POST /api/v1/proposals/{id}/vote`: Biểu quyết đồng thuận khung giờ.
+- `POST /api/v1/proposals/{id}/vote`: Biểu quyết đồng thuận khung giờ (Quorum 80%).
+- `GET /api/v1/admin/physical-rooms`: Quản lý danh sách phòng vật lý cơ sở.
+- `POST /api/v1/admin/physical-rooms/{id}/maintenance`: Bật/tắt bảo trì phòng kèm tự động điều chuyển ca chơi.
 - `POST /api/v1/admin/rooms/{id}/assign-venue`: Admin gán phòng vật lý cho ca chơi.
 - `POST /api/v1/sessions/{id}/start`: Bắt đầu phiên chơi thực tế.
 - `POST /api/v1/sessions/{id}/complete`: Kết thúc phiên chơi, chuyển trạng thái hoàn tất.
@@ -166,6 +170,7 @@ Hệ thống hỗ trợ cả 2 tiền tố URL: `/api/v1/...` (chuẩn V16) và 
 - `GET /api/v1/admin/refunds`: Danh sách yêu cầu hoàn tiền chờ duyệt.
 - `POST /api/v1/admin/refunds/{id}/approve`: Admin phê duyệt hoàn tiền.
 - `POST /api/v1/admin/refunds/{id}/reject`: Admin từ chối hoàn tiền.
+- `POST /api/v1/admin/refunds/{id}/complete`: Kế toán/Admin hoàn tất chi trả tiền cọc qua ủy nhiệm chi.
 
 ### 8. Thông báo (Notifications)
 - `GET /api/v1/notifications`: Danh sách thông báo cá nhân.
@@ -174,7 +179,7 @@ Hệ thống hỗ trợ cả 2 tiền tố URL: `/api/v1/...` (chuẩn V16) và 
 
 ---
 
-##  CẤU TRÚC DỰ ÁN (PROJECT DIRECTORY TREE)
+## CẤU TRÚC DỰ ÁN (PROJECT DIRECTORY TREE)
 
 ```
 backend/
@@ -187,9 +192,9 @@ backend/
 │       ├── GameroomManagement/         # Rooms, Room Participants, Lifecycle, Background Jobs
 │       ├── VenueScheduling/            # Venues, Physical Rooms, Proposals, Sessions
 │       ├── DMManagement/               # DM Assignments, Rejection/Acceptance
-│       ├── Pricing/                    # Pricing Engine, Calculation, Snapshots
+│       ├── Pricing/                    # Pricing Engine, Calculation, Snapshots, Majority Block
 │       ├── Promotion/                  # V16 Promotion Policies (Tuesday, Student)
-│       ├── PaymentRefund/              # Deposits, Remaining, Refund Rules, Admin Review
+│       ├── PaymentRefund/              # Deposits, Remaining, Refund Rules, Admin Review & Complete
 │       └── Notification/               # In-app Event Notifications
 ├── bin/
 │   ├── cron.php                        # CLI Background Worker Runner
@@ -204,7 +209,7 @@ backend/
 ├── routes/
 │   └── api.php                         # Route Definitions
 ├── tests/
-│   └── Feature/                        # 126 Unit & Feature Automated Tests
+│   └── Feature/                        # 149 Unit & Feature Automated Tests
 ├── composer.json                       # PSR-4 Autoloading, Dev Dependencies & Scripts
 ├── phpunit.xml                         # Test Configuration
 └── README.md                           # System Documentation
@@ -212,8 +217,8 @@ backend/
 
 ---
 
-##  TIÊU CHUẨN NGHIỆM THU ĐỒ ÁN (DEFENSE READY)
+## TIÊU CHUẨN NGHIỆM THU ĐỒ ÁN (DEFENSE READY)
 
 1. **Clean Code & No Framework Magic:** Toàn bộ luồng dữ liệu, mã hóa mật khẩu, truy vấn SQL đều được viết mạch lạc, dễ giải trình trước hội đồng chấm thi.
-2. **Kiểm thử tự động phủ kín:** 126 unit & feature tests kiểm chứng chặt chẽ mọi kịch bản biên (concurrency race conditions, cutoff times, non-stackable promotions, role escalation checks).
+2. **Kiểm thử tự động phủ kín:** 149 unit & feature tests kiểm chứng chặt chẽ mọi kịch bản biên (concurrency race conditions, cutoff times, non-stackable promotions, majority time block pricing, auto rerouting).
 3. **Sẵn sàng triển khai:** Cung cấp đầy đủ script CLI, tài liệu OpenAPI tương tác và bộ seeder một chạm cho buổi thuyết trình.
