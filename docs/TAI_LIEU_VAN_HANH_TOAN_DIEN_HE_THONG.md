@@ -161,6 +161,15 @@ Dưới đây là lời phân tích chi tiết về các câu hỏi mà bạn c�
   - Người chơi chưa rõ: Cọc là cọc cho từng cá nhân (50k/người) hay chủ phòng cọc thay cho cả bàn?
   - Hệ thống hiện tại thiết kế theo mô hình **Mỗi người chơi tự chịu trách nhiệm tiền cọc của mình** (Personal Deposit). Mô hình này tốt cho khách lẻ gom quân (ai bùng lịch thì mất cọc người đó), nhưng lại rườm rà cho nhóm bạn đi chung (chủ nhóm phải bắt 7 người bạn kia tạo tài khoản và bấm cọc 50k).
 
+### 4.4. Điểm Cấn 4: "Thời gian giới hạn cho từng map chơi để chọn thời gian kết thúc hợp lý"
+- **Vấn đề trước đây:** Form đề xuất lịch cho phép người chơi tự do gõ giờ kết thúc. Điều này dẫn đến 2 rủi ro lớn:
+  1. Người chơi chọn giờ kết thúc quá ngắn (ví dụ chỉ 30 phút hoặc 1 tiếng), không đủ thời lượng tối thiểu để Quản trò dẫn dắt vụ án.
+  2. Người chơi chọn giờ kết thúc quá dài (ví dụ 8 tiếng), làm tê liệt và chiếm dụng phòng vật lý cả ngày, gây xung đột ca của các nhóm khác.
+- **Giải pháp chuẩn hóa đã triển khai:**
+  - Mỗi kịch bản có thuộc tính `duration_minutes` cố định trong CSDL (ví dụ: *Đêm Đoạt Mệnh* 240 phút = 4.0 tiếng; *Biệt Thự Huyết Tộc* 210 phút = 3.5 tiếng).
+  - Khi người chơi chọn **Giờ bắt đầu**, hệ thống **tự động tính toán và khóa giờ kết thúc chuẩn xác theo thời lượng kịch bản** (ví dụ: bắt đầu 14:00 -> tự động tính kết thúc 18:00 đối với game 240 phút; hoặc 17:30 đối với game 210 phút).
+  - Tầng Backend tại `SchedulingController::propose` tự động nạp `duration_minutes` từ kịch bản liên kết với phòng để tính toán giờ kết thúc, đồng thời từ chối các đề xuất có thời lượng quá ngắn dưới 60 phút (`DURATION_TOO_SHORT`).
+
 ---
 
 ## 5. BẢN TỰ KIỂM ĐIỂM TOÀN DIỆN HỆ THỐNG (SYSTEM GAP ANALYSIS)
