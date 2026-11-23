@@ -52,6 +52,7 @@ switch ($targetJob) {
         echo "  - Deposit Timeouts: {$stats['deposit_timeouts']} participant(s) kicked.\n";
         echo "  - Replacement Timeouts: {$stats['replacement_timeouts']} window(s) expired.\n";
         echo "  - Proposal Timeouts: {$stats['proposal_timeouts']} proposal(s) expired.\n";
+        echo "  - DM Assignment Timeouts: {$stats['dm_assignment_timeouts']} assignment(s) revoked.\n";
         break;
 }
 
