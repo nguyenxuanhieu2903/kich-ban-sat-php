@@ -204,7 +204,9 @@ class Response
             }
         }
 
-        echo $this->content;
+        if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'HEAD') {
+            echo $this->content;
+        }
     }
 
     private static function getDefaultErrorCode(int $statusCode): string

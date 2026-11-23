@@ -76,6 +76,7 @@ class Router
     public function match(Request $request): array
     {
         $requestMethod = $request->getMethod();
+        $matchMethod = $requestMethod === 'HEAD' ? 'GET' : $requestMethod;
         $requestPath = $request->getPath();
 
         $matchingPathFound = false;
@@ -86,7 +87,7 @@ class Router
                 $matchingPathFound = true;
                 $allowedMethods[] = $route['method'];
 
-                if ($route['method'] === $requestMethod) {
+                if ($route['method'] === $matchMethod) {
                     $params = [];
                     foreach ($route['paramNames'] as $paramName) {
                         if (isset($matches[$paramName])) {
