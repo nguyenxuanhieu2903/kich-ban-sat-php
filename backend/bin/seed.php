@@ -44,7 +44,7 @@ try {
             (2, 2, 'Host Hoàng Nam (DM)', 'dm.nam@kichbansat.vn', '{$pwd}', '0902000002', 'https://api.dicebear.com/7.x/bottts/svg?seed=HostNam', 'ACTIVE', 0, NOW()),
             (3, 1, 'Nguyễn Xuân Hiếu (Player)', 'player.hieu@kichbansat.vn', '{$pwd}', '0903000003', 'https://api.dicebear.com/7.x/bottts/svg?seed=HieuPlayer', 'ACTIVE', 1, NOW()),
             (4, 1, 'Trần Minh Anh (Player)', 'minhanh@gmail.com', '{$pwd}', '0904000004', 'https://api.dicebear.com/7.x/bottts/svg?seed=MinhAnh', 'ACTIVE', 0, NOW())
-        ON DUPLICATE KEY UPDATE `full_name` = VALUES(`full_name`), `student_verified` = VALUES(`student_verified`);
+        ON DUPLICATE KEY UPDATE `password_hash` = VALUES(`password_hash`), `full_name` = VALUES(`full_name`), `student_verified` = VALUES(`student_verified`), `status` = VALUES(`status`);
     ");
 
     // 3. Seed Venues
@@ -68,24 +68,37 @@ try {
         ON DUPLICATE KEY UPDATE `name` = VALUES(`name`);
     ");
 
-    // 5. Seed Games & Prices
-    echo "[5/6] Seeding games & pricing tiers...\n";
+    // 5. Seed Games, Configurations & Prices
+    echo "[5/6] Seeding games, configurations & pricing tiers...\n";
     $pdo->exec("
         INSERT INTO `games` (`id`, `name`, `slug`, `description`, `image_url`, `min_players`, `max_players`, `duration_minutes`, `status`, `display_order`)
         VALUES
             (1, 'Đêm Đoạt Mệnh Tại Trang Viên', 'dem-doat-menh-tai-trang-vien', 'Một bữa tiệc gia tộc bí ẩn nơi người đứng đầu bị sát hại trong đêm giông bão. Mỗi người đều có một bí mật không thể tiết lộ.', 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23', 6, 8, 240, 'ACTIVE', 1),
-            (2, 'Biệt Thự Huyết Tộc', 'biet-thu-huyet-toc', 'Cuộc đối đầu tâm lý nghẹt thở giữa các gia tộc ma cà rồng cổ đại khi bảo vật ngàn năm biến mất.', 'https://images.unsplash.com/photo-1509198397868-475647b2a1e5', 5, 7, 210, 'ACTIVE', 2)
+            (2, 'Biệt Thự Huyết Tộc', 'biet-thu-huyet-toc', 'Cuộc đối đầu tâm lý nghẹt thở giữa các gia tộc ma cà rồng cổ đại khi bảo vật ngàn năm biến mất.', 'https://images.unsplash.com/photo-1509198397868-475647b2a1e5', 5, 7, 210, 'ACTIVE', 2),
+            (3, 'Án Mạng Trên Chuyến Tàu Tuyết', 'an-mang-tren-chuyen-tau-tuyet', 'Chuyến tàu Bắc Cực bị mắc kẹt giữa bão tuyết và một thi thể được tìm thấy trong toa hành khách hạng nhất.', 'https://images.unsplash.com/photo-1515263487990-61b07816b324', 6, 8, 240, 'ACTIVE', 3)
         ON DUPLICATE KEY UPDATE `name` = VALUES(`name`);
     ");
 
     $pdo->exec("
-        INSERT INTO `game_prices` (`id`, `game_id`, `price_per_person`, `start_time`, `end_time`, `effective_from`, `status`)
+        INSERT INTO `game_configurations` (`id`, `game_id`, `version`, `configuration`, `description`, `is_active`, `created_by`)
         VALUES
-            (1, 1, 220000, '09:00:00', '19:59:59', '2026-01-01', 'ACTIVE'),
-            (2, 1, 260000, '20:00:00', '23:59:59', '2026-01-01', 'ACTIVE'),
-            (3, 2, 200000, '09:00:00', '19:59:59', '2026-01-01', 'ACTIVE'),
-            (4, 2, 240000, '20:00:00', '23:59:59', '2026-01-01', 'ACTIVE')
-        ON DUPLICATE KEY UPDATE `price_per_person` = VALUES(`price_per_person`), `effective_from` = VALUES(`effective_from`);
+            (1, 1, 1, '{\"props\": [\"Thư tống tiền\", \"Dao găm cổ\", \"Chiếc nhẫn ngọc bích\"], \"clue_count\": 24, \"bgm_playlist\": \"gothic_mystery_v1\"}', 'Phiên bản đạo cụ chuẩn 8 người chơi', 1, 1),
+            (2, 2, 1, '{\"props\": [\"Bình rượu máu\", \"Gia huy bạc\", \"Cuốn nhật ký cổ\"], \"clue_count\": 20, \"bgm_playlist\": \"vampire_noir\"}', 'Phiên bản kinh dị tâm lý', 1, 1),
+            (3, 3, 1, '{\"props\": [\"Vé tàu hạng nhất\", \"Đồng hồ quả quýt dừng ở 11h15\", \"Chai thuốc ngủ\"], \"clue_count\": 26, \"bgm_playlist\": \"snow_train_soundtrack\"}', 'Phiên bản suy luận cổ điển', 1, 1)
+        ON DUPLICATE KEY UPDATE `version` = VALUES(`version`);
+    ");
+
+    $pdo->exec("
+        INSERT INTO `game_prices` (`id`, `game_id`, `price_per_person`, `start_time`, `end_time`, `effective_from`, `effective_until`, `status`)
+        VALUES
+            (1, 1, 180000, '09:00:00', '13:00:00', '2026-01-01', '2030-12-31', 'ACTIVE'),
+            (2, 1, 220000, '13:00:00', '18:00:00', '2026-01-01', '2030-12-31', 'ACTIVE'),
+            (3, 1, 250000, '18:00:00', '23:00:00', '2026-01-01', '2030-12-31', 'ACTIVE'),
+            (4, 2, 200000, '09:00:00', '17:00:00', '2026-01-01', '2030-12-31', 'ACTIVE'),
+            (5, 2, 240000, '17:00:00', '23:00:00', '2026-01-01', '2030-12-31', 'ACTIVE'),
+            (6, 3, 200000, '09:00:00', '17:00:00', '2026-01-01', '2030-12-31', 'ACTIVE'),
+            (7, 3, 250000, '17:00:00', '23:00:00', '2026-01-01', '2030-12-31', 'ACTIVE')
+        ON DUPLICATE KEY UPDATE `price_per_person` = VALUES(`price_per_person`), `start_time` = VALUES(`start_time`), `end_time` = VALUES(`end_time`), `effective_from` = VALUES(`effective_from`), `status` = VALUES(`status`);
     ");
 
     // 6. Seed Promotions
