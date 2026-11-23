@@ -1,0 +1,34 @@
+/* src/styles/tokens.css */
+:root {
+  /* Bảng màu chuẩn Kịch Bản Sát V16 */
+  --bg-primary: #0D0D0D;        /* Nền đen chủ đạo */
+  --bg-surface: #181614;        /* Nền khối nổi tối */
+  --bg-elevated: #23201D;       /* Nền thẻ/hover tối */
+  --bg-paper: #F5F2EB;          /* Nền kem giấy cũ cho tấm vé */
+  --bg-paper-dark: #E6E0D2;
+
+  --color-crimson: #992B2B;     /* Đỏ rượu vang / Dấu mộc sáp */
+  --color-crimson-hover: #B53333;
+  --color-gold: #D4AF37;        /* Vàng đồng cổ điển */
+  --color-gold-light: #E6C65C;
+
+  --text-light: #F5F2EB;
+  --text-muted: #9E9589;
+  --text-ink: #1A1816;          /* Chữ mực đen trên nền giấy vé */
+
+  /* Màu trạng thái nghiệp vụ */
+  --status-open: #2E7D32;       /* Đang tuyển người */
+  --status-hold: #D97706;       /* Giữ chỗ 4h */
+  --status-locked: #992B2B;     /* Đã chốt / Cảnh báo 18+ */
+
+  /* Typography */
+  --font-serif: 'Playfair Display', Georgia, serif;
+  --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+
+  /* Spacing & Radius */
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --shadow-ticket: 0 10px 30px rgba(0, 0, 0, 0.65);
+  --transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}

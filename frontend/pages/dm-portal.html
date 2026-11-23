@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Cổng Quản Trò (DM Portal) — Kịch Bản Sát V16</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:ital,wght@0,600;0,700;1,600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../src/styles/components.css" />
+  <link rel="stylesheet" href="../src/styles/home.css" />
+  <style>
+    .dm-assignment-card {
+      background: rgba(13, 12, 11, 0.7);
+      border: 1px solid var(--color-gold);
+      border-radius: var(--radius-sm);
+      padding: 20px;
+      margin-bottom: 20px;
+    }
+  </style>
+</head>
+<body>
+  <header class="site-header">
+    <div class="container header-inner">
+      <a href="../index.html" class="brand-logo">
+        <img src="../src/assets/images/logo.png" alt="Logo Kịch Bản Sát" />
+        <span>KỊCH BẢN SÁT — DM PORTAL</span>
+      </a>
+      <nav class="nav-links">
+        <a href="../index.html">Trang chủ</a>
+        <a href="./lobby.html">Sảnh Phòng</a>
+        <a href="./dm-portal.html" class="active">Cổng Quản Trò</a>
+      </nav>
+      <div class="home-header-actions">
+        <span style="font-size: 0.9rem; color: var(--color-gold);">Host Hoàng Nam (DM)</span>
+        <a href="./auth.html" class="btn btn-outline" style="font-size: 0.85rem;">Đổi Tài Khoản</a>
+      </div>
+    </div>
+  </header>
+
+  <main class="container" style="padding-top: 40px; padding-bottom: 60px;">
+    <div class="home-section-head">
+      <span class="stamp-badge">QUẢN LÝ CA DẪN TRUYỆN</span>
+      <h1 class="home-section-title" style="margin-top: 8px;">Danh Sách Ca Trực Được Phân Công</h1>
+      <p class="home-section-desc">Theo dõi lịch dẫn, chấp nhận/từ chối ca trực, check-in và điều phối phiên chơi</p>
+    </div>
+
+    <!-- Active Shift Card -->
+    <div class="ticket-card" style="margin-bottom: 24px;">
+      <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 16px;">
+        <div>
+          <span class="stamp-badge open" id="sessionStatus">ĐÃ NHẬN CA (ACCEPTED)</span>
+          <h2 style="font-family: var(--font-serif); margin-top: 8px;">Phòng Án Mạng #01 — Đêm Đoạt Mệnh Tại Trang Viên</h2>
+          <p style="color: var(--text-muted); font-size: 0.95rem;">Lịch diễn ra: Thứ Bảy Tuần Này • 14:00 - 18:00 (Chi nhánh Quận 1 - Phòng Sherlock Holmes)</p>
+          <p style="font-size: 0.85rem; margin-top: 4px;">Đội hình: <strong>8 người chơi</strong> (Đã hoàn tất thanh toán cọc)</p>
+        </div>
+        <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+          <button type="button" class="btn btn-primary" id="btnStartSession">Bắt Đầu Buổi Chơi</button>
+          <button type="button" class="btn btn-gold" id="btnCompleteSession" style="display: none;">Hoàn Tất Buổi Chơi</button>
+          <button type="button" class="btn btn-outline" id="btnRejectShift" style="border-color: #992b2b; color: #ef9a9a;">Từ Chối Ca</button>
+        </div>
+      </div>
+
+      <hr class="ticket-divider" />
+
+      <!-- Incident & Results Notes -->
+      <div style="margin-top: 16px;">
+        <label for="sessionNotes" style="display: block; font-weight: 600; font-size: 0.9rem; margin-bottom: 6px;">Ghi Chú Kết Quả & Sự Cố Buổi Chơi (Session Notes):</label>
+        <textarea id="sessionNotes" class="form-control" rows="3" style="width: 100%; padding: 10px; background: var(--bg-surface); color: white; border-radius: 4px;" placeholder="Ví dụ: Người chơi nhập vai xuất sắc, thám tử tìm ra đúng hung thủ sau 3h45m, không hư hỏng đạo cụ..."></textarea>
+        <button type="button" class="btn btn-outline" id="btnSaveNotes" style="margin-top: 8px; font-size: 0.85rem;">Lưu Ghi Chú Hiện Trường</button>
+      </div>
+    </div>
+
+    <!-- Quick Clues & Script Info -->
+    <div class="ticket-card">
+      <h3 style="margin-bottom: 12px;">Tài Liệu Hỗ Trợ Quản Trò (DM Quick Reference)</h3>
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; font-size: 0.9rem;">
+        <div style="padding: 12px; background: rgba(13,12,11,0.5); border-radius: 4px; border: 1px solid rgba(201,162,94,0.3);">
+          <strong style="color: var(--color-gold);">Đạo cụ chuẩn bị:</strong>
+          <p style="margin-top: 4px;">• Thư tống tiền trong ngăn kéo</p>
+          <p>• Dao găm cổ trên giá sách</p>
+          <p>• Chiếc nhẫn ngọc bích của gia chủ</p>
+        </div>
+        <div style="padding: 12px; background: rgba(13,12,11,0.5); border-radius: 4px; border: 1px solid rgba(201,162,94,0.3);">
+          <strong style="color: var(--color-gold);">Âm thanh & Ánh sáng:</strong>
+          <p style="margin-top: 4px;">• Playlist: gothic_mystery_v1</p>
+          <p>• Ánh sáng: Vàng ấm 40%, đèn chùm phòng khách</p>
+          <p>• Hiệu ứng: Tiếng sấm chớp lúc mở đầu</p>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <script type="module">
+    const btnStart = document.getElementById('btnStartSession');
+    const btnComplete = document.getElementById('btnCompleteSession');
+    const btnReject = document.getElementById('btnRejectShift');
+    const btnSaveNotes = document.getElementById('btnSaveNotes');
+    const sessionStatus = document.getElementById('sessionStatus');
+
+    btnStart.addEventListener('click', async () => {
+      try {
+        const res = await fetch('/api/v1/dm/sessions/1/start', { method: 'POST' });
+        const json = await res.json();
+      } catch (e) {}
+      sessionStatus.textContent = 'ĐANG DIỄN RA (IN_PROGRESS)';
+      sessionStatus.className = 'stamp-badge open';
+      btnStart.style.display = 'none';
+      btnComplete.style.display = 'inline-block';
+      alert('Đã bắt đầu tính giờ buổi chơi!');
+    });
+
+    btnComplete.addEventListener('click', async () => {
+      try {
+        const res = await fetch('/api/v1/dm/sessions/1/complete', { method: 'POST' });
+        const json = await res.json();
+      } catch (e) {}
+      sessionStatus.textContent = 'HOÀN TẤT (COMPLETED)';
+      sessionStatus.className = 'stamp-badge';
+      btnComplete.style.display = 'none';
+      alert('Buổi chơi đã hoàn tất thành công!');
+    });
+
+    btnReject.addEventListener('click', async () => {
+      const reason = prompt('Vui lòng nhập lý do từ chối ca trực:');
+      if (reason) {
+        try {
+          await fetch('/api/v1/dm/assignments/1/reject', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ reason })
+          });
+        } catch (e) {}
+        alert('Đã từ chối ca trực. Admin sẽ điều phối người thay thế!');
+        sessionStatus.textContent = 'ĐÃ TỪ CHỐI (REJECTED)';
+        sessionStatus.className = 'stamp-badge';
+      }
+    });
+
+    btnSaveNotes.addEventListener('click', async () => {
+      const notes = document.getElementById('sessionNotes').value;
+      try {
+        await fetch('/api/v1/dm/sessions/1/notes', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ notes })
+        });
+      } catch (e) {}
+      alert('Đã lưu ghi chú hiện trường thành công!');
+    });
+  </script>
+</body>
+</html>

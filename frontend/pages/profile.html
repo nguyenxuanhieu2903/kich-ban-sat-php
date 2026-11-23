@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Hồ Sơ Cá Nhân & Xác Minh HSSV — Kịch Bản Sát V16</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:ital,wght@0,600;0,700;1,600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../src/styles/components.css" />
+  <link rel="stylesheet" href="../src/styles/home.css" />
+  <style>
+    .profile-grid {
+      display: grid;
+      grid-template-columns: 320px 1fr;
+      gap: 24px;
+      margin-top: 32px;
+    }
+    @media (max-width: 768px) {
+      .profile-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header class="site-header">
+    <div class="container header-inner">
+      <a href="../index.html" class="brand-logo">
+        <img src="../src/assets/images/logo.png" alt="Logo Kịch Bản Sát" />
+        <span>KỊCH BẢN SÁT</span>
+      </a>
+      <nav class="nav-links">
+        <a href="../index.html">Trang chủ</a>
+        <a href="./scenarios.html">Kho 42 Kịch Bản</a>
+        <a href="./lobby.html">Sảnh Ghép Phòng</a>
+        <a href="./info.html">Bảng Giá & Nội Quy</a>
+      </nav>
+      <div class="home-header-actions">
+        <button type="button" class="btn btn-outline" id="btnLogout">Đăng Xuất</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="container profile-grid" style="padding-bottom: 60px;">
+    <!-- Profile Card -->
+    <div>
+      <div class="ticket-card" style="text-align: center;">
+        <img id="profileAvatar" src="https://api.dicebear.com/7.x/bottts/svg?seed=HieuPlayer" style="width: 96px; height: 96px; border-radius: 50%; margin: 0 auto 16px; border: 2px solid var(--color-gold);" alt="Avatar" />
+        <h2 id="profileName" style="font-family: var(--font-serif); font-size: 1.4rem;">Nguyễn Xuân Hiếu</h2>
+        <p id="profileRole" style="font-size: 0.85rem; color: var(--color-gold); font-weight: 600; margin-top: 4px;">Người Chơi (Player)</p>
+        <p id="profileEmail" style="font-size: 0.85rem; color: var(--text-muted); margin-top: 4px;">player.hieu@kichbansat.vn</p>
+        <hr class="ticket-divider" />
+        <div style="text-align: left; font-size: 0.9rem;">
+          <p><strong>Trạng thái tài khoản:</strong> <span class="stamp-badge open">HOẠT ĐỘNG</span></p>
+          <p style="margin-top: 8px;"><strong>Số điện thoại:</strong> 0903000003</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right Column: Verification & History -->
+    <div>
+      <!-- Verification Card -->
+      <div class="ticket-card" style="margin-bottom: 24px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+          <h3>Xác Minh Ưu Đãi Học Sinh - Sinh Viên</h3>
+          <span class="stamp-badge open" id="hssvBadge">ĐÃ XÁC MINH ✓</span>
+        </div>
+        <p style="font-size: 0.9rem; line-height: 1.6; color: var(--text-muted); margin-bottom: 16px;">
+          Tài khoản đã xác minh thẻ HSSV sẽ được <strong>giảm ngay 20.000đ/người</strong> khi tham gia các buổi chơi từ Thứ 2 đến Thứ 5 (09:00 - 19:59).
+        </p>
+
+        <form id="verifyForm" style="display: flex; gap: 12px; flex-wrap: wrap;">
+          <input type="text" class="form-control" style="flex: 1; min-width: 200px; padding: 8px 12px; background: var(--bg-surface); color: white;" placeholder="Mã số sinh viên / Tên trường..." value="SV2026-ĐHQG" />
+          <button type="submit" class="btn btn-gold" style="font-size: 0.9rem;">Cập Nhật Thẻ HSSV</button>
+        </form>
+      </div>
+
+      <!-- History Card -->
+      <div class="ticket-card">
+        <h3 style="margin-bottom: 16px;">Lịch Sử Phòng Chơi & Đặt Cọc</h3>
+        <div style="display: flex; flex-direction: column; gap: 12px;">
+          <div style="padding: 12px; border: 1px solid rgba(201,162,94,0.3); border-radius: 4px; display: flex; justify-content: space-between; align-items: center;">
+            <div>
+              <strong>Đêm Đoạt Mệnh Tại Trang Viên</strong>
+              <p style="font-size: 0.85rem; color: var(--text-muted); margin-top: 2px;">Thứ Bảy Tuần Này • 14:00 • Phòng Sherlock Holmes</p>
+            </div>
+            <span class="stamp-badge open">ĐÃ CỌC 50.000Đ</span>
+          </div>
+
+          <div style="padding: 12px; border: 1px solid rgba(201,162,94,0.3); border-radius: 4px; display: flex; justify-content: space-between; align-items: center;">
+            <div>
+              <strong>Biệt Thự Huyết Tộc</strong>
+              <p style="font-size: 0.85rem; color: var(--text-muted); margin-top: 2px;">Chủ Nhật Tuần Trước • 19:00 • Phòng VIP Dracula</p>
+            </div>
+            <span class="stamp-badge">ĐÃ HOÀN THÀNH</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <script type="module">
+    document.getElementById('btnLogout').addEventListener('click', async () => {
+      try {
+        await fetch('/api/v1/auth/logout', { method: 'POST' });
+      } catch (e) {}
+      localStorage.removeItem('kbs_user');
+      localStorage.setItem('kbs_demo_role', 'guest');
+      window.location.href = '../index.html';
+    });
+
+    document.getElementById('verifyForm').addEventListener('submit', (e) => {
+      e.preventDefault();
+      alert('Thông tin thẻ sinh viên đã được tải lên và đang chờ Admin duyệt!');
+    });
+  </script>
+</body>
+</html>

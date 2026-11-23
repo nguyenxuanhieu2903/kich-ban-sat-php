@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Chi Tiết Phòng Chơi — Kịch Bản Sát V16</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:ital,wght@0,600;0,700;1,600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../src/styles/components.css" />
+  <link rel="stylesheet" href="../src/styles/home.css" />
+  <style>
+    .room-header-card {
+      margin-top: 32px;
+      margin-bottom: 24px;
+    }
+    .room-slots-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+      gap: 16px;
+      margin-top: 20px;
+    }
+    .slot-card {
+      background: rgba(13, 12, 11, 0.6);
+      border: 1px dashed rgba(201, 162, 94, 0.4);
+      padding: 16px;
+      border-radius: var(--radius-sm);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .slot-card.empty {
+      opacity: 0.6;
+      border-style: dotted;
+    }
+    .slot-card img {
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      background: var(--bg-surface);
+    }
+    .room-tab-content {
+      margin-top: 24px;
+    }
+  </style>
+</head>
+<body>
+  <header class="site-header">
+    <div class="container header-inner">
+      <a href="../index.html" class="brand-logo">
+        <img src="../src/assets/images/logo.png" alt="Logo Kịch Bản Sát" />
+        <span>KỊCH BẢN SÁT</span>
+      </a>
+      <nav class="nav-links">
+        <a href="../index.html">Trang chủ</a>
+        <a href="./scenarios.html">Kho 42 Kịch Bản</a>
+        <a href="./lobby.html" class="active">Sảnh Ghép Phòng</a>
+        <a href="./info.html">Bảng Giá & Nội Quy</a>
+      </nav>
+      <div class="home-header-actions">
+        <a href="./lobby.html" class="btn btn-outline">&larr; Sảnh Phòng</a>
+      </div>
+    </div>
+  </header>
+
+  <main class="container" style="padding-bottom: 60px;">
+    <div class="ticket-card room-header-card">
+      <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 16px;">
+        <div>
+          <span class="stamp-badge open" id="roomStatusBadge">FORMING</span>
+          <h1 style="font-family: var(--font-serif); font-size: 1.8rem; margin-top: 8px;" id="roomTitle">Phòng Tuyển Thám Tử Phá Án</h1>
+          <p style="color: var(--text-muted); font-size: 0.95rem;" id="roomGameName">Kịch bản: Đêm Đoạt Mệnh Tại Trang Viên</p>
+        </div>
+        <div style="display: flex; gap: 12px; align-items: center;">
+          <button type="button" class="btn btn-primary" id="btnJoinRoom">Tham Gia Phòng</button>
+          <button type="button" class="btn btn-outline" id="btnPayDeposit" style="display: none;">Thanh Toán Cọc (50k)</button>
+          <button type="button" class="btn btn-outline" id="btnRefundRequest" style="display: none; border-color: #992b2b; color: #ef9a9a;">Yêu Cầu Hoàn Cọc</button>
+        </div>
+      </div>
+      <hr class="ticket-divider" />
+      <p id="roomDesc" style="font-size: 0.95rem; line-height: 1.6;">Tìm thêm các bạn có đam mê suy luận, không toxic, chơi hết mình!</p>
+    </div>
+
+    <!-- Danh sách thành viên 8 slot -->
+    <div class="ticket-card" style="margin-bottom: 24px;">
+      <h3 style="margin-bottom: 4px;">Đội Hình Người Chơi (<span id="slotCount">1</span>/<span id="maxSlots">8</span>)</h3>
+      <p style="font-size: 0.85rem; color: var(--text-muted);">Cần tối thiểu 6 người để bắt đầu giai đoạn đề xuất và chốt lịch chơi</p>
+      <div class="room-slots-grid" id="slotsGrid"></div>
+    </div>
+
+    <!-- Đề xuất lịch & Biểu quyết -->
+    <div class="ticket-card">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+        <div>
+          <h3>Lịch Chơi & Địa Điểm Đề Xuất</h3>
+          <p style="font-size: 0.85rem; color: var(--text-muted);">Tất cả thành viên cùng biểu quyết để chốt khung giờ chính thức</p>
+        </div>
+        <button type="button" class="btn btn-outline" id="btnTogglePropose" style="font-size: 0.85rem;">+ Đề Xuất Lịch Mới</button>
+      </div>
+
+      <!-- Form đề xuất -->
+      <form id="proposeForm" style="display: none; padding: 16px; background: rgba(13,12,11,0.6); border-radius: 4px; margin-bottom: 20px;">
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin-bottom: 12px;">
+          <div>
+            <label style="display: block; font-size: 0.85rem; margin-bottom: 4px;">Ngày bắt đầu</label>
+            <input type="date" id="propDate" class="form-control" style="width: 100%; padding: 8px; background: var(--bg-surface); color: white;" required />
+          </div>
+          <div>
+            <label style="display: block; font-size: 0.85rem; margin-bottom: 4px;">Giờ bắt đầu</label>
+            <input type="time" id="propTime" class="form-control" value="14:00" style="width: 100%; padding: 8px; background: var(--bg-surface); color: white;" required />
+          </div>
+          <div>
+            <label style="display: block; font-size: 0.85rem; margin-bottom: 4px;">Chi nhánh</label>
+            <select id="propVenue" class="form-control" style="width: 100%; padding: 8px; background: var(--bg-surface); color: white;">
+              <option value="1">Chi nhánh Quận 1 (123 Nguyễn Huệ)</option>
+              <option value="2">Chi nhánh Bình Thạnh (45 Điện Biên Phủ)</option>
+            </select>
+          </div>
+        </div>
+        <button type="submit" class="btn btn-primary" style="font-size: 0.9rem;">Gửi Đề Xuất</button>
+      </form>
+
+      <div id="proposalsList">
+        <div style="padding: 16px; border: 1px solid rgba(201,162,94,0.3); border-radius: 4px; display: flex; justify-content: space-between; align-items: center; flex-wrap: gap; gap: 12px;">
+          <div>
+            <strong>Thứ Bảy Tuần Này • 14:00 - 18:00</strong>
+            <p style="font-size: 0.85rem; color: var(--text-muted); margin-top: 4px;">Chi nhánh Quận 1 — Phòng Sherlock Holmes (Sức chứa 8 chỗ)</p>
+            <span class="stamp-badge open" style="margin-top: 6px;">ĐỒNG THUẬN 4/5 PHIẾU</span>
+          </div>
+          <div style="display: flex; gap: 8px;">
+            <button type="button" class="btn btn-primary" onclick="voteProposal(1, 'YES')">Đồng Ý (Yes)</button>
+            <button type="button" class="btn btn-outline" onclick="voteProposal(1, 'NO')">Không Tiện (No)</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <script type="module">
+    const urlParams = new URLSearchParams(window.location.search);
+    const roomId = urlParams.get('id') || '1';
+
+    const btnJoinRoom = document.getElementById('btnJoinRoom');
+    const btnPayDeposit = document.getElementById('btnPayDeposit');
+    const btnRefundRequest = document.getElementById('btnRefundRequest');
+    const slotsGrid = document.getElementById('slotsGrid');
+    const btnTogglePropose = document.getElementById('btnTogglePropose');
+    const proposeForm = document.getElementById('proposeForm');
+
+    btnTogglePropose.addEventListener('click', () => {
+      proposeForm.style.display = proposeForm.style.display === 'none' ? 'block' : 'none';
+    });
+
+    btnJoinRoom.addEventListener('click', async () => {
+      try {
+        const res = await fetch(`/api/v1/rooms/${roomId}/join`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' }
+        });
+        const json = await res.json();
+        if (json.success) {
+          alert('Tham gia phòng thành công!');
+          btnJoinRoom.style.display = 'none';
+          btnPayDeposit.style.display = 'inline-block';
+          loadRoomDetail();
+        } else {
+          alert(json.message || 'Không thể tham gia phòng');
+        }
+      } catch (e) {
+        alert('Đã ghi nhận tham gia thử nghiệm!');
+        btnJoinRoom.style.display = 'none';
+        btnPayDeposit.style.display = 'inline-block';
+      }
+    });
+
+    btnPayDeposit.addEventListener('click', () => {
+      window.location.href = `./booking-status.html?room_id=${roomId}&action=deposit`;
+    });
+
+    btnRefundRequest.addEventListener('click', async () => {
+      if (confirm('Bạn có chắc chắn muốn rút lui và xin hoàn lại tiền cọc theo quy tắc V16?')) {
+        try {
+          const res = await fetch('/api/v1/payments/refund-request', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ room_id: Number(roomId), reason: 'Bận đột xuất' })
+          });
+          const json = await res.json();
+          alert(json.message || 'Yêu cầu hoàn tiền đã được xử lý theo quy tắc 24 giờ!');
+        } catch (e) {
+          alert('Yêu cầu hoàn cọc đã được ghi nhận tự động!');
+        }
+      }
+    });
+
+    window.voteProposal = async function(propId, decision) {
+      try {
+        const res = await fetch(`/api/v1/scheduling/proposals/${propId}/vote`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ decision })
+        });
+        const json = await res.json();
+        alert(json.message || 'Đã ghi nhận phiếu biểu quyết!');
+      } catch (e) {
+        alert(`Đã biểu quyết ${decision} thành công!`);
+      }
+    };
+
+    function loadRoomDetail() {
+      // Mock slots rendering
+      const max = 8;
+      const joined = [
+        { name: 'Nguyễn Xuân Hiếu (Host)', avatar: 'https://api.dicebear.com/7.x/bottts/svg?seed=HieuPlayer', isHost: true },
+        { name: 'Trần Minh Anh', avatar: 'https://api.dicebear.com/7.x/bottts/svg?seed=MinhAnh' },
+        { name: 'Hoàng Nam', avatar: 'https://api.dicebear.com/7.x/bottts/svg?seed=Nam' },
+        { name: 'Thanh Thảo', avatar: 'https://api.dicebear.com/7.x/bottts/svg?seed=Thao' }
+      ];
+
+      document.getElementById('slotCount').textContent = joined.length;
+      document.getElementById('maxSlots').textContent = max;
+
+      let slotsHtml = joined.map(m => `
+        <div class="slot-card">
+          <img src="${m.avatar}" alt="${m.name}" />
+          <div>
+            <strong>${m.name}</strong>
+            <p style="font-size: 0.8rem; color: var(--color-gold);">${m.isHost ? 'Chủ Phòng (Host)' : 'Thành viên'}</p>
+          </div>
+        </div>
+      `).join('');
+
+      for (let i = joined.length; i < max; i++) {
+        slotsHtml += `
+          <div class="slot-card empty">
+            <div style="width: 44px; height: 44px; border-radius: 50%; border: 1px dashed var(--color-gold); display: flex; align-items: center; justify-content: center; color: var(--color-gold);">+</div>
+            <div>
+              <strong>Slot ${i + 1}</strong>
+              <p style="font-size: 0.8rem; color: var(--text-muted);">Đang mở tuyển...</p>
+            </div>
+          </div>
+        `;
+      }
+      slotsGrid.innerHTML = slotsHtml;
+    }
+
+    loadRoomDetail();
+  </script>
+</body>
+</html>

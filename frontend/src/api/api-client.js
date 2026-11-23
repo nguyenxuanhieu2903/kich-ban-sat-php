@@ -20,17 +20,11 @@ export class ApiClient {
     this.csrfPromise = null;
   }
 
-  /**
-   * Clear cached CSRF token (called upon logout or CSRF invalidation)
-   */
   clearCsrfToken() {
     this.csrfToken = null;
     this.csrfPromise = null;
   }
 
-  /**
-   * Fetch and cache CSRF token from backend
-   */
   async ensureCsrfToken() {
     if (this.csrfToken) {
       return this.csrfToken;
@@ -102,7 +96,7 @@ export class ApiClient {
 
     try {
       const response = await fetch(url, {
-        credentials: 'include', // Always transmit PHP session cookie
+        credentials: 'include',
         ...options,
         headers,
         signal: controller.signal,
@@ -195,3 +189,12 @@ export class ApiClient {
 
 export const api = new ApiClient();
 export const apiClient = api;
+
+// Wrapper for feature/frontend compatibility
+export async function apiRequest(endpoint, options = {}) {
+  const method = (options.method || 'GET').toUpperCase();
+  if (method === 'GET') {
+    return api.get(endpoint, options);
+  }
+  return api.request(endpoint, options);
+}

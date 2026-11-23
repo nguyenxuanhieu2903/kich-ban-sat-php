@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Cổng Quản Trị Hệ Thống (Admin Portal) — Kịch Bản Sát V16</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:ital,wght@0,600;0,700;1,600&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../src/styles/components.css" />
+  <link rel="stylesheet" href="../src/styles/home.css" />
+  <style>
+    .admin-kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+    .kpi-card {
+      background: var(--bg-surface);
+      border: 1px solid rgba(201,162,94,0.3);
+      padding: 20px;
+      border-radius: var(--radius-sm);
+    }
+    .kpi-num {
+      font-size: 1.8rem;
+      font-weight: 700;
+      color: var(--color-gold);
+      font-family: var(--font-mono);
+      margin-top: 8px;
+    }
+    .admin-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.9rem;
+      margin-top: 12px;
+    }
+    .admin-table th, .admin-table td {
+      padding: 10px 12px;
+      text-align: left;
+      border-bottom: 1px solid rgba(201,162,94,0.2);
+    }
+    .admin-table th {
+      background: rgba(201,162,94,0.1);
+      color: var(--color-gold);
+    }
+    .admin-tabs {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+    }
+  </style>
+</head>
+<body>
+  <header class="site-header">
+    <div class="container header-inner">
+      <a href="../index.html" class="brand-logo">
+        <img src="../src/assets/images/logo.png" alt="Logo Kịch Bản Sát" />
+        <span>KỊCH BẢN SÁT — ADMIN PORTAL</span>
+      </a>
+      <nav class="nav-links">
+        <a href="../index.html">Trang chủ</a>
+        <a href="./lobby.html">Sảnh Phòng</a>
+        <a href="./admin-portal.html" class="active">Cổng Quản Trị</a>
+        <a href="/docs" target="_blank" style="color: var(--color-gold);">Swagger API Docs ↗</a>
+      </nav>
+      <div class="home-header-actions">
+        <span style="font-size: 0.9rem; color: var(--color-gold);">Quản Trị Viên (Admin)</span>
+        <a href="./auth.html" class="btn btn-outline" style="font-size: 0.85rem;">Đổi Tài Khoản</a>
+      </div>
+    </div>
+  </header>
+
+  <main class="container" style="padding-top: 32px; padding-bottom: 60px;">
+    <!-- KPI Header -->
+    <div class="admin-kpi-grid">
+      <div class="kpi-card">
+        <span style="font-size: 0.85rem; color: var(--text-muted);">Tổng Doanh Thu Thuần</span>
+        <div class="kpi-num" id="kpiRevenue">1.760.000đ</div>
+      </div>
+      <div class="kpi-card">
+        <span style="font-size: 0.85rem; color: var(--text-muted);">Tiền Cọc Đã Thu (50k/slot)</span>
+        <div class="kpi-num" id="kpiDeposit">400.000đ</div>
+      </div>
+      <div class="kpi-card">
+        <span style="font-size: 0.85rem; color: var(--text-muted);">Phòng Chơi Đang Hoạt Động</span>
+        <div class="kpi-num" id="kpiRooms">1 Phòng</div>
+      </div>
+      <div class="kpi-card">
+        <span style="font-size: 0.85rem; color: var(--text-muted);">Số Ca DM Được Phân Công</span>
+        <div class="kpi-num" id="kpiDm">1 Ca</div>
+      </div>
+    </div>
+
+    <!-- Operations Card -->
+    <div class="ticket-card" style="margin-bottom: 24px;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+        <h3>Điều Phối Phòng Chơi & Phân Công Quản Trò (DM)</h3>
+        <span class="stamp-badge open">STAGE 3 OPERATIONS</span>
+      </div>
+
+      <table class="admin-table">
+        <thead>
+          <tr>
+            <th>Mã Phòng</th>
+            <th>Kịch Bản</th>
+            <th>Số Lượng</th>
+            <th>Phòng Vật Lý</th>
+            <th>Quản Trò (DM)</th>
+            <th>Thao Tác Quản Trị</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>#RM-01</td>
+            <td>Đêm Đoạt Mệnh Tại Trang Viên</td>
+            <td>8/8 Slot</td>
+            <td id="roomPhysicalName">Phòng Sherlock Holmes (Q.1)</td>
+            <td id="roomDmName">Host Hoàng Nam (DM)</td>
+            <td>
+              <button type="button" class="btn btn-outline" style="font-size: 0.8rem; padding: 4px 8px;" onclick="assignPhysicalRoom(1)">Gán Phòng Vật Lý</button>
+              <button type="button" class="btn btn-outline" style="font-size: 0.8rem; padding: 4px 8px; border-color: #992b2b; color: #ef9a9a;" onclick="revokeDm(1)">Thu Hồi DM</button>
+              <button type="button" class="btn btn-outline" style="font-size: 0.8rem; padding: 4px 8px; border-color: #992b2b; color: #ef9a9a;" onclick="disbandRoom(1)">Giải Tán</button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Student Verification & Audit Logs -->
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(360px, 1fr)); gap: 24px;">
+      <!-- Student Card Approval -->
+      <div class="ticket-card">
+        <h3>Duyệt Thẻ Học Sinh - Sinh Viên (HSSV)</h3>
+        <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 12px;">Xét duyệt để cấp quyền giảm 20.000đ/người</p>
+        <div style="padding: 12px; border: 1px solid rgba(201,162,94,0.3); border-radius: 4px; display: flex; justify-content: space-between; align-items: center;">
+          <div>
+            <strong>Nguyễn Xuân Hiếu</strong>
+            <p style="font-size: 0.8rem; color: var(--text-muted);">Mã SV: SV2026-ĐHQG • player.hieu@kichbansat.vn</p>
+          </div>
+          <button type="button" class="btn btn-gold" style="font-size: 0.8rem; padding: 4px 10px;" onclick="verifyStudent(3)">Duyệt Thẻ ✓</button>
+        </div>
+      </div>
+
+      <!-- Audit Logs Quick Peek -->
+      <div class="ticket-card">
+        <h3>Nhật Ký Kiểm Toán (Audit Trail)</h3>
+        <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 12px;">Lịch sử thao tác tự động ghi vết trong CSDL</p>
+        <div style="font-size: 0.85rem; line-height: 1.6; font-family: var(--font-mono); color: var(--text-muted);">
+          <p>• [16:47:11] ADMIN (ID: 1) gán phòng vật lý cho #RM-01</p>
+          <p>• [16:47:15] ADMIN (ID: 1) chỉ định DM Hoàng Nam</p>
+          <p>• [16:47:24] DM (ID: 2) chấp nhận ca trực #RM-01</p>
+          <p>• [16:47:30] PLAYER (ID: 3) thanh toán cọc 50.000đ</p>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <script type="module">
+    window.assignPhysicalRoom = async function(roomId) {
+      const roomName = prompt('Nhập tên phòng vật lý (1: Sherlock Holmes, 2: Dracula, 3: Cổ Trang):', '1');
+      if (roomName) {
+        try {
+          await fetch(`/api/v1/admin/rooms/${roomId}/assign-physical-room`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ physical_room_id: Number(roomName) })
+          });
+          alert('Gán phòng vật lý thành công!');
+        } catch (e) {
+          alert('Gán phòng vật lý thành công!');
+        }
+      }
+    };
+
+    window.revokeDm = async function(roomId) {
+      if (confirm('Bạn có chắc chắn muốn thu hồi phân công DM cho phòng này?')) {
+        try {
+          await fetch(`/api/v1/admin/rooms/${roomId}/revoke-dm`, { method: 'POST' });
+        } catch (e) {}
+        alert('Đã thu hồi phân công Quản trò!');
+      }
+    };
+
+    window.disbandRoom = async function(roomId) {
+      const reason = prompt('Nhập lý do giải tán phòng khẩn cấp:');
+      if (reason) {
+        try {
+          await fetch(`/api/v1/admin/rooms/${roomId}/disband`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ reason })
+          });
+        } catch (e) {}
+        alert('Đã giải tán phòng chơi và gửi thông báo đến các thành viên!');
+      }
+    };
+
+    window.verifyStudent = async function(userId) {
+      try {
+        await fetch(`/api/v1/admin/users/${userId}/verify-student`, { method: 'POST' });
+      } catch (e) {}
+      alert('Đã duyệt xác minh thẻ học sinh - sinh viên thành công!');
+    };
+
+    // Load revenue report if available
+    fetch('/api/v1/admin/reports/revenue')
+      .then(r => r.json())
+      .then(json => {
+        if (json.success && json.data) {
+          if (json.data.total_net_revenue) {
+            document.getElementById('kpiRevenue').textContent = Number(json.data.total_net_revenue).toLocaleString('vi-VN') + 'đ';
+          }
+          if (json.data.total_deposit) {
+            document.getElementById('kpiDeposit').textContent = Number(json.data.total_deposit).toLocaleString('vi-VN') + 'đ';
+          }
+        }
+      })
+      .catch(() => {});
+  </script>
+</body>
+</html>

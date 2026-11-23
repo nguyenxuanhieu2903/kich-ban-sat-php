@@ -19,7 +19,7 @@ class RateLimitMiddleware implements MiddlewareInterface
     ];
 
     public function __construct(
-        protected int $maxAttempts = 10,
+        protected int $maxAttempts = 100,
         protected int $decaySeconds = 60
     ) {
     }

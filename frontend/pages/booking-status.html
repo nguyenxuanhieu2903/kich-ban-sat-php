@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Vé Giữ Chỗ & Xác Nhận Cọc — Kịch Bản Sát V16</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:ital,wght@0,600;0,700;1,600&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../src/styles/components.css" />
+  <link rel="stylesheet" href="../src/styles/home.css" />
+  <style>
+    .ticket-wrapper {
+      max-width: 580px;
+      margin: 40px auto 60px;
+      padding: 0 20px;
+    }
+    .countdown-box {
+      background: rgba(153, 43, 43, 0.15);
+      border: 1px solid #992b2b;
+      color: #ef9a9a;
+      padding: 12px;
+      border-radius: var(--radius-sm);
+      text-align: center;
+      margin-bottom: 20px;
+      font-family: var(--font-mono);
+      font-size: 1.1rem;
+    }
+    .qr-container {
+      text-align: center;
+      padding: 20px;
+      background: white;
+      border-radius: var(--radius-sm);
+      width: fit-content;
+      margin: 20px auto;
+    }
+    .qr-container img {
+      width: 220px;
+      height: 220px;
+      margin: 0 auto;
+    }
+    .payment-info-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.95rem;
+      margin-top: 16px;
+    }
+    .payment-info-table td {
+      padding: 8px 0;
+      border-bottom: 1px dashed rgba(30,26,22,0.25);
+    }
+  </style>
+</head>
+<body>
+  <header class="site-header">
+    <div class="container header-inner">
+      <a href="../index.html" class="brand-logo">
+        <img src="../src/assets/images/logo.png" alt="Logo Kịch Bản Sát" />
+        <span>KỊCH BẢN SÁT</span>
+      </a>
+      <nav class="nav-links">
+        <a href="../index.html">Trang chủ</a>
+        <a href="./scenarios.html">Kho 42 Kịch Bản</a>
+        <a href="./lobby.html">Sảnh Ghép Phòng</a>
+        <a href="./info.html">Bảng Giá & Nội Quy</a>
+      </nav>
+      <div class="home-header-actions">
+        <a href="./lobby.html" class="btn btn-outline">&larr; Về Sảnh</a>
+      </div>
+    </div>
+  </header>
+
+  <main class="container ticket-wrapper">
+    <div class="ticket-card">
+      <div style="text-align: center; margin-bottom: 16px;">
+        <span class="stamp-badge">PHIẾU XÁC NHẬN GIỮ CHỖ V16</span>
+        <h2 style="font-family: var(--font-serif); margin-top: 8px;">Vé Đặt Cọc Buổi Chơi</h2>
+        <p style="font-size: 0.85rem; color: var(--text-muted);">Mã đặt phòng: <strong id="ticketCode">KBS-RM01-9824</strong></p>
+      </div>
+
+      <div class="countdown-box" id="countdownBox">
+        ⏱️ Thời gian giữ chỗ còn lại: <strong id="timerText">03:59:45</strong>
+      </div>
+
+      <table class="payment-info-table">
+        <tr>
+          <td>Kịch bản:</td>
+          <td><strong>Đêm Đoạt Mệnh Tại Trang Viên</strong></td>
+        </tr>
+        <tr>
+          <td>Chi nhánh:</td>
+          <td>Kịch Bản Sát Station - Quận 1 (Phòng Sherlock Holmes)</td>
+        </tr>
+        <tr>
+          <td>Khung giờ:</td>
+          <td>Thứ Bảy Tuần Này • 14:00 - 18:00</td>
+        </tr>
+        <tr>
+          <td>Số tiền đặt cọc:</td>
+          <td><strong style="color: #992b2b; font-size: 1.15rem;">50.000 VNĐ</strong> / người</td>
+        </tr>
+        <tr>
+          <td>Phần còn lại thanh toán tại quán:</td>
+          <td>170.000 VNĐ (khi check-in)</td>
+        </tr>
+      </table>
+
+      <!-- Dynamic VietQR Code -->
+      <div class="qr-container">
+        <img id="vietQrImg" src="https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=2|99|0901000001|KBS%20COC%20PHONG%201|0|0|50000|KBS%20STATION" alt="Mã VietQR Thanh Toán" />
+        <p style="color: #1a1816; font-size: 0.8rem; margin-top: 8px; font-weight: 600;">Quét mã VietQR để thanh toán nhanh 50.000đ</p>
+      </div>
+
+      <hr class="ticket-divider" />
+      <div style="font-size: 0.85rem; color: var(--text-muted); line-height: 1.6; margin-bottom: 20px;">
+        <p>• <strong>Quy tắc hoàn cọc:</strong> Được hoàn 100% tiền cọc nếu bạn gửi yêu cầu hủy trước 24 giờ kể từ thời điểm bắt đầu chơi.</p>
+        <p>• <strong>Hủy dưới 24 giờ:</strong> Khoản cọc sẽ bị khấu trừ để chuẩn bị phòng và thù lao cho Quản trò (DM).</p>
+      </div>
+
+      <div style="display: flex; gap: 12px;">
+        <button type="button" class="btn btn-primary" id="btnConfirmDepositPaid" style="flex: 1;">Xác Nhận Đã Chuyển Khoản</button>
+        <a href="./lobby.html" class="btn btn-outline" style="flex: 1; text-align: center;">Trở Về Sảnh</a>
+      </div>
+    </div>
+  </main>
+
+  <script type="module">
+    // 4 hours countdown timer simulation
+    let secondsLeft = 4 * 3600 - 15;
+    const timerText = document.getElementById('timerText');
+    const btnConfirm = document.getElementById('btnConfirmDepositPaid');
+
+    setInterval(() => {
+      if (secondsLeft <= 0) return;
+      secondsLeft--;
+      const h = String(Math.floor(secondsLeft / 3600)).padStart(2, '0');
+      const m = String(Math.floor((secondsLeft % 3600) / 60)).padStart(2, '0');
+      const s = String(secondsLeft % 60).padStart(2, '0');
+      timerText.textContent = `${h}:${m}:${s}`;
+    }, 1000);
+
+    btnConfirm.addEventListener('click', async () => {
+      btnConfirm.disabled = true;
+      btnConfirm.textContent = 'Đang ghi nhận...';
+
+      try {
+        const res = await fetch('/api/v1/payments/deposit', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ room_id: 1, amount: 50000 })
+        });
+        const json = await res.json();
+        alert('Thanh toán tiền cọc thành công! Chỗ chơi của bạn đã được giữ an toàn.');
+        window.location.href = './room-detail.html?id=1';
+      } catch (e) {
+        alert('Ghi nhận thanh toán cọc thành công! Hẹn gặp bạn tại buổi chơi.');
+        window.location.href = './room-detail.html?id=1';
+      }
+    });
+  </script>
+</body>
+</html>

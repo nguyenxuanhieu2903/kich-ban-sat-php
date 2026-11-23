@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Đăng Nhập & Đăng Ký — Kịch Bản Sát V16</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:ital,wght@0,600;0,700;1,600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../src/styles/components.css" />
+  <link rel="stylesheet" href="../src/styles/home.css" />
+  <style>
+    .auth-wrapper {
+      max-width: 480px;
+      margin: 60px auto;
+      padding: 0 20px;
+    }
+    .auth-tabs {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 24px;
+    }
+    .auth-tab-btn {
+      flex: 1;
+      padding: 10px;
+      border: 1px solid var(--color-gold);
+      background: transparent;
+      color: var(--text-light);
+      cursor: pointer;
+      font-weight: 600;
+      border-radius: var(--radius-sm);
+    }
+    .auth-tab-btn.active {
+      background: var(--color-gold);
+      color: var(--bg-primary);
+    }
+    .form-group {
+      margin-bottom: 16px;
+    }
+    .form-group label {
+      display: block;
+      margin-bottom: 6px;
+      font-weight: 500;
+      font-size: 0.9rem;
+    }
+    .form-control {
+      width: 100%;
+      padding: 10px 14px;
+      border: 1px solid rgba(201, 162, 94, 0.4);
+      background: rgba(13, 12, 11, 0.8);
+      color: var(--text-light);
+      border-radius: var(--radius-sm);
+      font-family: inherit;
+    }
+    .form-control:focus {
+      outline: none;
+      border-color: var(--color-gold);
+    }
+    .demo-account-list {
+      margin-top: 24px;
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      border-top: 1px dashed rgba(201, 162, 94, 0.3);
+      padding-top: 16px;
+    }
+    .demo-account-item {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 6px;
+    }
+    .demo-account-item button {
+      background: none;
+      border: none;
+      color: var(--color-gold);
+      cursor: pointer;
+      text-decoration: underline;
+    }
+  </style>
+</head>
+<body>
+  <header class="site-header">
+    <div class="container header-inner">
+      <a href="../index.html" class="brand-logo">
+        <img src="../src/assets/images/logo.png" alt="Logo Kịch Bản Sát" />
+        <span>KỊCH BẢN SÁT</span>
+      </a>
+      <nav class="nav-links">
+        <a href="../index.html">Trang chủ</a>
+        <a href="./scenarios.html">Kho 42 Kịch Bản</a>
+        <a href="./lobby.html">Sảnh Ghép Phòng</a>
+        <a href="./info.html">Bảng Giá & Nội Quy</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="container auth-wrapper">
+    <div class="ticket-card" style="background: var(--bg-surface); color: var(--text-light); border: 1px solid var(--color-gold);">
+      <div style="text-align: center; margin-bottom: 24px;">
+        <span class="stamp-badge">XÁC THỰC V16</span>
+        <h2 style="font-family: var(--font-serif); margin-top: 8px;" id="authFormTitle">Đăng Nhập Tài Khoản</h2>
+      </div>
+
+      <div class="auth-tabs">
+        <button type="button" class="auth-tab-btn active" id="tabLoginBtn">Đăng Nhập</button>
+        <button type="button" class="auth-tab-btn" id="tabRegisterBtn">Đăng Ký Mới</button>
+      </div>
+
+      <div id="authAlert" style="display: none; padding: 10px; border-radius: 4px; margin-bottom: 16px; font-size: 0.9rem;"></div>
+
+      <form id="authForm">
+        <div class="form-group" id="fullNameGroup" style="display: none;">
+          <label for="fullNameInput">Họ và tên</label>
+          <input type="text" id="fullNameInput" class="form-control" placeholder="Nguyễn Văn A" />
+        </div>
+
+        <div class="form-group">
+          <label for="emailInput">Địa chỉ Email</label>
+          <input type="email" id="emailInput" class="form-control" required placeholder="name@example.com" />
+        </div>
+
+        <div class="form-group">
+          <label for="passwordInput">Mật khẩu</label>
+          <input type="password" id="passwordInput" class="form-control" required placeholder="••••••••" />
+        </div>
+
+        <div class="form-group" id="phoneGroup" style="display: none;">
+          <label for="phoneInput">Số điện thoại</label>
+          <input type="tel" id="phoneInput" class="form-control" placeholder="0901234567" />
+        </div>
+
+        <button type="submit" class="btn btn-primary" id="submitAuthBtn" style="width: 100%; margin-top: 8px;">
+          Đăng Nhập Ngay
+        </button>
+      </form>
+
+      <div class="demo-account-list">
+        <strong>Tài khoản thử nghiệm nhanh (Mật khẩu: password123):</strong>
+        <div class="demo-account-item">
+          <span>Admin: admin@kichbansat.vn</span>
+          <button type="button" onclick="fillAccount('admin@kichbansat.vn')">Điền</button>
+        </div>
+        <div class="demo-account-item">
+          <span>DM: dm.nam@kichbansat.vn</span>
+          <button type="button" onclick="fillAccount('dm.nam@kichbansat.vn')">Điền</button>
+        </div>
+        <div class="demo-account-item">
+          <span>Player HSSV: player.hieu@kichbansat.vn</span>
+          <button type="button" onclick="fillAccount('player.hieu@kichbansat.vn')">Điền</button>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <script type="module">
+    let isLoginMode = true;
+
+    const tabLoginBtn = document.getElementById('tabLoginBtn');
+    const tabRegisterBtn = document.getElementById('tabRegisterBtn');
+    const authFormTitle = document.getElementById('authFormTitle');
+    const fullNameGroup = document.getElementById('fullNameGroup');
+    const phoneGroup = document.getElementById('phoneGroup');
+    const submitAuthBtn = document.getElementById('submitAuthBtn');
+    const authAlert = document.getElementById('authAlert');
+    const authForm = document.getElementById('authForm');
+    const emailInput = document.getElementById('emailInput');
+    const passwordInput = document.getElementById('passwordInput');
+    const fullNameInput = document.getElementById('fullNameInput');
+    const phoneInput = document.getElementById('phoneInput');
+
+    window.fillAccount = function(email) {
+      emailInput.value = email;
+      passwordInput.value = 'password123';
+    };
+
+    tabLoginBtn.addEventListener('click', () => {
+      isLoginMode = true;
+      tabLoginBtn.classList.add('active');
+      tabRegisterBtn.classList.remove('active');
+      authFormTitle.textContent = 'Đăng Nhập Tài Khoản';
+      fullNameGroup.style.display = 'none';
+      phoneGroup.style.display = 'none';
+      submitAuthBtn.textContent = 'Đăng Nhập Ngay';
+      authAlert.style.display = 'none';
+    });
+
+    tabRegisterBtn.addEventListener('click', () => {
+      isLoginMode = false;
+      tabRegisterBtn.classList.add('active');
+      tabLoginBtn.classList.remove('active');
+      authFormTitle.textContent = 'Đăng Ký Tài Khoản';
+      fullNameGroup.style.display = 'block';
+      phoneGroup.style.display = 'block';
+      submitAuthBtn.textContent = 'Đăng Ký Tài Khoản';
+      authAlert.style.display = 'none';
+    });
+
+    authForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      authAlert.style.display = 'none';
+      submitAuthBtn.disabled = true;
+      submitAuthBtn.textContent = 'Đang xử lý...';
+
+      const endpoint = isLoginMode ? '/api/v1/auth/login' : '/api/v1/auth/register';
+      const payload = isLoginMode 
+        ? { email: emailInput.value.trim(), password: passwordInput.value }
+        : {
+            full_name: fullNameInput.value.trim(),
+            email: emailInput.value.trim(),
+            password: passwordInput.value,
+            phone: phoneInput.value.trim()
+          };
+
+      try {
+        const res = await fetch(endpoint, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        const json = await res.json();
+
+        if (!res.ok || !json.success) {
+          throw new Error(json.message || 'Đăng nhập không thành công');
+        }
+
+        const user = json.data.user;
+        const role = user.role || 'PLAYER';
+        localStorage.setItem('kbs_user', JSON.stringify(user));
+        localStorage.setItem('kbs_demo_role', role.toLowerCase());
+
+        authAlert.style.display = 'block';
+        authAlert.style.background = 'rgba(46, 125, 50, 0.2)';
+        authAlert.style.border = '1px solid #2e7d32';
+        authAlert.style.color = '#81c784';
+        authAlert.textContent = `Thành công! Chào mừng ${user.full_name}. Đang chuyển hướng...`;
+
+        setTimeout(() => {
+          if (role === 'ADMIN') {
+            window.location.href = './admin-portal.html';
+          } else if (role === 'DM') {
+            window.location.href = './dm-portal.html';
+          } else {
+            window.location.href = './lobby.html';
+          }
+        }, 800);
+      } catch (err) {
+        authAlert.style.display = 'block';
+        authAlert.style.background = 'rgba(153, 43, 43, 0.2)';
+        authAlert.style.border = '1px solid #992b2b';
+        authAlert.style.color = '#ef9a9a';
+        authAlert.textContent = err.message || 'Có lỗi xảy ra, vui lòng thử lại';
+        submitAuthBtn.disabled = false;
+        submitAuthBtn.textContent = isLoginMode ? 'Đăng Nhập Ngay' : 'Đăng Ký Tài Khoản';
+      }
+    });
+  </script>
+</body>
+</html>

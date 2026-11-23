@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Chi Tiết Kịch Bản — Kịch Bản Sát V16</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:ital,wght@0,600;0,700;1,600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../src/styles/components.css" />
+  <link rel="stylesheet" href="../src/styles/home.css" />
+  <style>
+    .detail-grid {
+      display: grid;
+      grid-template-columns: 360px 1fr;
+      gap: 32px;
+      margin-top: 32px;
+    }
+    @media (max-width: 860px) {
+      .detail-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header class="site-header">
+    <div class="container header-inner">
+      <a href="../index.html" class="brand-logo">
+        <img src="../src/assets/images/logo.png" alt="Logo Kịch Bản Sát" />
+        <span>KỊCH BẢN SÁT</span>
+      </a>
+      <nav class="nav-links">
+        <a href="../index.html">Trang chủ</a>
+        <a href="./scenarios.html" class="active">Kho 42 Kịch Bản</a>
+        <a href="./lobby.html">Sảnh Ghép Phòng</a>
+        <a href="./info.html">Bảng Giá & Nội Quy</a>
+      </nav>
+      <div class="home-header-actions">
+        <a href="./auth.html" class="btn btn-outline">Tài Khoản</a>
+      </div>
+    </div>
+  </header>
+
+  <main class="container" style="padding-top: 40px; padding-bottom: 60px;">
+    <a href="./scenarios.html" style="color: var(--color-gold); font-size: 0.9rem; margin-bottom: 16px; display: inline-block;">&larr; Quay lại kho kịch bản</a>
+
+    <div class="detail-grid">
+      <div>
+        <div class="ticket-card" style="padding: 0; overflow: hidden; border-radius: var(--radius-md);">
+          <img id="detailPoster" src="https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=500&auto=format&fit=crop" style="width: 100%; height: 420px; object-fit: cover;" alt="Poster" />
+          <div style="padding: 20px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+              <span class="stamp-badge" id="detailGenre">Kinh dị</span>
+              <span id="detail18Plus" class="stamp-badge" style="display: none;">18+</span>
+            </div>
+            <p><strong>Thời lượng:</strong> <span id="detailDuration">4 tiếng</span></p>
+            <p><strong>Số người chơi:</strong> <span id="detailPlayers">6 - 8 người</span></p>
+            <p><strong>Độ khó:</strong> <span id="detailDifficulty">Trung bình</span></p>
+            <hr class="ticket-divider" />
+            <p><strong>Giá niêm yết:</strong> <span id="detailPrice" style="color: var(--color-gold); font-size: 1.25rem; font-weight: 700;">220.000đ</span> / người</p>
+            <p style="font-size: 0.85rem; color: var(--text-muted); margin-top: 4px;">* Cọc cố định 50.000đ khi chốt phòng</p>
+            <a id="createRoomBtn" href="./create-room.html" class="btn btn-primary" style="display: block; text-align: center; margin-top: 20px;">Tạo Phòng Với Kịch Bản Này</a>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <h1 id="detailTitle" style="font-family: var(--font-serif); font-size: 2.2rem; color: var(--color-gold); margin-bottom: 12px;">Đang tải...</h1>
+        <div style="display: flex; gap: 12px; margin-bottom: 24px;">
+          <span class="stamp-badge open">HỒ SƠ KHẢ DỤNG</span>
+          <span class="stamp-badge">CHI NHÁNH QUẬN 1 & BÌNH THẠNH</span>
+        </div>
+
+        <div class="ticket-card" style="margin-bottom: 24px;">
+          <h3 style="margin-bottom: 12px;">Tóm Tắt Cốt Truyện Vụ Án</h3>
+          <p id="detailSummary" style="line-height: 1.8; font-size: 1.05rem;">Đang tải nội dung cốt truyện...</p>
+        </div>
+
+        <div class="ticket-card" style="margin-bottom: 24px;">
+          <h3 style="margin-bottom: 12px;">Bảng Giá Khung Giờ & Chính Sách Ưu Đãi</h3>
+          <table style="width: 100%; border-collapse: collapse; font-size: 0.95rem;">
+            <thead>
+              <tr style="border-bottom: 1px dashed rgba(30, 26, 22, 0.3); text-align: left;">
+                <th style="padding: 8px 0;">Khung Giờ</th>
+                <th style="padding: 8px 0;">Đơn Giá</th>
+                <th style="padding: 8px 0;">Áp Dụng Ưu Đãi</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td style="padding: 10px 0;">Ca Ban Ngày (09:00 - 13:00)</td>
+                <td style="padding: 10px 0; font-weight: 600;">180.000đ</td>
+                <td style="padding: 10px 0; color: #2e7d32;">Thứ 3: 126.000đ / HSSV: 160.000đ</td>
+              </tr>
+              <tr>
+                <td style="padding: 10px 0;">Ca Chiều (13:00 - 18:00)</td>
+                <td style="padding: 10px 0; font-weight: 600;">220.000đ</td>
+                <td style="padding: 10px 0; color: #2e7d32;">Thứ 3: 154.000đ / HSSV: 200.000đ</td>
+              </tr>
+              <tr>
+                <td style="padding: 10px 0;">Ca Tối / Cao Điểm (18:00 - 23:00)</td>
+                <td style="padding: 10px 0; font-weight: 600;">250.000đ</td>
+                <td style="padding: 10px 0; color: #2e7d32;">Thứ 3: 175.000đ</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <script type="module">
+    import { SCENARIOS } from '../src/data/scripts.data.js';
+
+    const urlParams = new URLSearchParams(window.location.search);
+    const id = urlParams.get('id') || 'kb-01';
+
+    let item = SCENARIOS.find(s => s.id === id);
+    if (!item && !isNaN(Number(id))) {
+      // Fetch from API
+      fetch(`/api/v1/games`)
+        .then(r => r.json())
+        .then(res => {
+          if (res.success && res.data.games) {
+            const found = res.data.games.find(g => String(g.id) === String(id));
+            if (found) {
+              applyGame({
+                id: found.id,
+                title: found.name,
+                genre: 'Suy luận phá án',
+                difficulty: 'Trung bình',
+                duration: `${found.duration_minutes} phút`,
+                players: { total: `${found.min_players} - ${found.max_players}` },
+                price: found.min_price || 220000,
+                is18Plus: false,
+                summary: found.description
+              });
+            }
+          }
+        });
+    }
+
+    if (item) {
+      applyGame(item);
+    }
+
+    function applyGame(data) {
+      document.getElementById('detailTitle').textContent = data.title;
+      document.getElementById('detailGenre').textContent = data.genre;
+      document.getElementById('detailDuration').textContent = data.duration;
+      document.getElementById('detailPlayers').textContent = `${data.players?.total || '6 - 8'} người chơi`;
+      document.getElementById('detailDifficulty').textContent = data.difficulty || 'Trung bình';
+      document.getElementById('detailPrice').textContent = (data.price || 220000).toLocaleString('vi-VN') + 'đ';
+      document.getElementById('detailSummary').textContent = data.summary;
+      if (data.is18Plus) {
+        document.getElementById('detail18Plus').style.display = 'inline-block';
+      }
+      document.getElementById('createRoomBtn').href = `./create-room.html?game_id=${data.id}`;
+    }
+  </script>
+</body>
+</html>
