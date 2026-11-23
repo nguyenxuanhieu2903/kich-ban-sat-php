@@ -346,10 +346,19 @@
 
           // Check if current user has joined
           const myParticipant = participants.find(p => Number(p.user_id) === Number(currentUserId));
+          const isHost = Number(r.creator_id) === Number(currentUserId);
+          const isPrivate = r.booking_type === 'PRIVATE';
+
           if (myParticipant) {
             btnJoinRoom.style.display = 'none';
             if (myParticipant.status === 'PENDING_DEPOSIT') {
               btnPayDeposit.style.display = 'inline-block';
+              if (isHost && isPrivate) {
+                const privCount = Math.max(1, (r.total_players || 6) - (r.guest_slots || 0));
+                btnPayDeposit.textContent = `Nộp Cọc Gộp Nhóm (${privCount} người • ${(privCount * 50000).toLocaleString('vi-VN')}đ)`;
+              } else {
+                btnPayDeposit.textContent = 'Nộp Tiền Cọc (50.000đ)';
+              }
               btnRefundRequest.style.display = 'none';
             } else if (myParticipant.status === 'DEPOSITED') {
               btnPayDeposit.style.display = 'none';

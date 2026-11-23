@@ -244,4 +244,60 @@ class AdminRefundController
             throw $e;
         }
     }
+
+    /**
+     * POST /api/v1/admin/refunds/{id}/complete
+     * Xác nhận kế toán đã chuyển khoản hoàn tất lệnh hoàn tiền (Điểm 8 & Điểm 22)
+     */
+    public function complete(Request $request, string $id): Response
+    {
+        $auth = AuthMiddleware::authenticate($request, ['ADMIN']);
+        if ($auth instanceof Response) {
+            return $auth;
+        }
+
+        $refundId = (int) $id;
+        $body = $request->getBodyParams();
+        $bankRef = trim((string) ($body['bank_reference_code'] ?? ('REF_' . time())));
+
+        $this->pdo->beginTransaction();
+        try {
+            $stmt = $this->pdo->prepare('SELECT `id`, `player_payment_id`, `amount`, `status` FROM `refunds` WHERE `id` = :id LIMIT 1 FOR UPDATE');
+            $stmt->bindValue(':id', $refundId, PDO::PARAM_INT);
+            $stmt->execute();
+            $refund = $stmt->fetch(PDO::FETCH_ASSOC);
+
+            if ($refund === false) {
+                $this->pdo->rollBack();
+                return Response::fail('Không tìm thấy yêu cầu hoàn tiền', 'REFUND_NOT_FOUND', 404);
+            }
+
+            $upStmt = $this->pdo->prepare(
+                'UPDATE `refunds`
+                 SET `status` = \'COMPLETED\', `completed_at` = NOW(), `review_reason` = CONCAT(COALESCE(`review_reason`, \'\'), \' [Ref: \', :ref, \']\'), `updated_at` = NOW()
+                 WHERE `id` = :id'
+            );
+            $upStmt->bindValue(':ref', $bankRef, PDO::PARAM_STR);
+            $upStmt->bindValue(':id', $refundId, PDO::PARAM_INT);
+            $upStmt->execute();
+
+            // Cập nhật trạng thái player_payments sang REFUNDED
+            $upPay = $this->pdo->prepare('UPDATE `player_payments` SET `status` = \'REFUNDED\', `updated_at` = NOW() WHERE `id` = :pid');
+            $upPay->bindValue(':pid', (int) $refund['player_payment_id'], PDO::PARAM_INT);
+            $upPay->execute();
+
+            $this->pdo->commit();
+
+            return Response::success([
+                'refund_id' => $refundId,
+                'status' => 'COMPLETED',
+                'bank_reference_code' => $bankRef,
+            ], 'Đã hoàn tất chuyển khoản hoàn tiền thành công');
+        } catch (\Throwable $e) {
+            if ($this->pdo->inTransaction()) {
+                $this->pdo->rollBack();
+            }
+            throw $e;
+        }
+    }
 }

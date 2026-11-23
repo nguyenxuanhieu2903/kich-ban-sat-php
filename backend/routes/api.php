@@ -135,9 +135,14 @@ HTML;
     $router->post($prefix . '/sessions/{id}/start', [SessionLifecycleController::class, 'start']);
     $router->post($prefix . '/sessions/{id}/complete', [SessionLifecycleController::class, 'complete']);
     $router->post($prefix . '/sessions/{id}/notes', [SessionLifecycleController::class, 'saveNotes']);
+    $router->post($prefix . '/sessions/{id}/settle', [SessionLifecycleController::class, 'settlePayment']);
+    $router->post($prefix . '/sessions/{id}/no-show', [SessionLifecycleController::class, 'handleNoShow']);
     $router->post($prefix . '/dm/sessions/{id}/start', [SessionLifecycleController::class, 'start']);
     $router->post($prefix . '/dm/sessions/{id}/complete', [SessionLifecycleController::class, 'complete']);
     $router->post($prefix . '/dm/sessions/{id}/notes', [SessionLifecycleController::class, 'saveNotes']);
+    $router->post($prefix . '/dm/sessions/{id}/settle', [SessionLifecycleController::class, 'settlePayment']);
+    $router->post($prefix . '/dm/sessions/{id}/no-show', [SessionLifecycleController::class, 'handleNoShow']);
+    $router->post($prefix . '/dm/users/{id}/verify-student', [AdminOperationsController::class, 'updateStudentVerification']);
     $router->post($prefix . '/payments/{id}/refund-request', [PaymentRefundRequestController::class, 'requestRefund']);
     $router->post($prefix . '/payments/refund-request', [PaymentRefundRequestController::class, 'requestRefundByRoom']);
 
@@ -199,6 +204,7 @@ HTML;
     $router->get($prefix . '/admin/refunds', [AdminRefundController::class, 'index']);
     $router->post($prefix . '/admin/refunds/{id}/approve', [AdminRefundController::class, 'approve']);
     $router->post($prefix . '/admin/refunds/{id}/reject', [AdminRefundController::class, 'reject']);
+    $router->post($prefix . '/admin/refunds/{id}/complete', [AdminRefundController::class, 'complete']);
 
     // =============================================================
     // DOMAIN 8: NOTIFICATION API

@@ -187,6 +187,46 @@ class PaymentController
         $roomId = (int) ($body['room_id'] ?? 1);
         $amount = (int) ($body['amount'] ?? 50000);
 
+        // Hỗ trợ nộp cọc trọn gói cho nhóm bạn riêng (Điểm 3 & Điểm 21)
+        $isLumpSum = !empty($body['is_lump_sum']) || ($body['deposit_type'] ?? '') === 'LUMP_SUM';
+        if ($isLumpSum) {
+            $rStmt = $this->pdo->prepare('SELECT `id`, `booking_type`, `total_players`, `guest_slots`, `creator_id` FROM `game_rooms` WHERE `id` = :rid LIMIT 1');
+            $rStmt->execute([':rid' => $roomId]);
+            $roomData = $rStmt->fetch(PDO::FETCH_ASSOC);
+
+            if ($roomData && (int) $roomData['creator_id'] === (int) $auth['id']) {
+                $totalPlayers = (int) ($roomData['total_players'] ?: 6);
+                $guestSlots = (int) ($roomData['guest_slots'] ?: 0);
+                $privateGroupSize = max(1, $totalPlayers - $guestSlots);
+                $lumpSumAmount = $privateGroupSize * 50000;
+
+                // Cập nhật toàn bộ thành viên hiện tại thành DEPOSITED
+                $this->pdo->prepare('UPDATE `room_participants` SET `status` = \'DEPOSITED\', `deposited_at` = NOW(), `updated_at` = NOW() WHERE `game_room_id` = :rid')
+                    ->execute([':rid' => $roomId]);
+
+                // Cập nhật trạng thái phòng sang CONFIRMED nếu đang SCHEDULED
+                $this->pdo->prepare('UPDATE `game_rooms` SET `status` = \'CONFIRMED\', `updated_at` = NOW() WHERE `id` = :rid AND `status` = \'SCHEDULED\'')
+                    ->execute([':rid' => $roomId]);
+
+                // Bắn thông báo BOOKING_CONFIRMED
+                $this->notiRepo->createNotification(
+                    'Đặt phòng nhóm thành công (BOOKING_CONFIRMED)',
+                    "Chủ phòng đã thanh toán cọc trọn gói cho {$privateGroupSize} người (" . number_format($lumpSumAmount) . " VNĐ). Phòng chơi đã được xác nhận chính thức!",
+                    'ROOM',
+                    null,
+                    [(int) $auth['id']]
+                );
+
+                return Response::success([
+                    'room_id' => $roomId,
+                    'deposit_type' => 'LUMP_SUM',
+                    'private_group_size' => $privateGroupSize,
+                    'amount' => $lumpSumAmount,
+                    'status' => 'CONFIRMED',
+                ], "Thanh toán cọc trọn gói cho {$privateGroupSize} thành viên nhóm bạn thành công");
+            }
+        }
+
         $stmt = $this->pdo->prepare('SELECT p.`id` FROM `player_payments` p
             INNER JOIN `room_participants` rp ON rp.`id` = p.`room_participant_id`
             WHERE rp.`game_room_id` = :room_id AND rp.`user_id` = :user_id

@@ -123,6 +123,11 @@ class AdminUserController
             }
 
             $updateData['status'] = $newStatus;
+
+            // Xử lý hệ quả khi khóa tài khoản (Account Suspension Lifecycle - Điểm 2)
+            if ($newStatus === 'SUSPENDED' || $newStatus === 'INACTIVE') {
+                $this->handleAccountSuspension($targetUserId);
+            }
         }
 
         if (!empty($updateData)) {
@@ -200,5 +205,59 @@ class AdminUserController
             'user' => $updated,
             'assigned_role' => $role,
         ], 'Gán vai trò cho người dùng thành công');
+    }
+
+    /**
+     * Xử lý dọn dẹp và bảo toàn trạng thái khi tài khoản bị khóa (Account Suspension Lifecycle - Điểm 2)
+     */
+    protected function handleAccountSuspension(int $targetUserId): void
+    {
+        // 1. Kiểm tra các phòng FORMING mà user này tạo (Host)
+        $hostRoomsStmt = $this->pdo->prepare('SELECT `id` FROM `game_rooms` WHERE `creator_id` = :uid AND `status` = \'FORMING\'');
+        $hostRoomsStmt->execute([':uid' => $targetUserId]);
+        $hostRooms = $hostRoomsStmt->fetchAll(PDO::FETCH_COLUMN);
+
+        foreach ($hostRooms as $roomId) {
+            $rId = (int) $roomId;
+            // Tìm thành viên tiếp theo vào sớm nhất
+            $nextMemberStmt = $this->pdo->prepare(
+                'SELECT `user_id` FROM `room_participants` 
+                 WHERE `game_room_id` = :rid AND `user_id` != :uid AND `status` IN (\'PENDING_DEPOSIT\', \'DEPOSITED\', \'LEAVE_REQUESTED\')
+                 ORDER BY `joined_at` ASC, `id` ASC LIMIT 1'
+            );
+            $nextMemberStmt->execute([':rid' => $rId, ':uid' => $targetUserId]);
+            $nextHostId = $nextMemberStmt->fetchColumn();
+
+            if ($nextHostId !== false) {
+                // Chuyển quyền Host
+                $this->pdo->prepare('UPDATE `game_rooms` SET `creator_id` = :new_host, `updated_at` = NOW() WHERE `id` = :rid')
+                    ->execute([':new_host' => (int) $nextHostId, ':rid' => $rId]);
+                // Xóa tài khoản bị khóa khỏi phòng
+                $this->pdo->prepare('DELETE FROM `room_participants` WHERE `game_room_id` = :rid AND `user_id` = :uid')
+                    ->execute([':rid' => $rId, ':uid' => $targetUserId]);
+            } else {
+                // Không còn ai trong phòng -> Giải tán phòng
+                $this->pdo->prepare('UPDATE `game_rooms` SET `status` = \'DISBANDED\', `updated_at` = NOW() WHERE `id` = :rid')
+                    ->execute([':rid' => $rId]);
+            }
+        }
+
+        // 2. Kiểm tra các phòng FORMING mà user này chỉ là Member (không phải Host)
+        $memberRoomsStmt = $this->pdo->prepare(
+            'SELECT gr.`id` FROM `game_rooms` gr
+             INNER JOIN `room_participants` rp ON rp.`game_room_id` = gr.`id`
+             WHERE rp.`user_id` = :uid1 AND gr.`creator_id` != :uid2 AND gr.`status` = \'FORMING\''
+        );
+        $memberRoomsStmt->execute([':uid1' => $targetUserId, ':uid2' => $targetUserId]);
+        $memberRooms = $memberRoomsStmt->fetchAll(PDO::FETCH_COLUMN);
+
+        foreach ($memberRooms as $roomId) {
+            $rId = (int) $roomId;
+            // Chỉ loại khỏi phòng, giảm confirmed_players và mở lại slot trống trên sảnh
+            $this->pdo->prepare('DELETE FROM `room_participants` WHERE `game_room_id` = :rid AND `user_id` = :uid')
+                ->execute([':rid' => $rId, ':uid' => $targetUserId]);
+            $this->pdo->prepare('UPDATE `game_rooms` SET `confirmed_players` = GREATEST(1, `confirmed_players` - 1), `updated_at` = NOW() WHERE `id` = :rid')
+                ->execute([':rid' => $rId]);
+        }
     }
 }

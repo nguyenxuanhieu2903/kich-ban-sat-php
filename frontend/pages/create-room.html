@@ -121,6 +121,9 @@
               <input type="number" id="guestSlotsInput" class="form-control" value="0" min="0" max="4" />
             </div>
           </div>
+          <div style="font-size: 0.82rem; color: #c9a25e; margin-top: 10px; line-height: 1.4;">
+            Quy định cọc gộp: Chủ phòng cọc trước cho phần nhóm bạn riêng (<span id="calcPrivateSize">6</span> người x 50.000đ = <strong id="calcLumpSum">300.000đ</strong>). Khách lẻ vãng lai ghép vào các slot mở thêm (guest_slots) sẽ tự nộp cọc khi bấm tham gia.
+          </div>
         </div>
 
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
@@ -195,7 +198,21 @@
 
     bookingTypeSelect.addEventListener('change', () => {
       privateGroupFields.style.display = bookingTypeSelect.value === 'PRIVATE' ? 'block' : 'none';
+      updateLumpSumDisplay();
     });
+
+    function updateLumpSumDisplay() {
+      const tot = Number(document.getElementById('totalPlayersInput')?.value || 6);
+      const gst = Number(document.getElementById('guestSlotsInput')?.value || 0);
+      const priv = Math.max(1, tot - gst);
+      const elP = document.getElementById('calcPrivateSize');
+      const elL = document.getElementById('calcLumpSum');
+      if (elP) elP.textContent = priv;
+      if (elL) elL.textContent = (priv * 50000).toLocaleString('vi-VN') + 'đ';
+    }
+    document.getElementById('totalPlayersInput')?.addEventListener('input', updateLumpSumDisplay);
+    document.getElementById('guestSlotsInput')?.addEventListener('input', updateLumpSumDisplay);
+    updateLumpSumDisplay();
 
     form.addEventListener('submit', async (e) => {
       e.preventDefault();

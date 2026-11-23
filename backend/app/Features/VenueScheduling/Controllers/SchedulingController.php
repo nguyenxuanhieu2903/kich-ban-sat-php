@@ -136,7 +136,8 @@ class SchedulingController
             $cancelStmt->bindValue(':room_id', $roomId, PDO::PARAM_INT);
             $cancelStmt->execute();
 
-            $expiresAt = date('Y-m-d H:i:s', strtotime('+24 hours'));
+            // Thời hạn tối đa cho một đợt biểu quyết là 12 giờ (Điểm 4 & Điểm 9)
+            $expiresAt = date('Y-m-d H:i:s', strtotime('+12 hours'));
 
             $insProp = $this->pdo->prepare(
                 'INSERT INTO `schedule_proposals` (`game_room_id`, `proposed_by`, `proposed_start_at`, `proposed_end_at`, `status`, `expires_at`, `created_at`)

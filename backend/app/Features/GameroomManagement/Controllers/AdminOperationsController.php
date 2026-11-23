@@ -245,7 +245,7 @@ class AdminOperationsController
      */
     public function updateStudentVerification(Request $request, string $id): Response
     {
-        $auth = AuthMiddleware::authenticate($request, ['ADMIN']);
+        $auth = AuthMiddleware::authenticate($request, ['ADMIN', 'DM']);
         if ($auth instanceof Response) {
             return $auth;
         }

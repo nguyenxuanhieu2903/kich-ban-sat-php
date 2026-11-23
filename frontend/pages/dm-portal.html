@@ -302,9 +302,11 @@
 
                   ${isAccepted && isInProgress ? `
                     <button type="button" class="btn btn-gold" onclick="completeSession(${sessId})">Hoàn Tất Buổi Chơi</button>
+                    <button type="button" class="btn btn-outline" style="border-color: #d97706; color: #fbbf24;" onclick="reportNoShow(${sessId})">Báo Cáo No-show</button>
                   ` : ''}
 
                   ${isCompleted ? `
+                    <button type="button" class="btn btn-primary" style="font-size: 0.85rem;" onclick="settlePaymentAtCounter(${sessId})">Xác Nhận Tất Toán Quầy</button>
                     <span class="stamp-badge" style="padding: 6px 12px;">Phiên chơi đã kết thúc</span>
                   ` : ''}
                 </div>
@@ -358,6 +360,34 @@
         loadDmDashboard();
       } catch (err) {
         alert(err.message || 'Không thể từ chối đề xuất');
+      }
+    };
+
+    window.settlePaymentAtCounter = async function(sessId) {
+      if (!confirm('Xác nhận khách đã thanh toán nốt phần tiền còn lại tại quầy lễ tân?')) return;
+      try {
+        const json = await apiClient.post(`/dm/sessions/${sessId}/settle`);
+        alert(json.message || 'Đã xác nhận tất toán đủ tiền tại quầy thành công!');
+        loadDmDashboard();
+      } catch (err) {
+        alert(err.message || 'Không thể xác nhận tất toán');
+      }
+    };
+
+    window.reportNoShow = async function(sessId) {
+      const input = prompt('Nhập ID của người chơi vắng mặt (nếu nhiều người, cách nhau bằng dấu phẩy, ví dụ: 3, 4):', '');
+      if (input === null || !input.trim()) return;
+      const ids = input.split(',').map(s => Number(s.trim())).filter(n => !isNaN(n) && n > 0);
+      if (ids.length === 0) {
+        alert('ID người chơi không hợp lệ');
+        return;
+      }
+      try {
+        const json = await apiClient.post(`/dm/sessions/${sessId}/no-show`, { absent_user_ids: ids });
+        alert(json.message || 'Đã xử lý sự cố No-show thành công!');
+        loadDmDashboard();
+      } catch (err) {
+        alert(err.message || 'Lỗi khi xử lý No-show');
       }
     };
 

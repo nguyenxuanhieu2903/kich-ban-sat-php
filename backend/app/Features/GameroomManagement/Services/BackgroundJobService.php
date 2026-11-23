@@ -198,8 +198,14 @@ class BackgroundJobService
         $sql = "SELECT gr.`id`, gr.`title`
                 FROM `game_rooms` gr
                 WHERE gr.`replacement_status` = 'OPEN'
-                  AND gr.`replacement_deadline_at` IS NOT NULL
-                  AND gr.`replacement_deadline_at` <= NOW()";
+                  AND (
+                    (gr.`replacement_deadline_at` IS NOT NULL AND gr.`replacement_deadline_at` <= NOW())
+                    OR EXISTS (
+                      SELECT 1 FROM `sessions` s 
+                      WHERE s.`game_room_id` = gr.`id` 
+                        AND s.`start_at` <= DATE_ADD(NOW(), INTERVAL 4 HOUR)
+                    )
+                  )";
 
         $stmt = $this->pdo->query($sql);
         $expiredWindows = $stmt !== false ? $stmt->fetchAll(PDO::FETCH_ASSOC) : [];
@@ -248,36 +254,76 @@ class BackgroundJobService
 
     /**
      * Job 4: Quét các đề xuất lịch biểu quyết quá hạn (expires_at <= NOW() AND status = 'PROPOSED')
-     * -> Tự động chuyển thành EXPIRED.
+     * -> Tự động chuyển thành EXPIRED và đưa phòng quay về FORMING (Điểm 4 & Điểm 9).
      */
     public function runProposalTimeout(): int
     {
-        $stmt = $this->pdo->prepare(
-            'UPDATE `schedule_proposals`
-             SET `status` = \'EXPIRED\'
-             WHERE `status` = \'PROPOSED\' AND `expires_at` IS NOT NULL AND `expires_at` <= NOW()'
+        $findStmt = $this->pdo->query(
+            "SELECT `id`, `game_room_id` FROM `schedule_proposals`
+             WHERE `status` = 'PROPOSED' AND `expires_at` IS NOT NULL AND `expires_at` <= NOW()"
         );
-        $stmt->execute();
+        $expiredProps = $findStmt ? $findStmt->fetchAll(PDO::FETCH_ASSOC) : [];
+        $count = 0;
 
-        return $stmt->rowCount();
+        foreach ($expiredProps as $p) {
+            $propId = (int) $p['id'];
+            $roomId = (int) $p['game_room_id'];
+
+            $this->pdo->prepare("UPDATE `schedule_proposals` SET `status` = 'EXPIRED' WHERE `id` = :id")
+                ->execute([':id' => $propId]);
+            $this->pdo->prepare("UPDATE `game_rooms` SET `status` = 'FORMING' WHERE `id` = :rid AND `status` = 'PENDING_SCHEDULE'")
+                ->execute([':rid' => $roomId]);
+            $count++;
+        }
+
+        return $count;
     }
 
     /**
      * Job 5: Quét các phân công DM chờ phản hồi quá 4 tiếng (assigned_at <= NOW() - 4H AND status = 'PENDING')
-     * -> Tự động thu hồi và mở lại cơ hội cho DM khác.
+     * -> Tự động thu hồi, và nếu xoay tua >= 3 lượt thì phát cảnh báo khẩn cấp lên Dashboard Admin (Điểm 5).
      */
     public function runDmAssignmentTimeout(): int
     {
-        $stmt = $this->pdo->prepare(
-            'UPDATE `dm_assignments`
-             SET `status` = \'REVOKED\',
-                 `revoked_at` = NOW(),
-                 `reason` = \'Quá hạn 4 giờ Quản trò không phản hồi tiếp nhận ca trực\',
-                 `updated_at` = NOW()
-             WHERE `status` = \'PENDING\' AND `assigned_at` <= DATE_SUB(NOW(), INTERVAL 4 HOUR)'
+        $pendingStmt = $this->pdo->query(
+            "SELECT `id`, `game_room_id` FROM `dm_assignments`
+             WHERE `status` = 'PENDING' AND `assigned_at` <= DATE_SUB(NOW(), INTERVAL 4 HOUR)"
         );
-        $stmt->execute();
+        $assignments = $pendingStmt ? $pendingStmt->fetchAll(PDO::FETCH_ASSOC) : [];
+        $revokedCount = 0;
 
-        return $stmt->rowCount();
+        foreach ($assignments as $a) {
+            $assignId = (int) $a['id'];
+            $roomId = (int) $a['game_room_id'];
+
+            $this->pdo->prepare(
+                "UPDATE `dm_assignments`
+                 SET `status` = 'REVOKED',
+                     `revoked_at` = NOW(),
+                     `reason` = 'Quá hạn 4 giờ Quản trò không phản hồi tiếp nhận ca trực',
+                     `updated_at` = NOW()
+                 WHERE `id` = :id"
+            )->execute([':id' => $assignId]);
+            $revokedCount++;
+
+            // Kiểm tra số lần xoay tua của phòng chơi này
+            $revCountStmt = $this->pdo->prepare("SELECT COUNT(*) FROM `dm_assignments` WHERE `game_room_id` = :rid AND `status` = 'REVOKED'");
+            $revCountStmt->execute([':rid' => $roomId]);
+            if ((int) $revCountStmt->fetchColumn() >= 3) {
+                // Đẩy thông báo khẩn cấp cho Quản trị viên
+                $adminStmt = $this->pdo->query("SELECT `id` FROM `users` WHERE `role_code` = 'ADMIN'");
+                $adminIds = $adminStmt ? array_map('intval', $adminStmt->fetchAll(PDO::FETCH_COLUMN)) : [1];
+
+                $this->notiRepo->createNotification(
+                    'Cảnh báo khẩn cấp: Hết lượt xoay tua Quản trò',
+                    "Phòng chơi ID #{$roomId} đã xoay tua qua nhiều Quản trò nhưng chưa có người nhận ca. Yêu cầu Quản trị viên can thiệp điều phối thủ công.",
+                    'ADMIN_ALERT',
+                    null,
+                    $adminIds
+                );
+            }
+        }
+
+        return $revokedCount;
     }
 }
