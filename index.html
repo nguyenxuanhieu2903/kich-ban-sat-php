@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Kịch Bản Sát V16 — Trải Nghiệm Nhập Vai Phá Án Thực Tế TP.HCM</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&family=Playfair+Display:ital,wght@0,600;0,700;1,600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="./src/styles/components.css" />
+  <link rel="stylesheet" href="./src/styles/home.css" />
+</head>
+<body>
+  <!-- HEADER ĐIỀU HƯỚNG CHUNG (Sau khi tạo src/logic/layout.js có thể thay bằng <div id="appHeader"></div>) -->
+  <header class="site-header">
+    <div class="container header-inner">
+      <a href="./index.html" class="brand-logo">
+        <img src="./src/assets/images/logo.png" alt="Logo Kịch Bản Sát" />
+        <span>KỊCH BẢN SÁT</span>
+      </a>
+
+      <nav class="nav-links">
+        <a href="./index.html" class="active">Trang chủ</a>
+        <a href="./pages/scenarios.html">Kho 42 Kịch Bản</a>
+        <a href="./pages/lobby.html">Sảnh Ghép Phòng</a>
+        <a href="./pages/info.html">Bảng Giá & Nội Quy</a>
+      </nav>
+
+      <div class="home-header-actions">
+        <button type="button" id="notifBellBtn" class="btn btn-outline" title="Thông báo hệ thống" aria-label="Thông báo">
+          🔔 <span id="notifBadge">0</span>
+        </button>
+        <select id="demoRoleSwitcher" class="home-role-select" title="Chuyển nhanh vai trò để demo báo cáo">
+          <option value="guest">Vai trò: Khách vãng lai</option>
+          <option value="player">Vai trò: Player (Đã duyệt HSSV)</option>
+          <option value="dm">Vai trò: Quản trò (DM)</option>
+          <option value="admin">Vai trò: Quản trị (Admin)</option>
+        </select>
+        <a href="./pages/auth.html" id="authActionBtn" class="btn btn-outline">Đăng nhập</a>
+        <a href="./pages/create-room.html" class="btn btn-primary">Đặt Phòng Ngay</a>
+      </div>
+    </div>
+  </header>
+
+  <!-- 1. HERO PARALLAX BANNER -->
+  <section class="home-hero">
+    <div class="home-hero-overlay"></div>
+    <div class="container home-hero-content">
+      <span class="stamp-badge">HỒ SƠ VỤ ÁN #V16 • TP. HỒ CHÍ MINH</span>
+      <h1 class="home-hero-title">Bước Vào Màn Sương.<br />Tìm Ra Kẻ Thủ Ác.</h1>
+      <p class="home-hero-subtitle">
+        Trò chơi nhập vai phá án thực tế (Murder Mystery / TTRPG) với trang phục cổ trang – trinh thám, phòng chơi cách âm chuyên biệt và Quản trò (DM) dẫn dắt kịch tính.
+      </p>
+      <div class="home-hero-cta">
+        <a href="./pages/lobby.html" class="btn btn-primary">Tìm Phòng Đang Tuyển (8 Slot)</a>
+        <a href="./pages/scenarios.html" class="btn btn-gold">Khám Phá 42 Kịch Bản</a>
+      </div>
+
+      <div class="home-hero-meta">
+        <div>📍 <strong>36/52 Nguyễn Gia Trí, P.25, Q.Bình Thạnh</strong></div>
+        <div>⏰ <strong>09:00 – 23:00 mỗi ngày</strong></div>
+        <div>📞 Hotline: <strong>091.569.0033</strong></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 2. BẢNG ƯU ĐÃI & QUY TẮC VÉ ĐẶC BIỆT -->
+  <section class="home-section">
+    <div class="container">
+      <div class="home-section-head">
+        <h2 class="home-section-title">Đặc Quyền & Quy Tắc Đặt Vé</h2>
+        <p class="home-section-desc">Hệ thống tự động áp dụng mức ưu đãi có lợi nhất (không cộng dồn) và giữ chỗ theo thời gian thực</p>
+      </div>
+
+      <div class="home-promo-grid">
+        <article class="ticket-card home-promo-ticket">
+          <span class="stamp-badge">THỨ 3 BÍ ẨN</span>
+          <h3>Giảm Ngay 30% Giá Vé</h3>
+          <p>Áp dụng tự động cho mọi ca chơi diễn ra vào ngày <strong>Thứ 3 hàng tuần</strong> trên toàn bộ 42 kịch bản.</p>
+          <hr class="ticket-divider" />
+          <small>Không cộng dồn với ưu đãi HSSV • Tự chọn mức lợi nhất</small>
+        </article>
+
+        <article class="ticket-card home-promo-ticket">
+          <span class="stamp-badge open">ƯU ĐÃI HSSV</span>
+          <h3>Giảm 20.000đ / Người</h3>
+          <p>Áp dụng từ <strong>Thứ 2 – Thứ 5 (09:00 – 19:59)</strong> sau khi tải lên và được Admin duyệt thẻ Học sinh – Sinh viên.</p>
+          <hr class="ticket-divider" />
+          <small>Xác minh 1 lần • Dùng cho mọi lần đặt vé</small>
+        </article>
+
+        <article class="ticket-card home-promo-ticket">
+          <span class="stamp-badge hold">CỌC 50.000Đ</span>
+          <h3>Giữ Chỗ 4h & Hoàn Cọc 24h</h3>
+          <p>Tạo/vào phòng giữ ghế trong <strong>4 giờ</strong>. Hủy trước giờ chơi <strong>&gt; 24 giờ</strong> được gửi yêu cầu hoàn <strong>100% cọc</strong>.</p>
+          <hr class="ticket-divider" />
+          <small>Mã QR Check-in cấp ngay sau khi xác nhận cọc</small>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <!-- 3. KỊCH BẢN NỔI BẬT (3D FLIP CARD + BỘ LỌC NHANH) -->
+  <section class="home-section home-section-dark">
+    <div class="container">
+      <div class="home-section-head">
+        <h2 class="home-section-title">Hồ Sơ Kịch Bản Tuyển Chọn</h2>
+        <p class="home-section-desc">Di chuột vào từng tấm poster để lật xem tóm tắt vụ án & tỷ lệ Nam/Nữ</p>
+      </div>
+
+      <div class="home-filter-bar" id="homeGenreFilters">
+        <button class="btn btn-gold active" data-genre="ALL">Tất cả thể loại</button>
+        <button class="btn btn-outline" data-genre="Kinh dị">Kinh dị tâm linh</button>
+        <button class="btn btn-outline" data-genre="Suy luận">Suy luận phá án</button>
+        <button class="btn btn-outline" data-genre="Cơ chế">Cơ chế, hài hước</button>
+        <button class="btn btn-outline" data-genre="Tình cảm">Tình cảm, tâm lý</button>
+        <button class="btn btn-outline" data-genre="Giả tưởng">Giả tưởng, siêu nhiên</button>
+      </div>
+
+      <div class="home-scenarios-grid" id="featuredScenariosGrid">
+        <!-- Render tự động từ home.page.js -->
+      </div>
+
+      <div class="home-center-cta">
+        <a href="./pages/scenarios.html" class="btn btn-outline">Xem Toàn Bộ 42 Kịch Bản &rarr;</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- 4. QUY TRÌNH 4 BƯỚC NHẬP VAI -->
+  <section class="home-section">
+    <div class="container">
+      <div class="home-section-head">
+        <h2 class="home-section-title">Quy Trình Tham Gia 4 Bước</h2>
+      </div>
+      <div class="home-steps-grid">
+        <div class="home-step-item">
+          <span class="home-step-num">01</span>
+          <h4>Chọn Kịch Bản</h4>
+          <p>Lọc theo thể loại, độ khó, tỷ lệ Nam/Nữ và kiểm tra giới hạn độ tuổi 18+.</p>
+        </div>
+        <div class="home-step-item">
+          <span class="home-step-num">02</span>
+          <h4>Tạo Hoặc Ghép Phòng</h4>
+          <p>Mở phòng mới hoặc vào phòng đang tuyển đủ 8 người chơi tại Sảnh.</p>
+        </div>
+        <div class="home-step-item">
+          <span class="home-step-num">03</span>
+          <h4>Cọc 50k Trong 4 Giờ</h4>
+          <p>Quét mã QR thanh toán cọc giữ chỗ trước khi đồng hồ 4 tiếng kết thúc.</p>
+        </div>
+        <div class="home-step-item">
+          <span class="home-step-num">04</span>
+          <h4>Nhận QR & Phá Án</h4>
+          <p>Đưa vé QR cho DM check-in tại quán, thanh toán phần còn lại và bắt đầu nhập vai.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- POPUP CẢNH BÁO 18+ -->
+  <div class="home-modal-backdrop" id="ageGateModal" hidden>
+    <div class="ticket-card home-modal-box">
+      <span class="stamp-badge">CẢNH BÁO NỘI DUNG 18+</span>
+      <h3 id="ageGateTitle">Xác Nhận Độ Tuổi Tham Gia</h3>
+      <p>Kịch bản này chứa yếu tố kinh dị nặng, tâm lý u ám hoặc bạo lực hư cấu, chỉ dành cho người chơi từ <strong>18 tuổi trở lên</strong>.</p>
+      <hr class="ticket-divider" />
+      <div class="home-modal-actions">
+        <button type="button" class="btn btn-outline" id="ageCancelBtn">Quay lại</button>
+        <button type="button" class="btn btn-primary" id="ageConfirmBtn">Tôi đã đủ 18 tuổi — Tiếp tục</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- FOOTER 4 CỘT (Sau khi tạo src/logic/layout.js có thể thay bằng <div id="appFooter"></div>) -->
+  <footer class="site-footer">
+    <div class="container home-footer-grid" style="grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));">
+      <div>
+        <strong style="color: var(--color-gold); font-family: var(--font-serif); font-size: 1.15rem;">KỊCH BẢN SÁT V16</strong>
+        <p style="margin-top: 8px;">Không gian nhập vai phá án Murder Mystery chuyên nghiệp tại TP.HCM.</p>
+      </div>
+      <div>
+        <strong style="color: var(--color-cream);">Điều Hướng Nhanh</strong>
+        <ul style="list-style: none; padding: 0; margin-top: 8px; line-height: 1.8;">
+          <li><a href="./pages/scenarios.html">Kho 42 Kịch Bản</a></li>
+          <li><a href="./pages/lobby.html">Sảnh Ghép Phòng</a></li>
+          <li><a href="./pages/info.html">Bảng Giá & Nội Quy</a></li>
+        </ul>
+      </div>
+      <div>
+        <strong style="color: var(--color-cream);">Liên Hệ & Giờ Mở Cửa</strong>
+        <p style="margin-top: 8px;">📍 36/52 Nguyễn Gia Trí, P.25, Q.Bình Thạnh</p>
+        <p>⏰ Mở cửa: 09:00 – 23:00 mỗi ngày</p>
+        <p>📞 Đặt phòng: <strong>091.569.0033</strong></p>
+        <p>🤝 Hợp tác: <strong>0989.896.833 (Mrs Yến)</strong></p>
+      </div>
+      <div>
+        <strong style="color: var(--color-cream);">Bản Đồ Quán</strong>
+        <div style="margin-top: 8px; border-radius: 6px; overflow: hidden; border: 1px solid rgba(212,175,55,0.3);">
+          <iframe
+            title="Bản đồ Kịch Bản Sát"
+            src="https://www.google.com/maps?q=36/52+Nguyen+Gia+Tri,+Phuong+25,+Binh+Thanh,+Ho+Chi+Minh&output=embed"
+            width="100%"
+            height="120"
+            style="border:0; display:block;"
+            loading="lazy">
+          </iframe>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  <script type="module" src="./src/pages-js/home.page.js"></script>
+</body>
+</html>
