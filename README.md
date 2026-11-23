@@ -210,13 +210,15 @@ Triển khai 4 cron job tự động hóa nghiệp vụ:
   - Tự động lắng nghe sự kiện thay đổi giờ bắt đầu (`propTimeInput`), lấy thời lượng `r.game.duration_minutes` từ dữ liệu phòng và tự động cộng dồn để điền chính xác vào ô giờ kết thúc (`propEndTimeInput`).
   - Thiết lập thuộc tính `readonly` cho trường giờ kết thúc kèm bảng ghi chú thời lượng kịch bản, ngăn chặn việc người chơi chỉnh sửa giờ kết thúc tùy tiện gây xung đột thời gian hoặc chiếm dụng phòng chơi vật lý.
 
-### 4.14. Tài liệu Đặc tả Kiến trúc Vận hành Toàn diện và Bản Tự kiểm điểm Hệ thống (docs/TAI_LIEU_VAN_HANH_TOAN_DIEN_HE_THONG.md)
-- Bổ sung tài liệu chuyên sâu 5 chương, phân tích toàn diện:
-  1. Bản chất trò chơi Kịch Bản Sát (Jubensha): Giải thích vì sao người dùng không thể tự "chơi online" mà hệ thống đóng vai trò nền tảng ghép đội, xếp lịch và phân bổ tài nguyên cho buổi chơi trực tiếp tại bàn ngoài đời thực.
-  2. Ma trận 4 Actor (Khách Vãng Lai, Người Chơi / Chủ Phòng, Quản Trò DM, Quản Trị Viên Admin) và sự phân định rõ ràng giữa phòng chơi ảo (Game Room) và phòng vật lý tại chi nhánh (Physical Room).
-  3. Vòng đời buổi chơi 5 giai đoạn: Tạo lập -> Khớp lịch -> Chuẩn bị phòng & DM -> Buổi chơi thực tế -> Hậu kỳ và hoàn cọc.
-  4. Bản tự kiểm điểm hệ thống: Giải đáp cặn kẽ vì sao các phòng mới tạo hiển thị 1/8 slot (Chủ phòng là thành viên đầu tiên, cần ghép đủ người theo kịch bản trước khi khóa lịch); giải thích kho 42 kịch bản tiếp thị và dữ liệu hạt giống; làm rõ điều kiện chuyển trạng thái phòng.
-  5. Lộ trình nâng cấp 3 bước: Mở rộng danh mục kịch bản lên 12-15 bản ghi phong phú, tích hợp chức năng hủy phòng linh hoạt cho Host, và hoàn thiện giao diện hoàn tiền trực quan.
+### 4.14. Tài liệu Đặc tả Kiến trúc Vận hành Toàn diện & Chuẩn hóa 28 Điểm Nghiệp vụ (docs/TAI_LIEU_VAN_HANH_TOAN_DIEN_HE_THONG.md)
+- Bổ sung tài liệu đặc tả chuẩn hóa toàn diện 7 chương, giải quyết triệt để 28 điểm nghiệp vụ qua 5 phân hệ và xác lập 3 quyết định kiến trúc cốt lõi:
+  1. Xác lập 3 quyết định kiến trúc cốt lõi: Hỗ trợ song song Public Matchmaking và Private Group Booking; Cơ chế đặt cọc linh hoạt (Hybrid Deposit: cá nhân tự cọc 50k hoặc Host cọc gộp); Phân định 3 tầng rành mạch giữa DM (Chuyên môn) - System (Tự động hóa & Khóa giữ phòng) - Admin (Quản trị & Ngoại lệ).
+  2. Phân hệ Identity & Ownership: Ma trận RACI, xử lý tài khoản bị khóa (Account Suspension Lifecycle), chống trùng lịch cá nhân và giới hạn tối đa 2 phòng FORMING chống spam, cơ chế chống chơi lại kịch bản (Replay Prevention) và xác thực tag 18+.
+  3. Phân hệ Room & Booking: Tách bạch `booking_type` và hệ chỉ số sĩ số (`total_players`, `confirmed_players`, `required_players`, `guest_slots`), đảo lại trình tự chuẩn (Thống nhất lịch & Giữ phòng trước -> Mới nộp cọc), 4 State Machine độc lập (Booking, Payment, Session, Refund), xóa bỏ vào phòng mù, giải quyết bế tắc biểu quyết (SLA 12h), quy trình chuyển quyền Host & cửa sổ tìm người thế chỗ, đổi lịch (miễn phí 1 lần trước 24h), và các SLA tự động (48h gom phòng, 2h cọc, 4h DM nhận ca).
+  4. Phân hệ Scheduling & Resource: Giữ cứng khoảng đệm dọn phòng 30 phút (`BUFFER_MINUTES = 30`), ma trận kỹ năng DM và khoảng cách 60 phút giữa 2 ca trực khác chi nhánh, thuật toán khớp phòng theo chủ đề kịch bản và sức chứa, chặn ca chơi lấn quá giờ đóng cửa chi nhánh (23:30), tính năng khóa phòng thủ công (Manual Offline Block) cho khách Hotline/Walk-in, và quy trình bảo trì/điều chuyển phòng.
+  5. Phân hệ Payment & Financial: Cơ chế cọc linh hoạt, mã hóa 7 kịch bản ngoại lệ cọc/hoàn cọc, 4 bước hoàn tiền (`REQUESTED` -> `APPROVED/REJECTED` -> `PROCESSING` -> `COMPLETED`), đối soát Webhook VietQR tự động, quy tắc tính giá khi ca chơi vắt qua hai khung giờ (Majority Time Block Rule), quy trình ưu đãi HSSV (giảm 20k/vé cá nhân, không cộng dồn Thứ Ba), và xác nhận tất toán quầy.
+  6. Phân hệ Game Session & Notification: Sửa thời lượng chuẩn 240 phút (20p check-in + 210p 4 vòng điều tra + 10p tổng kết), DM In-game Console (Timer, ghi chú, Incident Report), xử lý No-show/đi trễ (chờ tối đa 20p, DM đóng NPC hỗ trợ), và hệ thống thông báo 2 chiều tại 6 mốc bắt buộc.
+  7. Ma trận phân kỳ triển khai kỹ thuật theo 3 giai đoạn: P0 (Kiến trúc nền tảng), P1 (Vận hành cốt lõi), P2 (Hoàn thiện trải nghiệm & Nghiệp vụ mở rộng).
 
 ---
 
