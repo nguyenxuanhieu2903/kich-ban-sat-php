@@ -419,3 +419,173 @@ Tất cả các tài khoản mẫu đều sử dụng mật khẩu dùng chung l
 ## 9. KẾT LUẬN
 
 Phiên bản mã nguồn tại thư mục `kichbansattruong` đã hoàn thành 100% mục tiêu đồ án, giải quyết dứt điểm toàn bộ các thiếu sót của nhánh `feature/Dev-Hieu`, đạt chuẩn kỹ thuật cao về tính toàn vẹn dữ liệu, an ninh bảo mật và hiệu năng vận hành thực tế. Hệ thống đã sẵn sàng tuyệt đối phục vụ công tác báo cáo và bảo vệ trước hội đồng chấm thi.
+
+---
+
+## 10. HƯỚNG DẪN CÀI ĐẶT, KHỞI CHẠY VÀ SỬ DỤNG CHI TIẾT TỪ GITHUB
+
+Phần này hướng dẫn chi tiết từng bước dành cho người dùng, thành viên nhóm phát triển hoặc giảng viên chấm thi tải mã nguồn từ kho Git về máy tính để cài đặt, khởi chạy và sử dụng trọn vẹn toàn bộ các tính năng của đồ án.
+
+### 10.1. Yêu cầu môi trường tối thiểu (Prerequisites)
+- Ngôn ngữ & Máy chủ: PHP phiên bản 8.2 trở lên (yêu cầu kích hoạt sẵn các phần mở rộng: `pdo`, `pdo_mysql`, `session`, `json`, `mbstring`).
+- Hệ quản trị CSDL: MySQL phiên bản 8.0 trở lên hoặc MariaDB 10.4 trở lên (khuyến nghị sử dụng XAMPP, WampServer hoặc Docker).
+- Trình quản lý gói: Composer phiên bản 2.x (dùng cho các gói thư viện kiểm thử Backend).
+- Môi trường chạy kiểm thử Frontend: Node.js phiên bản 18.x trở lên (tùy chọn, dùng khi muốn chạy bộ kiểm thử tự động).
+- Công cụ kiểm soát mã nguồn: Git CLI.
+
+---
+
+### 10.2. Cách 1: Cài đặt và khởi chạy thủ công trên máy tính (Khuyến nghị cho chấm thi)
+
+#### Bước 1: Tải mã nguồn từ kho GitHub
+Mở phần mềm Terminal, Git Bash hoặc Windows PowerShell và thực hiện lệnh sao chép nhánh hoàn thiện:
+```bash
+git clone -b feat/truong-backend-stage3 https://github.com/nguyenxuanhieu2903/kich-ban-sat-php.git
+cd kich-ban-sat-php
+```
+
+#### Bước 2: Thiết lập Cơ sở Dữ liệu MySQL
+1. Khởi động dịch vụ MySQL thông qua bảng điều khiển XAMPP Control Panel.
+2. Mở trình duyệt truy cập công cụ phpMyAdmin tại `http://localhost/phpmyadmin/` (hoặc mở cửa sổ dòng lệnh MySQL Client).
+3. Tạo mới một cơ sở dữ liệu có tên chính xác là:
+   - Tên CSDL: `kich_ban_sat_v3`
+   - Bảng mã phân loại: `utf8mb4_unicode_ci`
+4. Thực hiện nạp dữ liệu mẫu sạch vào CSDL:
+   - Cách 4.1 (Giao diện web phpMyAdmin): Chọn CSDL `kich_ban_sat_v3` -> Nhấn tab "Import" -> Chọn tệp tin nằm tại đường dẫn:
+     `backend/database/kich_ban_sat_v3_clean.sql`
+     Sau đó bấm "Import" ở cuối trang để hoàn tất.
+   - Cách 4.2 (Dòng lệnh CLI):
+     ```bash
+     mysql -u root -p kich_ban_sat_v3 < backend/database/kich_ban_sat_v3_clean.sql
+     ```
+
+#### Bước 3: Cài đặt các gói thư viện Backend qua Composer
+Di chuyển vào thư mục `backend` và chạy lệnh cài đặt:
+```bash
+cd backend
+composer install
+```
+
+#### Bước 4: Kiểm tra cấu hình kết nối CSDL (.env)
+Tệp cấu hình môi trường nằm tại `backend/.env`. Mặc định hệ thống đã được cấu hình sẵn cho môi trường máy chủ cục bộ:
+```ini
+APP_NAME="Kich Ban Sat"
+APP_ENV=local
+APP_DEBUG=true
+DB_CONNECTION=mysql
+DB_HOST=127.0.0.1
+DB_PORT=3306
+DB_DATABASE=kich_ban_sat_v3
+DB_USERNAME=root
+DB_PASSWORD=
+```
+Nếu tài khoản root MySQL của bạn có thiết lập mật khẩu riêng, hãy mở tệp `backend/.env` và cập nhật trường `DB_PASSWORD`.
+
+#### Bước 5: Khởi chạy máy chủ phát triển tích hợp (Front Controller)
+Thực hiện câu lệnh sau ngay tại thư mục `backend`:
+```bash
+php -S 127.0.0.1:8000 -t public public/index.php
+```
+Thông báo hiển thị dạng: `Development Server (http://127.0.0.1:8000) started` cho biết máy chủ đã sẵn sàng tiếp nhận yêu cầu. Tệp `public/index.php` sẽ phục vụ đồng thời cả giao diện web tĩnh Frontend và xử lý các lời gọi API Backend.
+
+#### Bước 6: Truy cập và sử dụng trên trình duyệt
+Mở trình duyệt web bất kỳ (Chrome, Edge, Firefox, Brave) và truy cập đường dẫn:
+```
+http://127.0.0.1:8000/
+```
+
+---
+
+### 10.3. Cách 2: Khởi chạy tự động bằng Docker & Docker Compose (Khởi chạy bằng 1 lệnh)
+
+Nếu máy tính của bạn đã cài đặt sẵn Docker Desktop, bạn có thể khởi chạy toàn bộ hệ thống gồm MySQL 8.4 và PHP 8.3 container mà không cần cài đặt PHP hay MySQL trực tiếp vào máy:
+
+```bash
+git clone -b feat/truong-backend-stage3 https://github.com/nguyenxuanhieu2903/kich-ban-sat-php.git
+cd kich-ban-sat-php
+docker compose up -d
+```
+Quá trình này sẽ tự động:
+1. Kéo image MySQL 8.4 và khởi tạo CSDL `kich_ban_sat_v3`.
+2. Tự động nạp tệp SQL mẫu `backend/database/kich_ban_sat_v3_clean.sql` vào CSDL.
+3. Tự động build môi trường PHP 8.3 Alpine kèm thư viện PDO MySQL.
+4. Mở cổng kết nối `http://127.0.0.1:8000/` để bạn truy cập ngay.
+
+Khi muốn dừng hệ thống, chỉ cần gõ:
+```bash
+docker compose down
+```
+
+---
+
+### 10.4. Hướng dẫn sử dụng và trải nghiệm các tính năng chính
+
+Hệ thống được thiết kế khép kín toàn bộ vòng đời trải nghiệm dịch vụ kịch bản sát nhập vai thông qua 3 luồng người dùng:
+
+#### Luồng 1: Người chơi (Player) tìm kịch bản, ghép phòng và thanh toán cọc
+1. Xem kho kịch bản:
+   - Truy cập trang `Kho 42 Kịch Bản` tại menu hoặc đường dẫn `/pages/scenarios.html`.
+   - Sử dụng phím tắt: Nhấn phím `/` để đưa con trỏ chuột vào ô tìm kiếm. Gõ tên kịch bản muốn tìm (ví dụ: "Trang viên", "Tàu tuyết", "Huyết tộc"). Nhấn phím `Escape` để xóa nhanh tìm kiếm và khôi phục toàn bộ danh sách.
+   - Thử nghiệm nhãn 18+: Nhấn vào kịch bản có cảnh báo 18+, hệ thống sẽ mở Hộp thoại xác nhận độ tuổi trước khi cho phép vào xem hồ sơ chi tiết.
+2. Đăng nhập tài khoản Người chơi:
+   - Truy cập trang `Đăng Nhập` tại `/pages/auth.html`.
+   - Tại mục "Tài khoản thử nghiệm nhanh", nhấn nút "Điền" ở dòng `Player HSSV: player.hieu@kichbansat.vn` (Mật khẩu tự điền là `password123`).
+   - Nhấn nút "Đăng Nhập Ngay". Hệ thống xác thực qua API, tự động lưu phiên làm việc và chuyển hướng đến trang tương ứng.
+3. Tạo phòng chơi mới:
+   - Truy cập `/pages/create-room.html`.
+   - Chọn kịch bản (hệ thống tự động nạp từ API `/api/v1/games`), đặt tiêu đề phòng, chọn số lượng 6 đến 8 người chơi và bấm "Xác Nhận Mở Phòng".
+   - Sau khi tạo, phòng lập tức xuất hiện công khai trên `Sảnh Ghép Phòng` (`/pages/lobby.html`) ở trạng thái FORMING.
+4. Đề xuất lịch và đặt cọc giữ chỗ:
+   - Tại trang chi tiết phòng `/pages/room-detail.html?id=1`, xem đội hình 8 vị trí slot.
+   - Nhấn "+ Đề Xuất Lịch Mới", chọn ngày giờ và phòng chơi, nhấn "Gửi Đề Xuất". Các thành viên trong phòng cùng tham gia nhấn "Đồng Ý (Yes)".
+   - Khi lịch được chốt, nhấn nút "Thanh Toán Cọc (50k)" để chuyển sang trang `/pages/booking-status.html`.
+   - Hệ thống hiển thị đồng hồ đếm ngược 4 giờ giữ chỗ kèm mã VietQR Napas 247 động đúng số tiền 50.000đ. Nhấn nút "Xác Nhận Đã Chuyển Khoản" để hệ thống ghi nhận trạng thái đã cọc.
+5. Kiểm tra hồ sơ cá nhân:
+   - Truy cập `/pages/profile.html` để xem thông tin cá nhân, lịch sử đặt phòng và trạng thái xác minh thẻ sinh viên (HSSV) được hưởng quyền giảm 20.000đ/người.
+
+#### Luồng 2: Quản trò (DM) tiếp nhận và điều phối ca dẫn truyện
+1. Đăng nhập tài khoản Quản trò:
+   - Đăng nhập với tài khoản `dm.nam@kichbansat.vn` (Mật khẩu: `password123`).
+2. Quản lý ca trực tại Cổng Quản trò:
+   - Truy cập `/pages/dm-portal.html`.
+   - Xem thông tin phòng chơi được Admin phân công, thời gian diễn ra và số lượng người chơi.
+   - Khi khách đến quán check-in: Nhấn "Bắt Đầu Buổi Chơi" (chuyển trạng thái sang `IN_PROGRESS`).
+   - Nhập ghi chú diễn biến vụ án hoặc tình trạng đạo cụ vào ô "Session Notes" và nhấn "Lưu Ghi Chú Hiện Trường".
+   - Khi kết thúc vụ án: Nhấn "Hoàn Tất Buổi Chơi" (chuyển trạng thái sang `COMPLETED`). Hệ thống tự động phát thông báo hoàn thành đến tất cả thành viên trong phòng.
+
+#### Luồng 3: Quản trị viên (Admin) điều hành cơ sở và tài chính
+1. Đăng nhập tài khoản Quản trị:
+   - Đăng nhập với tài khoản `admin@kichbansat.vn` (Mật khẩu: `password123`).
+2. Quản trị tại Cổng Quản trị:
+   - Truy cập `/pages/admin-portal.html`.
+   - Xem 4 thẻ chỉ số KPI: Tổng Doanh Thu Thuần, Tiền Cọc Đã Thu, Phòng Chơi Đang Hoạt Động, Số Ca DM Được Phân Công. Các chỉ số này được tính toán tự động từ CSDL qua API `/api/v1/admin/reports/revenue`.
+   - Gán phòng vật lý: Nhấn "Gán Phòng Vật Lý" tại bảng điều phối, nhập ID phòng (1: Sherlock Holmes, 2: Dracula, 3: Cổ Trang). Hệ thống tự động kiểm tra xung đột lịch và bảo đảm khoảng đệm dọn phòng 30 phút.
+   - Phân công & thu hồi DM: Nhấn nút "Thu Hồi DM" khi muốn hủy phân công quản trò hiện tại.
+   - Xét duyệt ưu đãi sinh viên: Tại mục "Duyệt Thẻ Học Sinh - Sinh Viên", nhấn "Duyệt Thẻ" để cấp quyền giảm giá cho tài khoản người chơi.
+   - Nhật ký kiểm toán: Xem danh sách nhật ký kiểm toán (Audit Trail) ghi vết từng hành động, thời gian và địa chỉ IP thực hiện.
+3. Thử nghiệm trực tiếp các API trên Swagger UI:
+   - Mở tab mới truy cập `http://127.0.0.1:8000/docs`.
+   - Người chấm thi có thể bấm "Execute" trên từng endpoint để kiểm tra phản hồi JSON thực tế mà không cần cài đặt phần mềm Postman.
+
+---
+
+### 10.5. Lệnh chạy kiểm thử tự động để kiểm chứng chất lượng
+
+Để nghiệm thu toàn bộ chất lượng kỹ thuật, người chấm thi có thể mở Terminal chạy 2 câu lệnh sau:
+
+- Kiểm thử toàn diện Backend (PHPUnit):
+  ```bash
+  cd backend
+  ./vendor/bin/phpunit
+  ```
+  Kết quả chuẩn: `OK (125 tests, 555 assertions)` - 100% kiểm thử đạt yêu cầu.
+
+- Kiểm thử toàn diện Frontend (Node.js Test Runner):
+  ```bash
+  cd frontend
+  node tests/api-client.test.mjs
+  node tests/auth-multi-role.test.mjs
+  node tests/final-security-verification.mjs
+  node tests/home-e2e.test.mjs
+  ```
+  Kết quả chuẩn: 24 bài kiểm tra đều vượt qua với trạng thái thông qua 100%.
