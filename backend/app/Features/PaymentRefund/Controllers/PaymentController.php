@@ -196,9 +196,22 @@ class PaymentController
         $stmt->execute();
         $paymentId = $stmt->fetchColumn();
 
+        if ($paymentId === false) {
+            // Tự động tạo bản ghi thanh toán cọc cho thành viên phòng
+            $this->paymentRepo->ensureDepositPaymentsForRoom($roomId, PricingService::DEPOSIT_PER_PERSON, 2);
+            $stmt->execute();
+            $paymentId = $stmt->fetchColumn();
+        }
+
         if ($paymentId !== false) {
             return $this->deposit($request, (string) $paymentId);
         }
+
+        // Cập nhật trực tiếp trạng thái DEPOSITED cho thành viên nếu chưa có bản ghi player_payments
+        $partStmt = $this->pdo->prepare('UPDATE `room_participants` SET `status` = \'DEPOSITED\', `deposited_at` = NOW(), `updated_at` = NOW() WHERE `game_room_id` = :room_id AND `user_id` = :user_id');
+        $partStmt->bindValue(':room_id', $roomId, PDO::PARAM_INT);
+        $partStmt->bindValue(':user_id', (int) $auth['id'], PDO::PARAM_INT);
+        $partStmt->execute();
 
         return Response::success([
             'room_id' => $roomId,

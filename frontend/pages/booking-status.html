@@ -172,8 +172,9 @@
           window.location.href = './auth.html';
           return;
         }
-        alert('Ghi nhận thanh toán cọc thành công! Hẹn gặp bạn tại buổi chơi.');
-        window.location.href = `./room-detail.html?id=${roomId}`;
+        alert(e.message || 'Có lỗi xảy ra khi xác nhận đặt cọc. Vui lòng kiểm tra lại!');
+        btnConfirm.disabled = false;
+        btnConfirm.textContent = 'Xác Nhận Đã Chuyển Khoản';
       }
     });
   </script>

@@ -71,7 +71,7 @@
         </p>
 
         <form id="verifyForm" style="display: flex; gap: 12px; flex-wrap: wrap;">
-          <input type="text" class="form-control" style="flex: 1; min-width: 200px; padding: 8px 12px; background: var(--bg-surface); color: white;" placeholder="Mã số sinh viên / Tên trường..." value="SV2026-ĐHQG" />
+          <input type="text" id="studentCardInput" class="form-control" style="flex: 1; min-width: 200px; padding: 8px 12px; background: var(--bg-surface); color: white;" placeholder="Mã số sinh viên / Tên trường..." value="SV2026-ĐHQG" required />
           <button type="submit" class="btn btn-gold" style="font-size: 0.9rem;">Cập Nhật Thẻ HSSV</button>
         </form>
       </div>
@@ -103,6 +103,9 @@
   <script type="module">
     import { apiClient } from '../src/api/api-client.js';
 
+    const hssvBadge = document.getElementById('hssvBadge');
+    const studentCardInput = document.getElementById('studentCardInput');
+
     // Load active profile from session
     apiClient.get('/auth/me')
       .then(json => {
@@ -110,13 +113,19 @@
           const u = json.data.user;
           document.getElementById('profileName').textContent = u.full_name || 'Người Chơi';
           document.getElementById('profileEmail').textContent = u.email || '';
-          document.getElementById('profileRole').textContent = `${u.role_code || 'PLAYER'} (Role)`;
-          if (u.student_verified) {
-            document.getElementById('hssvBadge').textContent = 'ĐÃ XÁC MINH';
-            document.getElementById('hssvBadge').className = 'stamp-badge open';
+          document.getElementById('profileRole').textContent = `${u.role_code || u.role || 'PLAYER'} (Role)`;
+          if (u.avatar_url) {
+            document.getElementById('profileAvatar').src = u.avatar_url;
           } else {
-            document.getElementById('hssvBadge').textContent = 'CHƯA XÁC MINH';
-            document.getElementById('hssvBadge').className = 'stamp-badge';
+            document.getElementById('profileAvatar').src = `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(u.full_name || 'Player')}`;
+          }
+
+          if (u.student_verified) {
+            hssvBadge.textContent = 'ĐÃ XÁC MINH (ƯU ĐÃI HSSV -20K)';
+            hssvBadge.className = 'stamp-badge open';
+          } else {
+            hssvBadge.textContent = 'CHƯA XÁC MINH';
+            hssvBadge.className = 'stamp-badge';
           }
         }
       })
@@ -133,11 +142,27 @@
 
     document.getElementById('verifyForm').addEventListener('submit', async (e) => {
       e.preventDefault();
+      const cardId = studentCardInput.value.trim();
+      if (!cardId) {
+        alert('Vui lòng nhập mã thẻ sinh viên hoặc tên trường!');
+        return;
+      }
+
       try {
-        const json = await apiClient.post('/auth/student-verification', { student_card_id: 'SV2026-ĐHQG' });
+        const json = await apiClient.post('/auth/student-verification', {
+          student_card_id: cardId,
+          student_id: cardId
+        });
+        hssvBadge.textContent = 'CHỜ ADMIN PHÊ DUYỆT';
+        hssvBadge.className = 'stamp-badge';
         alert(json.message || 'Thông tin thẻ sinh viên đã được tải lên và đang chờ Admin duyệt!');
       } catch (err) {
-        alert('Thông tin thẻ sinh viên đã được ghi nhận và đang chờ Admin duyệt!');
+        if (err.status === 401) {
+          alert('Vui lòng đăng nhập tài khoản trước khi xác minh!');
+          window.location.href = './auth.html';
+          return;
+        }
+        alert(err.message || 'Thông tin thẻ sinh viên đã được ghi nhận!');
       }
     });
   </script>

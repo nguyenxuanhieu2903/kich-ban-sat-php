@@ -126,10 +126,9 @@
     const urlParams = new URLSearchParams(window.location.search);
     const preselectedGameId = urlParams.get('game_id');
     // Load catalog games dynamically
-    fetch('/api/v1/games')
-      .then(r => r.json())
+    apiClient.get('/games')
       .then(res => {
-        if (res.success && res.data.games && res.data.games.length > 0) {
+        if (res.success && res.data && res.data.games && res.data.games.length > 0) {
           gameSelect.innerHTML = res.data.games.map(g => `
             <option value="${g.id}">${g.name} (${g.min_players} - ${g.max_players} người, ${g.duration_minutes || 240} phút)</option>
           `).join('');

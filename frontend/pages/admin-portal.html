@@ -277,7 +277,7 @@
         alert(json.message || 'Đã duyệt xác minh thẻ học sinh - sinh viên thành công!');
         loadStudents();
       } catch (e) {
-        alert('Đã duyệt xác minh thẻ học sinh - sinh viên thành công!');
+        alert(e.message || 'Không thể duyệt xác minh thẻ HSSV');
         loadStudents();
       }
     };
@@ -357,7 +357,7 @@
       try {
         const res = await apiClient.get('/admin/users');
         const users = res.data?.items || res.data?.users || res.data || [];
-        const students = Array.isArray(users) ? users.filter(u => u.student_card_id || u.student_verified || u.id === 3) : [];
+        const students = Array.isArray(users) ? users.filter(u => u.role_code === 'PLAYER' || u.student_card_id || u.student_verified || u.id === 3) : [];
 
         if (students.length === 0) {
           studentListContainer.innerHTML = `
