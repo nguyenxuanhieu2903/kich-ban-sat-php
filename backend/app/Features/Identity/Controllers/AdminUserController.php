@@ -9,17 +9,20 @@ use App\Core\Request;
 use App\Core\Response;
 use App\Features\Identity\Repositories\UserRepository;
 use App\Infrastructure\Database\DatabaseConnection;
+use App\Infrastructure\Logging\AuditLogger;
 use PDO;
 
 class AdminUserController
 {
     protected UserRepository $userRepo;
     protected PDO $pdo;
+    protected AuditLogger $auditLogger;
 
-    public function __construct(?UserRepository $userRepo = null, ?PDO $pdo = null)
+    public function __construct(?UserRepository $userRepo = null, ?PDO $pdo = null, ?AuditLogger $auditLogger = null)
     {
         $this->pdo = $pdo ?? DatabaseConnection::getInstance();
         $this->userRepo = $userRepo ?? new UserRepository($this->pdo);
+        $this->auditLogger = $auditLogger ?? new AuditLogger($this->pdo);
 
         if (session_status() === PHP_SESSION_NONE && !headers_sent()) {
             @session_start();
@@ -127,6 +130,7 @@ class AdminUserController
 
         if (!empty($updateData)) {
             $this->userRepo->update($targetUserId, $updateData);
+            $this->auditLogger->log('USER_STATUS_CHANGED', 'USER', $targetUserId, ['status' => $user['status'] ?? null], $updateData, (int) $auth['id'], $request);
         }
 
         $updated = $this->userRepo->findById($targetUserId);
@@ -175,6 +179,7 @@ class AdminUserController
         }
 
         $this->userRepo->assignRole($targetUserId, (int) $role['id']);
+        $this->auditLogger->log('USER_ROLE_CHANGED', 'USER', $targetUserId, ['role_id' => $user['role_id'] ?? null], ['role_id' => (int) $role['id'], 'role_code' => $role['code']], (int) $auth['id'], $request);
 
         $updated = $this->userRepo->findById($targetUserId);
         if ($updated !== null) {

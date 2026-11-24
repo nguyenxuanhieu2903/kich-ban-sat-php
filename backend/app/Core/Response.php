@@ -166,9 +166,22 @@ class Response
         return $this->headers;
     }
 
+    public function getHeader(string $name): ?string
+    {
+        return $this->headers[$name] ?? null;
+    }
+
     public function withHeader(string $name, string $value): self
     {
         $this->headers[$name] = $value;
+        return $this;
+    }
+
+    public function withHeaders(array $headers): self
+    {
+        foreach ($headers as $name => $value) {
+            $this->headers[$name] = (string) $value;
+        }
         return $this;
     }
 

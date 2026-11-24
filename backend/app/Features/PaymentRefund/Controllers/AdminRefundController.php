@@ -9,17 +9,20 @@ use App\Core\Request;
 use App\Core\Response;
 use App\Features\Notification\Repositories\NotificationRepository;
 use App\Infrastructure\Database\DatabaseConnection;
+use App\Infrastructure\Logging\AuditLogger;
 use PDO;
 
 class AdminRefundController
 {
     protected PDO $pdo;
     protected NotificationRepository $notiRepo;
+    protected AuditLogger $auditLogger;
 
-    public function __construct(?PDO $pdo = null, ?NotificationRepository $notiRepo = null)
+    public function __construct(?PDO $pdo = null, ?NotificationRepository $notiRepo = null, ?AuditLogger $auditLogger = null)
     {
         $this->pdo = $pdo ?? DatabaseConnection::getInstance();
         $this->notiRepo = $notiRepo ?? new NotificationRepository($this->pdo);
+        $this->auditLogger = $auditLogger ?? new AuditLogger($this->pdo);
 
         if (session_status() === PHP_SESSION_NONE && !headers_sent()) {
             @session_start();
@@ -178,6 +181,16 @@ class AdminRefundController
 
             $this->pdo->commit();
 
+            $this->auditLogger->log(
+                'REFUND_APPROVED',
+                'REFUND',
+                $refundId,
+                ['status' => $refund['status']],
+                ['status' => 'APPROVED', 'amount' => (int) $refund['amount']],
+                (int) $auth['id'],
+                $request
+            );
+
             // 6. Gửi thông báo cho khách hàng
             try {
                 $amountFormatted = number_format((int) $refund['amount']);
@@ -269,6 +282,16 @@ class AdminRefundController
             $upStmt->execute();
 
             $this->pdo->commit();
+
+            $this->auditLogger->log(
+                'REFUND_REJECTED',
+                'REFUND',
+                $refundId,
+                ['status' => $refund['status']],
+                ['status' => 'REJECTED', 'reason' => $reason],
+                (int) $auth['id'],
+                $request
+            );
 
             // 4. Gửi thông báo cho khách hàng
             try {

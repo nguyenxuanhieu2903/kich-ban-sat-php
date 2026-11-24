@@ -6,32 +6,89 @@ namespace App\Features\GameroomManagement\Services;
 
 use App\Features\Notification\Repositories\NotificationRepository;
 use App\Infrastructure\Database\DatabaseConnection;
+use App\Infrastructure\Logging\JobLogger;
 use PDO;
 
 class BackgroundJobService
 {
     protected PDO $pdo;
     protected NotificationRepository $notiRepo;
+    protected JobLogger $logger;
 
-    public function __construct(?PDO $pdo = null, ?NotificationRepository $notiRepo = null)
+    public function __construct(?PDO $pdo = null, ?NotificationRepository $notiRepo = null, ?JobLogger $logger = null)
     {
         $this->pdo = $pdo ?? DatabaseConnection::getInstance();
         $this->notiRepo = $notiRepo ?? new NotificationRepository($this->pdo);
+        $this->logger = $logger ?? new JobLogger();
+    }
+
+    public function getLogger(): JobLogger
+    {
+        return $this->logger;
     }
 
     /**
-     * Run all background maintenance jobs.
+     * Executes an operation with automatic retry on transient database deadlocks or lock timeouts.
+     */
+    public function executeWithRetry(callable $operation, string $jobName, int $maxRetries = 3, int $baseDelayMs = 50): mixed
+    {
+        $attempts = 0;
+        $start = microtime(true);
+
+        while ($attempts < $maxRetries) {
+            $attempts++;
+            try {
+                $result = $operation();
+                $duration = (microtime(true) - $start) * 1000;
+                $this->logger->logJob($jobName, 'SUCCESS', $duration, is_int($result) ? $result : 1, $attempts - 1);
+                return $result;
+            } catch (\Throwable $e) {
+                $isTransient = false;
+                if ($e instanceof \PDOException) {
+                    $errorCode = (int) ($e->errorInfo[1] ?? 0);
+                    // 1213: Deadlock, 1205: Lock wait timeout, 2006: Server gone away
+                    if (in_array($errorCode, [1213, 1205, 2006, 2013], true)) {
+                        $isTransient = true;
+                    }
+                }
+
+                if ($attempts < $maxRetries && ($isTransient || $attempts <= 1)) {
+                    $this->logger->warning("Job {$jobName} failed on attempt {$attempts}/{$maxRetries}, retrying...", [
+                        'error' => $e->getMessage(),
+                        'attempt' => $attempts,
+                    ]);
+                    usleep($baseDelayMs * 1000 * $attempts);
+                    continue;
+                }
+
+                $duration = (microtime(true) - $start) * 1000;
+                $this->logger->logJob($jobName, 'FAILED', $duration, 0, $attempts, $e->getMessage());
+                throw $e;
+            }
+        }
+
+        return 0;
+    }
+
+    /**
+     * Run all background maintenance jobs with logging and retries.
      *
      * @return array<string, int>
      */
     public function runAll(): array
     {
-        return [
-            'formation_timeouts' => $this->runFormationTimeout(),
-            'deposit_timeouts' => $this->runDepositTimeout(),
-            'replacement_timeouts' => $this->runReplacementTimeout(),
-            'dm_assignment_timeouts' => $this->runDMAssignmentTimeout(),
+        $this->logger->info('Starting scheduled background maintenance cycle (runAll)');
+
+        $stats = [
+            'formation_timeouts' => $this->executeWithRetry(fn () => $this->runFormationTimeout(), 'runFormationTimeout'),
+            'deposit_timeouts' => $this->executeWithRetry(fn () => $this->runDepositTimeout(), 'runDepositTimeout'),
+            'replacement_timeouts' => $this->executeWithRetry(fn () => $this->runReplacementTimeout(), 'runReplacementTimeout'),
+            'dm_assignment_timeouts' => $this->executeWithRetry(fn () => $this->runDMAssignmentTimeout(), 'runDMAssignmentTimeout'),
         ];
+
+        $this->logger->info('Completed scheduled background maintenance cycle (runAll)', $stats);
+
+        return $stats;
     }
 
     /**

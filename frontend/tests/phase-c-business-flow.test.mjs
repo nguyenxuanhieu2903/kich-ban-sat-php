@@ -87,3 +87,19 @@ test('Phase C: Public Game-Rooms API alias (/api/v1/game-rooms) is reachable and
   assert.equal(data.success, true);
   assert.ok(Array.isArray(data.data.rooms), 'Returns rooms array');
 });
+
+test('Phase C: Notifications view and app badge correctly unpack notifications array from API payload', () => {
+  const notifViewPath = path.resolve('frontend/src/pages/notifications/notifications-view.js');
+  const notifCode = fs.readFileSync(notifViewPath, 'utf-8');
+  assert.ok(
+    notifCode.includes('res?.data?.notifications'),
+    'NotificationsView unpacks res.data.notifications instead of expecting res.data directly as an array'
+  );
+
+  const appPath = path.resolve('frontend/src/app.js');
+  const appCode = fs.readFileSync(appPath, 'utf-8');
+  assert.ok(
+    appCode.includes('res?.data?.notifications'),
+    'App updateNotificationsCount unpacks res.data.notifications for unread badge count'
+  );
+});

@@ -9,17 +9,20 @@ use App\Core\Request;
 use App\Core\Response;
 use App\Features\Notification\Repositories\NotificationRepository;
 use App\Infrastructure\Database\DatabaseConnection;
+use App\Infrastructure\Logging\AuditLogger;
 use PDO;
 
 class AdminGameRoomController
 {
     protected PDO $pdo;
     protected NotificationRepository $notiRepo;
+    protected AuditLogger $auditLogger;
 
-    public function __construct(?PDO $pdo = null, ?NotificationRepository $notiRepo = null)
+    public function __construct(?PDO $pdo = null, ?NotificationRepository $notiRepo = null, ?AuditLogger $auditLogger = null)
     {
         $this->pdo = $pdo ?? DatabaseConnection::getInstance();
         $this->notiRepo = $notiRepo ?? new NotificationRepository($this->pdo);
+        $this->auditLogger = $auditLogger ?? new AuditLogger($this->pdo);
 
         if (session_status() === PHP_SESSION_NONE && !headers_sent()) {
             @session_start();
@@ -241,6 +244,21 @@ class AdminGameRoomController
             }
 
             $this->pdo->commit();
+
+            $this->auditLogger->log(
+                'ROOM_CANCELLED_BY_ADMIN',
+                'GAME_ROOM',
+                $roomId,
+                ['status' => $room['status']],
+                [
+                    'status' => 'CANCELLED',
+                    'reason' => $reason,
+                    'is_eligible_for_refund' => $isEligibleForRefund,
+                    'refund_count' => count($refundRecords),
+                ],
+                (int) $auth['id'],
+                $request
+            );
 
             return Response::success([
                 'game_room_id' => $roomId,

@@ -62,7 +62,9 @@ export class NotificationsView {
     try {
       const url = `/notifications?unread_only=${this.unreadOnly ? 1 : 0}`;
       const res = await api.get(url);
-      this.notifications = res.data || [];
+      this.notifications = Array.isArray(res?.data?.notifications)
+        ? res.data.notifications
+        : (Array.isArray(res?.data) ? res.data : []);
 
       if (this.notifications.length === 0) {
         listEl.innerHTML = `

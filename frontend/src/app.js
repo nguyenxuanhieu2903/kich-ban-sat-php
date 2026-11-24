@@ -345,8 +345,10 @@ class App {
 
     try {
       const res = await api.get('/notifications?unread_only=1');
-      const unreadList = res.data || [];
-      const count = unreadList.length;
+      const unreadList = Array.isArray(res?.data?.notifications)
+        ? res.data.notifications
+        : (Array.isArray(res?.data) ? res.data : []);
+      const count = res?.data?.count !== undefined ? Number(res.data.count) : unreadList.length;
 
       if (count > 0) {
         this.notifBadge.textContent = count > 99 ? '99+' : count;
