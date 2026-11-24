@@ -271,7 +271,20 @@ class App {
   async refreshCurrentView() {
     const view = this.views[this.currentTab];
     if (view && typeof view.render === 'function') {
-      await view.render();
+      try {
+        await view.render();
+      } catch (err) {
+        console.error('[App] Failed to render view:', this.currentTab, err);
+        if (this.mountPoint) {
+          this.mountPoint.innerHTML = `
+            <div style="text-align: center; padding: 60px 20px; color: var(--color-error);">
+              <h3 style="margin-bottom: 12px; color: var(--gold);">Đã xảy ra sự cố khi tải trang</h3>
+              <p style="color: var(--color-text-muted); font-size: 0.9rem; margin-bottom: 20px;">${escapeHtml(err.message || 'Lỗi tải dữ liệu')}</p>
+              <button onclick="window.location.hash='#home'; window.location.reload();" class="btn btn-gold btn-sm">Về trang chủ</button>
+            </div>
+          `;
+        }
+      }
     }
   }
 
@@ -362,7 +375,21 @@ class App {
   }
 }
 
-document.addEventListener('DOMContentLoaded', () => {
-  const app = new App();
-  app.init();
-});
+function startApp() {
+  try {
+    const app = new App();
+    app.init().catch(err => {
+      console.error('[App] Init failed:', err);
+    });
+  } catch (err) {
+    console.error('[App] Constructor failed:', err);
+  }
+}
+
+if (typeof window !== 'undefined' && typeof document !== 'undefined') {
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', startApp);
+  } else {
+    startApp();
+  }
+}

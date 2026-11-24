@@ -304,6 +304,7 @@ export class AdminView {
           ` : `<span style="color: var(--color-text-muted); font-size: 0.8rem;">Chưa gửi</span>`}
         </td>
         <td style="padding: 12px 16px;">
+          ${u.is_active ? 
             `<span class="badge" style="background: var(--color-success-bg); color: var(--color-success);">Hoạt động</span>` : 
             `<span class="badge" style="background: var(--color-error-bg); color: var(--color-error);">Bị khóa</span>`}
         </td>

@@ -397,11 +397,9 @@ export class RoomsView {
 
   renderRoomDetail() {
     const room = this.selectedRoom;
-    const currentUser = authState.user;
-    const isHost = currentUser && Number(currentUser.id) === Number(room.creator_id);
-    const participants = room.participants || [];
     const currentUser = authState.getUser();
     const isHost = currentUser && (Number(currentUser.id) === Number(room.creator_id) || currentUser.role === 'ADMIN');
+    const participants = room.participants || [];
     const canKick = isHost && ['FORMING', 'SCHEDULING', 'VOTING'].includes(room.status);
     const myParticipant = currentUser ? participants.find(p => Number(p.user_id) === Number(currentUser.id)) : null;
     const isJoined = myParticipant && ['PENDING_DEPOSIT', 'DEPOSITED', 'LEAVE_REQUESTED'].includes(myParticipant.status);
