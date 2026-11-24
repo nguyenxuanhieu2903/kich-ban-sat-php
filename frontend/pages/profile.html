@@ -12,14 +12,23 @@
   <style>
     .profile-grid {
       display: grid;
-      grid-template-columns: 320px 1fr;
+      grid-template-columns: 330px 1fr;
       gap: 24px;
       margin-top: 32px;
     }
-    @media (max-width: 768px) {
+    @media (max-width: 820px) {
       .profile-grid {
         grid-template-columns: 1fr;
       }
+    }
+    .form-control {
+      width: 100%;
+      padding: 8px 12px;
+      border: 1px solid rgba(201, 162, 94, 0.4);
+      background: var(--bg-surface);
+      color: var(--text-light);
+      border-radius: var(--radius-sm);
+      font-family: inherit;
     }
   </style>
 </head>
@@ -32,9 +41,11 @@
       </a>
       <nav class="nav-links">
         <a href="../index.html">Trang chủ</a>
-        <a href="./scenarios.html">Kho 42 Kịch Bản</a>
+        <a href="./scenarios.html">Kho Kịch Bản</a>
         <a href="./lobby.html">Sảnh Ghép Phòng</a>
         <a href="./info.html">Bảng Giá & Nội Quy</a>
+        <a href="./dm-portal.html" id="profileDmLink" style="display: none;">Cổng Quản Trò</a>
+        <a href="./admin-portal.html" id="profileAdminLink" style="display: none;">Cổng Quản Trị</a>
       </nav>
       <div class="home-header-actions">
         <button type="button" class="btn btn-outline" id="btnLogout">Đăng Xuất</button>
@@ -42,48 +53,83 @@
     </div>
   </header>
 
-  <main class="container profile-grid" style="padding-bottom: 60px;">
-    <!-- Profile Card -->
-    <div>
-      <div class="ticket-card" style="text-align: center;">
-        <img id="profileAvatar" src="https://api.dicebear.com/7.x/bottts/svg?seed=HieuPlayer" style="width: 96px; height: 96px; border-radius: 50%; margin: 0 auto 16px; border: 2px solid var(--color-gold);" alt="Avatar" />
-        <h2 id="profileName" style="font-family: var(--font-serif); font-size: 1.4rem;">Nguyễn Xuân Hiếu</h2>
-        <p id="profileRole" style="font-size: 0.85rem; color: var(--color-gold); font-weight: 600; margin-top: 4px;">Người Chơi (Player)</p>
-        <p id="profileEmail" style="font-size: 0.85rem; color: var(--text-muted); margin-top: 4px;">player.hieu@kichbansat.vn</p>
-        <hr class="ticket-divider" />
-        <div style="text-align: left; font-size: 0.9rem;">
-          <p><strong>Trạng thái tài khoản:</strong> <span class="stamp-badge open">HOẠT ĐỘNG</span></p>
-          <p style="margin-top: 8px;"><strong>Số điện thoại:</strong> 0903000003</p>
-        </div>
-      </div>
+  <main class="container" style="padding-bottom: 60px;">
+    <div id="guestWarning" class="ticket-card" style="display: none; margin-top: 32px; text-align: center; padding: 36px;">
+      <h2>Bạn Chưa Đăng Nhập</h2>
+      <p style="color: var(--text-muted); margin: 12px 0 20px;">Vui lòng đăng nhập để xem hồ sơ cá nhân, lịch sử đặt phòng và thông báo hệ thống.</p>
+      <a href="./auth.html" class="btn btn-primary">Đi Tới Trang Đăng Nhập</a>
     </div>
 
-    <!-- Right Column: Verification & History -->
-    <div>
-      <!-- Verification Card -->
-      <div class="ticket-card" style="margin-bottom: 24px;">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-          <h3>Xác Minh Ưu Đãi Học Sinh - Sinh Viên</h3>
-          <span class="stamp-badge open" id="hssvBadge">ĐÃ XÁC MINH</span>
+    <div class="profile-grid" id="profileMainGrid">
+      <!-- Left Column: Profile & Edit Form -->
+      <div>
+        <div class="ticket-card" style="text-align: center; margin-bottom: 24px;">
+          <img id="profileAvatar" src="https://api.dicebear.com/7.x/bottts/svg?seed=Player" style="width: 96px; height: 96px; border-radius: 50%; margin: 0 auto 16px; border: 2px solid var(--color-gold);" alt="Avatar" />
+          <h2 id="profileName" style="font-family: var(--font-serif); font-size: 1.4rem;">Đang tải...</h2>
+          <p id="profileRole" style="font-size: 0.85rem; color: var(--color-gold); font-weight: 600; margin-top: 4px;">...</p>
+          <p id="profileEmail" style="font-size: 0.85rem; color: var(--text-muted); margin-top: 4px;">...</p>
+          <hr class="ticket-divider" />
+          <div style="text-align: left; font-size: 0.9rem;">
+            <p><strong>Trạng thái tài khoản:</strong> <span class="stamp-badge open" id="profileStatusBadge">ACTIVE</span></p>
+            <p style="margin-top: 8px;"><strong>Số điện thoại:</strong> <span id="profilePhone">Chưa cập nhật</span></p>
+          </div>
         </div>
-        <p style="font-size: 0.9rem; line-height: 1.6; color: var(--text-muted); margin-bottom: 16px;">
-          Tài khoản đã xác minh thẻ HSSV sẽ được <strong>giảm ngay 20.000đ/người</strong> khi tham gia các buổi chơi từ Thứ 2 đến Thứ 5 (09:00 - 19:59).
-        </p>
 
-        <form id="verifyForm" style="display: flex; gap: 12px; flex-wrap: wrap;">
-          <input type="text" id="studentCardInput" class="form-control" style="flex: 1; min-width: 200px; padding: 8px 12px; background: var(--bg-surface); color: white;" placeholder="Mã số sinh viên / Tên trường..." value="SV2026-ĐHQG" required />
-          <button type="submit" class="btn btn-gold" style="font-size: 0.9rem;">Cập Nhật Thẻ HSSV</button>
-        </form>
+        <div class="ticket-card">
+          <h3 style="margin-bottom: 12px; font-size: 1.05rem;">Cập Nhật Thông Tin Cá Nhân</h3>
+          <form id="editProfileForm" style="display: flex; flex-direction: column; gap: 12px;">
+            <div>
+              <label for="editFullName" style="display: block; font-size: 0.82rem; margin-bottom: 4px;">Họ và tên</label>
+              <input type="text" id="editFullName" class="form-control" required />
+            </div>
+            <div>
+              <label for="editPhone" style="display: block; font-size: 0.82rem; margin-bottom: 4px;">Số điện thoại</label>
+              <input type="tel" id="editPhone" class="form-control" placeholder="09xxxxxxxx" />
+            </div>
+            <button type="submit" class="btn btn-primary" style="font-size: 0.88rem;">Lưu Thay Đổi</button>
+          </form>
+        </div>
       </div>
 
-      <!-- History Card -->
-      <div class="ticket-card">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
-          <h3 style="margin: 0;">Lịch Sử Phòng Chơi & Đặt Cọc</h3>
-          <button type="button" class="btn btn-outline" id="btnRefreshHistory" style="padding: 4px 12px; font-size: 0.8rem;">Làm Mới</button>
+      <!-- Right Column: Verification, Notifications & History -->
+      <div>
+        <!-- Verification Card -->
+        <div class="ticket-card" style="margin-bottom: 24px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 8px;">
+            <h3 style="margin: 0;">Xác Minh Ưu Đãi Học Sinh - Sinh Viên</h3>
+            <span class="stamp-badge" id="hssvBadge">ĐANG KIỂM TRA...</span>
+          </div>
+          <p style="font-size: 0.9rem; line-height: 1.6; color: var(--text-muted); margin-bottom: 16px;">
+            Tài khoản đã xác minh thẻ HSSV sẽ được <strong>giảm ngay 20.000đ/người</strong> khi tham gia các buổi chơi từ Thứ 2 đến Thứ 5 (09:00 - 19:59).
+          </p>
+
+          <form id="verifyForm" style="display: flex; gap: 12px; flex-wrap: wrap;">
+            <input type="text" id="studentCardInput" class="form-control" style="flex: 1; min-width: 180px;" placeholder="Nhập mã số sinh viên (VD: SV2026-001)" required />
+            <input type="text" id="schoolNameInput" class="form-control" style="flex: 1; min-width: 180px;" placeholder="Tên trường (không bắt buộc)" />
+            <button type="submit" class="btn btn-gold" style="font-size: 0.9rem;">Gửi Xác Minh HSSV</button>
+          </form>
         </div>
-        <div id="historyList" style="display: flex; flex-direction: column; gap: 12px;">
-          <p style="color: var(--text-muted); font-size: 0.9rem;">Đang tải danh sách phòng chơi...</p>
+
+        <!-- Notifications Card -->
+        <div class="ticket-card" style="margin-bottom: 24px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 8px;">
+            <h3 style="margin: 0;">Hộp Thư Thông Báo (<span id="notiUnreadCount">0</span> chưa đọc)</h3>
+            <button type="button" class="btn btn-outline" id="btnMarkAllRead" style="padding: 4px 12px; font-size: 0.8rem;">Đánh Dấu Đã Đọc Tất Cả</button>
+          </div>
+          <div id="profileNotifList" style="display: flex; flex-direction: column; gap: 8px; max-height: 240px; overflow-y: auto;">
+            <p style="color: var(--text-muted); font-size: 0.88rem;">Đang tải thông báo...</p>
+          </div>
+        </div>
+
+        <!-- History Card -->
+        <div class="ticket-card">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+            <h3 style="margin: 0;">Lịch Sử Phòng Chơi & Đặt Cọc</h3>
+            <button type="button" class="btn btn-outline" id="btnRefreshHistory" style="padding: 4px 12px; font-size: 0.8rem;">Làm Mới</button>
+          </div>
+          <div id="historyList" style="display: flex; flex-direction: column; gap: 12px;">
+            <p style="color: var(--text-muted); font-size: 0.9rem;">Đang tải danh sách phòng chơi...</p>
+          </div>
         </div>
       </div>
     </div>
@@ -91,71 +137,150 @@
 
   <script type="module">
     import { apiClient } from '../src/api/api-client.js';
+    import { escapeHtml, sanitizeUrl } from '../src/utils/sanitize.js';
 
     const hssvBadge = document.getElementById('hssvBadge');
     const studentCardInput = document.getElementById('studentCardInput');
+    const schoolNameInput = document.getElementById('schoolNameInput');
+    const guestWarning = document.getElementById('guestWarning');
+    const profileMainGrid = document.getElementById('profileMainGrid');
 
-    // Load active profile from session
-    apiClient.get('/auth/me')
-      .then(json => {
-        if (json.success && json.data && json.data.user) {
-          const u = json.data.user;
-          document.getElementById('profileName').textContent = u.full_name || 'Người Chơi';
-          document.getElementById('profileEmail').textContent = u.email || '';
-          document.getElementById('profileRole').textContent = `${u.role_code || u.role || 'PLAYER'} (Role)`;
-          if (u.avatar_url) {
-            document.getElementById('profileAvatar').src = u.avatar_url;
-          } else {
-            document.getElementById('profileAvatar').src = `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(u.full_name || 'Player')}`;
-          }
-
-          if (u.student_verified) {
-            hssvBadge.textContent = 'ĐÃ XÁC MINH (ƯU ĐÃI HSSV -20K)';
-            hssvBadge.className = 'stamp-badge open';
-          } else {
-            hssvBadge.textContent = 'CHƯA XÁC MINH';
-            hssvBadge.className = 'stamp-badge';
-          }
+    async function loadProfile() {
+      try {
+        const json = await apiClient.get('/auth/me');
+        if (!json.success || !json.data?.user) {
+          throw new Error('Unauthorized');
         }
-      })
-      .catch(() => {});
+        const u = json.data.user;
+        const role = String(u.role_code || u.role || 'PLAYER').toUpperCase();
+        guestWarning.style.display = 'none';
+        profileMainGrid.style.display = 'grid';
+
+        document.getElementById('profileName').textContent = u.full_name || 'Người Chơi';
+        document.getElementById('profileEmail').textContent = u.email || '';
+        document.getElementById('profileRole').textContent = `Vai trò: ${role}`;
+        document.getElementById('profilePhone').textContent = u.phone || 'Chưa cập nhật';
+        document.getElementById('profileStatusBadge').textContent = u.status || 'ACTIVE';
+
+        document.getElementById('editFullName').value = u.full_name || '';
+        document.getElementById('editPhone').value = u.phone || '';
+
+        const safeAvatar = sanitizeUrl(u.avatar_url) || `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(u.full_name || 'Player')}`;
+        document.getElementById('profileAvatar').src = safeAvatar;
+
+        if (role === 'DM' || role === 'ADMIN') {
+          document.getElementById('profileDmLink').style.display = 'inline-block';
+        }
+        if (role === 'ADMIN') {
+          document.getElementById('profileAdminLink').style.display = 'inline-block';
+        }
+
+        if (u.student_verified) {
+          hssvBadge.textContent = 'ĐÃ XÁC MINH (ƯU ĐÃI HSSV -20K)';
+          hssvBadge.className = 'stamp-badge open';
+        } else {
+          hssvBadge.textContent = 'CHƯA XÁC MINH';
+          hssvBadge.className = 'stamp-badge';
+        }
+
+        await Promise.all([loadMyRooms(), loadNotifications()]);
+      } catch {
+        guestWarning.style.display = 'block';
+        profileMainGrid.style.display = 'none';
+      }
+    }
 
     document.getElementById('btnLogout').addEventListener('click', async () => {
       try {
         await apiClient.post('/auth/logout');
-      } catch (e) {}
+      } catch {}
       localStorage.removeItem('kbs_user');
       localStorage.setItem('kbs_demo_role', 'guest');
       window.location.href = '../index.html';
     });
 
+    document.getElementById('editProfileForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const fullName = document.getElementById('editFullName').value.trim();
+      const phone = document.getElementById('editPhone').value.trim();
+      if (!fullName) {
+        alert('Họ và tên không được để trống!');
+        return;
+      }
+      try {
+        const res = await apiClient.patch('/auth/profile', { full_name: fullName, phone });
+        alert(res.message || 'Cập nhật thông tin cá nhân thành công!');
+        loadProfile();
+      } catch (err) {
+        alert(err.message || 'Không thể cập nhật thông tin cá nhân');
+      }
+    });
+
     document.getElementById('verifyForm').addEventListener('submit', async (e) => {
       e.preventDefault();
       const cardId = studentCardInput.value.trim();
+      const schoolName = schoolNameInput.value.trim();
       if (!cardId) {
-        alert('Vui lòng nhập mã thẻ sinh viên hoặc tên trường!');
+        alert('Vui lòng nhập mã thẻ sinh viên!');
         return;
       }
 
       try {
         const json = await apiClient.post('/auth/student-verification', {
           student_card_id: cardId,
-          student_id: cardId
+          student_id: cardId,
+          school_name: schoolName
         });
         hssvBadge.textContent = 'CHỜ ADMIN PHÊ DUYỆT';
         hssvBadge.className = 'stamp-badge';
-        alert(json.message || 'Thông tin thẻ sinh viên đã được tải lên và đang chờ Admin duyệt!');
+        alert(json.message || 'Thông tin thẻ sinh viên đã được gửi tới Admin để phê duyệt!');
       } catch (err) {
         if (err.status === 401) {
           alert('Vui lòng đăng nhập tài khoản trước khi xác minh!');
           window.location.href = './auth.html';
           return;
         }
-        alert(err.message || 'Thông tin thẻ sinh viên đã được ghi nhận!');
+        alert(err.message || 'Không thể gửi yêu cầu xác minh thẻ HSSV');
       }
     });
 
-    // Dynamic My Rooms & Refund History
+    async function loadNotifications() {
+      const listEl = document.getElementById('profileNotifList');
+      const countEl = document.getElementById('notiUnreadCount');
+      try {
+        const res = await apiClient.get('/notifications?limit=20');
+        const items = res.data?.notifications || (Array.isArray(res.data) ? res.data : []);
+        const unread = items.filter(n => !n.is_read).length;
+        if (countEl) countEl.textContent = String(unread);
+
+        if (items.length === 0) {
+          listEl.innerHTML = '<p style="color: var(--text-muted); font-size: 0.88rem; text-align: center; padding: 12px 0;">Chưa có thông báo nào.</p>';
+          return;
+        }
+
+        listEl.innerHTML = items.map(n => `
+          <div style="padding: 10px 12px; border: 1px solid ${n.is_read ? 'rgba(201,162,94,0.2)' : 'var(--color-gold)'}; border-radius: 4px; background: ${n.is_read ? 'rgba(0,0,0,0.12)' : 'rgba(201,162,94,0.08)'};">
+            <div style="display: flex; justify-content: space-between; align-items: center; gap: 8px;">
+              <strong style="font-size: 0.88rem; color: var(--color-gold);">${escapeHtml(n.title)}</strong>
+              <span style="font-size: 0.75rem; color: var(--text-muted);">${escapeHtml(n.created_at || '')}</span>
+            </div>
+            <p style="font-size: 0.83rem; margin-top: 4px; line-height: 1.4;">${escapeHtml(n.message || n.body || '')}</p>
+          </div>
+        `).join('');
+      } catch (err) {
+        listEl.innerHTML = `<p style="color: #ef9a9a; font-size: 0.85rem;">Không thể tải thông báo: ${escapeHtml(err.message || '')}</p>`;
+      }
+    }
+
+    document.getElementById('btnMarkAllRead')?.addEventListener('click', async () => {
+      try {
+        await apiClient.post('/notifications/read-all');
+        loadNotifications();
+      } catch (err) {
+        alert(err.message || 'Không thể đánh dấu đã đọc');
+      }
+    });
+
     async function loadMyRooms() {
       const historyList = document.getElementById('historyList');
       if (!historyList) return;
@@ -173,38 +298,44 @@
         const rooms = json.data.rooms;
         historyList.innerHTML = rooms.map(r => {
           let depositBadge = '';
-          if (r.paid_amount > 0) {
+          if (Number(r.paid_amount) > 0) {
             depositBadge = `<span class="stamp-badge open">ĐÃ CỌC ${Number(r.paid_amount).toLocaleString('vi-VN')}Đ</span>`;
           } else if (r.participant_status === 'PENDING_DEPOSIT') {
             depositBadge = `<span class="stamp-badge" style="border-color: #f59e0b; color: #f59e0b;">CHỜ ĐẶT CỌC</span>`;
           } else {
-            depositBadge = `<span class="stamp-badge">${r.participant_status}</span>`;
+            depositBadge = `<span class="stamp-badge">${escapeHtml(r.participant_status)}</span>`;
           }
 
           let refundBadge = '';
           if (r.refund_status === 'PENDING') {
             refundBadge = `<span class="stamp-badge" style="border-color: #f59e0b; color: #f59e0b;">CHỜ ADMIN DUYỆT HOÀN CỌC</span>`;
           } else if (r.refund_status === 'APPROVED') {
-            refundBadge = `<span class="stamp-badge open" style="border-color: #10b981; color: #10b981;">ĐÃ HOÀN TIỀN CỌC</span>`;
+            refundBadge = `<span class="stamp-badge open" style="border-color: #10b981; color: #10b981;">ĐÃ DUYỆT HOÀN CỌC</span>`;
+          } else if (r.refund_status === 'COMPLETED') {
+            refundBadge = `<span class="stamp-badge open" style="border-color: #60a5fa; color: #60a5fa;">ĐÃ CHI TRẢ HOÀN CỌC</span>`;
           } else if (r.refund_status === 'REJECTED') {
             refundBadge = `<span class="stamp-badge" style="border-color: #ef4444; color: #ef4444;">TỪ CHỐI HOÀN CỌC</span>`;
           }
 
           let refundBtn = '';
           if (r.can_refund) {
-            refundBtn = `<button type="button" class="btn btn-outline btn-refund-act" data-room-id="${r.room_id}" data-room-title="${r.room_title}" style="padding: 4px 10px; font-size: 0.8rem; border-color: #ef4444; color: #ef4444;">Yêu Cầu Hoàn Cọc</button>`;
+            refundBtn = `<button type="button" class="btn btn-outline btn-refund-act" data-room-id="${Number(r.room_id)}" data-room-title="${escapeHtml(r.room_title)}" style="padding: 4px 10px; font-size: 0.8rem; border-color: #ef4444; color: #ef4444;">Yêu Cầu Hoàn Cọc</button>`;
           }
 
-          let sessionInfo = r.session_start_at 
-            ? `Lịch chơi: ${r.session_start_at.replace('.000', '')} • ${r.venue_name || 'Chi nhánh Quận 1'}`
-            : `Trạng thái: ${r.room_status} (${Math.min(r.current_players || 1, r.total_players || r.max_players || 8)}/${r.total_players || r.max_players || 8} slot)`;
+          const maxSlots = Number(r.total_players || r.max_players || 8);
+          const curSlots = Number(r.current_players ?? 0);
+          let sessionInfo = r.session_start_at
+            ? `Lịch chơi: ${escapeHtml(String(r.session_start_at).replace('.000', ''))} • ${escapeHtml(r.venue_name || 'Chi nhánh Quận 1')}`
+            : `Trạng thái: ${escapeHtml(r.room_status)} (${curSlots}/${maxSlots} slot)`;
+
+          const canReview = Boolean(r.session_id && r.session_status === 'COMPLETED');
 
           return `
             <div style="padding: 14px; border: 1px solid rgba(201,162,94,0.3); border-radius: 6px; background: rgba(0,0,0,0.15);">
               <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; flex-wrap: wrap;">
                 <div>
-                  <strong style="font-size: 1rem; color: var(--color-gold);">${r.game_name}</strong>
-                  <span style="font-size: 0.85rem; color: var(--text-muted); margin-left: 6px;">(#RM-${r.room_id}: ${r.room_title})</span>
+                  <strong style="font-size: 1rem; color: var(--color-gold);">${escapeHtml(r.game_name)}</strong>
+                  <span style="font-size: 0.85rem; color: var(--text-muted); margin-left: 6px;">(#RM-${Number(r.room_id)}: ${escapeHtml(r.room_title)})</span>
                   <p style="font-size: 0.85rem; color: var(--text-muted); margin-top: 4px;">${sessionInfo}</p>
                 </div>
                 <div style="display: flex; gap: 6px; flex-wrap: wrap; align-items: center;">
@@ -213,22 +344,21 @@
                 </div>
               </div>
 
-              ${r.refund_hint ? `<p style="font-size: 0.8rem; color: #94a3b8; margin-top: 8px; font-style: italic;">Quy chế cọc: ${r.refund_hint}</p>` : ''}
+              ${r.refund_hint ? `<p style="font-size: 0.8rem; color: #94a3b8; margin-top: 8px; font-style: italic;">Quy chế cọc: ${escapeHtml(r.refund_hint)}</p>` : ''}
 
               <div style="margin-top: 10px; display: flex; gap: 8px; justify-content: flex-end; align-items: center; flex-wrap: wrap;">
-                <a href="./room-detail.html?id=${r.room_id}" class="btn btn-outline" style="padding: 4px 12px; font-size: 0.8rem;">Xem Chi Tiết Phòng</a>
-                ${(r.session_status === 'COMPLETED' || r.room_status === 'COMPLETED' || r.room_status === 'SETTLED') ? `<button type="button" class="btn btn-gold btn-review-act" data-session-id="${r.session_id || r.room_id}" data-game-name="${r.game_name}" style="padding: 4px 12px; font-size: 0.8rem;">Đánh Giá Buổi Chơi</button>` : ''}
+                <a href="./room-detail.html?id=${Number(r.room_id)}" class="btn btn-outline" style="padding: 4px 12px; font-size: 0.8rem;">Xem Chi Tiết Phòng</a>
+                ${canReview ? `<button type="button" class="btn btn-gold btn-review-act" data-session-id="${Number(r.session_id)}" data-game-name="${escapeHtml(r.game_name)}" style="padding: 4px 12px; font-size: 0.8rem;">Đánh Giá Buổi Chơi</button>` : ''}
                 ${refundBtn}
               </div>
             </div>
           `;
         }).join('');
 
-        // Gắn sự kiện gửi yêu cầu hoàn tiền
         document.querySelectorAll('.btn-refund-act').forEach(btn => {
           btn.addEventListener('click', async (e) => {
-            const roomId = e.target.getAttribute('data-room-id');
-            const roomTitle = e.target.getAttribute('data-room-title');
+            const roomId = e.currentTarget.getAttribute('data-room-id');
+            const roomTitle = e.currentTarget.getAttribute('data-room-title');
             const confirmMsg = `Bạn có chắc chắn muốn gửi yêu cầu hoàn tiền cọc cho phòng "${roomTitle}" (#RM-${roomId}) không?\n\n(Quy chế: Hoàn cọc 100% nếu trước giờ chơi >= 24h hoặc phòng bị hủy)`;
             if (!confirm(confirmMsg)) return;
 
@@ -237,7 +367,7 @@
                 room_id: Number(roomId),
                 reason: 'Người chơi gửi yêu cầu hoàn tiền cọc từ trang cá nhân'
               });
-              alert(res.message || 'Đã gửi yêu cầu hoàn tiền cọc thành công! Quản trị viên sẽ sớm xử lý.');
+              alert(res.message || 'Đã gửi yêu cầu hoàn tiền cọc thành công!');
               loadMyRooms();
             } catch (err) {
               alert(err.message || 'Không thể gửi yêu cầu hoàn tiền');
@@ -245,11 +375,10 @@
           });
         });
 
-        // Gắn sự kiện đánh giá buổi chơi sau khi hoàn thành
         document.querySelectorAll('.btn-review-act').forEach(btn => {
           btn.addEventListener('click', async (e) => {
-            const sessId = e.target.getAttribute('data-session-id');
-            const gameName = e.target.getAttribute('data-game-name');
+            const sessId = e.currentTarget.getAttribute('data-session-id');
+            const gameName = e.currentTarget.getAttribute('data-game-name');
             const dmRating = prompt(`Chấm điểm Quản trò (DM) cho kịch bản "${gameName}" (từ 1 đến 5 sao):`, '5');
             if (dmRating === null) return;
             const scenarioRating = prompt(`Chấm điểm chất lượng kịch bản "${gameName}" (từ 1 đến 5 sao):`, '5');
@@ -270,12 +399,12 @@
         });
 
       } catch (err) {
-        historyList.innerHTML = `<p style="color: #ef4444; font-size: 0.9rem;">Không thể tải lịch sử phòng chơi: ${err.message || 'Lỗi mạng'}</p>`;
+        historyList.innerHTML = `<p style="color: #ef4444; font-size: 0.9rem;">Không thể tải lịch sử phòng chơi: ${escapeHtml(err.message || 'Lỗi mạng')}</p>`;
       }
     }
 
     document.getElementById('btnRefreshHistory')?.addEventListener('click', loadMyRooms);
-    loadMyRooms();
+    loadProfile();
   </script>
 </body>
 </html>

@@ -191,7 +191,8 @@ class GameRoomRepository extends BaseRepository
             $stmt = $this->pdo->prepare(
                 'SELECT rp.`id`, rp.`game_room_id`, rp.`user_id`, rp.`status`,
                         rp.`joined_at`, rp.`deposit_deadline_at`, rp.`deposited_at`, rp.`left_at`,
-                        u.`full_name` AS `user_name`, u.`full_name`, u.`email` AS `user_email`
+                        u.`full_name` AS `user_name`, u.`full_name`, u.`email` AS `user_email`,
+                        COALESCE(u.`student_verified`, 0) AS `student_verified`
                  FROM `room_participants` rp
                  INNER JOIN `users` u ON u.`id` = rp.`user_id`
                  WHERE rp.`game_room_id` = :game_room_id' . $statusFilter . '

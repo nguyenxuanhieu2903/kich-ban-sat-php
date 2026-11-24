@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Kho 42 Kịch Bản — Kịch Bản Sát V16</title>
+  <title>Kho Kịch Bản — Kịch Bản Sát V16</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:ital,wght@0,600;0,700;1,600&display=swap" rel="stylesheet" />
@@ -18,7 +18,7 @@
     }
     .catalog-input {
       flex: 1;
-      min-width: 260px;
+      min-width: 240px;
       padding: 10px 14px;
       border: 1px solid rgba(201, 162, 94, 0.4);
       background: var(--bg-surface);
@@ -36,12 +36,12 @@
       </a>
       <nav class="nav-links">
         <a href="../index.html">Trang chủ</a>
-        <a href="./scenarios.html" class="active">Kho 42 Kịch Bản</a>
+        <a href="./scenarios.html" class="active">Kho Kịch Bản</a>
         <a href="./lobby.html">Sảnh Ghép Phòng</a>
         <a href="./info.html">Bảng Giá & Nội Quy</a>
       </nav>
       <div class="home-header-actions">
-        <a href="./auth.html" class="btn btn-outline">Tài Khoản</a>
+        <a href="./auth.html" id="headerAccountLink" class="btn btn-outline">Tài Khoản</a>
         <a href="./create-room.html" class="btn btn-primary">Tạo Phòng Ngay</a>
       </div>
     </div>
@@ -55,12 +55,14 @@
     </div>
 
     <div class="catalog-search-bar">
-      <input type="text" id="searchInput" class="catalog-input" placeholder="Tìm theo tên kịch bản, từ khóa..." />
+      <input type="text" id="searchInput" class="catalog-input" placeholder="Tìm theo tên kịch bản, từ khóa... (nhấn / để tìm nhanh)" />
       <select id="playerFilter" class="catalog-input" style="flex: 0 0 200px;">
         <option value="">Tất cả số người</option>
+        <option value="5">5 người chơi</option>
         <option value="6">6 người chơi</option>
         <option value="7">7 người chơi</option>
         <option value="8">8 người chơi</option>
+        <option value="9">9 người chơi</option>
       </select>
     </div>
 
@@ -81,8 +83,9 @@
   <script type="module">
     import { apiClient } from '../src/api/api-client.js';
     import { SCENARIOS } from '../src/data/scripts.data.js';
+    import { escapeHtml, sanitizeUrl } from '../src/utils/sanitize.js';
 
-    let allScenarios = SCENARIOS || [];
+    let allScenarios = [];
     let currentGenre = 'ALL';
     let currentSearch = '';
     let currentPlayerFilter = '';
@@ -92,11 +95,54 @@
     const searchInput = document.getElementById('searchInput');
     const playerFilter = document.getElementById('playerFilter');
 
+    function mapApiGame(g) {
+      const name = String(g.name || '');
+      const desc = String(g.description || '');
+      const text = (name + ' ' + desc).toLowerCase();
+
+      let genre = 'Suy luận phá án';
+      let difficulty = 'Trung bình';
+      const is18Plus = name.includes('18+') || text.includes('đẫm máu') || text.includes('hiến tế');
+
+      if (text.includes('ma cà rồng') || text.includes('huyết tộc') || text.includes('hắc miêu') || text.includes('đẫm máu') || text.includes('số 13')) {
+        genre = 'Kinh dị tâm linh';
+        difficulty = 'Khó';
+      } else if (text.includes('học đường') || text.includes('hài hước') || text.includes('trộm đề')) {
+        genre = 'Cơ chế hài hước';
+        difficulty = 'Dễ';
+      } else if (text.includes('không gian') || text.includes('viễn tưởng')) {
+        genre = 'Giả tưởng';
+        difficulty = 'Khó';
+      } else if (text.includes('giao hưởng') || text.includes('gatsby') || text.includes('dạ hội')) {
+        genre = 'Tình cảm tâm lý';
+        difficulty = 'Trung bình';
+      }
+
+      const mins = Number(g.duration_minutes || 240);
+      const hrs = (mins / 60).toFixed(1).replace('.0', '');
+      return {
+        id: g.id,
+        title: name,
+        genre,
+        difficulty,
+        duration: `${hrs} tiếng (${mins}p)`,
+        duration_minutes: mins,
+        price: Number(g.min_price || 220000),
+        max_price: Number(g.max_price || g.min_price || 250000),
+        is18Plus,
+        min_players: Number(g.min_players || 6),
+        max_players: Number(g.max_players || 8),
+        image_url: sanitizeUrl(g.image_url) || 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=500&auto=format&fit=crop',
+        summary: desc
+      };
+    }
+
     function render() {
-      let filtered = allScenarios.filter(item => {
-        const matchGenre = currentGenre === 'ALL' || item.genre.toLowerCase().includes(currentGenre.toLowerCase());
-        const matchSearch = !currentSearch || item.title.toLowerCase().includes(currentSearch.toLowerCase()) || item.summary.toLowerCase().includes(currentSearch.toLowerCase());
-        const matchPlayer = !currentPlayerFilter || (item.players && item.players.total == currentPlayerFilter) || (item.min_players <= currentPlayerFilter && item.max_players >= currentPlayerFilter);
+      const filtered = allScenarios.filter(item => {
+        const matchGenre = currentGenre === 'ALL' || String(item.genre || '').toLowerCase().includes(currentGenre.toLowerCase());
+        const matchSearch = !currentSearch || String(item.title || '').toLowerCase().includes(currentSearch.toLowerCase()) || String(item.summary || '').toLowerCase().includes(currentSearch.toLowerCase());
+        const pf = Number(currentPlayerFilter);
+        const matchPlayer = !currentPlayerFilter || (Number(item.min_players) <= pf && Number(item.max_players) >= pf);
         return matchGenre && matchSearch && matchPlayer;
       });
 
@@ -105,21 +151,30 @@
         return;
       }
 
-      scenariosGrid.innerHTML = filtered.map(item => `
+      scenariosGrid.innerHTML = filtered.map(item => {
+        const safeTitle = escapeHtml(item.title);
+        const safeGenre = escapeHtml(item.genre);
+        const safeSummary = escapeHtml(item.summary || '');
+        const minP = Number(item.min_players || 6);
+        const maxP = Number(item.max_players || 8);
+        const male = Math.ceil(minP / 2);
+        const female = Math.max(1, minP - male);
+        const imgSrc = item.image_url || 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=500&auto=format&fit=crop';
+        return `
         <div class="home-flip-card">
           <div class="home-flip-inner">
             <div class="home-flip-front">
-              <img src="https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=500&auto=format&fit=crop" alt="${item.title}" />
+              <img src="${imgSrc}" onerror="this.onerror=null; this.src='https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=500&auto=format&fit=crop';" alt="${safeTitle}" />
               <div class="home-flip-front-info">
                 <div class="home-card-tags">
-                  <span>${item.genre}</span>
-                  ${item.is18Plus ? '<span class="stamp-badge">18+</span>' : '<span>' + (item.duration || '4 tiếng') + '</span>'}
+                  <span>${safeGenre}</span>
+                  ${item.is18Plus ? '<span class="stamp-badge">18+</span>' : '<span>' + escapeHtml(item.duration) + '</span>'}
                 </div>
-                <h3>${item.title}</h3>
+                <h3>${safeTitle}</h3>
                 <div class="home-card-tags">
-                  <span>${item.players?.total || item.min_players || 6} người</span>
-                  <span>${(item.min_players || 6) >= 8 ? '5N - 3N' : '4N - 2N'}</span>
-                  <strong>${(item.price || 220000).toLocaleString('vi-VN')}đ</strong>
+                  <span>${minP}-${maxP} người</span>
+                  <span>${male}N - ${female}N</span>
+                  <strong>${Number(item.price || 220000).toLocaleString('vi-VN')}đ</strong>
                 </div>
               </div>
             </div>
@@ -127,27 +182,28 @@
             <div class="home-flip-back">
               <div>
                 <span class="stamp-badge ${item.is18Plus ? '' : 'open'}">
-                  ${item.is18Plus ? 'GIỚI HẠN 18+' : (item.difficulty || 'Trung bình')}
+                  ${item.is18Plus ? 'GIỚI HẠN 18+' : escapeHtml(item.difficulty || 'Trung bình')}
                 </span>
-                <h3>${item.title}</h3>
-                <p style="font-size: 0.9rem; margin-bottom: 12px;">${item.summary || item.description || ''}</p>
+                <h3>${safeTitle}</h3>
+                <p style="font-size: 0.9rem; margin-bottom: 12px;">${safeSummary}</p>
                 <hr class="ticket-divider" />
                 <ul class="home-spec-list">
-                  <li><strong>Thời lượng:</strong> ${item.duration || (item.duration_minutes ? item.duration_minutes + ' phút' : '4 tiếng')}</li>
-                  <li><strong>Số lượng:</strong> ${item.players?.total || `${item.min_players} - ${item.max_players}`} người chơi</li>
-                  <li><strong>Tỷ lệ vai:</strong> ${(item.min_players || 6) >= 8 ? '5 Nam - 3 Nữ' : '4 Nam - 2 Nữ'} (Hỗ trợ đóng chéo vai)</li>
+                  <li><strong>Thời lượng:</strong> ${escapeHtml(item.duration)}</li>
+                  <li><strong>Số lượng:</strong> ${minP} - ${maxP} người chơi</li>
+                  <li><strong>Tỷ lệ vai:</strong> ${male} Nam - ${female} Nữ (Hỗ trợ đóng chéo vai)</li>
                   <li><strong>Tiền cọc:</strong> 50.000đ / người (Cố định)</li>
                 </ul>
               </div>
 
               <div style="display: flex; gap: 8px; margin-top: 16px;">
-                <a href="./scenario-detail.html?id=${item.id}" class="btn btn-outline" style="flex: 1; text-align: center;">Chi tiết</a>
-                <a href="./create-room.html?game_id=${item.id}" class="btn btn-primary" style="flex: 1; text-align: center;">Tạo phòng</a>
+                <a href="./scenario-detail.html?id=${encodeURIComponent(item.id)}" class="btn btn-outline" style="flex: 1; text-align: center;">Chi tiết</a>
+                <a href="./create-room.html?game_id=${encodeURIComponent(item.id)}" class="btn btn-primary" style="flex: 1; text-align: center;">Tạo phòng</a>
               </div>
             </div>
           </div>
         </div>
-      `).join('');
+      `;
+      }).join('');
     }
 
     genreFilters.addEventListener('click', (e) => {
@@ -173,7 +229,6 @@
       render();
     });
 
-    // Keyboard shortcuts: '/' to focus search, 'Escape' to clear
     window.addEventListener('keydown', (e) => {
       if (e.key === '/' && document.activeElement !== searchInput) {
         e.preventDefault();
@@ -186,31 +241,31 @@
       }
     });
 
-    // Try fetching live games from backend API
-    apiClient.get('/games')
+    // Sync header auth
+    apiClient.get('/auth/me')
+      .then(me => {
+        if (me.success && me.data?.user) {
+          const acc = document.getElementById('headerAccountLink');
+          if (acc) {
+            acc.textContent = me.data.user.full_name || 'Hồ Sơ';
+            acc.href = './profile.html';
+          }
+        }
+      })
+      .catch(() => {});
+
+    // Load 100% live games from backend API (fallback to SCENARIOS only if API unavailable)
+    apiClient.get('/games?limit=50')
       .then(json => {
-        if (json.success && json.data.games && json.data.games.length > 0) {
-          const apiGames = json.data.games.map(g => ({
-            id: g.id,
-            title: g.name,
-            genre: 'Suy luận phá án',
-            difficulty: 'Trung bình',
-            duration: g.duration_minutes ? `${g.duration_minutes} phút` : '4 tiếng',
-            price: g.min_price || 220000,
-            is18Plus: false,
-            min_players: g.min_players,
-            max_players: g.max_players,
-            summary: g.description
-          }));
-          // Merge unique
-          const map = new Map();
-          SCENARIOS.forEach(s => map.set(s.id, s));
-          apiGames.forEach(g => map.set(String(g.id), g));
-          allScenarios = Array.from(map.values());
+        if (json.success && Array.isArray(json.data?.games) && json.data.games.length > 0) {
+          allScenarios = json.data.games.map(mapApiGame);
+        } else {
+          allScenarios = SCENARIOS || [];
         }
         render();
       })
       .catch(() => {
+        allScenarios = SCENARIOS || [];
         render();
       });
   </script>

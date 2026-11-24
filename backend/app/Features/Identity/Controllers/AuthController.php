@@ -249,6 +249,32 @@ class AuthController
             'student_verified' => 0,
         ]);
 
+        // Ghi nhận nhật ký kiểm toán và bắn thông báo cho Quản trị viên duyệt thẻ HSSV
+        try {
+            $audit = new \App\Shared\Services\AuditLogService($this->pdo);
+            $audit->log((int) $authUser['id'], 'STUDENT_VERIFICATION_REQUESTED', 'USER', (int) $authUser['id'], [
+                'student_id' => $studentId,
+                'school_name' => $schoolName,
+            ]);
+
+            $adminStmt = $this->pdo->query('SELECT u.`id` FROM `users` u INNER JOIN `roles` r ON r.`id` = u.`role_id` WHERE r.`code` = \'ADMIN\' AND u.`status` = \'ACTIVE\'');
+            $adminIds = $adminStmt ? array_map('intval', $adminStmt->fetchAll(PDO::FETCH_COLUMN)) : [];
+            if (!empty($adminIds)) {
+                $notiRepo = new \App\Features\Notification\Repositories\NotificationRepository($this->pdo);
+                $userName = (string) ($authUser['full_name'] ?? $authUser['email'] ?? ('User #' . $authUser['id']));
+                $schoolSuffix = $schoolName !== '' ? " - Trường: {$schoolName}" : '';
+                $notiRepo->createNotification(
+                    'Yêu cầu duyệt thẻ HSSV mới',
+                    "Người chơi {$userName} gửi yêu cầu xác minh thẻ HSSV (Mã thẻ: {$studentId}{$schoolSuffix}).",
+                    'ADMIN',
+                    (int) $authUser['id'],
+                    $adminIds
+                );
+            }
+        } catch (\Throwable) {
+            // Không làm gián đoạn luồng chính nếu gửi thông báo phụ trợ lỗi
+        }
+
         return Response::success([
             'user_id' => (int) $authUser['id'],
             'student_id' => $studentId,
@@ -274,8 +300,10 @@ class AuthController
                     gr.`id` AS `room_id`,
                     gr.`title` AS `room_title`,
                     gr.`status` AS `room_status`,
+                    gr.`booking_type`,
                     gr.`min_players`,
                     gr.`max_players`,
+                    gr.`total_players`,
                     g.`id` AS `game_id`,
                     g.`name` AS `game_name`,
                     g.`image_url` AS `game_image`,
@@ -303,6 +331,7 @@ class AuthController
                      WHERE pp2.`room_participant_id` = rp.`id` ORDER BY ref.`id` DESC LIMIT 1
                     ) AS `refund_amount`,
                     (SELECT s.`id` FROM `sessions` s WHERE s.`game_room_id` = gr.`id` ORDER BY s.`id` DESC LIMIT 1) AS `session_id`,
+                    (SELECT s.`status` FROM `sessions` s WHERE s.`game_room_id` = gr.`id` ORDER BY s.`id` DESC LIMIT 1) AS `session_status`,
                     (SELECT s.`start_at` FROM `sessions` s WHERE s.`game_room_id` = gr.`id` ORDER BY s.`id` DESC LIMIT 1) AS `session_start_at`,
                     (SELECT s.`end_at` FROM `sessions` s WHERE s.`game_room_id` = gr.`id` ORDER BY s.`id` DESC LIMIT 1) AS `session_end_at`,
                     (SELECT pr.`name` FROM `sessions` s2 INNER JOIN `physical_rooms` pr ON pr.`id` = s2.`physical_room_id` WHERE s2.`game_room_id` = gr.`id` ORDER BY s2.`id` DESC LIMIT 1) AS `physical_room_name`,
@@ -332,6 +361,8 @@ class AuthController
                 if ($refStatus === 'PENDING') {
                     $refundHint = 'Đang chờ Quản trị viên phê duyệt hoàn tiền';
                 } elseif ($refStatus === 'APPROVED') {
+                    $refundHint = 'Đã được duyệt hoàn cọc - đang chờ kế toán chi trả về tài khoản';
+                } elseif ($refStatus === 'COMPLETED') {
                     $refundHint = 'Đã hoàn tất chuyển tiền cọc về tài khoản';
                 } elseif ($refStatus === null || $refStatus === 'REJECTED') {
                     if ($r['room_status'] === 'CANCELLED') {

@@ -56,6 +56,14 @@
       flex-wrap: wrap;
       gap: 12px;
     }
+    .filter-select {
+      padding: 6px 10px;
+      background: rgba(13, 12, 11, 0.85);
+      border: 1px solid rgba(201, 162, 94, 0.45);
+      color: var(--text-light);
+      border-radius: 4px;
+      font-size: 0.85rem;
+    }
   </style>
 </head>
 <body>
@@ -92,19 +100,19 @@
     <div class="admin-kpi-grid">
       <div class="kpi-card">
         <span style="font-size: 0.85rem; color: var(--text-muted);">Tổng Doanh Thu Thuần</span>
-        <div class="kpi-num" id="kpiRevenue">1.760.000đ</div>
+        <div class="kpi-num" id="kpiRevenue">--</div>
       </div>
       <div class="kpi-card">
         <span style="font-size: 0.85rem; color: var(--text-muted);">Tiền Cọc Đã Thu (50k/slot)</span>
-        <div class="kpi-num" id="kpiDeposit">400.000đ</div>
+        <div class="kpi-num" id="kpiDeposit">--</div>
       </div>
       <div class="kpi-card">
-        <span style="font-size: 0.85rem; color: var(--text-muted);">Phòng Chơi Đang Mở</span>
-        <div class="kpi-num" id="kpiRooms">1 Phòng</div>
+        <span style="font-size: 0.85rem; color: var(--text-muted);">Tổng Phòng Chơi Theo Bộ Lọc</span>
+        <div class="kpi-num" id="kpiRooms">--</div>
       </div>
       <div class="kpi-card">
         <span style="font-size: 0.85rem; color: var(--text-muted);">Số Buổi Chơi Đã Xong</span>
-        <div class="kpi-num" id="kpiCompleted">1 Buổi</div>
+        <div class="kpi-num" id="kpiCompleted">--</div>
       </div>
     </div>
 
@@ -112,7 +120,17 @@
     <div class="ticket-card" style="margin-bottom: 24px;">
       <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 10px;">
         <h3 style="margin: 0;">Điều Phối Phòng Chơi & Phân Công Quản Trò (DM)</h3>
-        <div style="display: flex; gap: 8px; align-items: center;">
+        <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+          <label for="adminRoomStatusFilter" style="font-size: 0.82rem; color: var(--text-muted);">Trạng thái:</label>
+          <select id="adminRoomStatusFilter" class="filter-select">
+            <option value="ALL">Tất cả trạng thái</option>
+            <option value="FORMING">FORMING (Đang ghép)</option>
+            <option value="SCHEDULED">SCHEDULED (Đã chốt lịch)</option>
+            <option value="CONFIRMED">CONFIRMED (Đã cọc đủ)</option>
+            <option value="IN_PROGRESS">IN_PROGRESS (Đang diễn ra)</option>
+            <option value="COMPLETED">COMPLETED (Hoàn tất)</option>
+            <option value="CANCELLED">CANCELLED (Đã hủy)</option>
+          </select>
           <button type="button" class="btn btn-gold" id="btnOfflineBlock" style="font-size: 0.85rem; padding: 6px 12px;">Khóa Giữ Chỗ Hotline</button>
           <span class="stamp-badge open">STAGE 3 OPERATIONS</span>
         </div>
@@ -140,7 +158,7 @@
 
     <!-- Schedule Proposals Management Card -->
     <div class="ticket-card" style="margin-bottom: 24px;">
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 10px;">
         <div>
           <h3>Quản Lý & Duyệt Đơn Đề Xuất Lịch Chơi (Schedule Proposals)</h3>
           <p style="font-size: 0.85rem; color: var(--text-muted); margin-top: 2px;">
@@ -244,7 +262,7 @@
       <div class="ticket-card">
         <h3>Duyệt Thẻ Học Sinh - Sinh Viên (HSSV)</h3>
         <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 12px;">Xét duyệt để cấp quyền giảm 20.000đ/người theo chuẩn V16</p>
-        <div id="studentListContainer" style="display: flex; flex-direction: column; gap: 10px;">
+        <div id="studentListContainer" style="display: flex; flex-direction: column; gap: 10px; max-height: 320px; overflow-y: auto;">
           <p style="color: var(--text-muted); font-size: 0.85rem;">Đang tải danh sách tài khoản...</p>
         </div>
       </div>
@@ -253,7 +271,7 @@
       <div class="ticket-card">
         <h3>Nhật Ký Kiểm Toán (Audit Trail)</h3>
         <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 12px;">Lịch sử thao tác tự động ghi vết trong CSDL</p>
-        <div id="auditLogContainer" style="font-size: 0.85rem; line-height: 1.6; font-family: var(--font-mono); color: var(--text-muted); max-height: 220px; overflow-y: auto;">
+        <div id="auditLogContainer" style="font-size: 0.85rem; line-height: 1.6; font-family: var(--font-mono); color: var(--text-muted); max-height: 320px; overflow-y: auto;">
           <p style="color: var(--text-muted);">Đang tải nhật ký kiểm toán...</p>
         </div>
       </div>
@@ -262,6 +280,7 @@
 
   <script type="module">
     import { apiClient } from '../src/api/api-client.js';
+    import { escapeHtml } from '../src/utils/sanitize.js';
 
     const authNotice = document.getElementById('authNotice');
     const authNoticeText = document.getElementById('authNoticeText');
@@ -270,6 +289,14 @@
     const roomsTableBody = document.getElementById('roomsTableBody');
     const studentListContainer = document.getElementById('studentListContainer');
     const auditLogContainer = document.getElementById('auditLogContainer');
+    const adminRoomStatusFilter = document.getElementById('adminRoomStatusFilter');
+
+    let physicalRoomCache = new Map();
+
+    function formatLocalSqlDatetime(date) {
+      const pad = (n) => String(n).padStart(2, '0');
+      return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
+    }
 
     btnQuickAdminLogin.addEventListener('click', async () => {
       try {
@@ -280,64 +307,60 @@
         localStorage.setItem('kbs_demo_role', 'admin');
         authNotice.style.display = 'none';
         adminHeaderName.textContent = 'Quản Trị Viên (Admin)';
-        loadAdminDashboard();
+        await loadAdminDashboard();
       } catch (err) {
-        alert(err.message || 'Không thể đăng nhập tài khoản Admin');
+        alert('Lỗi đăng nhập Admin: ' + (err.message || 'Không thể đăng nhập tài khoản Admin'));
       }
+    });
+
+    adminRoomStatusFilter?.addEventListener('change', () => {
+      loadRooms();
     });
 
     window.assignPhysicalRoom = async function(roomId) {
       const roomNum = prompt('Nhập số ID phòng vật lý (1: Sherlock Holmes - Q.1, 2: Dracula VIP - Q.1, 3: Cổ Trang Á Đông - Bình Thạnh):', '1');
-      if (roomNum) {
-        try {
-          const json = await apiClient.post(`/admin/rooms/${roomId}/assign-physical-room`, { physical_room_id: Number(roomNum) });
-          alert(json.message || 'Gán phòng vật lý thành công!');
-          loadAdminDashboard();
-        } catch (e) {
-          alert('Gán phòng vật lý thành công!');
-          loadAdminDashboard();
-        }
+      if (!roomNum) return;
+      try {
+        const json = await apiClient.post(`/admin/rooms/${roomId}/assign-physical-room`, { physical_room_id: Number(roomNum) });
+        alert(json.message || 'Gán phòng vật lý thành công!');
+        loadAdminDashboard();
+      } catch (err) {
+        alert('Lỗi gán phòng vật lý: ' + (err.message || 'Không thể gán phòng vật lý'));
       }
     };
 
     window.assignDmToRoom = async function(roomId) {
       const dmId = prompt('Nhập ID Quản trò (DM) cần phân công (Ví dụ: 2 - Host Hoàng Nam):', '2');
-      if (dmId) {
-        try {
-          const json = await apiClient.post(`/admin/rooms/${roomId}/assign-dm`, { dm_user_id: Number(dmId), reason: 'Admin phân công ca trực' });
-          alert(json.message || 'Đã phân công Quản trò thành công!');
-          loadAdminDashboard();
-        } catch (err) {
-          alert(err.message || 'Đã phân công Quản trò!');
-          loadAdminDashboard();
-        }
+      if (!dmId) return;
+      try {
+        const json = await apiClient.post(`/admin/rooms/${roomId}/assign-dm`, { dm_user_id: Number(dmId), reason: 'Admin phân công ca trực' });
+        alert(json.message || 'Đã phân công Quản trò thành công!');
+        loadAdminDashboard();
+      } catch (err) {
+        alert('Lỗi chỉ định Quản trò: ' + (err.message || 'Không thể phân công Quản trò'));
       }
     };
 
     window.revokeDm = async function(roomId) {
-      if (confirm('Bạn có chắc chắn muốn thu hồi phân công DM cho phòng này?')) {
-        try {
-          const json = await apiClient.post(`/admin/rooms/${roomId}/revoke-dm`);
-          alert(json.message || 'Đã thu hồi phân công Quản trò!');
-          loadAdminDashboard();
-        } catch (e) {
-          alert('Đã thu hồi phân công Quản trò!');
-          loadAdminDashboard();
-        }
+      if (!confirm('Bạn có chắc chắn muốn thu hồi phân công DM cho phòng này?')) return;
+      try {
+        const json = await apiClient.post(`/admin/rooms/${roomId}/revoke-dm`);
+        alert(json.message || 'Đã thu hồi phân công Quản trò!');
+        loadAdminDashboard();
+      } catch (err) {
+        alert('Lỗi thu hồi Quản trò: ' + (err.message || 'Không thể thu hồi phân công DM'));
       }
     };
 
     window.disbandRoom = async function(roomId) {
       const reason = prompt('Nhập lý do giải tán phòng khẩn cấp:', 'Hủy lịch đột xuất theo yêu cầu');
-      if (reason) {
-        try {
-          const json = await apiClient.post(`/admin/rooms/${roomId}/disband`, { reason });
-          alert(json.message || 'Đã giải tán phòng chơi và cập nhật trạng thái hủy!');
-          loadAdminDashboard();
-        } catch (e) {
-          alert('Đã ghi nhận yêu cầu giải tán phòng!');
-          loadAdminDashboard();
-        }
+      if (!reason) return;
+      try {
+        const json = await apiClient.post(`/admin/rooms/${roomId}/disband`, { reason });
+        alert(json.message || 'Đã giải tán phòng chơi và cập nhật trạng thái hủy!');
+        loadAdminDashboard();
+      } catch (err) {
+        alert('Lỗi giải tán phòng: ' + (err.message || 'Không thể giải tán phòng'));
       }
     };
 
@@ -346,9 +369,9 @@
         const json = await apiClient.post(`/admin/users/${userId}/verify-student`, { student_verified: true });
         alert(json.message || 'Đã duyệt xác minh thẻ học sinh - sinh viên thành công!');
         loadStudents();
-      } catch (e) {
-        alert(e.message || 'Không thể duyệt xác minh thẻ HSSV');
-        loadStudents();
+        loadAuditLogs();
+      } catch (err) {
+        alert('Lỗi duyệt thẻ HSSV: ' + (err.message || 'Không thể duyệt xác minh thẻ HSSV'));
       }
     };
 
@@ -362,27 +385,30 @@
           if (role !== 'ADMIN') {
             authNotice.style.display = 'flex';
             authNoticeText.textContent = `Bạn đang đăng nhập với tài khoản "${user.full_name}" (Vai trò: ${role}), không phải Quản Trị Viên (Admin).`;
-          } else {
-            authNotice.style.display = 'none';
+            return false;
           }
-        } else {
-          authNotice.style.display = 'flex';
+          authNotice.style.display = 'none';
+          return true;
         }
+        authNotice.style.display = 'flex';
+        return false;
       } catch (e) {
         authNotice.style.display = 'flex';
+        return false;
       }
     }
 
     async function loadRooms() {
+      const status = adminRoomStatusFilter ? adminRoomStatusFilter.value : 'ALL';
       try {
-        const res = await apiClient.get('/rooms');
+        const res = await apiClient.get(`/rooms?status=${encodeURIComponent(status)}&limit=50`);
         const rooms = res.data?.rooms || [];
 
         if (rooms.length === 0) {
           roomsTableBody.innerHTML = `
             <tr>
               <td colspan="5" style="text-align: center; padding: 20px; color: var(--text-muted);">
-                Chưa có phòng chơi nào. Người chơi có thể tạo phòng từ Sảnh.
+                Không có phòng chơi nào khớp trạng thái ${escapeHtml(status)}.
               </td>
             </tr>
           `;
@@ -392,31 +418,41 @@
 
         document.getElementById('kpiRooms').textContent = `${rooms.length} Phòng`;
 
-        roomsTableBody.innerHTML = rooms.map(r => `
-          <tr>
-            <td><strong>#RM-${r.id}</strong></td>
-            <td>
-              <strong>${r.title || 'Phòng Chơi Nhập Vai'}</strong>
-              <div style="font-size: 0.8rem; color: var(--text-muted);">${r.game_name || 'Đêm Đoạt Mệnh Tại Trang Viên'}</div>
-            </td>
-            <td>${Math.min(r.current_players || 1, r.total_players || r.max_players || 8)}/${r.total_players || r.max_players || 8} Slot</td>
-            <td><span class="stamp-badge ${r.status === 'FORMING' || r.status === 'DEPOSITING' ? 'open' : ''}">${r.status}</span></td>
-            <td>
-              <div style="display: flex; gap: 6px; flex-wrap: wrap;">
-                <button type="button" class="btn btn-outline" style="font-size: 0.8rem; padding: 4px 8px;" onclick="assignPhysicalRoom(${r.id})">Gán Phòng</button>
-                <button type="button" class="btn btn-gold" style="font-size: 0.8rem; padding: 4px 8px;" onclick="assignDmToRoom(${r.id})">Chỉ Định DM</button>
-                <button type="button" class="btn btn-outline" style="font-size: 0.8rem; padding: 4px 8px; border-color: #992b2b; color: #ef9a9a;" onclick="revokeDm(${r.id})">Thu Hồi DM</button>
-                <button type="button" class="btn btn-outline" style="font-size: 0.8rem; padding: 4px 8px; border-color: #992b2b; color: #ef9a9a;" onclick="disbandRoom(${r.id})">Giải Tán</button>
-              </div>
-            </td>
-          </tr>
-        `).join('');
-
+        roomsTableBody.innerHTML = rooms.map(r => {
+          const roomId = Number(r.id);
+          const maxSlots = Number(r.total_players || r.max_players || 8);
+          const curSlots = Number(r.current_players ?? 0);
+          const isTerminal = r.status === 'COMPLETED' || r.status === 'CANCELLED';
+          return `
+            <tr>
+              <td><strong>#RM-${roomId}</strong></td>
+              <td>
+                <strong>${escapeHtml(r.title || 'Phòng Chơi Nhập Vai')}</strong>
+                <div style="font-size: 0.8rem; color: var(--text-muted);">
+                  ${escapeHtml(r.game_name || 'Kịch bản nhập vai')} • ${escapeHtml(r.booking_type || 'PUBLIC')}
+                </div>
+              </td>
+              <td>${curSlots}/${maxSlots} Slot</td>
+              <td><span class="stamp-badge ${r.status === 'FORMING' || r.status === 'SCHEDULED' || r.status === 'CONFIRMED' ? 'open' : ''}">${escapeHtml(r.status || 'UNKNOWN')}</span></td>
+              <td>
+                <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+                  <a href="./room-detail.html?id=${roomId}" class="btn btn-outline" style="font-size: 0.8rem; padding: 4px 8px;">Xem</a>
+                  ${!isTerminal ? `
+                    <button type="button" class="btn btn-outline" style="font-size: 0.8rem; padding: 4px 8px;" onclick="assignPhysicalRoom(${roomId})">Gán Phòng</button>
+                    <button type="button" class="btn btn-gold" style="font-size: 0.8rem; padding: 4px 8px;" onclick="assignDmToRoom(${roomId})">Chỉ Định DM</button>
+                    <button type="button" class="btn btn-outline" style="font-size: 0.8rem; padding: 4px 8px; border-color: #992b2b; color: #ef9a9a;" onclick="revokeDm(${roomId})">Thu Hồi DM</button>
+                    <button type="button" class="btn btn-outline" style="font-size: 0.8rem; padding: 4px 8px; border-color: #992b2b; color: #ef9a9a;" onclick="disbandRoom(${roomId})">Giải Tán</button>
+                  ` : '<span style="font-size: 0.8rem; color: var(--text-muted);">Đã đóng</span>'}
+                </div>
+              </td>
+            </tr>
+          `;
+        }).join('');
       } catch (err) {
         roomsTableBody.innerHTML = `
           <tr>
             <td colspan="5" style="text-align: center; padding: 20px; color: #ef9a9a;">
-              Không thể tải danh sách phòng chơi. Vui lòng thử lại.
+              Không thể tải danh sách phòng chơi: ${escapeHtml(err.message || 'Lỗi kết nối')}
             </td>
           </tr>
         `;
@@ -425,45 +461,56 @@
 
     async function loadStudents() {
       try {
-        const res = await apiClient.get('/admin/users');
-        const users = res.data?.items || res.data?.users || res.data || [];
-        const students = Array.isArray(users) ? users.filter(u => u.role_code === 'PLAYER' || u.student_card_id || u.student_verified || u.id === 3) : [];
+        const res = await apiClient.get('/admin/users?limit=50');
+        const users = Array.isArray(res.data) ? res.data : (res.data?.items || res.data?.users || []);
+        const students = Array.isArray(users)
+          ? users.filter(u => (u.role_code || u.role || '').toUpperCase() === 'PLAYER' || u.student_card_id || Number(u.student_verified) === 1)
+          : [];
+
+        // Prioritize unverified users with student_card_id first, then other unverified players, then verified players
+        students.sort((a, b) => {
+          const av = Number(a.student_verified) === 1 ? 1 : 0;
+          const bv = Number(b.student_verified) === 1 ? 1 : 0;
+          if (av !== bv) return av - bv;
+          const ac = a.student_card_id ? 0 : 1;
+          const bc = b.student_card_id ? 0 : 1;
+          if (ac !== bc) return ac - bc;
+          return Number(b.id) - Number(a.id);
+        });
 
         if (students.length === 0) {
           studentListContainer.innerHTML = `
             <div style="padding: 12px; border: 1px dashed rgba(201,162,94,0.3); border-radius: 4px; text-align: center; color: var(--text-muted); font-size: 0.85rem;">
-              Không có yêu cầu duyệt thẻ HSSV mới.
+              Không có tài khoản người chơi hoặc yêu cầu duyệt thẻ HSSV nào.
             </div>
           `;
           return;
         }
 
-        studentListContainer.innerHTML = students.slice(0, 4).map(u => `
-          <div style="padding: 12px; border: 1px solid rgba(201,162,94,0.3); border-radius: 4px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
-            <div>
-              <strong>${u.full_name || 'Học Sinh - Sinh Viên'}</strong>
-              <p style="font-size: 0.8rem; color: var(--text-muted); margin-top: 2px;">
-                ${u.student_card_id ? 'Mã SV: ' + u.student_card_id + ' • ' : ''}${u.email}
-              </p>
+        studentListContainer.innerHTML = students.slice(0, 20).map(u => {
+          const isVerified = Number(u.student_verified) === 1;
+          return `
+            <div style="padding: 12px; border: 1px solid rgba(201,162,94,0.3); border-radius: 4px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+              <div>
+                <strong>${escapeHtml(u.full_name || 'Người chơi #' + u.id)}</strong>
+                <p style="font-size: 0.8rem; color: var(--text-muted); margin-top: 2px;">
+                  ${u.student_card_id ? 'Mã SV: ' + escapeHtml(u.student_card_id) + ' • ' : ''}${escapeHtml(u.email || '')}
+                </p>
+              </div>
+              <div>
+                ${isVerified ? `
+                  <span class="stamp-badge open" style="font-size: 0.75rem;">Đã Duyệt HSSV</span>
+                ` : `
+                  <button type="button" class="btn btn-gold" style="font-size: 0.8rem; padding: 4px 10px;" onclick="verifyStudent(${Number(u.id)})">Duyệt Thẻ</button>
+                `}
+              </div>
             </div>
-            <div>
-              ${u.student_verified ? `
-                <span class="stamp-badge open" style="font-size: 0.75rem;">Đã Duyệt HSSV</span>
-              ` : `
-                <button type="button" class="btn btn-gold" style="font-size: 0.8rem; padding: 4px 10px;" onclick="verifyStudent(${u.id})">Duyệt Thẻ</button>
-              `}
-            </div>
-          </div>
-        `).join('');
-
+          `;
+        }).join('');
       } catch (e) {
         studentListContainer.innerHTML = `
-          <div style="padding: 12px; border: 1px solid rgba(201,162,94,0.3); border-radius: 4px; display: flex; justify-content: space-between; align-items: center;">
-            <div>
-              <strong>Nguyễn Xuân Hiếu (Player)</strong>
-              <p style="font-size: 0.8rem; color: var(--text-muted);">Mã SV: SV2026-ĐHQG • player.hieu@kichbansat.vn</p>
-            </div>
-            <button type="button" class="btn btn-gold" style="font-size: 0.8rem; padding: 4px 10px;" onclick="verifyStudent(3)">Duyệt Thẻ</button>
+          <div style="padding: 12px; border: 1px dashed rgba(239,68,68,0.4); border-radius: 4px; text-align: center; color: #ef9a9a; font-size: 0.85rem;">
+            Yêu cầu đăng nhập tài khoản Quản Trị Viên (Admin) để xem danh sách duyệt thẻ HSSV.
           </div>
         `;
       }
@@ -471,25 +518,22 @@
 
     async function loadAuditLogs() {
       try {
-        const res = await apiClient.get('/admin/audit-logs');
-        const logs = res.data?.items || res.data?.logs || [];
+        const res = await apiClient.get('/admin/audit-logs?limit=20');
+        const logs = Array.isArray(res.data) ? res.data : (res.data?.items || res.data?.logs || []);
 
         if (logs.length === 0) {
-          auditLogContainer.innerHTML = '<p style="color: var(--text-muted);">Chưa có bản ghi kiểm toán nào.</p>';
+          auditLogContainer.innerHTML = '<p style="color: var(--text-muted);">Chưa có bản ghi kiểm toán nào trong hệ thống.</p>';
           return;
         }
 
-        auditLogContainer.innerHTML = logs.slice(0, 6).map(l => {
-          const time = l.created_at ? l.created_at.split(' ')[1] || l.created_at : 'Mới nhất';
-          return `<p>• [${time}] <strong>${l.user_name || 'USER #' + (l.user_id || '1')}</strong>: ${l.action} trên ${l.entity_type || 'HỆ THỐNG'} #${l.entity_id || ''}</p>`;
+        auditLogContainer.innerHTML = logs.slice(0, 15).map(l => {
+          const timeStr = l.created_at ? String(l.created_at) : 'Mới nhất';
+          const actorLabel = l.actor_name || l.user_name || (l.actor_id ? `USER #${l.actor_id}` : 'SYSTEM');
+          return `<p style="margin-bottom: 6px;">• [${escapeHtml(timeStr)}] <strong>${escapeHtml(actorLabel)}</strong>: ${escapeHtml(l.action || 'ACTION')} trên ${escapeHtml(l.entity_type || 'SYSTEM')} #${escapeHtml(String(l.entity_id ?? ''))}</p>`;
         }).join('');
-
       } catch (e) {
         auditLogContainer.innerHTML = `
-          <p>• [16:47:11] ADMIN (ID: 1): ASSIGN_VENUE trên GAME_ROOM #1</p>
-          <p>• [16:47:15] ADMIN (ID: 1): ASSIGN_DM trên DM_ASSIGNMENT #1</p>
-          <p>• [16:47:24] DM (ID: 2): ACCEPT_DM_ASSIGNMENT trên DM_ASSIGNMENT #1</p>
-          <p>• [16:47:30] PLAYER (ID: 3): DEPOSIT_PAYMENT 50.000đ trên GAME_ROOM #1</p>
+          <p style="color: #ef9a9a;">Yêu cầu đăng nhập tài khoản Quản Trị Viên (Admin) để xem nhật ký kiểm toán.</p>
         `;
       }
     }
@@ -498,17 +542,21 @@
       try {
         const json = await apiClient.get('/admin/reports/revenue');
         if (json.success && json.data) {
-          if (json.data.total_net_revenue) {
+          if (json.data.total_net_revenue !== undefined && json.data.total_net_revenue !== null) {
             document.getElementById('kpiRevenue').textContent = Number(json.data.total_net_revenue).toLocaleString('vi-VN') + 'đ';
           }
-          if (json.data.total_deposit) {
+          if (json.data.total_deposit !== undefined && json.data.total_deposit !== null) {
             document.getElementById('kpiDeposit').textContent = Number(json.data.total_deposit).toLocaleString('vi-VN') + 'đ';
           }
-          if (json.data.completed_sessions !== undefined) {
-            document.getElementById('kpiCompleted').textContent = `${json.data.completed_sessions} Buổi`;
+          if (json.data.completed_sessions !== undefined && json.data.completed_sessions !== null) {
+            document.getElementById('kpiCompleted').textContent = `${Number(json.data.completed_sessions)} Buổi`;
           }
         }
-      } catch (e) {}
+      } catch (e) {
+        document.getElementById('kpiRevenue').textContent = '--';
+        document.getElementById('kpiDeposit').textContent = '--';
+        document.getElementById('kpiCompleted').textContent = '--';
+      }
     }
 
     window.approveProposal = async function(propId) {
@@ -520,7 +568,7 @@
         alert(json.message || 'Đã duyệt đơn đề xuất lịch chơi và chốt lịch thành công!');
         loadAdminDashboard();
       } catch (err) {
-        alert(err.message || 'Không thể phê duyệt đơn đề xuất');
+        alert('Lỗi duyệt đề xuất: ' + (err.message || 'Không thể phê duyệt đơn đề xuất'));
       }
     };
 
@@ -532,7 +580,7 @@
         alert(json.message || 'Đã từ chối đơn đề xuất lịch thành công!');
         loadAdminDashboard();
       } catch (err) {
-        alert(err.message || 'Không thể từ chối đơn đề xuất');
+        alert('Lỗi từ chối đề xuất: ' + (err.message || 'Không thể từ chối đơn đề xuất'));
       }
     };
 
@@ -555,15 +603,17 @@
         }
 
         proposalsTableBody.innerHTML = proposals.map(p => {
-          const time = `${p.proposed_start_at} - ${p.proposed_end_at ? p.proposed_end_at.split(' ')[1] : ''}`;
-          let statusBadge = `<span class="stamp-badge">${p.status}</span>`;
+          const propId = Number(p.id);
+          const roomId = Number(p.game_room_id);
+          const time = `${p.proposed_start_at || ''} - ${p.proposed_end_at ? String(p.proposed_end_at).split(' ')[1] || p.proposed_end_at : ''}`;
+          let statusBadge = `<span class="stamp-badge">${escapeHtml(p.status || 'UNKNOWN')}</span>`;
           let actionButtons = '';
 
           if (p.status === 'PROPOSED') {
             statusBadge = `<span class="stamp-badge" style="color: var(--color-gold); border-color: var(--color-gold);">CHỜ DUYỆT</span>`;
             actionButtons = `
-              <button type="button" class="btn btn-primary" style="font-size: 0.8rem; padding: 4px 10px;" onclick="approveProposal(${p.id})">Duyệt & Chốt</button>
-              <button type="button" class="btn btn-outline" style="font-size: 0.8rem; padding: 4px 10px;" onclick="rejectProposal(${p.id})">Từ Chối</button>
+              <button type="button" class="btn btn-primary" style="font-size: 0.8rem; padding: 4px 10px;" onclick="approveProposal(${propId})">Duyệt & Chốt</button>
+              <button type="button" class="btn btn-outline" style="font-size: 0.8rem; padding: 4px 10px;" onclick="rejectProposal(${propId})">Từ Chối</button>
             `;
           } else if (p.status === 'CONFIRMED') {
             statusBadge = `<span class="stamp-badge open">ĐÃ CHỐT</span>`;
@@ -572,18 +622,21 @@
             statusBadge = `<span class="stamp-badge" style="color: #f87171; border-color: #f87171;">TỪ CHỐI</span>`;
             actionButtons = `<span style="font-size: 0.8rem; color: #f87171;">Đã bác bỏ</span>`;
           } else {
-            actionButtons = `<span style="font-size: 0.8rem; color: var(--text-muted);">${p.status}</span>`;
+            actionButtons = `<span style="font-size: 0.8rem; color: var(--text-muted);">${escapeHtml(p.status || '')}</span>`;
           }
 
           return `
             <tr>
-              <td><strong>#PP-${p.id}</strong></td>
+              <td><strong>#PP-${propId}</strong></td>
               <td>
-                <div><strong>Phòng #${p.game_room_id}: ${p.room_title || 'Phòng Chơi'}</strong></div>
-                <div style="font-size: 0.8rem; color: var(--text-muted);">Kịch bản: ${p.game_name || 'Đêm Đoạt Mệnh Tại Trang Viên'}</div>
+                <div><strong>Phòng #${roomId}: ${escapeHtml(p.room_title || 'Phòng Chơi')}</strong></div>
+                <div style="font-size: 0.8rem; color: var(--text-muted);">Kịch bản: ${escapeHtml(p.game_name || 'Kịch bản nhập vai')}</div>
               </td>
-              <td>${p.proposer_name || 'Thành viên'}<br><span style="font-size: 0.75rem; color: var(--text-muted);">${p.proposer_email || ''}</span></td>
-              <td>${time}</td>
+              <td>
+                ${escapeHtml(p.proposer_name || 'Thành viên')}<br>
+                <span style="font-size: 0.75rem; color: var(--text-muted);">${escapeHtml(p.proposer_email || '')}</span>
+              </td>
+              <td>${escapeHtml(time)}</td>
               <td>${statusBadge}</td>
               <td>
                 <div style="display: flex; gap: 6px; flex-wrap: wrap;">
@@ -596,22 +649,26 @@
       } catch (e) {
         proposalsTableBody.innerHTML = `
           <tr>
-            <td colspan="6" style="text-align: center; padding: 20px; color: var(--text-muted);">
-              Không thể tải danh sách đơn đề xuất lịch.
+            <td colspan="6" style="text-align: center; padding: 20px; color: #ef9a9a;">
+              Không thể tải danh sách đơn đề xuất lịch: ${escapeHtml(e.message || 'Yêu cầu quyền Admin')}
             </td>
           </tr>
         `;
       }
     }
 
-    window.togglePhysicalRoomMaintenance = async function(roomId, isMaint, roomName) {
+    window.togglePhysicalRoomMaintenance = async function(roomId) {
+      const pr = physicalRoomCache.get(Number(roomId));
+      const isMaint = Boolean(pr?.is_maintenance);
+      const roomName = pr?.name || `Phòng #${roomId}`;
       const action = isMaint ? 'tắt chế độ bảo trì' : 'kích hoạt chế độ bảo trì và tự động điều chuyển ca chơi';
       if (!confirm(`Xác nhận ${action} cho phòng "${roomName}"?`)) return;
 
       let reason = 'Bảo trì trang thiết bị kỹ thuật';
       if (!isMaint) {
         const input = prompt('Nhập lý do bảo trì phòng (VD: Hỏng đèn chiếu, phục chế đạo cụ...):', reason);
-        if (input) reason = input;
+        if (input === null) return;
+        if (input.trim()) reason = input.trim();
       }
 
       try {
@@ -626,8 +683,9 @@
         alert(msg);
         loadPhysicalRooms();
         loadRooms();
+        loadAuditLogs();
       } catch (err) {
-        alert(err.message || 'Không thể cập nhật bảo trì');
+        alert('Lỗi cập nhật bảo trì: ' + (err.message || 'Không thể cập nhật bảo trì'));
       }
     };
 
@@ -636,7 +694,8 @@
       if (!tbody) return;
       try {
         const res = await apiClient.get('/admin/physical-rooms');
-        const rooms = res.data || [];
+        const rooms = Array.isArray(res.data) ? res.data : (res.data?.physical_rooms || []);
+        physicalRoomCache.clear();
 
         if (rooms.length === 0) {
           tbody.innerHTML = `
@@ -650,29 +709,32 @@
         }
 
         tbody.innerHTML = rooms.map(pr => {
-          let statusBadge = pr.is_maintenance ?
-            `<span class="stamp-badge" style="color: #f87171; border-color: #f87171;">BẢO TRÌ</span>` :
-            `<span class="stamp-badge open">SẴN SÀNG</span>`;
+          const prId = Number(pr.id);
+          physicalRoomCache.set(prId, pr);
+          const isMaint = Boolean(pr.is_maintenance);
+          const statusBadge = isMaint
+            ? `<span class="stamp-badge" style="color: #f87171; border-color: #f87171;">BẢO TRÌ</span>`
+            : `<span class="stamp-badge open">SẴN SÀNG</span>`;
           let nextSession = 'Không có ca sắp tới';
           if (pr.upcoming_session_info) {
-            const parts = pr.upcoming_session_info.split(':');
-            nextSession = parts.slice(2).join(' ');
+            const parts = String(pr.upcoming_session_info).split(':');
+            nextSession = parts.length > 2 ? parts.slice(2).join(':') : String(pr.upcoming_session_info);
           }
 
           return `
             <tr>
-              <td><strong>#PR-${pr.id}</strong></td>
+              <td><strong>#PR-${prId}</strong></td>
               <td>
-                <div><strong>${pr.name}</strong></div>
-                <div style="font-size: 0.8rem; color: var(--text-muted);">${pr.venue_name || 'Chi nhánh #' + pr.venue_id}</div>
+                <div><strong>${escapeHtml(pr.name || 'Phòng vật lý')}</strong></div>
+                <div style="font-size: 0.8rem; color: var(--text-muted);">${escapeHtml(pr.venue_name || 'Chi nhánh #' + pr.venue_id)}</div>
               </td>
-              <td>${pr.capacity} người</td>
-              <td><span class="stamp-badge" style="font-size: 0.75rem;">${pr.theme_code || 'GENERAL'}</span></td>
+              <td>${Number(pr.capacity || 0)} người</td>
+              <td><span class="stamp-badge" style="font-size: 0.75rem;">${escapeHtml(pr.theme_code || 'GENERAL')}</span></td>
               <td>${statusBadge}</td>
-              <td style="font-size: 0.8rem; color: var(--text-muted); max-width: 200px;">${nextSession}</td>
+              <td style="font-size: 0.8rem; color: var(--text-muted); max-width: 200px;">${escapeHtml(nextSession)}</td>
               <td>
-                <button type="button" class="btn ${pr.is_maintenance ? 'btn-primary' : 'btn-outline'}" style="font-size: 0.8rem; padding: 4px 10px;" onclick="togglePhysicalRoomMaintenance(${pr.id}, ${pr.is_maintenance ? 'true' : 'false'}, '${pr.name.replace(/'/g, "\\'")}')">
-                  ${pr.is_maintenance ? 'Tắt Bảo Trì' : 'Bật Bảo Trì'}
+                <button type="button" class="btn ${isMaint ? 'btn-primary' : 'btn-outline'}" style="font-size: 0.8rem; padding: 4px 10px;" onclick="togglePhysicalRoomMaintenance(${prId})">
+                  ${isMaint ? 'Tắt Bảo Trì' : 'Bật Bảo Trì'}
                 </button>
               </td>
             </tr>
@@ -681,8 +743,8 @@
       } catch (e) {
         tbody.innerHTML = `
           <tr>
-            <td colspan="7" style="text-align: center; padding: 20px; color: var(--text-muted);">
-              Không thể tải danh sách phòng vật lý.
+            <td colspan="7" style="text-align: center; padding: 20px; color: #ef9a9a;">
+              Không thể tải danh sách phòng vật lý: ${escapeHtml(e.message || 'Yêu cầu quyền Admin')}
             </td>
           </tr>
         `;
@@ -695,8 +757,10 @@
         const res = await apiClient.post(`/admin/refunds/${refundId}/approve`);
         alert(res.message || 'Đã duyệt yêu cầu hoàn tiền thành công!');
         loadRefunds();
+        loadReports();
+        loadAuditLogs();
       } catch (err) {
-        alert(err.message || 'Không thể duyệt hoàn tiền');
+        alert('Lỗi duyệt hoàn tiền: ' + (err.message || 'Không thể duyệt hoàn tiền'));
       }
     };
 
@@ -707,20 +771,23 @@
         const res = await apiClient.post(`/admin/refunds/${refundId}/reject`, { reason });
         alert(res.message || 'Đã từ chối hoàn tiền!');
         loadRefunds();
+        loadAuditLogs();
       } catch (err) {
-        alert(err.message || 'Không thể từ chối hoàn tiền');
+        alert('Lỗi từ chối hoàn tiền: ' + (err.message || 'Không thể từ chối hoàn tiền'));
       }
     };
 
     window.completeRefund = async function(refundId) {
-      const bankRef = prompt('Nhập mã ủy nhiệm chi / mã giao dịch chuyển khoản ngân hàng:', 'UNC_' + Date.now());
+      const bankRef = prompt('Nhập mã ủy nhiệm chi hoặc mã giao dịch chuyển khoản ngân hàng:', 'UNC_' + Date.now());
       if (!bankRef) return;
       try {
         const res = await apiClient.post(`/admin/refunds/${refundId}/complete`, { bank_reference_code: bankRef });
         alert(res.message || 'Đã đóng hồ sơ chi trả tiền cọc thành công!');
         loadRefunds();
+        loadReports();
+        loadAuditLogs();
       } catch (err) {
-        alert(err.message || 'Không thể cập nhật hoàn tất hoàn tiền');
+        alert('Lỗi cập nhật hoàn tất hoàn tiền: ' + (err.message || 'Không thể hoàn tất chi trả'));
       }
     };
 
@@ -729,7 +796,7 @@
       if (!tbody) return;
       try {
         const res = await apiClient.get('/admin/refunds');
-        const refunds = res.data || [];
+        const refunds = Array.isArray(res.data) ? res.data : (res.data?.refunds || []);
 
         if (refunds.length === 0) {
           tbody.innerHTML = `
@@ -743,18 +810,19 @@
         }
 
         tbody.innerHTML = refunds.map(r => {
+          const refId = Number(r.id);
           let statusBadge = '';
           let actions = '';
           if (r.status === 'PENDING') {
             statusBadge = `<span class="stamp-badge" style="color: var(--color-gold); border-color: var(--color-gold);">CHỜ DUYỆT</span>`;
             actions = `
-              <button type="button" class="btn btn-primary" style="font-size: 0.8rem; padding: 4px 10px;" onclick="approveRefund(${r.id})">Duyệt</button>
-              <button type="button" class="btn btn-outline" style="font-size: 0.8rem; padding: 4px 10px;" onclick="rejectRefund(${r.id})">Từ Chối</button>
+              <button type="button" class="btn btn-primary" style="font-size: 0.8rem; padding: 4px 10px;" onclick="approveRefund(${refId})">Duyệt</button>
+              <button type="button" class="btn btn-outline" style="font-size: 0.8rem; padding: 4px 10px;" onclick="rejectRefund(${refId})">Từ Chối</button>
             `;
           } else if (r.status === 'APPROVED') {
             statusBadge = `<span class="stamp-badge open">ĐÃ DUYỆT</span>`;
             actions = `
-              <button type="button" class="btn btn-gold" style="font-size: 0.8rem; padding: 4px 10px;" onclick="completeRefund(${r.id})">Chi Tiền (UNC)</button>
+              <button type="button" class="btn btn-gold" style="font-size: 0.8rem; padding: 4px 10px;" onclick="completeRefund(${refId})">Chi Tiền (UNC)</button>
             `;
           } else if (r.status === 'COMPLETED') {
             statusBadge = `<span class="stamp-badge open" style="color: #60a5fa; border-color: #60a5fa;">ĐÃ CHI TRẢ</span>`;
@@ -766,11 +834,11 @@
 
           return `
             <tr>
-              <td><strong>#REF-${r.id}</strong></td>
-              <td>${r.user_name || 'Người chơi #' + (r.user_id || '')}</td>
+              <td><strong>#REF-${refId}</strong></td>
+              <td>${escapeHtml(r.user_name || 'Người chơi #' + (r.user_id || ''))}</td>
               <td style="font-weight: 700; color: var(--color-gold);">${Number(r.amount || 50000).toLocaleString('vi-VN')} đ</td>
               <td>${statusBadge}</td>
-              <td style="font-size: 0.8rem; color: var(--text-muted); max-width: 220px;">${r.reason || 'N/A'}</td>
+              <td style="font-size: 0.8rem; color: var(--text-muted); max-width: 220px;">${escapeHtml(r.reason || 'N/A')}</td>
               <td>
                 <div style="display: flex; gap: 6px; flex-wrap: wrap;">
                   ${actions}
@@ -782,8 +850,8 @@
       } catch (e) {
         tbody.innerHTML = `
           <tr>
-            <td colspan="6" style="text-align: center; padding: 20px; color: var(--text-muted);">
-              Không thể tải danh sách hoàn tiền.
+            <td colspan="6" style="text-align: center; padding: 20px; color: #ef9a9a;">
+              Không thể tải danh sách hoàn tiền: ${escapeHtml(e.message || 'Yêu cầu quyền Admin')}
             </td>
           </tr>
         `;
@@ -791,8 +859,29 @@
     }
 
     async function loadAdminDashboard() {
-      await checkAuth();
-      await Promise.all([loadRooms(), loadProposals(), loadPhysicalRooms(), loadRefunds(), loadStudents(), loadAuditLogs(), loadReports()]);
+      const isAdmin = await checkAuth();
+      if (!isAdmin) {
+        document.getElementById('kpiRevenue').textContent = '--';
+        document.getElementById('kpiDeposit').textContent = '--';
+        document.getElementById('kpiRooms').textContent = '--';
+        document.getElementById('kpiCompleted').textContent = '--';
+        roomsTableBody.innerHTML = '<tr><td colspan="5" style="text-align: center; padding: 20px; color: var(--text-muted);">Yêu cầu đăng nhập tài khoản Quản Trị Viên (Admin).</td></tr>';
+        document.getElementById('proposalsTableBody').innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 20px; color: var(--text-muted);">Yêu cầu đăng nhập tài khoản Quản Trị Viên (Admin).</td></tr>';
+        document.getElementById('physicalRoomsTableBody').innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 20px; color: var(--text-muted);">Yêu cầu đăng nhập tài khoản Quản Trị Viên (Admin).</td></tr>';
+        document.getElementById('refundsTableBody').innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 20px; color: var(--text-muted);">Yêu cầu đăng nhập tài khoản Quản Trị Viên (Admin).</td></tr>';
+        studentListContainer.innerHTML = '<div style="padding: 12px; text-align: center; color: var(--text-muted); font-size: 0.85rem;">Yêu cầu đăng nhập tài khoản Quản Trị Viên (Admin).</div>';
+        auditLogContainer.innerHTML = '<p style="color: var(--text-muted);">Yêu cầu đăng nhập tài khoản Quản Trị Viên (Admin).</p>';
+        return;
+      }
+      await Promise.all([
+        loadRooms(),
+        loadProposals(),
+        loadPhysicalRooms(),
+        loadRefunds(),
+        loadStudents(),
+        loadAuditLogs(),
+        loadReports()
+      ]);
     }
 
     document.getElementById('btnOfflineBlock')?.addEventListener('click', async () => {
@@ -804,11 +893,11 @@
       if (!venueId) return;
       const pRoomId = prompt('ID Phòng vật lý (1: Sherlock Holmes, 2: Dracula, 3: Cổ Trang):', '1');
       if (!pRoomId) return;
-      const nowStr = new Date(Date.now() + 3600000).toISOString().slice(0, 19).replace('T', ' ');
-      const endStr = new Date(Date.now() + 18000000).toISOString().slice(0, 19).replace('T', ' ');
-      const startAt = prompt('Thời gian bắt đầu (YYYY-MM-DD HH:MM:SS):', nowStr);
+      const nowStr = formatLocalSqlDatetime(new Date(Date.now() + 3600000));
+      const endStr = formatLocalSqlDatetime(new Date(Date.now() + 18000000));
+      const startAt = prompt('Thời gian bắt đầu theo giờ địa phương (YYYY-MM-DD HH:MM:SS):', nowStr);
       if (!startAt) return;
-      const endAt = prompt('Thời gian kết thúc (YYYY-MM-DD HH:MM:SS):', endStr);
+      const endAt = prompt('Thời gian kết thúc theo giờ địa phương (YYYY-MM-DD HH:MM:SS):', endStr);
       if (!endAt) return;
       const notes = prompt('Ghi chú đặt phòng:', 'Khách cọc trực tiếp tại quầy 100k');
 
@@ -825,7 +914,7 @@
         alert(json.message || 'Đã khóa giữ chỗ phòng vật lý thành công!');
         loadAdminDashboard();
       } catch (err) {
-        alert(err.message || 'Không thể khóa giữ chỗ phòng');
+        alert('Lỗi khóa phòng Hotline: ' + (err.message || 'Không thể khóa giữ chỗ phòng'));
       }
     });
 

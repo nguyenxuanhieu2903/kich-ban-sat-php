@@ -184,7 +184,10 @@ class PaymentController
         }
 
         $body = $request->getBodyParams();
-        $roomId = (int) ($body['room_id'] ?? 1);
+        $roomId = (int) ($body['room_id'] ?? $body['game_room_id'] ?? 0);
+        if ($roomId <= 0) {
+            return Response::fail('Thiếu mã phòng chơi (room_id) để thực hiện thanh toán cọc', 'ROOM_ID_REQUIRED', 400);
+        }
         $amount = (int) ($body['amount'] ?? 50000);
 
         // Hỗ trợ nộp cọc trọn gói cho nhóm bạn riêng (Điểm 3 & Điểm 21)
@@ -200,9 +203,46 @@ class PaymentController
                 $privateGroupSize = max(1, $totalPlayers - $guestSlots);
                 $lumpSumAmount = $privateGroupSize * 50000;
 
-                // Cập nhật toàn bộ thành viên hiện tại thành DEPOSITED
-                $this->pdo->prepare('UPDATE `room_participants` SET `status` = \'DEPOSITED\', `deposited_at` = NOW(), `updated_at` = NOW() WHERE `game_room_id` = :rid')
+                // Đảm bảo có bản ghi player_payments cho các thành viên active để đồng bộ báo cáo doanh thu & hoàn cọc
+                $this->paymentRepo->ensureDepositPaymentsForRoom($roomId, PricingService::DEPOSIT_PER_PERSON, 2);
+
+                // Cập nhật toàn bộ thành viên ĐANG HOẠT ĐỘNG thành DEPOSITED (tuyệt đối không hồi sinh người LEFT/CANCELLED)
+                $this->pdo->prepare('UPDATE `room_participants` SET `status` = \'DEPOSITED\', `deposited_at` = COALESCE(`deposited_at`, NOW()), `updated_at` = NOW() WHERE `game_room_id` = :rid AND `status` IN (\'PENDING_DEPOSIT\', \'DEPOSITED\')')
                     ->execute([':rid' => $roomId]);
+
+                // Ghi nhận thanh toán vào player_payments và payment_transactions của Chủ phòng (Host)
+                $hostPayStmt = $this->pdo->prepare(
+                    'SELECT p.`id` FROM `player_payments` p
+                     INNER JOIN `room_participants` rp ON rp.`id` = p.`room_participant_id`
+                     WHERE rp.`game_room_id` = :rid AND rp.`user_id` = :uid
+                       AND rp.`status` IN (\'PENDING_DEPOSIT\', \'DEPOSITED\', \'LEAVE_REQUESTED\')
+                     ORDER BY p.`id` DESC LIMIT 1'
+                );
+                $hostPayStmt->execute([':rid' => $roomId, ':uid' => (int) $auth['id']]);
+                $hostPaymentId = $hostPayStmt->fetchColumn();
+                if ($hostPaymentId !== false) {
+                    $this->pdo->prepare(
+                        'UPDATE `player_payments`
+                         SET `amount` = GREATEST(`amount`, :amt), `paid_amount` = :paid_amt, `status` = \'PAID\', `paid_at` = NOW(), `updated_at` = NOW()
+                         WHERE `id` = :pid'
+                    )->execute([
+                        ':amt' => $lumpSumAmount,
+                        ':paid_amt' => $lumpSumAmount,
+                        ':pid' => (int) $hostPaymentId,
+                    ]);
+                    $txRef = 'TX_LUMP_' . strtoupper(bin2hex(random_bytes(6)));
+                    $idemKey = 'LUMP_' . $roomId . '_' . (int) $auth['id'] . '_' . time();
+                    $this->pdo->prepare(
+                        'INSERT INTO `payment_transactions` (`player_payment_id`, `idempotency_key`, `transaction_reference`, `amount`, `status`, `provider_response`, `requested_at`, `processed_at`, `created_at`)
+                         VALUES (:pid, :ikey, :txref, :amt, \'SUCCESS\', :meta, NOW(), NOW(), NOW())'
+                    )->execute([
+                        ':pid' => (int) $hostPaymentId,
+                        ':ikey' => $idemKey,
+                        ':txref' => $txRef,
+                        ':amt' => $lumpSumAmount,
+                        ':meta' => json_encode(['method' => 'LUMP_SUM_PRIVATE', 'group_size' => $privateGroupSize]),
+                    ]);
+                }
 
                 // Cập nhật trạng thái phòng sang CONFIRMED nếu đang SCHEDULED
                 $this->pdo->prepare('UPDATE `game_rooms` SET `status` = \'CONFIRMED\', `updated_at` = NOW() WHERE `id` = :rid AND `status` = \'SCHEDULED\'')
@@ -230,6 +270,8 @@ class PaymentController
         $stmt = $this->pdo->prepare('SELECT p.`id` FROM `player_payments` p
             INNER JOIN `room_participants` rp ON rp.`id` = p.`room_participant_id`
             WHERE rp.`game_room_id` = :room_id AND rp.`user_id` = :user_id
+              AND rp.`status` IN (\'PENDING_DEPOSIT\', \'DEPOSITED\', \'LEAVE_REQUESTED\')
+            ORDER BY p.`id` DESC
             LIMIT 1');
         $stmt->bindValue(':room_id', $roomId, PDO::PARAM_INT);
         $stmt->bindValue(':user_id', (int) $auth['id'], PDO::PARAM_INT);
@@ -247,8 +289,8 @@ class PaymentController
             return $this->deposit($request, (string) $paymentId);
         }
 
-        // Cập nhật trực tiếp trạng thái DEPOSITED cho thành viên nếu chưa có bản ghi player_payments
-        $partStmt = $this->pdo->prepare('UPDATE `room_participants` SET `status` = \'DEPOSITED\', `deposited_at` = NOW(), `updated_at` = NOW() WHERE `game_room_id` = :room_id AND `user_id` = :user_id');
+        // Cập nhật trực tiếp trạng thái DEPOSITED cho thành viên đang PENDING_DEPOSIT (tuyệt đối không chạm bản ghi LEFT)
+        $partStmt = $this->pdo->prepare('UPDATE `room_participants` SET `status` = \'DEPOSITED\', `deposited_at` = NOW(), `updated_at` = NOW() WHERE `game_room_id` = :room_id AND `user_id` = :user_id AND `status` = \'PENDING_DEPOSIT\'');
         $partStmt->bindValue(':room_id', $roomId, PDO::PARAM_INT);
         $partStmt->bindValue(':user_id', (int) $auth['id'], PDO::PARAM_INT);
         $partStmt->execute();

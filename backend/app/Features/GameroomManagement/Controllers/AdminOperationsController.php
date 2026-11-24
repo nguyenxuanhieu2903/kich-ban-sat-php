@@ -222,6 +222,18 @@ class AdminOperationsController
             $venueId = (int) $pRoom['venue_id'];
         }
 
+        if ($venueId !== null) {
+            $upRoomVenue = $this->pdo->prepare(
+                'UPDATE `game_rooms`
+                 SET `target_venue_id` = :venue_id,
+                     `updated_at` = NOW()
+                 WHERE `id` = :room_id'
+            );
+            $upRoomVenue->bindValue(':venue_id', $venueId, PDO::PARAM_INT);
+            $upRoomVenue->bindValue(':room_id', $roomId, PDO::PARAM_INT);
+            $upRoomVenue->execute();
+        }
+
         // Cập nhật session nếu phòng đã có session
         $sessStmt = $this->pdo->prepare('SELECT `id` FROM `sessions` WHERE `game_room_id` = :room_id LIMIT 1');
         $sessStmt->bindValue(':room_id', $roomId, PDO::PARAM_INT);

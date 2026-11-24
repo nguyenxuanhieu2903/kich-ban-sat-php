@@ -43,7 +43,7 @@
       </a>
       <nav class="nav-links">
         <a href="../index.html">Trang chủ</a>
-        <a href="./scenarios.html">Kho 42 Kịch Bản</a>
+        <a href="./scenarios.html">Kho Kịch Bản</a>
         <a href="./lobby.html">Sảnh Ghép Phòng</a>
         <a href="./info.html">Bảng Giá & Nội Quy</a>
       </nav>
@@ -67,9 +67,7 @@
         <div class="form-group">
           <label for="gameSelect">1. Chọn Kịch Bản Án Mạng *</label>
           <select id="gameSelect" class="form-control" required>
-            <option value="1">Đêm Đoạt Mệnh Tại Trang Viên (6 - 8 người, 4 tiếng)</option>
-            <option value="2">Biệt Thự Huyết Tộc (5 - 7 người, 3.5 tiếng)</option>
-            <option value="3">Án Mạng Trên Chuyến Tàu Tuyết (6 - 8 người, 4 tiếng)</option>
+            <option value="1">Đêm Đoạt Mệnh Tại Trang Viên (6 - 8 người, 240 phút)</option>
           </select>
         </div>
 
@@ -77,7 +75,7 @@
           <label for="bookingTypeSelect">2. Hình Thức Đặt Phòng *</label>
           <select id="bookingTypeSelect" class="form-control" required>
             <option value="PUBLIC" selected>Ghép Thám Tử Công Khai (Mở sảnh cho người lạ tham gia)</option>
-            <option value="PRIVATE">Nhóm Bạn Riêng Tư (Đi cùng nhóm bạn, không nhận khách ngoài)</option>
+            <option value="PRIVATE">Nhóm Bạn Riêng Tư (Đi cùng nhóm bạn, bảo vệ bằng link mời)</option>
           </select>
         </div>
 
@@ -85,16 +83,16 @@
           <div class="form-group">
             <label for="venueSelect">3. Chi Nhánh Dự Kiến *</label>
             <select id="venueSelect" class="form-control" required>
-              <option value="1" selected>Chi nhánh Quận 1 (128 Hai Bà Trưng, P. Đa Kao)</option>
-              <option value="2">Chi nhánh Bình Thạnh (45 Đinh Bộ Lĩnh, P. 26)</option>
+              <option value="1" selected>Kịch Bản Sát Station - Chi nhánh Quận 1</option>
+              <option value="2">Kịch Bản Sát Hub - Chi nhánh Bình Thạnh</option>
             </select>
           </div>
           <div class="form-group">
             <label for="timeSlotSelect">4. Khung Giờ Dự Kiến *</label>
             <select id="timeSlotSelect" class="form-control" required>
-              <option value="09:00 - 13:00">Ca Sáng (09:00 - 13:00, Giá 180k)</option>
-              <option value="14:00 - 18:00" selected>Ca Chiều (14:00 - 18:00, Giá 220k)</option>
-              <option value="18:30 - 22:30">Ca Tối (18:30 - 22:30, Giá 250k)</option>
+              <option value="09:00 - 13:00">Ca Sáng (09:00 - 13:00, Từ 180k)</option>
+              <option value="14:00 - 18:00" selected>Ca Chiều (14:00 - 18:00, Từ 220k)</option>
+              <option value="18:30 - 22:30">Ca Tối (18:30 - 22:30, Từ 250k)</option>
             </select>
           </div>
         </div>
@@ -113,16 +111,16 @@
           <div style="font-weight: 600; color: var(--color-gold); margin-bottom: 8px;">Cấu hình cho Nhóm Bạn Riêng Tư:</div>
           <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
             <div class="form-group" style="margin-bottom: 0;">
-              <label for="totalPlayersInput">Số bạn đi cùng thực tế</label>
+              <label for="totalPlayersInput">Tổng số người chơi của bàn</label>
               <input type="number" id="totalPlayersInput" class="form-control" value="6" min="4" max="10" />
             </div>
             <div class="form-group" style="margin-bottom: 0;">
-              <label for="guestSlotsInput">Số slot mở ghép thêm nếu thiếu</label>
+              <label for="guestSlotsInput">Số slot mở ghép thêm khách lẻ</label>
               <input type="number" id="guestSlotsInput" class="form-control" value="0" min="0" max="4" />
             </div>
           </div>
           <div style="font-size: 0.82rem; color: #c9a25e; margin-top: 10px; line-height: 1.4;">
-            Quy định cọc gộp: Chủ phòng cọc trước cho phần nhóm bạn riêng (<span id="calcPrivateSize">6</span> người x 50.000đ = <strong id="calcLumpSum">300.000đ</strong>). Khách lẻ vãng lai ghép vào các slot mở thêm (guest_slots) sẽ tự nộp cọc khi bấm tham gia.
+            Quy định cọc gộp: Chủ phòng cọc trước cho phần nhóm bạn riêng (<span id="calcPrivateSize">6</span> người x 50.000đ = <strong id="calcLumpSum">300.000đ</strong>). Khách lẻ ghép vào các slot mở thêm (guest_slots) sẽ tự nộp cọc 50.000đ.
           </div>
         </div>
 
@@ -155,7 +153,7 @@
 
         <hr class="ticket-divider" />
         <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 16px;">
-          * Sau khi tạo phòng thành công, phòng sẽ hiển thị trên Sảnh để các thành viên khác đăng ký tham gia.
+          * Sau khi tạo phòng thành công, phòng sẽ hiển thị trên Sảnh để các thành viên khác đăng ký tham gia và biểu quyết giờ chơi.
         </p>
 
         <button type="submit" class="btn btn-primary" id="btnSubmitCreate" style="width: 100%; font-size: 1.05rem; padding: 12px;">
@@ -167,34 +165,72 @@
 
   <script type="module">
     import { apiClient } from '../src/api/api-client.js';
+    import { escapeHtml } from '../src/utils/sanitize.js';
 
     const form = document.getElementById('createRoomForm');
     const alertBox = document.getElementById('createAlert');
     const btnSubmit = document.getElementById('btnSubmitCreate');
     const gameSelect = document.getElementById('gameSelect');
+    const venueSelect = document.getElementById('venueSelect');
+    const minPlayersInput = document.getElementById('minPlayers');
+    const maxPlayersInput = document.getElementById('maxPlayers');
+    const totalPlayersInput = document.getElementById('totalPlayersInput');
+    const guestSlotsInput = document.getElementById('guestSlotsInput');
+    const bookingTypeSelect = document.getElementById('bookingTypeSelect');
+    const privateGroupFields = document.getElementById('privateGroupFields');
 
     const urlParams = new URLSearchParams(window.location.search);
     const preselectedGameId = urlParams.get('game_id');
+    let gamesCatalog = [];
+
+    function syncPlayerBoundsWithGame() {
+      const selected = gamesCatalog.find(g => String(g.id) === String(gameSelect.value));
+      if (!selected) return;
+      const gMin = Number(selected.min_players || 6);
+      const gMax = Number(selected.max_players || 8);
+      minPlayersInput.min = String(gMin);
+      minPlayersInput.max = String(gMax);
+      minPlayersInput.value = String(gMin);
+
+      maxPlayersInput.min = String(gMin);
+      maxPlayersInput.max = String(gMax);
+      maxPlayersInput.value = String(gMax);
+
+      totalPlayersInput.min = String(gMin);
+      totalPlayersInput.max = String(gMax);
+      totalPlayersInput.value = String(gMin);
+      updateLumpSumDisplay();
+    }
+
     // Load catalog games dynamically
-    apiClient.get('/games')
+    apiClient.get('/games?limit=50')
       .then(res => {
-        if (res.success && res.data && res.data.games && res.data.games.length > 0) {
-          gameSelect.innerHTML = res.data.games.map(g => `
-            <option value="${g.id}">${g.name} (${g.min_players} - ${g.max_players} người, ${g.duration_minutes || 240} phút)</option>
+        if (res.success && Array.isArray(res.data?.games) && res.data.games.length > 0) {
+          gamesCatalog = res.data.games;
+          gameSelect.innerHTML = gamesCatalog.map(g => `
+            <option value="${Number(g.id)}">${escapeHtml(g.name)} (${Number(g.min_players)} - ${Number(g.max_players)} người, ${Number(g.duration_minutes || 240)} phút)</option>
           `).join('');
-          if (preselectedGameId) {
+          if (preselectedGameId && gamesCatalog.some(g => String(g.id) === String(preselectedGameId))) {
             gameSelect.value = preselectedGameId;
           }
+          syncPlayerBoundsWithGame();
         }
       })
       .catch(() => {});
 
-    if (preselectedGameId) {
-      gameSelect.value = preselectedGameId;
-    }
+    // Load real venues dynamically
+    apiClient.get('/venues')
+      .then(res => {
+        const venues = res.data?.venues || [];
+        if (venues.length > 0) {
+          venueSelect.innerHTML = venues.map(v => `
+            <option value="${Number(v.id)}">${escapeHtml(v.name)} (${escapeHtml(v.address || '')})</option>
+          `).join('');
+        }
+      })
+      .catch(() => {});
 
-    const bookingTypeSelect = document.getElementById('bookingTypeSelect');
-    const privateGroupFields = document.getElementById('privateGroupFields');
+    gameSelect.addEventListener('change', syncPlayerBoundsWithGame);
 
     bookingTypeSelect.addEventListener('change', () => {
       privateGroupFields.style.display = bookingTypeSelect.value === 'PRIVATE' ? 'block' : 'none';
@@ -202,40 +238,64 @@
     });
 
     function updateLumpSumDisplay() {
-      const tot = Number(document.getElementById('totalPlayersInput')?.value || 6);
-      const gst = Number(document.getElementById('guestSlotsInput')?.value || 0);
+      const tot = Number(totalPlayersInput?.value || 6);
+      const gst = Math.min(Math.max(0, Number(guestSlotsInput?.value || 0)), Math.max(0, tot - 1));
       const priv = Math.max(1, tot - gst);
       const elP = document.getElementById('calcPrivateSize');
       const elL = document.getElementById('calcLumpSum');
-      if (elP) elP.textContent = priv;
+      if (elP) elP.textContent = String(priv);
       if (elL) elL.textContent = (priv * 50000).toLocaleString('vi-VN') + 'đ';
     }
-    document.getElementById('totalPlayersInput')?.addEventListener('input', updateLumpSumDisplay);
-    document.getElementById('guestSlotsInput')?.addEventListener('input', updateLumpSumDisplay);
+    totalPlayersInput?.addEventListener('input', updateLumpSumDisplay);
+    guestSlotsInput?.addEventListener('input', updateLumpSumDisplay);
     updateLumpSumDisplay();
 
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
       alertBox.style.display = 'none';
+
+      const minP = Number(minPlayersInput.value);
+      const maxP = Number(maxPlayersInput.value);
+      if (minP > maxP) {
+        alertBox.style.display = 'block';
+        alertBox.style.background = 'rgba(153, 43, 43, 0.2)';
+        alertBox.style.border = '1px solid #992b2b';
+        alertBox.style.color = '#ef9a9a';
+        alertBox.textContent = 'Số người tối thiểu không được lớn hơn số người tối đa.';
+        return;
+      }
+
+      const bookingType = bookingTypeSelect.value;
+      const totP = Number(totalPlayersInput.value);
+      const gstP = Number(guestSlotsInput.value);
+      if (bookingType === 'PRIVATE' && gstP >= totP) {
+        alertBox.style.display = 'block';
+        alertBox.style.background = 'rgba(153, 43, 43, 0.2)';
+        alertBox.style.border = '1px solid #992b2b';
+        alertBox.style.color = '#ef9a9a';
+        alertBox.textContent = 'Số slot mở ghép thêm phải nhỏ hơn tổng số người chơi của bàn.';
+        return;
+      }
+
       btnSubmit.disabled = true;
       btnSubmit.textContent = 'Đang khởi tạo phòng...';
 
-      const bookingType = bookingTypeSelect.value;
       const payload = {
         game_id: Number(gameSelect.value),
         title: document.getElementById('roomTitle').value.trim(),
         description: document.getElementById('roomDesc').value.trim(),
-        min_players: Number(document.getElementById('minPlayers').value),
-        max_players: Number(document.getElementById('maxPlayers').value),
+        min_players: minP,
+        max_players: maxP,
         booking_type: bookingType,
-        target_venue_id: Number(document.getElementById('venueSelect').value),
+        target_venue_id: Number(venueSelect.value),
         target_time_slot: document.getElementById('timeSlotSelect').value,
+        deadline_days: Number(document.getElementById('deadlineDays').value || 3),
         is_18_plus_acknowledged: document.getElementById('ageConfirmed')?.checked ? 1 : 0
       };
 
       if (bookingType === 'PRIVATE') {
-        payload.total_players = Number(document.getElementById('totalPlayersInput').value);
-        payload.guest_slots = Number(document.getElementById('guestSlotsInput').value);
+        payload.total_players = totP;
+        payload.guest_slots = gstP;
       }
 
       try {
@@ -254,7 +314,7 @@
 
         setTimeout(() => {
           window.location.href = `./room-detail.html?id=${newId}`;
-        }, 800);
+        }, 700);
       } catch (err) {
         if (err.status === 401) {
           alert('Bạn cần đăng nhập tài khoản trước khi mở phòng chơi!');

@@ -115,18 +115,47 @@ class GameRoomController
         $game = $this->gameRepo->findById((int) $room['game_id']);
         $room['game'] = $game;
 
-        // Lấy danh sách thành viên tham gia
+        // Lấy tên chi nhánh dự kiến (nếu có)
+        if (!empty($room['target_venue_id'])) {
+            $vStmt = $this->pdo->prepare('SELECT `name`, `address` FROM `venues` WHERE `id` = :vid LIMIT 1');
+            $vStmt->bindValue(':vid', (int) $room['target_venue_id'], PDO::PARAM_INT);
+            $vStmt->execute();
+            $vInfo = $vStmt->fetch(PDO::FETCH_ASSOC);
+            if ($vInfo !== false) {
+                $room['target_venue_name'] = $vInfo['name'];
+                $room['target_venue_address'] = $vInfo['address'];
+            }
+        }
+
+        // Sinh invite_token ổn định cho phòng chơi để Host chia sẻ link mời
+        $room['invite_token'] = $this->buildInviteToken($room);
+
+        // Lấy danh sách thành viên tham gia (chỉ thành viên đang hoạt động)
         $participants = $this->roomRepo->getParticipants($roomId);
         $room['participants'] = $participants;
         $room['current_players'] = count(array_filter($participants, function ($p) {
             return in_array($p['status'], ['PENDING_DEPOSIT', 'DEPOSITED', 'LEAVE_REQUESTED'], true);
         }));
 
-        // Lấy các đề xuất lịch của phòng
+        // Xác định user hiện tại (nếu có) để trả về phiếu biểu quyết của user
+        $currentUserId = $this->resolveCurrentUserId($request);
+        $myParticipantId = null;
+        if ($currentUserId !== null) {
+            foreach ($participants as $part) {
+                if ((int) $part['user_id'] === $currentUserId) {
+                    $myParticipantId = (int) $part['id'];
+                    break;
+                }
+            }
+        }
+
+        // Lấy các đề xuất lịch của phòng kèm thống kê phiếu biểu quyết
         $propStmt = $this->pdo->prepare(
             'SELECT sp.`id`, sp.`game_room_id`, sp.`proposed_by`, sp.`proposed_start_at`, sp.`proposed_end_at`,
                     sp.`status`, sp.`expires_at`, sp.`confirmed_at`, sp.`rejected_at`, sp.`created_at`,
-                    u.`full_name` AS `proposer_name`
+                    u.`full_name` AS `proposer_name`,
+                    (SELECT COUNT(*) FROM `schedule_responses` sr WHERE sr.`schedule_proposal_id` = sp.`id` AND sr.`response` = \'ACCEPTED\') AS `accepted_votes`,
+                    (SELECT COUNT(*) FROM `schedule_responses` sr WHERE sr.`schedule_proposal_id` = sp.`id` AND sr.`response` = \'REJECTED\') AS `rejected_votes`
              FROM `schedule_proposals` sp
              INNER JOIN `users` u ON u.`id` = sp.`proposed_by`
              WHERE sp.`game_room_id` = :room_id
@@ -134,11 +163,72 @@ class GameRoomController
         );
         $propStmt->bindValue(':room_id', $roomId, PDO::PARAM_INT);
         $propStmt->execute();
-        $room['proposals'] = $propStmt->fetchAll(PDO::FETCH_ASSOC);
+        $proposals = $propStmt->fetchAll(PDO::FETCH_ASSOC);
+
+        if ($myParticipantId !== null && !empty($proposals)) {
+            $myVoteStmt = $this->pdo->prepare(
+                'SELECT `schedule_proposal_id`, `response` FROM `schedule_responses`
+                 WHERE `game_room_id` = :room_id AND `room_participant_id` = :part_id'
+            );
+            $myVoteStmt->bindValue(':room_id', $roomId, PDO::PARAM_INT);
+            $myVoteStmt->bindValue(':part_id', $myParticipantId, PDO::PARAM_INT);
+            $myVoteStmt->execute();
+            $myVotesMap = [];
+            foreach ($myVoteStmt->fetchAll(PDO::FETCH_ASSOC) as $vr) {
+                $myVotesMap[(int) $vr['schedule_proposal_id']] = $vr['response'];
+            }
+            foreach ($proposals as &$prop) {
+                $prop['accepted_votes'] = (int) $prop['accepted_votes'];
+                $prop['rejected_votes'] = (int) $prop['rejected_votes'];
+                $prop['total_active'] = $room['current_players'];
+                $prop['my_vote'] = $myVotesMap[(int) $prop['id']] ?? null;
+            }
+            unset($prop);
+        } else {
+            foreach ($proposals as &$prop) {
+                $prop['accepted_votes'] = (int) $prop['accepted_votes'];
+                $prop['rejected_votes'] = (int) $prop['rejected_votes'];
+                $prop['total_active'] = $room['current_players'];
+                $prop['my_vote'] = null;
+            }
+            unset($prop);
+        }
+        $room['proposals'] = $proposals;
+
+        // Lấy thông tin Session chính thức (nếu đã chốt lịch)
+        $sessStmt = $this->pdo->prepare(
+            'SELECT s.`id`, s.`venue_id`, s.`physical_room_id`, s.`start_at`, s.`end_at`, s.`status`,
+                    v.`name` AS `venue_name`, v.`address` AS `venue_address`,
+                    pr.`name` AS `physical_room_name`,
+                    dm.`full_name` AS `dm_name`, dma.`status` AS `dm_assignment_status`
+             FROM `sessions` s
+             LEFT JOIN `venues` v ON v.`id` = s.`venue_id`
+             LEFT JOIN `physical_rooms` pr ON pr.`id` = s.`physical_room_id`
+             LEFT JOIN `dm_assignments` dma ON dma.`id` = s.`dm_assignment_id`
+             LEFT JOIN `users` dm ON dm.`id` = dma.`dm_user_id`
+             WHERE s.`game_room_id` = :room_id
+             ORDER BY s.`id` DESC
+             LIMIT 1'
+        );
+        $sessStmt->bindValue(':room_id', $roomId, PDO::PARAM_INT);
+        $sessStmt->execute();
+        $sessionRow = $sessStmt->fetch(PDO::FETCH_ASSOC);
+        $room['session'] = $sessionRow !== false ? $sessionRow : null;
 
         return Response::success([
             'room' => $room,
         ], 'Chi tiết phòng chơi');
+    }
+
+    /**
+     * Tạo mã mời ổn định cho phòng chơi (không cần đổi schema CSDL).
+     *
+     * @param array<string, mixed> $room
+     */
+    protected function buildInviteToken(array $room): string
+    {
+        $seed = 'KBS_V16_INVITE_' . ($room['id'] ?? 0) . '_' . ($room['creator_id'] ?? 0) . '_' . ($room['created_at'] ?? '');
+        return strtoupper(substr(hash('sha256', $seed), 0, 10));
     }
 
     /**
@@ -174,10 +264,18 @@ class GameRoomController
         $minPlayers = isset($body['min_players']) ? (int) $body['min_players'] : (int) $game['min_players'];
         $maxPlayers = isset($body['max_players']) ? (int) $body['max_players'] : (int) $game['max_players'];
 
+        if ($minPlayers < 2) {
+            $minPlayers = (int) $game['min_players'];
+        }
+        if ($maxPlayers < $minPlayers) {
+            return Response::fail('Số lượng người chơi tối đa không được nhỏ hơn số lượng tối thiểu', 'VALIDATION_ERROR', 422);
+        }
+
         if ($deadlineStr = $formationDeadline) {
             $deadline = date('Y-m-d H:i:s', strtotime((string) $deadlineStr));
         } else {
-            $deadline = date('Y-m-d H:i:s', strtotime('+3 days'));
+            $deadlineDays = isset($body['deadline_days']) ? max(1, min(14, (int) $body['deadline_days'])) : 3;
+            $deadline = date('Y-m-d H:i:s', strtotime("+{$deadlineDays} days"));
         }
 
         // Chống spam: Giới hạn số phòng FORMING một user được mở cùng lúc (tối đa 5 phòng trong môi trường production)
@@ -200,6 +298,9 @@ class GameRoomController
         $targetTimeSlot = isset($body['target_time_slot']) ? trim((string) $body['target_time_slot']) : null;
         $totalPlayers = isset($body['total_players']) && (int) $body['total_players'] > 0 ? (int) $body['total_players'] : null;
         $guestSlots = isset($body['guest_slots']) ? max(0, (int) $body['guest_slots']) : 0;
+        if ($totalPlayers !== null && $guestSlots >= $totalPlayers) {
+            $guestSlots = max(0, $totalPlayers - 1);
+        }
         $is18Plus = !empty($body['is_18_plus_acknowledged']) ? 1 : 0;
 
         // Lấy configuration id v1
@@ -278,6 +379,22 @@ class GameRoomController
         $body = $request->getBodyParams();
         $allowReplay = !empty($body['allow_replay']) || !empty($body['acknowledge_spoiler']);
         $checkAntiReplay = !empty($body['strict_anti_spoiler']) || !empty($body['check_replay']);
+
+        // Kiểm soát phòng Nhóm Riêng (PRIVATE): nếu guest_slots = 0 thì chỉ cho vào khi có đúng invite_token từ Host (trừ lúc mở Replacement Window)
+        if (($room['booking_type'] ?? 'PUBLIC') === 'PRIVATE' && !$isReplacementOpen) {
+            $guestSlots = (int) ($room['guest_slots'] ?? 0);
+            $suppliedToken = strtoupper(trim((string) ($body['invite_token'] ?? $request->query('invite') ?? '')));
+            $expectedToken = $this->buildInviteToken($room);
+            $hasValidInvite = $suppliedToken !== '' && hash_equals($expectedToken, $suppliedToken);
+
+            if ($guestSlots <= 0 && !$hasValidInvite) {
+                return Response::fail(
+                    'Đây là phòng Nhóm Bạn Riêng Tư (không mở slot ghép khách ngoài). Vui lòng xin link mời có mã bảo mật từ Chủ phòng để tham gia.',
+                    'PRIVATE_ROOM_CLOSED',
+                    403
+                );
+            }
+        }
 
         // 1. Chống chơi lại kịch bản đã hoàn thành (Bảo vệ bí mật cốt truyện cho cả bàn chơi khi kích hoạt)
         if ($checkAntiReplay && !$allowReplay) {

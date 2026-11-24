@@ -6,7 +6,7 @@
   <title>Cổng Quản Trò (DM Portal) — Kịch Bản Sát V16</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:ital,wght@0,600;0,700;1,600&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:ital,wght@0,600;0,700;1,600&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="../src/styles/components.css" />
   <link rel="stylesheet" href="../src/styles/home.css" />
   <style>
@@ -29,6 +29,64 @@
       flex-wrap: wrap;
       gap: 12px;
     }
+    .session-timer-box {
+      margin-top: 14px;
+      padding: 12px 16px;
+      background: rgba(201, 162, 94, 0.1);
+      border: 1px solid rgba(201, 162, 94, 0.45);
+      border-radius: 4px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+    .timer-clock {
+      font-family: var(--font-mono);
+      font-size: 1.25rem;
+      font-weight: 700;
+      color: var(--color-gold);
+    }
+    .stage-track {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+      margin-top: 8px;
+    }
+    .stage-pill {
+      font-size: 0.75rem;
+      padding: 3px 8px;
+      border-radius: 3px;
+      border: 1px solid rgba(201, 162, 94, 0.3);
+      color: var(--text-muted);
+    }
+    .stage-pill.active {
+      background: var(--color-gold);
+      color: #0d0c0b;
+      font-weight: 700;
+      border-color: var(--color-gold);
+    }
+    .stage-pill.done {
+      border-color: #4ade80;
+      color: #4ade80;
+    }
+    .checkin-list {
+      margin-top: 12px;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 10px;
+    }
+    .checkin-row {
+      padding: 10px 12px;
+      background: rgba(13, 12, 11, 0.55);
+      border: 1px solid rgba(201, 162, 94, 0.25);
+      border-radius: 4px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
   </style>
 </head>
 <body>
@@ -44,7 +102,7 @@
         <a href="./dm-portal.html" class="active">Cổng Quản Trò</a>
       </nav>
       <div class="home-header-actions">
-        <span style="font-size: 0.9rem; color: var(--color-gold);" id="dmHeaderName">Host Hoàng Nam (DM)</span>
+        <span style="font-size: 0.9rem; color: var(--color-gold);" id="dmHeaderName">Quản Trò (DM)</span>
         <a href="./auth.html" class="btn btn-outline" style="font-size: 0.85rem;">Đổi Tài Khoản</a>
       </div>
     </div>
@@ -63,7 +121,7 @@
     <div class="home-section-head">
       <span class="stamp-badge">QUẢN LÝ CA DẪN TRUYỆN</span>
       <h1 class="home-section-title" style="margin-top: 8px;">Danh Sách Ca Trực Được Phân Công</h1>
-      <p class="home-section-desc">Theo dõi lịch dẫn, chấp nhận/từ chối ca trực, check-in và điều phối phiên chơi</p>
+      <p class="home-section-desc">Theo dõi lịch dẫn, chấp nhận hoặc từ chối ca trực, kiểm tra thẻ HSSV tại quầy và điều phối phiên chơi</p>
     </div>
 
     <!-- Active Shifts Container -->
@@ -73,7 +131,7 @@
 
     <!-- Pending Proposals for DM Card -->
     <div class="ticket-card" style="margin-top: 24px; margin-bottom: 24px;">
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 10px;">
         <div>
           <h3>Đơn Đề Xuất Lịch Chơi Cần Quản Trò Thẩm Định & Nhận Ca</h3>
           <p style="font-size: 0.85rem; color: var(--text-muted); margin-top: 2px;">
@@ -88,21 +146,20 @@
       </div>
     </div>
 
-    <!-- Quick Clues & Script Info -->
+    <!-- Quick Clues & Script Info (Dynamic per active shift) -->
     <div class="ticket-card" style="margin-top: 24px;">
-      <h3 style="margin-bottom: 12px;">Tài Liệu Hỗ Trợ Quản Trò (DM Quick Reference)</h3>
-      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; font-size: 0.9rem;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 8px;">
+        <h3 style="margin: 0;">Tài Liệu Hỗ Trợ Quản Trò (DM Quick Reference)</h3>
+        <span id="refScenarioLabel" style="font-size: 0.85rem; color: var(--color-gold);">Đang tải cấu hình kịch bản...</span>
+      </div>
+      <div id="dmReferenceContainer" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; font-size: 0.9rem;">
         <div style="padding: 12px; background: rgba(13,12,11,0.5); border-radius: 4px; border: 1px solid rgba(201,162,94,0.3);">
           <strong style="color: var(--color-gold);">Đạo cụ chuẩn bị:</strong>
-          <p style="margin-top: 4px;">• Thư tống tiền trong ngăn kéo</p>
-          <p>• Dao găm cổ trên giá sách</p>
-          <p>• Chiếc nhẫn ngọc bích của gia chủ</p>
+          <p style="margin-top: 6px; color: var(--text-muted);">Chưa có ca trực nào đang hoạt động để nạp cấu hình đạo cụ.</p>
         </div>
         <div style="padding: 12px; background: rgba(13,12,11,0.5); border-radius: 4px; border: 1px solid rgba(201,162,94,0.3);">
           <strong style="color: var(--color-gold);">Âm thanh & Ánh sáng:</strong>
-          <p style="margin-top: 4px;">• Playlist: gothic_mystery_v1</p>
-          <p>• Ánh sáng: Vàng ấm 40%, đèn chùm phòng khách</p>
-          <p>• Hiệu ứng: Tiếng sấm chớp lúc mở đầu</p>
+          <p style="margin-top: 6px; color: var(--text-muted);">Thông số không gian và BGM sẽ tự động hiển thị theo kịch bản của ca trực.</p>
         </div>
       </div>
     </div>
@@ -110,12 +167,172 @@
 
   <script type="module">
     import { apiClient } from '../src/api/api-client.js';
+    import { escapeHtml } from '../src/utils/sanitize.js';
 
     const authNotice = document.getElementById('authNotice');
     const authNoticeText = document.getElementById('authNoticeText');
     const btnQuickDmLogin = document.getElementById('btnQuickDmLogin');
     const shiftsContainer = document.getElementById('shiftsContainer');
     const dmHeaderName = document.getElementById('dmHeaderName');
+    const dmReferenceContainer = document.getElementById('dmReferenceContainer');
+    const refScenarioLabel = document.getElementById('refScenarioLabel');
+
+    let timerIntervals = [];
+    const JUBENSHA_STAGES = [
+      { label: '1. Nhập vai & Đọc kịch bản', pct: 0.15 },
+      { label: '2. Vòng tìm manh mối 1', pct: 0.35 },
+      { label: '3. Thảo luận công khai 1', pct: 0.55 },
+      { label: '4. Vòng tìm manh mối 2', pct: 0.72 },
+      { label: '5. Suy luận & Bỏ phiếu hung thủ', pct: 0.88 },
+      { label: '6. Phục bàn (Tổng kết)', pct: 1.0 }
+    ];
+
+    function clearTimers() {
+      timerIntervals.forEach(id => clearInterval(id));
+      timerIntervals = [];
+    }
+
+    function parseSqlDate(str) {
+      if (!str) return null;
+      const iso = str.includes('T') ? str : str.replace(' ', 'T');
+      const d = new Date(iso);
+      return Number.isNaN(d.getTime()) ? null : d;
+    }
+
+    function formatClock(totalSeconds) {
+      const neg = totalSeconds < 0;
+      const abs = Math.abs(Math.floor(totalSeconds));
+      const h = String(Math.floor(abs / 3600)).padStart(2, '0');
+      const m = String(Math.floor((abs % 3600) / 60)).padStart(2, '0');
+      const s = String(abs % 60).padStart(2, '0');
+      return `${neg ? 'QUÁ GIỜ +' : ''}${h}:${m}:${s}`;
+    }
+
+    function renderQuickReference(assignment) {
+      if (!assignment) {
+        refScenarioLabel.textContent = 'Chưa có ca trực được chọn';
+        dmReferenceContainer.innerHTML = `
+          <div style="padding: 12px; background: rgba(13,12,11,0.5); border-radius: 4px; border: 1px solid rgba(201,162,94,0.3);">
+            <strong style="color: var(--color-gold);">Đạo cụ chuẩn bị:</strong>
+            <p style="margin-top: 6px; color: var(--text-muted);">Chưa có ca trực đang hoạt động. Khi nhận ca, hệ thống sẽ tự động nạp danh sách đạo cụ và cấu hình kịch bản tại đây.</p>
+          </div>
+          <div style="padding: 12px; background: rgba(13,12,11,0.5); border-radius: 4px; border: 1px solid rgba(201,162,94,0.3);">
+            <strong style="color: var(--color-gold);">Âm thanh & Ánh sáng:</strong>
+            <p style="margin-top: 6px; color: var(--text-muted);">Kiểm tra hệ thống loa, đèn phòng vật lý và bộ hồ sơ nhân vật trước giờ bắt đầu 15 phút.</p>
+          </div>
+        `;
+        return;
+      }
+
+      refScenarioLabel.textContent = `Kịch bản đang nạp: ${assignment.game_name || 'Kịch bản nhập vai'} (Phòng #${assignment.game_room_id})`;
+
+      let config = null;
+      if (assignment.game_configuration) {
+        try {
+          config = typeof assignment.game_configuration === 'string'
+            ? JSON.parse(assignment.game_configuration)
+            : assignment.game_configuration;
+        } catch (e) {
+          config = null;
+        }
+      }
+
+      const props = Array.isArray(config?.props) && config.props.length > 0
+        ? config.props
+        : ['Bộ hồ sơ nhân vật bản in', 'Phiếu manh mối theo vòng', 'Phiếu bỏ phiếu hung thủ'];
+
+      const bgm = config?.bgm_playlist || config?.bgm || 'Nhạc nền không gian theo chủ đề kịch bản';
+      const lighting = config?.lighting || 'Ánh sáng vàng ấm 40% - Chế độ nhập vai';
+      const setupNotes = config?.setup_notes || `Thời lượng dự kiến: ${assignment.duration_minutes || 240} phút. Chuẩn bị phòng trước 15 phút.`;
+
+      dmReferenceContainer.innerHTML = `
+        <div style="padding: 12px; background: rgba(13,12,11,0.5); border-radius: 4px; border: 1px solid rgba(201,162,94,0.3);">
+          <strong style="color: var(--color-gold);">Đạo cụ & Hồ sơ chuẩn bị:</strong>
+          <ul style="margin: 6px 0 0 18px; line-height: 1.6;">
+            ${props.map(p => `<li>${escapeHtml(String(p))}</li>`).join('')}
+          </ul>
+        </div>
+        <div style="padding: 12px; background: rgba(13,12,11,0.5); border-radius: 4px; border: 1px solid rgba(201,162,94,0.3);">
+          <strong style="color: var(--color-gold);">Âm thanh, Ánh sáng & Lưu ý điều phối:</strong>
+          <p style="margin-top: 6px;">Danh sách phát (BGM): <strong>${escapeHtml(String(bgm))}</strong></p>
+          <p style="margin-top: 4px;">Ánh sáng không gian: ${escapeHtml(String(lighting))}</p>
+          <p style="margin-top: 4px; color: var(--text-muted);">${escapeHtml(String(setupNotes))}</p>
+        </div>
+      `;
+    }
+
+    function startSessionTimer(timerElId, stageElId, startedAtStr, durationMinutes) {
+      const startedAt = parseSqlDate(startedAtStr) || new Date();
+      const totalSecs = (Number(durationMinutes) || 240) * 60;
+
+      const update = () => {
+        const timerEl = document.getElementById(timerElId);
+        const stageEl = document.getElementById(stageElId);
+        if (!timerEl) return;
+
+        const elapsed = Math.max(0, Math.floor((Date.now() - startedAt.getTime()) / 1000));
+        const remaining = totalSecs - elapsed;
+        timerEl.textContent = formatClock(remaining);
+        timerEl.style.color = remaining < 0 ? '#f87171' : (remaining < 1800 ? '#fbbf24' : 'var(--color-gold)');
+
+        if (stageEl) {
+          const progress = Math.min(1, elapsed / totalSecs);
+          let activeIdx = JUBENSHA_STAGES.findIndex(s => progress <= s.pct);
+          if (activeIdx === -1) activeIdx = JUBENSHA_STAGES.length - 1;
+
+          stageEl.innerHTML = JUBENSHA_STAGES.map((st, i) => {
+            const cls = i < activeIdx ? 'done' : (i === activeIdx ? 'active' : '');
+            return `<span class="stage-pill ${cls}">${escapeHtml(st.label)}</span>`;
+          }).join('');
+        }
+      };
+
+      update();
+      timerIntervals.push(setInterval(update, 1000));
+    }
+
+    async function loadRoomParticipantsForCheckin(roomId, containerId, sessId, isInProgress) {
+      const el = document.getElementById(containerId);
+      if (!el) return;
+      try {
+        const res = await apiClient.get(`/rooms/${roomId}`);
+        const roomData = res.data?.room || res.data || {};
+        const participants = roomData.participants || [];
+        if (participants.length === 0) {
+          el.innerHTML = '<p style="font-size: 0.85rem; color: var(--text-muted);">Chưa có thành viên tham gia phòng này.</p>';
+          return;
+        }
+
+        el.innerHTML = participants.map(p => {
+          const isVerified = Number(p.student_verified) === 1;
+          const uid = Number(p.user_id);
+          return `
+            <div class="checkin-row">
+              <div>
+                <strong style="font-size: 0.9rem;">${escapeHtml(p.full_name || 'Người chơi #' + uid)}</strong>
+                <div style="font-size: 0.78rem; color: var(--text-muted);">
+                  ID: #${uid} • Cọc: ${escapeHtml(p.status || 'ACTIVE')} • ${isVerified ? '<span style="color:#4ade80;">Đã xác minh HSSV</span>' : 'Chưa xác minh HSSV'}
+                </div>
+              </div>
+              <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+                ${!isVerified ? `
+                  <button type="button" class="btn btn-gold" style="font-size: 0.75rem; padding: 4px 8px;" onclick="verifyStudentAtCounter(${uid}, ${roomId}, '${containerId}', ${sessId}, ${isInProgress ? 'true' : 'false'})">
+                    Xác Minh HSSV
+                  </button>
+                ` : ''}
+                ${isInProgress ? `
+                  <button type="button" class="btn btn-outline" style="font-size: 0.75rem; padding: 4px 8px; border-color: #ef4444; color: #fca5a5;" onclick="reportSingleNoShow(${sessId}, ${uid})">
+                    Báo No-show
+                  </button>
+                ` : ''}
+              </div>
+            </div>
+          `;
+        }).join('');
+      } catch (err) {
+        el.innerHTML = `<p style="font-size: 0.85rem; color: #ef9a9a;">Không thể tải danh sách người chơi: ${escapeHtml(err.message || 'Lỗi kết nối')}</p>`;
+      }
+    }
 
     btnQuickDmLogin.addEventListener('click', async () => {
       try {
@@ -126,93 +343,181 @@
         localStorage.setItem('kbs_demo_role', 'dm');
         authNotice.style.display = 'none';
         dmHeaderName.textContent = 'Host Hoàng Nam (DM)';
-        loadDmAssignments();
+        await loadDmDashboard();
       } catch (err) {
-        alert(err.message || 'Không thể đăng nhập tài khoản DM');
+        alert('Lỗi đăng nhập DM: ' + (err.message || 'Không thể đăng nhập tài khoản DM'));
       }
     });
+
+    window.verifyStudentAtCounter = async function(userId, roomId, containerId, sessId, isInProgress) {
+      if (!confirm(`Xác nhận đã kiểm tra thẻ Học sinh - Sinh viên bản gốc tại quầy cho người chơi #${userId}?`)) {
+        return;
+      }
+      try {
+        const json = await apiClient.post(`/dm/users/${userId}/verify-student`, { student_verified: true });
+        alert(json.message || 'Đã xác minh thẻ HSSV thành công tại quầy!');
+        loadRoomParticipantsForCheckin(roomId, containerId, sessId, isInProgress);
+      } catch (err) {
+        alert('Lỗi xác minh thẻ HSSV: ' + (err.message || 'Không thể cập nhật'));
+      }
+    };
+
+    window.reportSingleNoShow = async function(sessId, userId) {
+      if (!confirm(`Xác nhận đánh dấu người chơi #${userId} vắng mặt (No-show) trong phiên chơi #${sessId}?`)) {
+        return;
+      }
+      try {
+        const json = await apiClient.post(`/dm/sessions/${sessId}/no-show`, { absent_user_ids: [Number(userId)] });
+        alert(json.message || 'Đã ghi nhận xử lý No-show thành công!');
+        loadDmDashboard();
+      } catch (err) {
+        alert('Lỗi xử lý No-show: ' + (err.message || 'Không thể cập nhật'));
+      }
+    };
 
     window.acceptShift = async function(assignmentId) {
       try {
         const json = await apiClient.post(`/dm/assignments/${assignmentId}/accept`);
         alert(json.message || 'Đã chấp nhận ca trực thành công!');
-        loadDmAssignments();
+        loadDmDashboard();
       } catch (err) {
-        alert(err.message || 'Đã chấp nhận ca trực!');
-        loadDmAssignments();
+        alert('Lỗi nhận ca trực: ' + (err.message || 'Không thể tiếp nhận ca'));
       }
     };
 
     window.rejectShift = async function(assignmentId) {
-      const reason = prompt('Vui lòng nhập lý do từ chối ca trực:', 'Trùng lịch bận đột xuất');
-      if (reason) {
-        try {
-          const json = await apiClient.post(`/dm/assignments/${assignmentId}/reject`, { reason });
-          alert(json.message || 'Đã từ chối ca trực thành công!');
-          loadDmAssignments();
-        } catch (err) {
-          alert(err.message || 'Đã từ chối ca trực!');
-          loadDmAssignments();
-        }
+      const reason = prompt('Vui lòng nhập lý do từ chối hoặc hủy ca trực:', 'Trùng lịch bận đột xuất');
+      if (reason === null) return;
+      try {
+        const json = await apiClient.post(`/dm/assignments/${assignmentId}/reject`, { reason: reason.trim() || 'DM từ chối ca trực' });
+        alert(json.message || 'Đã cập nhật từ chối ca trực thành công!');
+        loadDmDashboard();
+      } catch (err) {
+        alert('Lỗi từ chối ca trực: ' + (err.message || 'Không thể từ chối ca'));
       }
     };
 
     window.startSession = async function(sessionId) {
       try {
         const json = await apiClient.post(`/sessions/${sessionId}/start`);
-        alert(json.message || 'Đã bắt đầu phiên chơi! Đồng hồ tính giờ đã kích hoạt.');
-        loadDmAssignments();
+        alert(json.message || 'Đã bắt đầu phiên chơi! Đồng hồ đếm giờ 240 phút đã kích hoạt.');
+        loadDmDashboard();
       } catch (err) {
-        alert(err.message || 'Đã bắt đầu tính giờ buổi chơi!');
-        loadDmAssignments();
+        alert('Lỗi bắt đầu buổi chơi: ' + (err.message || 'Không thể kích hoạt phiên chơi'));
       }
     };
 
     window.completeSession = async function(sessionId) {
-      if (confirm('Bạn có chắc chắn muốn hoàn tất buổi chơi và gửi thông báo kết thúc đến các thành viên?')) {
-        try {
-          const json = await apiClient.post(`/sessions/${sessionId}/complete`);
-          alert(json.message || 'Buổi chơi đã hoàn tất thành công!');
-          loadDmAssignments();
-        } catch (err) {
-          alert(err.message || 'Buổi chơi đã hoàn tất!');
-          loadDmAssignments();
-        }
+      if (!confirm('Bạn có chắc chắn muốn hoàn tất buổi chơi và gửi thông báo kết thúc đến các thành viên?')) {
+        return;
+      }
+      try {
+        const json = await apiClient.post(`/sessions/${sessionId}/complete`);
+        alert(json.message || 'Buổi chơi đã hoàn tất thành công!');
+        loadDmDashboard();
+      } catch (err) {
+        alert('Lỗi hoàn tất buổi chơi: ' + (err.message || 'Không thể kết thúc phiên chơi'));
       }
     };
 
     window.saveSessionNotes = async function(sessionId, textareaId) {
       const textarea = document.getElementById(textareaId);
       const notes = textarea ? textarea.value.trim() : '';
+      if (!notes) {
+        alert('Vui lòng nhập nội dung ghi chú hiện trường trước khi lưu.');
+        return;
+      }
       try {
         const json = await apiClient.post(`/sessions/${sessionId}/notes`, { notes });
         alert(json.message || 'Đã lưu ghi chú hiện trường thành công!');
       } catch (err) {
-        alert('Đã lưu ghi chú hiện trường thành công!');
+        alert('Lỗi lưu ghi chú: ' + (err.message || 'Không thể lưu ghi chú hiện trường'));
       }
     };
 
-    window.createDemoShift = async function() {
+    window.approveProposalByDm = async function(propId) {
+      if (!confirm('Bạn có đồng ý nhận ca dẫn truyện và phê duyệt đề xuất lịch này không? Hệ thống sẽ gán bạn làm Quản trò chính của phiên chơi.')) {
+        return;
+      }
       try {
-        // Find latest active room
-        const rRes = await apiClient.get('/rooms');
-        const rooms = rRes.data?.rooms || [];
-        if (rooms.length > 0) {
-          const targetRoom = rooms[0];
-          await apiClient.post(`/admin/rooms/${targetRoom.id}/assign-dm`, { dm_user_id: 2, reason: 'Demo phân công ca trực' });
-          alert(`Đã phân công ca trực mẫu tại phòng #${targetRoom.id}!`);
-          loadDmAssignments();
-        } else {
-          alert('Chưa có phòng chơi nào trên hệ thống. Vui lòng tạo phòng trước!');
-        }
-      } catch (e) {
-        alert('Đã tạo phân công ca trực mẫu!');
-        loadDmAssignments();
+        const json = await apiClient.post(`/proposals/${propId}/approve`);
+        alert(json.message || 'Đã nhận ca và phê duyệt đề xuất lịch thành công!');
+        loadDmDashboard();
+      } catch (err) {
+        alert('Lỗi phê duyệt đề xuất: ' + (err.message || 'Không thể phê duyệt đề xuất'));
       }
     };
 
-    async function loadDmAssignments() {
-      // 1. Check Auth
+    window.rejectProposalByDm = async function(propId) {
+      const reason = prompt('Nhập lý do từ chối đơn đề xuất lịch:', 'Trùng lịch bận cá nhân');
+      if (reason === null) return;
+      try {
+        const json = await apiClient.post(`/proposals/${propId}/reject`, { reason });
+        alert(json.message || 'Đã từ chối đơn đề xuất lịch!');
+        loadDmDashboard();
+      } catch (err) {
+        alert('Lỗi từ chối đề xuất: ' + (err.message || 'Không thể từ chối đề xuất'));
+      }
+    };
+
+    window.settlePaymentAtCounter = async function(sessId) {
+      const extraFeeStr = prompt('Nhập phụ phí đền bù đạo cụ hoặc dịch vụ phát sinh (VNĐ, nhập 0 nếu không có):', '0');
+      if (extraFeeStr === null) return;
+      const extraFee = Number(extraFeeStr) || 0;
+      if (extraFee < 0) {
+        alert('Phụ phí không được nhỏ hơn 0.');
+        return;
+      }
+      let extraReason = '';
+      if (extraFee > 0) {
+        extraReason = prompt('Nhập lý do thu phụ phí:', 'Phụ phí đạo cụ phát sinh tại quầy') || '';
+      }
+
+      try {
+        const json = await apiClient.post(`/dm/sessions/${sessId}/settle`, {
+          extra_fee: extraFee,
+          extra_fee_reason: extraReason
+        });
+        alert(json.message || 'Đã xác nhận tất toán đủ tiền tại quầy thành công!');
+        loadDmDashboard();
+      } catch (err) {
+        alert('Lỗi tất toán quầy: ' + (err.message || 'Không thể xác nhận tất toán'));
+      }
+    };
+
+    window.triggerOvertimeAlert = async function(sessionId) {
+      const minutes = prompt('Nhập số phút dự kiến ca chơi sẽ kéo dài quá giờ (ví dụ: 30):', '30');
+      if (!minutes) return;
+      const reason = prompt('Lý do ca chơi bị kéo dài quá giờ:', 'Người chơi thảo luận suy luận vòng cuối');
+      try {
+        const json = await apiClient.post(`/dm/sessions/${sessionId}/overtime-alert`, {
+          estimated_minutes: Number(minutes) || 30,
+          reason: reason || ''
+        });
+        alert(json.message || 'Đã gửi cảnh báo trễ ca thành công tới Quản trị viên!');
+      } catch (err) {
+        alert('Lỗi gửi cảnh báo trễ ca: ' + (err.message || 'Không thể gửi cảnh báo'));
+      }
+    };
+
+    window.reportNoShow = async function(sessId) {
+      const input = prompt('Nhập ID của người chơi vắng mặt (nếu nhiều người, cách nhau bằng dấu phẩy, ví dụ: 3, 4):', '');
+      if (input === null || !input.trim()) return;
+      const ids = input.split(',').map(s => Number(s.trim())).filter(n => !Number.isNaN(n) && n > 0);
+      if (ids.length === 0) {
+        alert('ID người chơi không hợp lệ.');
+        return;
+      }
+      try {
+        const json = await apiClient.post(`/dm/sessions/${sessId}/no-show`, { absent_user_ids: ids });
+        alert(json.message || 'Đã xử lý sự cố No-show thành công!');
+        loadDmDashboard();
+      } catch (err) {
+        alert('Lỗi xử lý No-show: ' + (err.message || 'Không thể xử lý sự cố No-show'));
+      }
+    };
+
+    async function checkDmAuth() {
       try {
         const me = await apiClient.get('/auth/me');
         if (me.success && me.data && me.data.user) {
@@ -222,82 +527,97 @@
           if (role !== 'DM' && role !== 'ADMIN') {
             authNotice.style.display = 'flex';
             authNoticeText.textContent = `Bạn đang đăng nhập với tài khoản "${user.full_name}" (Vai trò: ${role}), không phải Quản trò (DM).`;
-          } else {
-            authNotice.style.display = 'none';
+            return false;
           }
-        } else {
-          authNotice.style.display = 'flex';
+          authNotice.style.display = 'none';
+          return true;
         }
+        authNotice.style.display = 'flex';
+        return false;
       } catch (err) {
         authNotice.style.display = 'flex';
+        return false;
       }
+    }
 
-      // 2. Fetch Assignments
+    async function loadDmAssignments() {
+      clearTimers();
       try {
         const res = await apiClient.get('/dm/assignments');
         const assignments = res.data?.assignments || [];
 
         if (assignments.length === 0) {
+          renderQuickReference(null);
           shiftsContainer.innerHTML = `
             <div class="ticket-card" style="text-align: center; padding: 40px 20px;">
               <h3 style="margin-bottom: 8px;">Hiện tại chưa có ca trực nào được phân công</h3>
-              <p style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 20px;">
-                Quản trị viên (Admin) sẽ chỉ định Quản trò cho các phòng đã gom đủ thành viên và chốt lịch.
+              <p style="color: var(--text-muted); font-size: 0.9rem;">
+                Quản trị viên (Admin) sẽ chỉ định Quản trò cho các phòng đã chốt lịch, hoặc bạn có thể nhận ca trực tiếp từ danh sách đơn đề xuất lịch bên dưới.
               </p>
-              <button type="button" class="btn btn-outline" onclick="createDemoShift()">
-                Nhận Ca Trực Thử Nghiệm Nhanh
-              </button>
             </div>
           `;
           return;
         }
 
-        shiftsContainer.innerHTML = assignments.map((a, idx) => {
+        const primaryShift = assignments.find(a => a.status === 'ACCEPTED' && a.session_status === 'IN_PROGRESS')
+          || assignments.find(a => a.status === 'ACCEPTED')
+          || assignments[0];
+        renderQuickReference(primaryShift);
+
+        shiftsContainer.innerHTML = assignments.map((a) => {
           const isPending = a.status === 'PENDING';
           const isAccepted = a.status === 'ACCEPTED';
           const isRejected = a.status === 'REJECTED';
-          const sessId = a.session_id || a.game_room_id;
+          const sessId = Number(a.session_id || a.game_room_id);
+          const roomId = Number(a.game_room_id);
           const sessStatus = a.session_status || a.room_status || 'SCHEDULED';
           const isInProgress = sessStatus === 'IN_PROGRESS';
           const isCompleted = sessStatus === 'COMPLETED';
+          const durationMinutes = Number(a.duration_minutes) || 240;
 
           let statusBadgeClass = 'open';
-          let statusText = a.status;
+          let statusText = a.status || 'UNKNOWN';
           if (isPending) {
             statusBadgeClass = 'hold';
             statusText = 'CHỜ PHẢN HỒI (PENDING)';
           } else if (isAccepted) {
-            statusBadgeClass = isInProgress ? 'open' : (isCompleted ? '' : 'open');
+            statusBadgeClass = isCompleted ? '' : 'open';
             statusText = isInProgress ? 'ĐANG DIỄN RA (IN_PROGRESS)' : (isCompleted ? 'HOÀN TẤT (COMPLETED)' : 'ĐÃ NHẬN CA (ACCEPTED)');
           } else if (isRejected) {
             statusBadgeClass = '';
             statusText = 'ĐÃ TỪ CHỐI (REJECTED)';
           }
 
+          const locationText = [a.venue_name, a.physical_room_name].filter(Boolean).join(' — ');
+          const timeText = a.start_at ? `${a.start_at}${a.end_at ? ' đến ' + a.end_at : ''}` : 'Chưa chốt giờ diễn ra';
+
           return `
             <div class="ticket-card" style="margin-bottom: 24px;">
               <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 16px;">
                 <div>
-                  <span class="stamp-badge ${statusBadgeClass}">${statusText}</span>
+                  <span class="stamp-badge ${statusBadgeClass}">${escapeHtml(statusText)}</span>
                   <h2 style="font-family: var(--font-serif); margin-top: 8px;">
-                    Phòng #${a.game_room_id} — ${a.room_title || 'Buổi Chơi Nhập Vai'}
+                    Phòng #${roomId} — ${escapeHtml(a.room_title || 'Buổi Chơi Nhập Vai')}
                   </h2>
                   <p style="color: var(--text-muted); font-size: 0.95rem;">
-                    Kịch bản: <strong>${a.game_name || 'Kịch bản trinh thám'}</strong> • Trạng thái phòng: ${a.room_status || 'ACTIVE'}
+                    Kịch bản: <strong>${escapeHtml(a.game_name || 'Kịch bản trinh thám')}</strong> (${durationMinutes} phút) • Trạng thái phòng: ${escapeHtml(a.room_status || 'ACTIVE')}
+                  </p>
+                  <p style="font-size: 0.85rem; margin-top: 4px; color: var(--color-gold);">
+                    Thời gian: ${escapeHtml(timeText)}${locationText ? ' • Địa điểm: ' + escapeHtml(locationText) : ''}
                   </p>
                   <p style="font-size: 0.85rem; margin-top: 4px;">
-                    Phân công cho: <strong>${a.dm_name || 'Host Hoàng Nam'}</strong> (Mã ca: #AS-${a.id})
+                    Phân công cho: <strong>${escapeHtml(a.dm_name || 'Quản trò')}</strong> (Mã ca: #AS-${Number(a.id)})
                   </p>
                 </div>
                 <div style="display: flex; gap: 8px; flex-wrap: wrap;">
                   ${isPending ? `
-                    <button type="button" class="btn btn-primary" onclick="acceptShift(${a.id})">Tiếp Nhận Ca</button>
-                    <button type="button" class="btn btn-outline" style="border-color: #992b2b; color: #ef9a9a;" onclick="rejectShift(${a.id})">Từ Chối Ca</button>
+                    <button type="button" class="btn btn-primary" onclick="acceptShift(${Number(a.id)})">Tiếp Nhận Ca</button>
+                    <button type="button" class="btn btn-outline" style="border-color: #992b2b; color: #ef9a9a;" onclick="rejectShift(${Number(a.id)})">Từ Chối Ca</button>
                   ` : ''}
 
                   ${isAccepted && !isInProgress && !isCompleted ? `
                     <button type="button" class="btn btn-primary" onclick="startSession(${sessId})">Bắt Đầu Buổi Chơi</button>
-                    <button type="button" class="btn btn-outline" style="border-color: #992b2b; color: #ef9a9a;" onclick="rejectShift(${a.id})">Hủy Nhận Ca</button>
+                    <button type="button" class="btn btn-outline" style="border-color: #992b2b; color: #ef9a9a;" onclick="rejectShift(${Number(a.id)})">Hủy Nhận Ca</button>
                   ` : ''}
 
                   ${isAccepted && isInProgress ? `
@@ -313,14 +633,34 @@
                 </div>
               </div>
 
+              ${isAccepted && isInProgress ? `
+                <div class="session-timer-box">
+                  <div>
+                    <div style="font-size: 0.8rem; color: var(--text-muted);">ĐỒNG HỒ ĐIỀU PHỐI PHIÊN CHƠI (${durationMinutes} PHÚT)</div>
+                    <div class="stage-track" id="stages_${Number(a.id)}"></div>
+                  </div>
+                  <div class="timer-clock" id="timer_${Number(a.id)}">--:--:--</div>
+                </div>
+              ` : ''}
+
+              ${isAccepted && !isCompleted ? `
+                <hr class="ticket-divider" />
+                <div style="margin-top: 12px;">
+                  <strong style="font-size: 0.9rem; color: var(--color-gold);">Danh Sách Check-in & Xác Minh Thẻ HSSV Tại Quầy:</strong>
+                  <div class="checkin-list" id="checkin_${Number(a.id)}">
+                    <p style="font-size: 0.85rem; color: var(--text-muted);">Đang tải danh sách thành viên...</p>
+                  </div>
+                </div>
+              ` : ''}
+
               ${isAccepted ? `
                 <hr class="ticket-divider" />
                 <div style="margin-top: 16px;">
-                  <label for="notes_${a.id}" style="display: block; font-weight: 600; font-size: 0.9rem; margin-bottom: 6px;">
+                  <label for="notes_${Number(a.id)}" style="display: block; font-weight: 600; font-size: 0.9rem; margin-bottom: 6px;">
                     Ghi Chú Kết Quả & Sự Cố Buổi Chơi (Session Notes):
                   </label>
-                  <textarea id="notes_${a.id}" class="form-control" rows="2" style="width: 100%; padding: 10px; background: var(--bg-surface); color: white; border-radius: 4px;" placeholder="Ví dụ: Đội chơi tìm ra hung thủ sau 3h30m, diễn xuất nhập vai tốt, đạo cụ nguyên vẹn..."></textarea>
-                  <button type="button" class="btn btn-outline" style="margin-top: 8px; font-size: 0.85rem;" onclick="saveSessionNotes(${sessId}, 'notes_${a.id}')">
+                  <textarea id="notes_${Number(a.id)}" class="form-control" rows="2" style="width: 100%; padding: 10px; background: var(--bg-surface); color: white; border-radius: 4px;" placeholder="Ví dụ: Đội chơi tìm ra hung thủ sau 3h30m, diễn xuất nhập vai tốt, đạo cụ nguyên vẹn..."></textarea>
+                  <button type="button" class="btn btn-outline" style="margin-top: 8px; font-size: 0.85rem;" onclick="saveSessionNotes(${sessId}, 'notes_${Number(a.id)}')">
                     Lưu Ghi Chú Hiện Trường
                   </button>
                 </div>
@@ -329,93 +669,32 @@
           `;
         }).join('');
 
+        // Activate live timers and check-in participant panels
+        assignments.forEach((a) => {
+          const isAccepted = a.status === 'ACCEPTED';
+          const sessStatus = a.session_status || a.room_status || 'SCHEDULED';
+          const isInProgress = sessStatus === 'IN_PROGRESS';
+          const isCompleted = sessStatus === 'COMPLETED';
+          const sessId = Number(a.session_id || a.game_room_id);
+          const roomId = Number(a.game_room_id);
+
+          if (isAccepted && isInProgress) {
+            startSessionTimer(`timer_${Number(a.id)}`, `stages_${Number(a.id)}`, a.started_at || a.start_at, a.duration_minutes);
+          }
+          if (isAccepted && !isCompleted) {
+            loadRoomParticipantsForCheckin(roomId, `checkin_${Number(a.id)}`, sessId, isInProgress);
+          }
+        });
       } catch (err) {
+        renderQuickReference(null);
         shiftsContainer.innerHTML = `
           <div class="ticket-card" style="text-align: center; padding: 30px;">
-            <p style="color: #ef9a9a;">Không thể kết nối danh sách ca trực. Vui lòng kiểm tra quyền đăng nhập DM.</p>
-            <button type="button" class="btn btn-outline" onclick="loadDmAssignments()" style="margin-top: 12px;">Thử Lại</button>
+            <p style="color: #ef9a9a;">Không thể tải danh sách ca trực: ${escapeHtml(err.message || 'Vui lòng đăng nhập tài khoản Quản trò (DM).')}</p>
+            <button type="button" class="btn btn-outline" onclick="loadDmDashboard()" style="margin-top: 12px;">Thử Lại</button>
           </div>
         `;
       }
     }
-
-    window.approveProposalByDm = async function(propId) {
-      if (!confirm('Bạn có đồng ý nhận ca dẫn truyện và phê duyệt đề xuất lịch này không? Hệ thống sẽ gán bạn làm Quản trò chính của phiên chơi.')) {
-        return;
-      }
-      try {
-        const json = await apiClient.post(`/proposals/${propId}/approve`);
-        alert(json.message || 'Đã nhận ca và phê duyệt đề xuất lịch thành công!');
-        loadDmDashboard();
-      } catch (err) {
-        alert(err.message || 'Không thể phê duyệt đề xuất');
-      }
-    };
-
-    window.rejectProposalByDm = async function(propId) {
-      const reason = prompt('Nhập lý do từ chối đơn đề xuất lịch:', 'Trùng lịch bận cá nhân');
-      if (reason === null) return;
-      try {
-        const json = await apiClient.post(`/proposals/${propId}/reject`, { reason });
-        alert(json.message || 'Đã từ chối đơn đề xuất lịch!');
-        loadDmDashboard();
-      } catch (err) {
-        alert(err.message || 'Không thể từ chối đề xuất');
-      }
-    };
-
-    window.settlePaymentAtCounter = async function(sessId) {
-      const extraFeeStr = prompt('Nhập phụ phí đền bù đạo cụ/trang phục hoặc dịch vụ phát sinh (VNĐ, nhập 0 nếu không có):', '0');
-      if (extraFeeStr === null) return;
-      const extraFee = Number(extraFeeStr) || 0;
-      let extraReason = '';
-      if (extraFee > 0) {
-        extraReason = prompt('Nhập lý do thu phụ phí (ví dụ: Đền bù rách trang phục kịch bản):', 'Phụ phí đạo cụ phát sinh tại quầy') || '';
-      }
-
-      try {
-        const json = await apiClient.post(`/dm/sessions/${sessId}/settle`, {
-          extra_fee: extraFee,
-          extra_fee_reason: extraReason
-        });
-        alert(json.message || 'Đã xác nhận tất toán đủ tiền tại quầy thành công!');
-        loadDmDashboard();
-      } catch (err) {
-        alert(err.message || 'Không thể xác nhận tất toán');
-      }
-    };
-
-    window.triggerOvertimeAlert = async function(sessionId) {
-      const minutes = prompt('Nhập số phút dự kiến ca chơi sẽ kéo dài quá giờ (ví dụ: 30):', '30');
-      if (!minutes) return;
-      const reason = prompt('Lý do ca chơi bị kéo dài quá giờ:', 'Người chơi tranh luận cao trào, đang thảo luận giải mật mã cuối');
-      try {
-        const json = await apiClient.post(`/dm/sessions/${sessionId}/overtime-alert`, {
-          estimated_minutes: Number(minutes) || 30,
-          reason: reason || ''
-        });
-        alert(json.message || 'Đã gửi cảnh báo trễ ca thành công tới Quản trị viên!');
-      } catch (err) {
-        alert(err.message || 'Không thể gửi cảnh báo trễ ca');
-      }
-    };
-
-    window.reportNoShow = async function(sessId) {
-      const input = prompt('Nhập ID của người chơi vắng mặt (nếu nhiều người, cách nhau bằng dấu phẩy, ví dụ: 3, 4):', '');
-      if (input === null || !input.trim()) return;
-      const ids = input.split(',').map(s => Number(s.trim())).filter(n => !isNaN(n) && n > 0);
-      if (ids.length === 0) {
-        alert('ID người chơi không hợp lệ');
-        return;
-      }
-      try {
-        const json = await apiClient.post(`/dm/sessions/${sessId}/no-show`, { absent_user_ids: ids });
-        alert(json.message || 'Đã xử lý sự cố No-show thành công!');
-        loadDmDashboard();
-      } catch (err) {
-        alert(err.message || 'Lỗi khi xử lý No-show');
-      }
-    };
 
     async function loadDmProposals() {
       const dmProposalsContainer = document.getElementById('dmProposalsContainer');
@@ -434,39 +713,54 @@
         }
 
         dmProposalsContainer.innerHTML = proposals.map(p => {
-          const time = `${p.proposed_start_at} - ${p.proposed_end_at ? p.proposed_end_at.split(' ')[1] : ''}`;
+          const time = `${p.proposed_start_at || ''} - ${p.proposed_end_at ? String(p.proposed_end_at).split(' ')[1] || p.proposed_end_at : ''}`;
           return `
             <div style="padding: 14px; border: 1px solid rgba(201,162,94,0.3); border-radius: 4px; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
               <div>
-                <strong>#PP-${p.id}: Phòng #${p.game_room_id} — ${p.room_title || 'Phòng Chơi'}</strong>
+                <strong>#PP-${Number(p.id)}: Phòng #${Number(p.game_room_id)} — ${escapeHtml(p.room_title || 'Phòng Chơi')}</strong>
                 <p style="font-size: 0.85rem; color: var(--text-muted); margin-top: 2px;">
-                  Kịch bản: <strong>${p.game_name || 'Kịch bản trinh thám'}</strong> • Người đề xuất: ${p.proposer_name || 'Thành viên'}
+                  Kịch bản: <strong>${escapeHtml(p.game_name || 'Kịch bản trinh thám')}</strong> • Người đề xuất: ${escapeHtml(p.proposer_name || 'Thành viên')}
                 </p>
                 <p style="font-size: 0.85rem; color: var(--color-gold); margin-top: 2px;">
-                  Thời gian: ${time}
+                  Thời gian: ${escapeHtml(time)}
                 </p>
               </div>
               <div style="display: flex; gap: 8px;">
-                <button type="button" class="btn btn-primary" style="font-size: 0.85rem;" onclick="approveProposalByDm(${p.id})">Nhận Ca & Duyệt Lịch</button>
-                <button type="button" class="btn btn-outline" style="font-size: 0.85rem;" onclick="rejectProposalByDm(${p.id})">Từ Chối</button>
+                <button type="button" class="btn btn-primary" style="font-size: 0.85rem;" onclick="approveProposalByDm(${Number(p.id)})">Nhận Ca & Duyệt Lịch</button>
+                <button type="button" class="btn btn-outline" style="font-size: 0.85rem;" onclick="rejectProposalByDm(${Number(p.id)})">Từ Chối</button>
               </div>
             </div>
           `;
         }).join('');
       } catch (e) {
         dmProposalsContainer.innerHTML = `
-          <div style="padding: 16px; text-align: center; color: var(--text-muted);">
-            Không thể tải danh sách đề xuất lịch.
+          <div style="padding: 16px; text-align: center; color: #ef9a9a;">
+            Không thể tải danh sách đề xuất lịch: ${escapeHtml(e.message || 'Yêu cầu quyền Quản trò (DM).')}
           </div>
         `;
       }
     }
 
-    async function loadDmDashboard() {
+    window.loadDmDashboard = async function loadDmDashboard() {
+      const hasAccess = await checkDmAuth();
+      if (!hasAccess) {
+        clearTimers();
+        renderQuickReference(null);
+        shiftsContainer.innerHTML = `
+          <div class="ticket-card" style="text-align: center; padding: 30px; color: var(--text-muted);">
+            Yêu cầu đăng nhập tài khoản Quản trò (DM) hoặc Quản trị viên để xem và điều phối ca trực.
+          </div>
+        `;
+        const dmProposalsContainer = document.getElementById('dmProposalsContainer');
+        if (dmProposalsContainer) {
+          dmProposalsContainer.innerHTML = '<div style="padding: 16px; text-align: center; color: var(--text-muted);">Yêu cầu đăng nhập quyền Quản trò (DM).</div>';
+        }
+        return;
+      }
       await Promise.all([loadDmAssignments(), loadDmProposals()]);
-    }
+    };
 
-    loadDmDashboard();
+    window.loadDmDashboard();
   </script>
 </body>
 </html>

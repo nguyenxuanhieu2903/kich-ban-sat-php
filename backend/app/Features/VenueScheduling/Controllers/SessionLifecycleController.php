@@ -261,9 +261,9 @@ class SessionLifecycleController
 
             $this->auditService->log((int) $auth['id'], 'COMPLETE_SESSION', 'session', (int) $session['id'], ['game_room_id' => (int) $session['game_room_id']]);
 
-            // Gửi thông báo hoàn tất phiên chơi tới người chơi
+            // Gửi thông báo hoàn tất phiên chơi tới người chơi đang hoạt động (không gửi cho người đã LEFT)
             $notiRepo = new \App\Features\Notification\Repositories\NotificationRepository($this->pdo);
-            $pStmt = $this->pdo->prepare('SELECT `user_id` FROM `room_participants` WHERE `game_room_id` = :rid');
+            $pStmt = $this->pdo->prepare('SELECT `user_id` FROM `room_participants` WHERE `game_room_id` = :rid AND `status` IN (\'PENDING_DEPOSIT\', \'DEPOSITED\', \'LEAVE_REQUESTED\')');
             $pStmt->bindValue(':rid', (int) $session['game_room_id'], PDO::PARAM_INT);
             $pStmt->execute();
             $playerIds = array_map('intval', $pStmt->fetchAll(PDO::FETCH_COLUMN));
@@ -405,9 +405,10 @@ class SessionLifecycleController
         $session = $stmt->fetch(PDO::FETCH_ASSOC);
 
         $roomId = $session ? (int) $session['game_room_id'] : $sessionId;
+        $actualSessionId = $session ? (int) $session['id'] : $sessionId;
 
-        // Lấy danh sách toàn bộ thành viên trong phòng
-        $pStmt = $this->pdo->prepare('SELECT rp.`user_id`, rp.`id` AS `participant_id`, p.`id` AS `payment_id`, p.`paid_amount` FROM `room_participants` rp LEFT JOIN `player_payments` p ON p.`room_participant_id` = rp.`id` WHERE rp.`game_room_id` = :rid');
+        // Lấy danh sách thành viên ĐANG HOẠT ĐỘNG trong phòng (không bao gồm người đã LEFT/CANCELLED)
+        $pStmt = $this->pdo->prepare('SELECT rp.`user_id`, rp.`id` AS `participant_id`, p.`id` AS `payment_id`, p.`paid_amount` FROM `room_participants` rp LEFT JOIN `player_payments` p ON p.`room_participant_id` = rp.`id` WHERE rp.`game_room_id` = :rid AND rp.`status` IN (\'PENDING_DEPOSIT\', \'DEPOSITED\', \'LEAVE_REQUESTED\')');
         $pStmt->bindValue(':rid', $roomId, PDO::PARAM_INT);
         $pStmt->execute();
         $allParticipants = $pStmt->fetchAll(PDO::FETCH_ASSOC);
@@ -424,13 +425,13 @@ class SessionLifecycleController
                 }
             }
 
-            $this->auditService->log((int) $auth['id'], 'NO_SHOW_SINGLE_PLAYER', 'session', $sessionId, [
+            $this->auditService->log((int) $auth['id'], 'NO_SHOW_SINGLE_PLAYER', 'session', $actualSessionId, [
                 'absent_user_id' => $absentUid,
                 'action' => 'DM_ACTS_AS_NPC',
             ]);
 
             return Response::success([
-                'session_id' => $sessionId,
+                'session_id' => $actualSessionId,
                 'absent_count' => 1,
                 'action' => 'NPC_SUBSTITUTE',
                 'session_status' => 'IN_PROGRESS',
@@ -439,7 +440,7 @@ class SessionLifecycleController
 
         // Cấp độ 2 & 3: Thiếu từ 2 người trở lên hoặc cả nhóm -> Buổi chơi Game Unplayable, hủy ca tại chỗ
         $this->pdo->prepare('UPDATE `sessions` SET `status` = \'CANCELLED\', `cancelled_at` = NOW(), `cancel_reason` = :r, `updated_at` = NOW() WHERE `id` = :id')
-            ->execute([':r' => 'CANCELLED_ON_SITE: Hủy ca tại chỗ do thiếu từ 2 người chơi trở lên (No-show)', ':id' => $sessionId]);
+            ->execute([':r' => 'CANCELLED_ON_SITE: Hủy ca tại chỗ do thiếu từ 2 người chơi trở lên (No-show)', ':id' => $actualSessionId]);
         $this->pdo->prepare('UPDATE `game_rooms` SET `status` = \'CANCELLED\', `cancelled_at` = NOW(), `cancel_reason` = :r, `updated_at` = NOW() WHERE `id` = :rid')
             ->execute([':r' => 'CANCELLED_ON_SITE: Hủy ca tại chỗ do thiếu từ 2 người chơi trở lên (No-show)', ':rid' => $roomId]);
 
@@ -510,8 +511,9 @@ class SessionLifecycleController
         $estimatedMinutes = max(10, min(180, (int) ($body['estimated_minutes'] ?? 30)));
         $reason = trim((string) ($body['reason'] ?? 'Người chơi tranh luận cao trào, dự kiến kéo dài thêm'));
 
-        $stmt = $this->pdo->prepare('SELECT `id`, `game_room_id`, `physical_room_id`, `venue_id`, `end_at` FROM `sessions` WHERE `id` = :id LIMIT 1');
+        $stmt = $this->pdo->prepare('SELECT `id`, `game_room_id`, `physical_room_id`, `venue_id`, `end_at` FROM `sessions` WHERE `id` = :id OR `game_room_id` = :rid ORDER BY `id` DESC LIMIT 1');
         $stmt->bindValue(':id', $sessionId, PDO::PARAM_INT);
+        $stmt->bindValue(':rid', $sessionId, PDO::PARAM_INT);
         $stmt->execute();
         $session = $stmt->fetch(PDO::FETCH_ASSOC);
 
@@ -519,7 +521,9 @@ class SessionLifecycleController
             return Response::fail('Không tìm thấy ca chơi', 'SESSION_NOT_FOUND', 404);
         }
 
-        $this->auditService->log((int) $auth['id'], 'SESSION_OVERTIME_ALERT', 'session', $sessionId, [
+        $actualSessionId = (int) $session['id'];
+
+        $this->auditService->log((int) $auth['id'], 'SESSION_OVERTIME_ALERT', 'session', $actualSessionId, [
             'estimated_minutes' => $estimatedMinutes,
             'reason' => $reason,
             'physical_room_id' => $session['physical_room_id'],
@@ -527,8 +531,26 @@ class SessionLifecycleController
             'original_end_at' => $session['end_at'],
         ]);
 
+        // Gửi thông báo cảnh báo trễ ca tới toàn bộ Admin
+        try {
+            $adminStmt = $this->pdo->query('SELECT u.`id` FROM `users` u INNER JOIN `roles` r ON r.`id` = u.`role_id` WHERE r.`code` = \'ADMIN\' AND u.`status` = \'ACTIVE\'');
+            $adminIds = $adminStmt ? array_map('intval', $adminStmt->fetchAll(PDO::FETCH_COLUMN)) : [];
+            if (!empty($adminIds)) {
+                $notiRepo = new \App\Features\Notification\Repositories\NotificationRepository($this->pdo);
+                $notiRepo->createNotification(
+                    'Cảnh báo ca chơi kéo dài quá giờ',
+                    "Ca chơi #{$actualSessionId} (Phòng #{$session['game_room_id']}) dự kiến kéo dài thêm {$estimatedMinutes} phút. Lý do: {$reason}.",
+                    'ADMIN',
+                    (int) $auth['id'],
+                    $adminIds
+                );
+            }
+        } catch (\Throwable) {
+            // Không chặn luồng chính
+        }
+
         return Response::success([
-            'session_id' => $sessionId,
+            'session_id' => $actualSessionId,
             'estimated_minutes' => $estimatedMinutes,
             'reason' => $reason,
             'alert_sent' => true,
@@ -575,7 +597,8 @@ class SessionLifecycleController
         $partStmt->bindValue(':rid', (int) $session['game_room_id'], PDO::PARAM_INT);
         $partStmt->bindValue(':uid', $userId, PDO::PARAM_INT);
         $partStmt->execute();
-        if ($partStmt->fetchColumn() === false && ($auth['role'] ?? '') !== 'ADMIN') {
+        $authRole = strtoupper((string) ($auth['role_code'] ?? $auth['role'] ?? ''));
+        if ($partStmt->fetchColumn() === false && $authRole !== 'ADMIN') {
             return Response::fail('Bạn không phải là người tham gia ca chơi này', 'FORBIDDEN', 403);
         }
 

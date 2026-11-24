@@ -32,12 +32,12 @@
       </a>
       <nav class="nav-links">
         <a href="../index.html">Trang chủ</a>
-        <a href="./scenarios.html" class="active">Kho 42 Kịch Bản</a>
+        <a href="./scenarios.html" class="active">Kho Kịch Bản</a>
         <a href="./lobby.html">Sảnh Ghép Phòng</a>
         <a href="./info.html">Bảng Giá & Nội Quy</a>
       </nav>
       <div class="home-header-actions">
-        <a href="./auth.html" class="btn btn-outline">Tài Khoản</a>
+        <a href="./auth.html" id="headerAccountLink" class="btn btn-outline">Tài Khoản</a>
       </div>
     </div>
   </header>
@@ -51,15 +51,15 @@
           <img id="detailPoster" src="https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=500&auto=format&fit=crop" style="width: 100%; height: 420px; object-fit: cover;" alt="Poster" />
           <div style="padding: 20px;">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-              <span class="stamp-badge" id="detailGenre">Kinh dị</span>
+              <span class="stamp-badge" id="detailGenre">Suy luận</span>
               <span id="detail18Plus" class="stamp-badge" style="display: none;">18+</span>
             </div>
-            <p><strong>Thời lượng:</strong> <span id="detailDuration">4 tiếng</span></p>
+            <p><strong>Thời lượng:</strong> <span id="detailDuration">240 phút</span></p>
             <p><strong>Số người chơi:</strong> <span id="detailPlayers">6 - 8 người</span></p>
             <p><strong>Tỷ lệ vai:</strong> <span id="detailGenderRatio">4 Nam - 2 Nữ (Hỗ trợ đóng chéo vai)</span></p>
             <p><strong>Độ khó:</strong> <span id="detailDifficulty">Trung bình</span></p>
             <hr class="ticket-divider" />
-            <p><strong>Giá niêm yết:</strong> <span id="detailPrice" style="color: var(--color-gold); font-size: 1.25rem; font-weight: 700;">220.000đ</span> / người</p>
+            <p><strong>Giá niêm yết từ:</strong> <span id="detailPrice" style="color: var(--color-gold); font-size: 1.25rem; font-weight: 700;">180.000đ</span> / người</p>
             <p style="font-size: 0.85rem; color: var(--text-muted); margin-top: 4px;">* Cọc cố định 50.000đ khi chốt phòng</p>
             <a id="createRoomBtn" href="./create-room.html" class="btn btn-primary" style="display: block; text-align: center; margin-top: 20px;">Tạo Phòng Với Kịch Bản Này</a>
           </div>
@@ -68,7 +68,7 @@
 
       <div>
         <h1 id="detailTitle" style="font-family: var(--font-serif); font-size: 2.2rem; color: var(--color-gold); margin-bottom: 12px;">Đang tải...</h1>
-        <div style="display: flex; gap: 12px; margin-bottom: 24px;">
+        <div style="display: flex; gap: 12px; margin-bottom: 24px; flex-wrap: wrap;">
           <span class="stamp-badge open">HỒ SƠ KHẢ DỤNG</span>
           <span class="stamp-badge">CHI NHÁNH QUẬN 1 & BÌNH THẠNH</span>
         </div>
@@ -76,6 +76,11 @@
         <div class="ticket-card" style="margin-bottom: 24px;">
           <h3 style="margin-bottom: 12px;">Tóm Tắt Cốt Truyện Vụ Án</h3>
           <p id="detailSummary" style="line-height: 1.8; font-size: 1.05rem;">Đang tải nội dung cốt truyện...</p>
+          <div id="detailPropsBox" style="margin-top: 16px; display: none;">
+            <hr class="ticket-divider" />
+            <strong style="color: var(--color-gold);">Đạo cụ & Manh mối đặc trưng:</strong>
+            <p id="detailPropsList" style="font-size: 0.92rem; color: var(--text-muted); margin-top: 6px;"></p>
+          </div>
         </div>
 
         <div class="ticket-card" style="margin-bottom: 24px;">
@@ -88,22 +93,8 @@
                 <th style="padding: 8px 0;">Áp Dụng Ưu Đãi</th>
               </tr>
             </thead>
-            <tbody>
-              <tr>
-                <td style="padding: 10px 0;">Ca Ban Ngày (09:00 - 13:00)</td>
-                <td style="padding: 10px 0; font-weight: 600;">180.000đ</td>
-                <td style="padding: 10px 0; color: #2e7d32;">Thứ 3: 126.000đ / HSSV: 160.000đ</td>
-              </tr>
-              <tr>
-                <td style="padding: 10px 0;">Ca Chiều (13:00 - 18:00)</td>
-                <td style="padding: 10px 0; font-weight: 600;">220.000đ</td>
-                <td style="padding: 10px 0; color: #2e7d32;">Thứ 3: 154.000đ / HSSV: 200.000đ</td>
-              </tr>
-              <tr>
-                <td style="padding: 10px 0;">Ca Tối / Cao Điểm (18:00 - 23:00)</td>
-                <td style="padding: 10px 0; font-weight: 600;">250.000đ</td>
-                <td style="padding: 10px 0; color: #2e7d32;">Thứ 3: 175.000đ</td>
-              </tr>
+            <tbody id="detailPricesBody">
+              <tr><td colspan="3" style="padding: 12px 0; color: var(--text-muted);">Đang tải bảng giá theo khung giờ...</td></tr>
             </tbody>
           </table>
         </div>
@@ -114,53 +105,117 @@
   <script type="module">
     import { apiClient } from '../src/api/api-client.js';
     import { SCENARIOS } from '../src/data/scripts.data.js';
+    import { escapeHtml, sanitizeUrl } from '../src/utils/sanitize.js';
 
     const urlParams = new URLSearchParams(window.location.search);
-    const id = urlParams.get('id') || 'kb-01';
+    const id = urlParams.get('id') || '1';
 
-    let item = SCENARIOS.find(s => s.id === id);
-    if (!item && !isNaN(Number(id))) {
-      // Fetch from API
-      apiClient.get('/games')
-        .then(res => {
-          if (res.success && res.data.games) {
-            const found = res.data.games.find(g => String(g.id) === String(id));
-            if (found) {
-              applyGame({
-                id: found.id,
-                title: found.name,
-                genre: 'Suy luận phá án',
-                difficulty: 'Trung bình',
-                duration: `${found.duration_minutes} phút`,
-                players: { total: `${found.min_players} - ${found.max_players}` },
-                price: found.min_price || 220000,
-                is18Plus: false,
-                summary: found.description
-              });
-            }
-          }
-        });
-    }
-
-    if (item) {
-      applyGame(item);
+    function renderPricesTable(prices) {
+      const tbody = document.getElementById('detailPricesBody');
+      if (!tbody) return;
+      if (!Array.isArray(prices) || prices.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="3" style="padding: 10px 0;">Chưa cấu hình khung giá chi tiết.</td></tr>';
+        return;
+      }
+      tbody.innerHTML = prices.map(p => {
+        const price = Number(p.price_per_person || 220000);
+        const tuePrice = Math.round(price * 0.7);
+        const hssvPrice = Math.max(0, price - 20000);
+        const start = String(p.start_time || '').slice(0, 5);
+        const end = String(p.end_time || '').slice(0, 5);
+        const canHssv = start < '19:00';
+        return `
+          <tr>
+            <td style="padding: 10px 0;">Khung giờ ${escapeHtml(start)} - ${escapeHtml(end)}</td>
+            <td style="padding: 10px 0; font-weight: 600;">${price.toLocaleString('vi-VN')}đ</td>
+            <td style="padding: 10px 0; color: #2e7d32;">Thứ 3: ${tuePrice.toLocaleString('vi-VN')}đ${canHssv ? ' / HSSV: ' + hssvPrice.toLocaleString('vi-VN') + 'đ' : ''}</td>
+          </tr>
+        `;
+      }).join('');
     }
 
     function applyGame(data) {
-      document.getElementById('detailTitle').textContent = data.title;
-      document.getElementById('detailGenre').textContent = data.genre;
-      document.getElementById('detailDuration').textContent = data.duration;
-      document.getElementById('detailPlayers').textContent = `${data.players?.total || '6 - 8'} người chơi`;
+      document.getElementById('detailTitle').textContent = data.title || 'Kịch bản sát';
+      document.getElementById('detailGenre').textContent = data.genre || 'Suy luận phá án';
+      document.getElementById('detailDuration').textContent = data.duration || '240 phút';
+      document.getElementById('detailPlayers').textContent = `${data.min_players || 6} - ${data.max_players || 8} người chơi`;
       const minP = Number(data.min_players || 6);
-      document.getElementById('detailGenderRatio').textContent = minP >= 8 ? '5 Nam - 3 Nữ (Hỗ trợ đóng chéo vai)' : '4 Nam - 2 Nữ (Hỗ trợ đóng chéo vai)';
+      const male = Math.ceil(minP / 2);
+      const female = Math.max(1, minP - male);
+      document.getElementById('detailGenderRatio').textContent = `${male} Nam - ${female} Nữ (Hỗ trợ đóng chéo vai)`;
       document.getElementById('detailDifficulty').textContent = data.difficulty || 'Trung bình';
-      document.getElementById('detailPrice').textContent = (data.price || 220000).toLocaleString('vi-VN') + 'đ';
-      document.getElementById('detailSummary').textContent = data.summary;
+      document.getElementById('detailPrice').textContent = Number(data.price || 220000).toLocaleString('vi-VN') + 'đ';
+      document.getElementById('detailSummary').textContent = data.summary || '';
+      if (data.image_url) {
+        document.getElementById('detailPoster').src = data.image_url;
+      }
       if (data.is18Plus) {
         document.getElementById('detail18Plus').style.display = 'inline-block';
       }
-      document.getElementById('createRoomBtn').href = `./create-room.html?game_id=${data.id}`;
+      if (Array.isArray(data.props) && data.props.length > 0) {
+        document.getElementById('detailPropsBox').style.display = 'block';
+        document.getElementById('detailPropsList').textContent = data.props.join(' • ');
+      }
+      document.getElementById('createRoomBtn').href = `./create-room.html?game_id=${encodeURIComponent(data.id)}`;
+      if (data.prices) {
+        renderPricesTable(data.prices);
+      }
     }
+
+    async function loadScenarioDetail() {
+      try {
+        const res = await apiClient.get(`/games/${encodeURIComponent(id)}`);
+        if (res.success && res.data?.game) {
+          const g = res.data.game;
+          const name = String(g.name || '');
+          const desc = String(g.description || '');
+          const text = (name + ' ' + desc).toLowerCase();
+          const is18Plus = name.includes('18+') || text.includes('đẫm máu') || text.includes('hiến tế');
+          const minPrice = Array.isArray(g.prices) && g.prices.length > 0
+            ? Math.min(...g.prices.map(p => Number(p.price_per_person || 220000)))
+            : Number(g.min_price || 220000);
+          applyGame({
+            id: g.id,
+            title: name,
+            genre: is18Plus ? 'Kinh dị tâm linh' : 'Suy luận phá án',
+            difficulty: is18Plus ? 'Khó' : 'Trung bình',
+            duration: `${Number(g.duration_minutes || 240)} phút`,
+            min_players: Number(g.min_players || 6),
+            max_players: Number(g.max_players || 8),
+            price: minPrice,
+            is18Plus,
+            image_url: sanitizeUrl(g.image_url),
+            summary: desc,
+            props: g.configuration?.props || [],
+            prices: g.prices || []
+          });
+          return;
+        }
+      } catch {}
+
+      const fallback = SCENARIOS.find(s => String(s.id) === String(id)) || SCENARIOS[0];
+      if (fallback) {
+        applyGame({
+          id: 1,
+          title: fallback.title,
+          genre: fallback.genre,
+          difficulty: fallback.difficulty,
+          duration: fallback.duration,
+          min_players: fallback.players?.total || 6,
+          max_players: fallback.players?.total || 8,
+          price: fallback.price,
+          is18Plus: fallback.is18Plus,
+          summary: fallback.summary,
+          prices: [
+            { start_time: '09:00:00', end_time: '13:00:00', price_per_person: 180000 },
+            { start_time: '13:00:00', end_time: '18:00:00', price_per_person: 220000 },
+            { start_time: '18:00:00', end_time: '23:00:00', price_per_person: 250000 }
+          ]
+        });
+      }
+    }
+
+    loadScenarioDetail();
   </script>
 </body>
 </html>

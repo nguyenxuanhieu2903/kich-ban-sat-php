@@ -119,12 +119,14 @@ class PaymentRefundRequestController
         }
 
         $body = $request->getBodyParams();
-        $roomId = (int) ($body['room_id'] ?? 0);
+        $roomId = (int) ($body['room_id'] ?? $body['game_room_id'] ?? 0);
 
         if ($roomId > 0) {
             $stmt = $this->pdo->prepare('SELECT p.`id` FROM `player_payments` p
                 INNER JOIN `room_participants` rp ON rp.`id` = p.`room_participant_id`
                 WHERE rp.`game_room_id` = :room_id AND rp.`user_id` = :user_id
+                  AND rp.`status` IN (\'PENDING_DEPOSIT\', \'DEPOSITED\', \'LEAVE_REQUESTED\')
+                  AND p.`paid_amount` > 0
                 ORDER BY p.`id` DESC LIMIT 1');
             $stmt->bindValue(':room_id', $roomId, PDO::PARAM_INT);
             $stmt->bindValue(':user_id', (int) $auth['id'], PDO::PARAM_INT);
@@ -136,9 +138,10 @@ class PaymentRefundRequestController
             }
         }
 
-        return Response::success([
-            'room_id' => $roomId,
-            'status' => 'PENDING',
-        ], 'Yêu cầu hoàn tiền đã được xử lý theo quy tắc 24 giờ!');
+        return Response::fail(
+            'Không tìm thấy khoản tiền cọc đã thanh toán cho phòng chơi này để thực hiện hoàn tiền',
+            'NO_PAID_AMOUNT',
+            400
+        );
     }
 }

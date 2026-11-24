@@ -24,7 +24,7 @@
       text-align: center;
       margin-bottom: 20px;
       font-family: var(--font-mono);
-      font-size: 1.1rem;
+      font-size: 1.05rem;
     }
     .qr-container {
       text-align: center;
@@ -60,7 +60,7 @@
       </a>
       <nav class="nav-links">
         <a href="../index.html">Trang chủ</a>
-        <a href="./scenarios.html">Kho 42 Kịch Bản</a>
+        <a href="./scenarios.html">Kho Kịch Bản</a>
         <a href="./lobby.html">Sảnh Ghép Phòng</a>
         <a href="./info.html">Bảng Giá & Nội Quy</a>
       </nav>
@@ -73,42 +73,42 @@
   <main class="container ticket-wrapper">
     <div class="ticket-card">
       <div style="text-align: center; margin-bottom: 16px;">
-        <span class="stamp-badge">PHIẾU XÁC NHẬN GIỮ CHỖ V16</span>
+        <span class="stamp-badge" id="depositTypeBadge">PHIẾU XÁC NHẬN GIỮ CHỖ V16</span>
         <h2 style="font-family: var(--font-serif); margin-top: 8px;">Vé Đặt Cọc Buổi Chơi</h2>
-        <p style="font-size: 0.85rem; color: var(--text-muted);">Mã đặt phòng: <strong id="ticketCode">KBS-RM01-9824</strong></p>
+        <p style="font-size: 0.85rem; color: var(--text-muted);">Mã đặt phòng: <strong id="ticketCode">KBS-RM01</strong></p>
       </div>
 
       <div class="countdown-box" id="countdownBox">
-        Thời gian giữ chỗ còn lại: <strong id="timerText">03:59:45</strong>
+        Thời gian giữ chỗ còn lại: <strong id="timerText">03:59:59</strong>
       </div>
 
       <table class="payment-info-table">
         <tr>
           <td>Kịch bản:</td>
-          <td><strong id="ticketGameName">Đêm Đoạt Mệnh Tại Trang Viên</strong></td>
+          <td><strong id="ticketGameName">Đang tải...</strong></td>
         </tr>
         <tr>
           <td>Phòng chơi:</td>
-          <td><strong id="ticketRoomTitle">Phòng #1</strong></td>
+          <td><strong id="ticketRoomTitle">Đang tải...</strong></td>
         </tr>
         <tr>
           <td>Địa điểm:</td>
-          <td>Kịch Bản Sát Station - Chi nhánh 123 Nguyễn Huệ, Quận 1</td>
+          <td id="ticketVenue">Chi nhánh Quận 1</td>
         </tr>
         <tr>
           <td>Số tiền đặt cọc:</td>
-          <td><strong style="color: #992b2b; font-size: 1.15rem;">50.000 VNĐ</strong> / người</td>
+          <td id="ticketDepositAmount"><strong style="color: #992b2b; font-size: 1.15rem;">50.000 VNĐ</strong> / người</td>
         </tr>
         <tr>
-          <td>Phần còn lại thanh toán tại quán:</td>
-          <td>170.000 VNĐ (khi check-in)</td>
+          <td>Phần còn lại dự kiến tại quán:</td>
+          <td id="ticketRemainingAmount">Thanh toán khi check-in</td>
         </tr>
       </table>
 
       <!-- Dynamic VietQR Code -->
       <div class="qr-container">
-        <img id="vietQrImg" src="https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=2|99|0901000001|KBS%20COC%20PHONG%201|0|0|50000|KBS%20STATION" alt="Mã VietQR Thanh Toán" />
-        <p style="color: #1a1816; font-size: 0.8rem; margin-top: 8px; font-weight: 600;">Quét mã VietQR để thanh toán nhanh 50.000đ</p>
+        <img id="vietQrImg" src="" alt="Mã VietQR Thanh Toán" />
+        <p id="qrCaption" style="color: #1a1816; font-size: 0.82rem; margin-top: 8px; font-weight: 600;">Quét mã VietQR để thanh toán tiền cọc</p>
       </div>
 
       <hr class="ticket-divider" />
@@ -119,7 +119,7 @@
 
       <div style="display: flex; gap: 12px;">
         <button type="button" class="btn btn-primary" id="btnConfirmDepositPaid" style="flex: 1;">Xác Nhận Đã Chuyển Khoản</button>
-        <a href="./lobby.html" class="btn btn-outline" style="flex: 1; text-align: center;">Trở Về Sảnh</a>
+        <a id="btnBackRoom" href="./lobby.html" class="btn btn-outline" style="flex: 1; text-align: center;">Quay Về Phòng</a>
       </div>
     </div>
   </main>
@@ -131,15 +131,27 @@
     const roomId = urlParams.get('room_id') || '1';
 
     document.getElementById('ticketCode').textContent = `KBS-RM${roomId}-${Date.now().toString().slice(-4)}`;
-    document.getElementById('vietQrImg').src = `https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=2|99|0901000001|KBS%20COC%20PHONG%20${roomId}|0|0|50000|KBS%20STATION`;
+    document.getElementById('btnBackRoom').href = `./room-detail.html?id=${encodeURIComponent(roomId)}`;
 
-    // 4 hours countdown timer simulation
-    let secondsLeft = 4 * 3600 - 15;
+    let depositAmount = 50000;
+    let isLumpSum = false;
+    let secondsLeft = 4 * 3600;
+
     const timerText = document.getElementById('timerText');
     const btnConfirm = document.getElementById('btnConfirmDepositPaid');
 
+    function updateQr(amount) {
+      const memo = `KBS COC PHONG ${roomId}`;
+      document.getElementById('vietQrImg').src = `https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(`2|99|0901000001|${memo}|0|0|${amount}|KBS STATION`)}`;
+      document.getElementById('qrCaption').textContent = `Quét mã VietQR để thanh toán ${amount.toLocaleString('vi-VN')} VNĐ`;
+    }
+    updateQr(depositAmount);
+
     setInterval(() => {
-      if (secondsLeft <= 0) return;
+      if (secondsLeft <= 0) {
+        timerText.textContent = '00:00:00';
+        return;
+      }
       secondsLeft--;
       const h = String(Math.floor(secondsLeft / 3600)).padStart(2, '0');
       const m = String(Math.floor((secondsLeft % 3600) / 60)).padStart(2, '0');
@@ -147,23 +159,75 @@
       timerText.textContent = `${h}:${m}:${s}`;
     }, 1000);
 
-    // Fetch dynamic room info
-    apiClient.get(`/rooms/${roomId}`)
-      .then(json => {
-        if (json.success && json.data && json.data.room) {
-          const r = json.data.room;
-          document.getElementById('ticketGameName').textContent = r.game?.name || 'Đêm Đoạt Mệnh Tại Trang Viên';
-          document.getElementById('ticketRoomTitle').textContent = `Phòng #${r.id} — ${r.title || ''}`;
+    async function initTicket() {
+      let currentUserId = null;
+      try {
+        const me = await apiClient.get('/auth/me');
+        if (me.success && me.data?.user) {
+          currentUserId = Number(me.data.user.id);
         }
-      })
-      .catch(() => {});
+      } catch {}
+
+      try {
+        const json = await apiClient.get(`/rooms/${roomId}`);
+        if (json.success && json.data?.room) {
+          const r = json.data.room;
+          document.getElementById('ticketGameName').textContent = r.game?.name || 'Kịch bản sát';
+          document.getElementById('ticketRoomTitle').textContent = `Phòng #${r.id} — ${r.title || ''}`;
+
+          const venueText = r.session?.venue_name
+            ? `${r.session.venue_name}${r.session.physical_room_name ? ' • ' + r.session.physical_room_name : ''}`
+            : (r.target_venue_name || 'Kịch Bản Sát Station - Chi nhánh Quận 1');
+          document.getElementById('ticketVenue').textContent = venueText;
+
+          const isHost = currentUserId !== null && Number(r.creator_id) === currentUserId;
+          const isPrivate = r.booking_type === 'PRIVATE';
+
+          if (isHost && isPrivate) {
+            const totalP = Number(r.total_players || r.min_players || 6);
+            const guestS = Number(r.guest_slots || 0);
+            const privCount = Math.max(1, totalP - guestS);
+            depositAmount = privCount * 50000;
+            isLumpSum = true;
+            document.getElementById('depositTypeBadge').textContent = 'CỌC TRỌN GÓI NHÓM RIÊNG';
+            document.getElementById('ticketDepositAmount').innerHTML = `<strong style="color: #992b2b; font-size: 1.15rem;">${depositAmount.toLocaleString('vi-VN')} VNĐ</strong> (${privCount} người x 50.000đ)`;
+          } else {
+            depositAmount = 50000;
+            isLumpSum = false;
+            document.getElementById('ticketDepositAmount').innerHTML = `<strong style="color: #992b2b; font-size: 1.15rem;">50.000 VNĐ</strong> / người`;
+          }
+          updateQr(depositAmount);
+
+          // Tính thời gian đếm ngược thực tế nếu có deposit_deadline_at
+          const myPart = (r.participants || []).find(p => Number(p.user_id) === currentUserId);
+          if (myPart?.deposit_deadline_at) {
+            const diff = Math.floor((new Date(myPart.deposit_deadline_at.replace(' ', 'T')).getTime() - Date.now()) / 1000);
+            if (diff > 0) secondsLeft = diff;
+          }
+          if (myPart?.status === 'DEPOSITED') {
+            btnConfirm.disabled = true;
+            btnConfirm.textContent = 'Bạn Đã Hoàn Tất Đặt Cọc';
+          }
+
+          // Hiển thị số còn lại dự kiến
+          const unitPrice = Number(r.game?.min_price || 220000);
+          const remPerPerson = Math.max(0, unitPrice - 50000);
+          document.getElementById('ticketRemainingAmount').textContent = `Từ ${remPerPerson.toLocaleString('vi-VN')} VNĐ / người (khi check-in)`;
+        }
+      } catch {}
+    }
 
     btnConfirm.addEventListener('click', async () => {
       btnConfirm.disabled = true;
       btnConfirm.textContent = 'Đang ghi nhận...';
 
       try {
-        const json = await apiClient.post('/payments/deposit', { room_id: Number(roomId), amount: 50000 });
+        const payload = {
+          room_id: Number(roomId),
+          amount: depositAmount,
+          is_lump_sum: isLumpSum
+        };
+        const json = await apiClient.post('/payments/deposit', payload);
         alert(json.message || 'Thanh toán tiền cọc thành công! Chỗ chơi của bạn đã được giữ an toàn.');
         window.location.href = `./room-detail.html?id=${roomId}`;
       } catch (e) {
@@ -177,6 +241,8 @@
         btnConfirm.textContent = 'Xác Nhận Đã Chuyển Khoản';
       }
     });
+
+    initTicket();
   </script>
 </body>
 </html>

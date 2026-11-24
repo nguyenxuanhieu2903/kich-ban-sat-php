@@ -43,9 +43,9 @@ class AdminReportController
             'remaining_collected' => 0,
         ];
 
-        // 2. Tổng tiền hoàn đã duyệt
+        // 2. Tổng tiền hoàn đã duyệt hoặc đã chi trả hoàn tất
         $refStmt = $this->pdo->query(
-            "SELECT COALESCE(SUM(amount), 0) AS total_refunded FROM refunds WHERE status = 'APPROVED'"
+            "SELECT COALESCE(SUM(amount), 0) AS total_refunded FROM refunds WHERE status IN ('APPROVED', 'COMPLETED')"
         );
         $totalRefunded = (int) ($refStmt->fetchColumn() ?: 0);
 

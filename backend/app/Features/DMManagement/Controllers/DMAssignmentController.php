@@ -150,8 +150,19 @@ class DMAssignmentController
             return Response::fail('Bạn không có quyền từ chối ca làm việc của người khác', 'FORBIDDEN', 403);
         }
 
-        if ($assignment['status'] !== 'PENDING') {
+        if (!in_array($assignment['status'], ['PENDING', 'ACCEPTED'], true)) {
             return Response::fail('Ca làm việc này đã được xử lý trước đó (Trạng thái: ' . $assignment['status'] . ')', 'INVALID_STATUS', 400);
+        }
+
+        // Nếu ca đã ACCEPTED, kiểm tra xem phiên chơi đã diễn ra hoặc kết thúc chưa
+        if ($assignment['status'] === 'ACCEPTED') {
+            $sessCheck = $this->pdo->prepare('SELECT `status` FROM `sessions` WHERE `game_room_id` = :rid ORDER BY `id` DESC LIMIT 1');
+            $sessCheck->bindValue(':rid', (int) $assignment['game_room_id'], PDO::PARAM_INT);
+            $sessCheck->execute();
+            $sessStatus = $sessCheck->fetchColumn();
+            if (in_array($sessStatus, ['IN_PROGRESS', 'COMPLETED'], true)) {
+                return Response::fail('Không thể hủy nhận ca khi buổi chơi đang diễn ra hoặc đã hoàn tất', 'SESSION_ALREADY_STARTED', 409);
+            }
         }
 
         $body = $request->getBodyParams();

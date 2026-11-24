@@ -369,6 +369,26 @@ class PaymentRepository extends BaseRepository
                 $partUp->bindValue(':part_id', $partId, PDO::PARAM_INT);
                 $partUp->execute();
 
+                // 6. Tự động chuyển phòng từ SCHEDULED -> CONFIRMED nếu 100% thành viên active đã nộp cọc
+                $roomLookup = $this->pdo->prepare('SELECT `game_room_id` FROM `room_participants` WHERE `id` = :part_id LIMIT 1');
+                $roomLookup->bindValue(':part_id', $partId, PDO::PARAM_INT);
+                $roomLookup->execute();
+                $targetRoomId = $roomLookup->fetchColumn();
+                if ($targetRoomId !== false) {
+                    $pendingCntStmt = $this->pdo->prepare(
+                        'SELECT COUNT(*) FROM `room_participants` WHERE `game_room_id` = :rid AND `status` = \'PENDING_DEPOSIT\''
+                    );
+                    $pendingCntStmt->bindValue(':rid', (int) $targetRoomId, PDO::PARAM_INT);
+                    $pendingCntStmt->execute();
+                    if ((int) $pendingCntStmt->fetchColumn() === 0) {
+                        $promoteRoom = $this->pdo->prepare(
+                            'UPDATE `game_rooms` SET `status` = \'CONFIRMED\', `updated_at` = NOW() WHERE `id` = :rid AND `status` = \'SCHEDULED\''
+                        );
+                        $promoteRoom->bindValue(':rid', (int) $targetRoomId, PDO::PARAM_INT);
+                        $promoteRoom->execute();
+                    }
+                }
+
                 $this->pdo->commit();
 
                 $updatedPayment = $this->findPaymentWithDetails($paymentId);

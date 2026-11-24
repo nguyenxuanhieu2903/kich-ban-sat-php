@@ -152,14 +152,20 @@ class DMRepository extends BaseRepository
                            a.`assigned_at`, a.`responded_at`, a.`revoked_at`, a.`reason`,
                            a.`created_at`, a.`updated_at`,
                            gr.`title` AS `room_title`, gr.`status` AS `room_status`,
-                           g.`id` AS `game_id`, g.`name` AS `game_name`,
+                           g.`id` AS `game_id`, g.`name` AS `game_name`, g.`duration_minutes`,
+                           gc.`configuration` AS `game_configuration`,
                            u.`full_name` AS `dm_name`,
-                           s.`id` AS `session_id`, s.`status` AS `session_status`, s.`start_at`, s.`end_at`
+                           s.`id` AS `session_id`, s.`status` AS `session_status`,
+                           s.`start_at`, s.`end_at`, s.`started_at`, s.`completed_at`,
+                           v.`name` AS `venue_name`, pr.`name` AS `physical_room_name`
                     FROM `dm_assignments` a
                     INNER JOIN `game_rooms` gr ON gr.`id` = a.`game_room_id`
                     INNER JOIN `games` g ON g.`id` = gr.`game_id`
+                    LEFT JOIN `game_configurations` gc ON gc.`id` = gr.`game_configuration_id`
                     INNER JOIN `users` u ON u.`id` = a.`dm_user_id`
                     LEFT JOIN `sessions` s ON s.`game_room_id` = a.`game_room_id`
+                    LEFT JOIN `venues` v ON v.`id` = s.`venue_id`
+                    LEFT JOIN `physical_rooms` pr ON pr.`id` = s.`physical_room_id`
                     WHERE {$whereSql}
                     ORDER BY a.`id` DESC";
 

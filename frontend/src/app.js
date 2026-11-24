@@ -282,7 +282,7 @@ class App {
 
     try {
       const res = await api.get('/notifications?unread_only=1');
-      const unreadList = res.data || [];
+      const unreadList = res.data?.notifications || (Array.isArray(res.data) ? res.data : []);
       const count = unreadList.length;
 
       if (count > 0) {

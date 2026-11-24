@@ -124,6 +124,10 @@ export class ApiClient {
 
         if (code === 'CSRF_TOKEN_INVALID' || (typeof message === 'string' && message.includes('CSRF'))) {
           this.clearCsrfToken();
+          if (!options._csrfRetried && ['POST', 'PUT', 'PATCH', 'DELETE'].includes(method)) {
+            await this.ensureCsrfToken();
+            return this.request(endpoint, { ...options, _csrfRetried: true });
+          }
         }
 
         throw new ApiError(message, response.status, code, details);

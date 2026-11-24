@@ -39,6 +39,13 @@
       border-radius: 50%;
       background: var(--bg-surface);
     }
+    .session-banner {
+      background: rgba(46, 125, 50, 0.14);
+      border: 1px solid #2e7d32;
+      border-radius: var(--radius-sm);
+      padding: 16px;
+      margin-bottom: 24px;
+    }
   </style>
 </head>
 <body>
@@ -50,11 +57,12 @@
       </a>
       <nav class="nav-links">
         <a href="../index.html">Trang chủ</a>
-        <a href="./scenarios.html">Kho 42 Kịch Bản</a>
+        <a href="./scenarios.html">Kho Kịch Bản</a>
         <a href="./lobby.html" class="active">Sảnh Ghép Phòng</a>
         <a href="./info.html">Bảng Giá & Nội Quy</a>
       </nav>
       <div class="home-header-actions">
+        <a href="./auth.html" id="headerAccountLink" class="btn btn-outline">Đăng Nhập</a>
         <a href="./lobby.html" class="btn btn-outline">&larr; Sảnh Phòng</a>
       </div>
     </div>
@@ -64,33 +72,62 @@
     <div class="ticket-card room-header-card">
       <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 16px;">
         <div>
-          <span class="stamp-badge open" id="roomStatusBadge">FORMING</span>
-          <h1 style="font-family: var(--font-serif); font-size: 1.8rem; margin-top: 8px;" id="roomTitle">Phòng Tuyển Thám Tử Phá Án</h1>
-          <p style="color: var(--text-muted); font-size: 0.95rem;" id="roomGameName">Kịch bản: Đêm Đoạt Mệnh Tại Trang Viên</p>
+          <div style="display: flex; gap: 8px; flex-wrap: wrap; align-items: center;">
+            <span class="stamp-badge open" id="roomStatusBadge">FORMING</span>
+            <span class="stamp-badge" id="roomTypeBadge" style="display: none;">CÔNG KHAI</span>
+            <span class="stamp-badge" id="replacementBadge" style="display: none; border-color: #ef4444; color: #fca5a5;">ĐANG TÌM NGƯỜI THẾ CHỖ</span>
+          </div>
+          <h1 style="font-family: var(--font-serif); font-size: 1.8rem; margin-top: 10px;" id="roomTitle">Đang tải thông tin phòng...</h1>
+          <p style="color: var(--text-muted); font-size: 0.95rem;" id="roomGameName">Kịch bản: ...</p>
         </div>
-        <div style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
-          <button type="button" class="btn btn-primary" id="btnJoinRoom">Tham Gia Phòng</button>
-          <button type="button" class="btn btn-gold" id="btnPayDeposit" style="display: none;">Thanh Toán Cọc (50k)</button>
+        <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+          <button type="button" class="btn btn-outline" id="btnCopyInvite" style="display: none; font-size: 0.85rem;">Sao Chép Link Mời</button>
+          <button type="button" class="btn btn-primary" id="btnJoinRoom" style="display: none;">+ Tham Gia Phòng</button>
+          <button type="button" class="btn btn-gold" id="btnPayDeposit" style="display: none;">Nộp Tiền Cọc (50.000đ)</button>
+          <button type="button" class="btn btn-outline" id="btnLeaveRoom" style="display: none; border-color: #d97706; color: #fbbf24;">Rời Phòng</button>
           <button type="button" class="btn btn-outline" id="btnRefundRequest" style="display: none; border-color: #992b2b; color: #ef9a9a;">Yêu Cầu Hoàn Cọc</button>
         </div>
       </div>
       <hr class="ticket-divider" />
-      <p id="roomDesc" style="font-size: 0.95rem; line-height: 1.6;">Tìm thêm các bạn có đam mê suy luận, không toxic, chơi hết mình!</p>
+      <p id="roomDesc" style="font-size: 0.95rem; line-height: 1.6;"></p>
+    </div>
+
+    <!-- Thông tin ca chơi chính thức (hiển thị khi phòng đã chốt Session) -->
+    <div id="confirmedSessionCard" class="session-banner" style="display: none;">
+      <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 8px;">
+        <h3 style="margin: 0; color: #81c784;">Lịch Chơi Chính Thức Đã Chốt</h3>
+        <span class="stamp-badge open" id="sessionStatusBadge">SCHEDULED</span>
+      </div>
+      <div id="confirmedSessionDetails" style="font-size: 0.92rem; line-height: 1.7;"></div>
     </div>
 
     <!-- Danh sách thành viên slot -->
     <div class="ticket-card" style="margin-bottom: 24px;">
-      <h3 style="margin-bottom: 4px;">Đội Hình Người Chơi (<span id="slotCount">1</span>/<span id="maxSlots">8</span>)</h3>
-      <p style="font-size: 0.85rem; color: var(--text-muted);">Cần tối thiểu 6 người để bắt đầu giai đoạn đề xuất và chốt lịch chơi</p>
+      <h3 style="margin-bottom: 4px;">Đội Hình Người Chơi (<span id="slotCount">0</span>/<span id="maxSlots">8</span>)</h3>
+      <p style="font-size: 0.85rem; color: var(--text-muted);" id="minPlayersHint">Cần tối thiểu 6 người để bắt đầu buổi chơi tiêu chuẩn</p>
       <div class="room-slots-grid" id="slotsGrid"></div>
+    </div>
+
+    <!-- Dự toán chi phí & khuyến mãi -->
+    <div class="ticket-card" style="margin-bottom: 24px;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 8px;">
+        <div>
+          <h3 style="margin: 0;">Dự Toán Giá Vé & Khuyến Mãi V16</h3>
+          <p style="font-size: 0.85rem; color: var(--text-muted); margin-top: 2px;">Hệ thống tự động áp dụng quy tắc Majority Time Block, ưu đãi Thứ 3 (-30%) hoặc HSSV (-20k), không cộng dồn</p>
+        </div>
+        <button type="button" class="btn btn-outline" id="btnCalcPrice" style="font-size: 0.85rem;">Tính Toán Giá Vé</button>
+      </div>
+      <div id="pricingEstimateBox" style="font-size: 0.9rem; color: var(--text-muted);">
+        Nhấn "Tính Toán Giá Vé" để xem chi tiết tạm tính theo đội hình và khung giờ hiện tại.
+      </div>
     </div>
 
     <!-- Đề xuất lịch & Biểu quyết -->
     <div class="ticket-card">
       <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 8px;">
         <div>
-          <h3>Lịch Chơi & Địa Điểm Đề Xuất</h3>
-          <p style="font-size: 0.85rem; color: var(--text-muted);">Người chơi gửi đơn đề xuất khung giờ & địa điểm; Quản trị viên (Admin) hoặc Quản trò (DM) sẽ thẩm định, xếp phòng và phê duyệt chính thức</p>
+          <h3 style="margin: 0;">Lịch Chơi & Biểu Quyết Thành Viên</h3>
+          <p style="font-size: 0.85rem; color: var(--text-muted); margin-top: 2px;">Thành viên đề xuất khung giờ; khi đạt Quorum &ge; 80% đồng ý (hoặc Admin/DM duyệt), hệ thống tự động giữ phòng vật lý (buffer 30p) và phân công Quản trò</p>
         </div>
         <button type="button" class="btn btn-outline" id="btnTogglePropose" style="font-size: 0.85rem;">+ Đề Xuất Lịch Mới</button>
       </div>
@@ -113,8 +150,8 @@
           <div>
             <label style="display: block; font-size: 0.85rem; margin-bottom: 4px;">Chi nhánh</label>
             <select id="propVenue" class="form-control" style="width: 100%; padding: 8px; background: var(--bg-surface); color: white;">
-              <option value="1">Chi nhánh Quận 1 (123 Nguyễn Huệ)</option>
-              <option value="2">Chi nhánh Bình Thạnh (45 Điện Biên Phủ)</option>
+              <option value="1">Chi nhánh Quận 1</option>
+              <option value="2">Chi nhánh Bình Thạnh</option>
             </select>
           </div>
         </div>
@@ -132,52 +169,88 @@
 
   <script type="module">
     import { apiClient } from '../src/api/api-client.js';
+    import { escapeHtml } from '../src/utils/sanitize.js';
 
     const urlParams = new URLSearchParams(window.location.search);
     const roomId = urlParams.get('id') || '1';
+    const inviteTokenFromUrl = urlParams.get('invite') || '';
 
     const btnJoinRoom = document.getElementById('btnJoinRoom');
     const btnPayDeposit = document.getElementById('btnPayDeposit');
+    const btnLeaveRoom = document.getElementById('btnLeaveRoom');
     const btnRefundRequest = document.getElementById('btnRefundRequest');
+    const btnCopyInvite = document.getElementById('btnCopyInvite');
+    const btnCalcPrice = document.getElementById('btnCalcPrice');
     const slotsGrid = document.getElementById('slotsGrid');
     const btnTogglePropose = document.getElementById('btnTogglePropose');
     const proposeForm = document.getElementById('proposeForm');
     const propDateInput = document.getElementById('propDate');
     const propTimeInput = document.getElementById('propTime');
     const propEndTimeInput = document.getElementById('propEndTime');
+    const propVenueSelect = document.getElementById('propVenue');
     const proposalsList = document.getElementById('proposalsList');
+    const pricingEstimateBox = document.getElementById('pricingEstimateBox');
 
-    // Default proposal date to tomorrow to ensure future scheduling
     const tomorrow = new Date();
     tomorrow.setDate(tomorrow.getDate() + 1);
-    const tomorrowStr = tomorrow.toISOString().split('T')[0];
+    const tomorrowStr = `${tomorrow.getFullYear()}-${String(tomorrow.getMonth() + 1).padStart(2, '0')}-${String(tomorrow.getDate()).padStart(2, '0')}`;
     if (propDateInput) {
       propDateInput.value = tomorrowStr;
       propDateInput.min = tomorrowStr;
     }
 
     let currentGameDuration = 240;
+    let currentRoomData = null;
+
+    // Load real venues for proposal form
+    apiClient.get('/venues')
+      .then(res => {
+        const venues = res.data?.venues || [];
+        if (venues.length > 0 && propVenueSelect) {
+          propVenueSelect.innerHTML = venues.map(v => `
+            <option value="${Number(v.id)}">${escapeHtml(v.name)}</option>
+          `).join('');
+        }
+      })
+      .catch(() => {});
+
+    function computeEndDateTime(dateStr, startTimeStr, durationMins) {
+      const [h, m] = (startTimeStr || '14:00').split(':').map(Number);
+      const startDateObj = new Date(`${dateStr}T${String(h || 0).padStart(2, '0')}:${String(m || 0).padStart(2, '0')}:00`);
+      const endDateObj = new Date(startDateObj.getTime() + durationMins * 60000);
+      const y = endDateObj.getFullYear();
+      const mo = String(endDateObj.getMonth() + 1).padStart(2, '0');
+      const d = String(endDateObj.getDate()).padStart(2, '0');
+      const eh = String(endDateObj.getHours()).padStart(2, '0');
+      const em = String(endDateObj.getMinutes()).padStart(2, '0');
+      return {
+        endDateStr: `${y}-${mo}-${d}`,
+        endTimeStr: `${eh}:${em}`,
+        fullEndAt: `${y}-${mo}-${d} ${eh}:${em}:00`,
+        crossesMidnight: `${y}-${mo}-${d}` !== dateStr
+      };
+    }
 
     function updateCalculatedEndTime() {
       if (!propTimeInput || !propEndTimeInput) return;
-      const startTime = propTimeInput.value || '14:00';
-      const [h, m] = startTime.split(':').map(Number);
-      const startMins = (h || 0) * 60 + (m || 0);
-      const endMinsTotal = startMins + currentGameDuration;
-      const endH = Math.floor(endMinsTotal / 60) % 24;
-      const endM = endMinsTotal % 60;
-      propEndTimeInput.value = `${String(endH).padStart(2, '0')}:${String(endM).padStart(2, '0')}`;
+      const dStr = propDateInput?.value || tomorrowStr;
+      const calc = computeEndDateTime(dStr, propTimeInput.value || '14:00', currentGameDuration);
+      propEndTimeInput.value = calc.endTimeStr;
 
       const noteEl = document.getElementById('propDurationNote');
       if (noteEl) {
         const hoursDecimal = (currentGameDuration / 60).toFixed(1).replace('.0', '');
-        noteEl.textContent = `Thời lượng kịch bản: ${currentGameDuration} phút (~${hoursDecimal} tiếng) — Giờ kết thúc tự động tính toán chính xác theo kịch bản.`;
+        const extraNote = calc.crossesMidnight ? ` (kết thúc sang ngày ${calc.endDateStr})` : '';
+        noteEl.textContent = `Thời lượng kịch bản: ${currentGameDuration} phút (~${hoursDecimal} tiếng) — Giờ kết thúc tự động: ${calc.endTimeStr}${extraNote}.`;
       }
     }
 
     if (propTimeInput) {
       propTimeInput.addEventListener('change', updateCalculatedEndTime);
       propTimeInput.addEventListener('input', updateCalculatedEndTime);
+    }
+    if (propDateInput) {
+      propDateInput.addEventListener('change', updateCalculatedEndTime);
     }
 
     btnTogglePropose.addEventListener('click', () => {
@@ -187,25 +260,70 @@
       }
     });
 
+    btnCopyInvite.addEventListener('click', async () => {
+      if (!currentRoomData) return;
+      const token = currentRoomData.invite_token || '';
+      const inviteUrl = `${window.location.origin}${window.location.pathname}?id=${encodeURIComponent(roomId)}${token ? '&invite=' + encodeURIComponent(token) : ''}`;
+      try {
+        await navigator.clipboard.writeText(inviteUrl);
+        alert('Đã sao chép đường dẫn mời bạn bè vào bộ nhớ tạm:\n' + inviteUrl);
+      } catch {
+        prompt('Sao chép đường dẫn mời bạn bè dưới đây:', inviteUrl);
+      }
+    });
+
+    btnCalcPrice.addEventListener('click', async () => {
+      btnCalcPrice.disabled = true;
+      btnCalcPrice.textContent = 'Đang tính toán...';
+      try {
+        const playTime = currentRoomData?.session?.start_at
+          || currentRoomData?.proposals?.[0]?.proposed_start_at
+          || `${tomorrowStr} 14:00:00`;
+        const res = await apiClient.post(`/rooms/${roomId}/calculate-price`, { play_time: playTime });
+        const d = res.data || {};
+        const subtotal = Number(d.subtotal || d.price_subtotal || 0);
+        const discount = Number(d.discount_amount || d.price_discount_amount || 0);
+        const finalAmt = Number(d.final_amount || d.price_final_amount || 0);
+        const depositTot = Number(d.deposit_total || d.price_deposit_total || 0);
+        const remainTot = Number(d.remaining_total || d.price_remaining_total || 0);
+        const participantsCnt = Number(d.total_participants || d.price_total_participants || 1);
+        const promoName = d.promotion_name || d.applied_promotion?.name || 'Không áp dụng (Giá niêm yết)';
+
+        pricingEstimateBox.innerHTML = `
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; padding: 12px; background: rgba(0,0,0,0.2); border-radius: 4px;">
+            <div><span style="color: var(--text-muted); font-size: 0.8rem;">Tạm tính (${participantsCnt} người)</span><div style="font-weight: 700;">${subtotal.toLocaleString('vi-VN')}đ</div></div>
+            <div><span style="color: var(--text-muted); font-size: 0.8rem;">Ưu đãi áp dụng</span><div style="font-weight: 700; color: #4ade80;">-${discount.toLocaleString('vi-VN')}đ (${escapeHtml(promoName)})</div></div>
+            <div><span style="color: var(--text-muted); font-size: 0.8rem;">Tổng thanh toán</span><div style="font-weight: 700; color: var(--color-gold);">${finalAmt.toLocaleString('vi-VN')}đ</div></div>
+            <div><span style="color: var(--text-muted); font-size: 0.8rem;">Cọc giữ chỗ / Còn lại tại quán</span><div style="font-weight: 700;">${depositTot.toLocaleString('vi-VN')}đ / ${remainTot.toLocaleString('vi-VN')}đ</div></div>
+          </div>
+        `;
+      } catch (err) {
+        if (err.status === 401) {
+          alert('Vui lòng đăng nhập để tính toán bảng giá chi tiết cho phòng này.');
+          window.location.href = './auth.html';
+          return;
+        }
+        pricingEstimateBox.innerHTML = `<span style="color: #ef9a9a;">Không thể tính giá: ${escapeHtml(err.message || 'Lỗi máy chủ')}</span>`;
+      } finally {
+        btnCalcPrice.disabled = false;
+        btnCalcPrice.textContent = 'Tính Toán Giá Vé';
+      }
+    });
+
     proposeForm.addEventListener('submit', async (e) => {
       e.preventDefault();
       const date = propDateInput.value;
       const startTime = propTimeInput.value;
-      const endTime = propEndTimeInput.value || '18:00';
-      const venueId = document.getElementById('propVenue').value;
+      const venueId = propVenueSelect.value;
 
-      if (!date || !startTime || !endTime) {
-        alert('Vui lòng chọn ngày, giờ bắt đầu và giờ kết thúc!');
+      if (!date || !startTime) {
+        alert('Vui lòng chọn ngày và giờ bắt đầu!');
         return;
       }
 
       const startAt = `${date} ${startTime}:00`;
-      const endAt = `${date} ${endTime}:00`;
-
-      if (new Date(startAt) >= new Date(endAt)) {
-        alert('Giờ kết thúc phải diễn ra sau giờ bắt đầu!');
-        return;
-      }
+      const calc = computeEndDateTime(date, startTime, currentGameDuration);
+      const endAt = calc.fullEndAt;
 
       try {
         const json = await apiClient.post(`/rooms/${roomId}/proposals`, {
@@ -213,11 +331,11 @@
           proposed_end_at: endAt,
           venue_id: Number(venueId)
         });
-        alert(`Đã gửi đề xuất lịch thành công! Khung giờ: ${startTime} - ${endTime} ngày ${date}.`);
+        alert(json.message || `Đã gửi đề xuất lịch thành công! Khung giờ: ${startTime} - ${calc.endTimeStr} ngày ${date}.`);
         proposeForm.reset();
         propDateInput.value = tomorrowStr;
         propTimeInput.value = '14:00';
-        propEndTimeInput.value = '18:00';
+        updateCalculatedEndTime();
         proposeForm.style.display = 'none';
         loadRoomDetail();
       } catch (err) {
@@ -226,17 +344,19 @@
           window.location.href = './auth.html';
           return;
         }
-        alert(err.message || 'Đã ghi nhận đề xuất lịch chơi!');
-        proposeForm.style.display = 'none';
-        loadRoomDetail();
+        alert('Không thể gửi đề xuất lịch: ' + (err.message || 'Vui lòng kiểm tra lại dữ liệu'));
       }
     });
 
     btnJoinRoom.addEventListener('click', async () => {
       try {
-        const json = await apiClient.post(`/rooms/${roomId}/join`);
+        const payload = {};
+        if (inviteTokenFromUrl) {
+          payload.invite_token = inviteTokenFromUrl;
+        }
+        const json = await apiClient.post(`/rooms/${roomId}/join`, payload);
         if (json.success) {
-          alert('Tham gia phòng thành công!');
+          alert(json.message || 'Tham gia phòng thành công!');
           loadRoomDetail();
         } else {
           alert(json.message || 'Không thể tham gia phòng');
@@ -247,32 +367,47 @@
           window.location.href = './auth.html';
           return;
         }
-        alert(err.message || 'Đã ghi nhận tham gia phòng!');
-        loadRoomDetail();
+        alert('Không thể tham gia phòng: ' + (err.message || 'Lỗi máy chủ'));
       }
     });
 
     btnPayDeposit.addEventListener('click', () => {
-      window.location.href = `./booking-status.html?room_id=${roomId}&action=deposit`;
+      window.location.href = `./booking-status.html?room_id=${encodeURIComponent(roomId)}&action=deposit`;
+    });
+
+    btnLeaveRoom.addEventListener('click', async () => {
+      const msg = currentRoomData?.status === 'FORMING'
+        ? 'Bạn có chắc chắn muốn rời khỏi phòng chơi này không? (Nếu bạn là Chủ phòng, quyền Host sẽ tự động chuyển cho thành viên tiếp theo)'
+        : 'Phòng đã chốt lịch/cọc. Khi rút lui, hệ thống sẽ mở cửa sổ tìm người thay thế (Replacement Window). Bạn có muốn tiếp tục?';
+      if (!confirm(msg)) return;
+      try {
+        const json = await apiClient.post(`/rooms/${roomId}/leave`);
+        alert(json.message || 'Đã cập nhật rời phòng thành công!');
+        loadRoomDetail();
+      } catch (err) {
+        alert('Không thể rời phòng: ' + (err.message || 'Lỗi máy chủ'));
+      }
     });
 
     btnRefundRequest.addEventListener('click', async () => {
-      if (confirm('Bạn có chắc chắn muốn rút lui và xin hoàn lại tiền cọc theo quy tắc V16?')) {
-        try {
-          const json = await apiClient.post('/payments/refund-request', { room_id: Number(roomId), reason: 'Bận việc đột xuất' });
-          alert(json.message || 'Yêu cầu hoàn tiền đã được xử lý theo quy tắc 24 giờ!');
-          loadRoomDetail();
-        } catch (err) {
-          alert('Yêu cầu hoàn cọc đã được ghi nhận tự động!');
-          loadRoomDetail();
-        }
+      const reason = prompt('Nhập lý do xin hoàn tiền cọc (hoàn 100% nếu trước giờ chơi >= 24h):', 'Bận việc đột xuất');
+      if (reason === null) return;
+      try {
+        const json = await apiClient.post('/payments/refund-request', {
+          room_id: Number(roomId),
+          reason: reason.trim() || 'Bận việc đột xuất'
+        });
+        alert(json.message || 'Yêu cầu hoàn tiền đã được gửi tới Quản trị viên!');
+        loadRoomDetail();
+      } catch (err) {
+        alert('Không thể gửi yêu cầu hoàn cọc: ' + (err.message || 'Vui lòng kiểm tra quy chế 24 giờ'));
       }
     });
 
     window.voteProposal = async function(propId, decision) {
       try {
-        const json = await apiClient.post(`/proposals/${propId}/vote`, { response: decision, decision: decision, vote: decision });
-        alert(json.message || `Đã biểu quyết ${decision} thành công!`);
+        const json = await apiClient.post(`/proposals/${propId}/vote`, { response: decision, decision, vote: decision });
+        alert(json.message || `Đã ghi nhận biểu quyết ${decision} thành công!`);
         loadRoomDetail();
       } catch (err) {
         if (err.status === 401) {
@@ -280,13 +415,12 @@
           window.location.href = './auth.html';
           return;
         }
-        alert(err.message || `Đã ghi nhận biểu quyết!`);
-        loadRoomDetail();
+        alert('Không thể biểu quyết: ' + (err.message || 'Lỗi máy chủ'));
       }
     };
 
     window.approveProposal = async function(propId) {
-      if (!confirm('Xác nhận phê duyệt đề xuất lịch này? Hệ thống sẽ tự động xếp phòng vật lý, chỉ định quản trò và chốt lịch thi đấu.')) {
+      if (!confirm('Xác nhận phê duyệt đề xuất lịch này? Hệ thống sẽ tự động xếp phòng vật lý, chỉ định quản trò và chốt lịch chơi.')) {
         return;
       }
       try {
@@ -294,8 +428,7 @@
         alert(json.message || 'Đã duyệt đề xuất lịch chơi và chốt lịch thành công!');
         loadRoomDetail();
       } catch (err) {
-        alert(err.message || 'Không thể phê duyệt đề xuất lịch');
-        loadRoomDetail();
+        alert('Không thể phê duyệt đề xuất lịch: ' + (err.message || 'Lỗi máy chủ'));
       }
     };
 
@@ -307,62 +440,104 @@
         alert(json.message || 'Đã từ chối đề xuất lịch thành công!');
         loadRoomDetail();
       } catch (err) {
-        alert(err.message || 'Không thể từ chối đề xuất lịch');
-        loadRoomDetail();
+        alert('Không thể từ chối đề xuất lịch: ' + (err.message || 'Lỗi máy chủ'));
       }
     };
 
     async function loadRoomDetail() {
       let currentUserId = null;
-      let currentUserRole = (localStorage.getItem('kbs_demo_role') || 'player').toUpperCase();
+      let currentUserRole = 'GUEST';
       try {
         const me = await apiClient.get('/auth/me');
-        if (me.success && me.data && me.data.user) {
-          currentUserId = me.data.user.id;
-          currentUserRole = String(me.data.user.role_code || me.data.user.role || currentUserRole).toUpperCase();
+        if (me.success && me.data?.user) {
+          const u = me.data.user;
+          currentUserId = Number(u.id);
+          currentUserRole = String(u.role_code || u.role || 'PLAYER').toUpperCase();
+          const accLink = document.getElementById('headerAccountLink');
+          if (accLink) {
+            accLink.textContent = u.full_name || 'Hồ Sơ';
+            accLink.href = currentUserRole === 'ADMIN' ? './admin-portal.html' : (currentUserRole === 'DM' ? './dm-portal.html' : './profile.html');
+          }
         }
-      } catch (e) {}
+      } catch {}
 
       const isAdminOrDm = currentUserRole === 'ADMIN' || currentUserRole === 'DM';
 
       try {
         const json = await apiClient.get(`/rooms/${roomId}`);
-        if (json.success && json.data && json.data.room) {
+        if (json.success && json.data?.room) {
           const r = json.data.room;
-          if (r.game && r.game.duration_minutes) {
+          currentRoomData = r;
+
+          if (r.game?.duration_minutes) {
             currentGameDuration = Number(r.game.duration_minutes) || 240;
             updateCalculatedEndTime();
           }
+          if (r.target_venue_id && propVenueSelect) {
+            propVenueSelect.value = String(r.target_venue_id);
+          }
+
           document.getElementById('roomTitle').textContent = r.title || 'Phòng Án Mạng Nhập Vai';
-          const typeLabel = r.booking_type === 'PRIVATE' ? ' [Nhóm Bạn Riêng]' : ' [Ghép Công Khai]';
-          document.getElementById('roomGameName').textContent = `Kịch bản: ${r.game?.name || 'Đêm Đoạt Mệnh Tại Trang Viên'}${typeLabel}${r.target_time_slot ? ' • Ca dự kiến: ' + r.target_time_slot : ''}`;
+          const venueDisplay = r.target_venue_name ? ` • Chi nhánh dự kiến: ${r.target_venue_name}` : '';
+          const slotDisplay = r.target_time_slot ? ` • Ca dự kiến: ${r.target_time_slot}` : '';
+          document.getElementById('roomGameName').textContent = `Kịch bản: ${r.game?.name || 'Kịch bản sát'} (${currentGameDuration} phút)${venueDisplay}${slotDisplay}`;
           document.getElementById('roomDesc').textContent = r.description || 'Tìm thám tử cùng phá án, thân thiện, không toxic!';
           document.getElementById('roomStatusBadge').textContent = r.status || 'FORMING';
 
-          const max = Number(r.total_players || r.max_players || 8);
-          const activeParticipants = (r.participants || []).filter(p => p.status !== 'LEFT');
-          const currentCount = Number(r.current_players || activeParticipants.length);
-          document.getElementById('slotCount').textContent = Math.min(currentCount, max);
-          document.getElementById('maxSlots').textContent = max;
+          const typeBadge = document.getElementById('roomTypeBadge');
+          typeBadge.style.display = 'inline-block';
+          typeBadge.textContent = r.booking_type === 'PRIVATE' ? 'NHÓM BẠN RIÊNG' : 'GHÉP CÔNG KHAI';
 
-          // Check if current user has joined
-          const myParticipant = activeParticipants.find(p => Number(p.user_id) === Number(currentUserId));
-          const isHost = Number(r.creator_id) === Number(currentUserId);
-          const isPrivate = r.booking_type === 'PRIVATE';
           const isReplacementOpen = r.replacement_status === 'OPEN';
+          document.getElementById('replacementBadge').style.display = isReplacementOpen ? 'inline-block' : 'none';
+
+          // Confirmed Session card
+          const sessCard = document.getElementById('confirmedSessionCard');
+          if (r.session) {
+            sessCard.style.display = 'block';
+            document.getElementById('sessionStatusBadge').textContent = r.session.status || 'SCHEDULED';
+            document.getElementById('confirmedSessionDetails').innerHTML = `
+              <div><strong>Thời gian:</strong> ${escapeHtml(r.session.start_at || '')} &rarr; ${escapeHtml(r.session.end_at || '')}</div>
+              <div><strong>Địa điểm:</strong> ${escapeHtml(r.session.venue_name || 'Chi nhánh mặc định')} ${r.session.physical_room_name ? '— ' + escapeHtml(r.session.physical_room_name) : ''}</div>
+              ${r.session.venue_address ? `<div><strong>Địa chỉ:</strong> ${escapeHtml(r.session.venue_address)}</div>` : ''}
+              <div><strong>Quản trò (DM):</strong> ${escapeHtml(r.session.dm_name || 'Đang điều phối')} (${escapeHtml(r.session.dm_assignment_status || 'PENDING')})</div>
+            `;
+          } else {
+            sessCard.style.display = 'none';
+          }
+
+          const max = Number(r.total_players || r.max_players || 8);
+          const minP = Number(r.min_players || 6);
+          const activeParticipants = (r.participants || []).filter(p => p.status !== 'LEFT' && p.status !== 'CANCELLED_BY_ADMIN');
+          const currentCount = Number(r.current_players ?? activeParticipants.length);
+          document.getElementById('slotCount').textContent = String(currentCount);
+          document.getElementById('maxSlots').textContent = String(max);
+          document.getElementById('minPlayersHint').textContent = `Yêu cầu tối thiểu ${minP} người, tối đa ${max} người cho kịch bản này.`;
+
+          const myParticipant = currentUserId !== null
+            ? activeParticipants.find(p => Number(p.user_id) === currentUserId)
+            : null;
+          const isHost = currentUserId !== null && Number(r.creator_id) === currentUserId;
+          const isPrivate = r.booking_type === 'PRIVATE';
+          const isClosedRoom = ['CANCELLED', 'COMPLETED', 'EXPIRED', 'DISBANDED'].includes(r.status);
+
+          btnCopyInvite.style.display = (isHost || myParticipant) && !isClosedRoom ? 'inline-block' : 'none';
 
           if (myParticipant) {
             btnJoinRoom.style.display = 'none';
-            if (myParticipant.status === 'PENDING_DEPOSIT') {
+            btnLeaveRoom.style.display = !isClosedRoom && myParticipant.status !== 'LEAVE_REQUESTED' ? 'inline-block' : 'none';
+            btnLeaveRoom.textContent = r.status === 'FORMING' ? 'Rời Phòng' : 'Xin Rút / Tìm Người Thế Chỗ';
+
+            if (myParticipant.status === 'PENDING_DEPOSIT' && !isClosedRoom) {
               btnPayDeposit.style.display = 'inline-block';
               if (isHost && isPrivate) {
-                const privCount = Math.max(1, (r.total_players || 6) - (r.guest_slots || 0));
+                const privCount = Math.max(1, (Number(r.total_players || minP) - Number(r.guest_slots || 0)));
                 btnPayDeposit.textContent = `Nộp Cọc Gộp Nhóm (${privCount} người • ${(privCount * 50000).toLocaleString('vi-VN')}đ)`;
               } else {
                 btnPayDeposit.textContent = 'Nộp Tiền Cọc (50.000đ)';
               }
               btnRefundRequest.style.display = 'none';
-            } else if (myParticipant.status === 'DEPOSITED') {
+            } else if (myParticipant.status === 'DEPOSITED' || myParticipant.status === 'LEAVE_REQUESTED') {
               btnPayDeposit.style.display = 'none';
               btnRefundRequest.style.display = 'inline-block';
             } else {
@@ -371,24 +546,29 @@
             }
           } else {
             btnPayDeposit.style.display = 'none';
+            btnLeaveRoom.style.display = 'none';
             btnRefundRequest.style.display = 'none';
-            if (r.status === 'FORMING' || isReplacementOpen) {
+            if ((r.status === 'FORMING' && currentCount < max) || isReplacementOpen) {
               btnJoinRoom.style.display = 'inline-block';
-              btnJoinRoom.textContent = isReplacementOpen ? 'Vào thế chỗ (Takeover)' : '+ Tham gia phòng';
+              btnJoinRoom.textContent = isReplacementOpen ? 'Vào Thế Chỗ (Takeover)' : '+ Tham Gia Phòng';
             } else {
               btnJoinRoom.style.display = 'none';
             }
           }
 
-          let slotsHtml = activeParticipants.map((p, idx) => `
-            <div class="slot-card">
-              <img src="https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(p.full_name || 'Player' + p.user_id)}" alt="${p.full_name || 'Thành viên'}" />
-              <div>
-                <strong>${p.full_name || 'Thành viên #' + p.user_id}</strong>
-                <p style="font-size: 0.8rem; color: var(--color-gold);">${idx === 0 ? 'Chủ Phòng (Host)' : 'Thành viên'} • ${p.status || 'PENDING'}</p>
+          let slotsHtml = activeParticipants.map(p => {
+            const pIsHost = Number(p.user_id) === Number(r.creator_id);
+            const pName = p.full_name || p.user_name || ('Thành viên #' + p.user_id);
+            return `
+              <div class="slot-card">
+                <img src="https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(pName)}" alt="${escapeHtml(pName)}" />
+                <div>
+                  <strong>${escapeHtml(pName)}</strong>
+                  <p style="font-size: 0.8rem; color: var(--color-gold);">${pIsHost ? 'Chủ Phòng (Host)' : 'Thành viên'} • ${escapeHtml(p.status || 'PENDING')}</p>
+                </div>
               </div>
-            </div>
-          `).join('');
+            `;
+          }).join('');
 
           for (let i = activeParticipants.length; i < max; i++) {
             slotsHtml += `
@@ -413,64 +593,46 @@
             `;
           } else {
             proposalsList.innerHTML = proposals.map(p => {
-              const isClosed = p.status === 'CONFIRMED' || p.status === 'EXPIRED' || p.status === 'REJECTED';
-              const timeDisplay = `${p.proposed_start_at} - ${p.proposed_end_at ? p.proposed_end_at.split(' ')[1] : ''}`;
-              
+              const timeDisplay = `${escapeHtml(p.proposed_start_at || '')} &rarr; ${escapeHtml(p.proposed_end_at || '')}`;
+              const accVotes = Number(p.accepted_votes ?? 0);
+              const totalAct = Number(p.total_active ?? currentCount);
+              const myVote = p.my_vote;
+              const myVoteTag = myVote
+                ? `<span style="font-size: 0.78rem; color: ${myVote === 'ACCEPTED' ? '#4ade80' : '#f87171'}; margin-left: 8px;">(Bạn đã chọn: ${myVote})</span>`
+                : '';
+
               let actionHtml = '';
-              if (isAdminOrDm) {
-                if (p.status === 'PROPOSED') {
-                  actionHtml = `
-                    <button type="button" class="btn btn-primary" style="font-size: 0.85rem;" onclick="approveProposal(${p.id})">Duyệt & Chốt Lịch</button>
-                    <button type="button" class="btn btn-outline" style="font-size: 0.85rem;" onclick="rejectProposal(${p.id})">Từ Chối</button>
-                  `;
-                } else if (p.status === 'CONFIRMED') {
-                  actionHtml = `<span style="font-size: 0.85rem; color: #4ade80;">Đã phê duyệt & chốt session</span>`;
-                } else if (p.status === 'REJECTED') {
-                  actionHtml = `<span style="font-size: 0.85rem; color: #f87171;">Đã từ chối đơn</span>`;
-                } else {
-                  actionHtml = `<span style="font-size: 0.85rem; color: var(--text-muted);">${p.status}</span>`;
+              if (p.status === 'PROPOSED') {
+                const btns = [];
+                if (myParticipant) {
+                  btns.push(`<button type="button" class="btn btn-primary" style="font-size: 0.85rem; padding: 6px 12px;" onclick="voteProposal(${Number(p.id)}, 'ACCEPTED')">Đồng Ý (Vote YES)</button>`);
+                  btns.push(`<button type="button" class="btn btn-outline" style="font-size: 0.85rem; padding: 6px 12px; border-color: #ef4444; color: #ef4444;" onclick="voteProposal(${Number(p.id)}, 'REJECTED')">Từ Chối (Vote NO)</button>`);
                 }
+                if (isAdminOrDm) {
+                  btns.push(`<button type="button" class="btn btn-gold" style="font-size: 0.85rem; padding: 6px 12px;" onclick="approveProposal(${Number(p.id)})">Duyệt & Chốt Lịch</button>`);
+                  btns.push(`<button type="button" class="btn btn-outline" style="font-size: 0.85rem; padding: 6px 12px;" onclick="rejectProposal(${Number(p.id)})">Từ Chối Đơn</button>`);
+                }
+                actionHtml = btns.length > 0
+                  ? btns.join('')
+                  : `<span style="font-size: 0.85rem; color: var(--color-gold); background: rgba(201,162,94,0.1); padding: 5px 12px; border-radius: 4px; border: 1px solid rgba(201,162,94,0.3);">Tham gia phòng để biểu quyết</span>`;
+              } else if (p.status === 'CONFIRMED') {
+                actionHtml = `<span style="font-size: 0.85rem; color: #4ade80; background: rgba(74,222,128,0.1); padding: 5px 12px; border-radius: 4px; border: 1px solid rgba(74,222,128,0.3);">Đã Chốt Lịch Chính Thức</span>`;
+              } else if (p.status === 'REJECTED') {
+                actionHtml = `<span style="font-size: 0.85rem; color: #f87171; background: rgba(248,113,113,0.1); padding: 5px 12px; border-radius: 4px; border: 1px solid rgba(248,113,113,0.3);">Đã Bị Từ Chối</span>`;
               } else {
-                if (p.status === 'PROPOSED') {
-                  if (myParticipant) {
-                    actionHtml = `
-                      <button type="button" class="btn btn-primary" style="font-size: 0.85rem; padding: 6px 12px;" onclick="voteProposal(${p.id}, 'ACCEPTED')">Đồng Ý (Vote YES)</button>
-                      <button type="button" class="btn btn-outline" style="font-size: 0.85rem; padding: 6px 12px; border-color: #ef4444; color: #ef4444;" onclick="voteProposal(${p.id}, 'REJECTED')">Từ Chối (Vote NO)</button>
-                    `;
-                  } else {
-                    actionHtml = `
-                      <span style="font-size: 0.85rem; color: var(--color-gold); background: rgba(201,162,94,0.1); padding: 5px 12px; border-radius: 4px; border: 1px solid rgba(201,162,94,0.3);">
-                        Chờ Biểu Quyết
-                      </span>
-                    `;
-                  }
-                } else if (p.status === 'CONFIRMED') {
-                  actionHtml = `
-                    <span style="font-size: 0.85rem; color: #4ade80; background: rgba(74,222,128,0.1); padding: 5px 12px; border-radius: 4px; border: 1px solid rgba(74,222,128,0.3);">
-                      Đã Được Phê Duyệt
-                    </span>
-                  `;
-                } else if (p.status === 'REJECTED') {
-                  actionHtml = `
-                    <span style="font-size: 0.85rem; color: #f87171; background: rgba(248,113,113,0.1); padding: 5px 12px; border-radius: 4px; border: 1px solid rgba(248,113,113,0.3);">
-                      Đã Bị Từ Chối
-                    </span>
-                  `;
-                } else {
-                  actionHtml = `<span style="font-size: 0.85rem; color: var(--text-muted);">${p.status}</span>`;
-                }
+                actionHtml = `<span style="font-size: 0.85rem; color: var(--text-muted);">${escapeHtml(p.status)}</span>`;
               }
 
               return `
                 <div style="padding: 16px; border: 1px solid rgba(201,162,94,0.3); border-radius: 4px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 12px;">
                   <div>
-                    <strong>#PP-${p.id}: ${timeDisplay}</strong>
+                    <strong>#PP-${Number(p.id)}: ${timeDisplay}</strong>
                     <p style="font-size: 0.85rem; color: var(--text-muted); margin-top: 4px;">
-                      Người đề xuất: <strong>${p.proposer_name || 'Thành viên'}</strong>
+                      Người đề xuất: <strong>${escapeHtml(p.proposer_name || 'Thành viên')}</strong> • Biểu quyết đồng ý: <strong>${accVotes}/${totalAct}</strong>${myVoteTag}
                     </p>
-                    <span class="stamp-badge ${p.status === 'CONFIRMED' ? 'open' : ''}" style="margin-top: 6px;">${p.status}</span>
+                    <span class="stamp-badge ${p.status === 'CONFIRMED' ? 'open' : ''}" style="margin-top: 6px;">${escapeHtml(p.status)}</span>
                   </div>
-                  <div style="display: flex; gap: 8px; align-items: center;">
+                  <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
                     ${actionHtml}
                   </div>
                 </div>
@@ -480,12 +642,11 @@
 
           return;
         }
-      } catch (e) {}
+      } catch {}
 
-      // Fallback if room not found
       proposalsList.innerHTML = `
         <div style="padding: 24px; text-align: center; border: 1px dashed rgba(201,162,94,0.3); border-radius: 4px; color: var(--text-muted);">
-          Không tìm thấy thông tin phòng chơi #${roomId}. <a href="./lobby.html" style="color: var(--color-gold); text-decoration: underline;">Quay lại Sảnh để chọn phòng đang mở</a>
+          Không tìm thấy thông tin phòng chơi #${escapeHtml(roomId)}. <a href="./lobby.html" style="color: var(--color-gold); text-decoration: underline;">Quay lại Sảnh để chọn phòng đang mở</a>
         </div>
       `;
     }
