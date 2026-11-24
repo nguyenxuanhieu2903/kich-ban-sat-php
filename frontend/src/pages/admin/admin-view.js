@@ -59,7 +59,7 @@ export class AdminView {
       </div>
 
       <!-- Admin Sub Tabs -->
-      <div style="display: flex; gap: 8px; margin-bottom: 20px; border-bottom: 1px solid var(--color-border); padding-bottom: 8px;">
+      <div style="display: flex; gap: 8px; margin-bottom: 20px; border-bottom: 1px solid var(--color-border); padding-bottom: 8px; flex-wrap: wrap;">
         <button id="tab-btn-users" class="admin-tab-btn ${this.currentSubTab === 'users' ? 'active' : ''}">
           👥 Quản lý Người dùng & Vai trò
         </button>
@@ -68,6 +68,15 @@ export class AdminView {
         </button>
         <button id="tab-btn-refunds" class="admin-tab-btn ${this.currentSubTab === 'refunds' ? 'active' : ''}">
           💰 Xét Duyệt Hoàn Tiền (Refunds)
+        </button>
+        <button id="tab-btn-games" class="admin-tab-btn ${this.currentSubTab === 'games' ? 'active' : ''}">
+          🎭 Kịch Bản &amp; Bảng Giá
+        </button>
+        <button id="tab-btn-promotions" class="admin-tab-btn ${this.currentSubTab === 'promotions' ? 'active' : ''}">
+          🎟️ Khuyến Mãi
+        </button>
+        <button id="tab-btn-venues" class="admin-tab-btn ${this.currentSubTab === 'venues' ? 'active' : ''}">
+          📍 Chi Nhánh &amp; Phòng Vật Lý
         </button>
       </div>
 
@@ -143,6 +152,9 @@ export class AdminView {
     this.container.querySelector('#tab-btn-users').onclick = () => this.switchSubTab('users');
     this.container.querySelector('#tab-btn-rooms').onclick = () => this.switchSubTab('rooms');
     this.container.querySelector('#tab-btn-refunds').onclick = () => this.switchSubTab('refunds');
+    this.container.querySelector('#tab-btn-games').onclick = () => this.switchSubTab('games');
+    this.container.querySelector('#tab-btn-promotions').onclick = () => this.switchSubTab('promotions');
+    this.container.querySelector('#tab-btn-venues').onclick = () => this.switchSubTab('venues');
 
     this.setupCancelRoomDialog();
     this.setupAssignDmDialog();
@@ -164,6 +176,12 @@ export class AdminView {
       await this.renderRoomsTab(content);
     } else if (this.currentSubTab === 'refunds') {
       await this.renderRefundsTab(content);
+    } else if (this.currentSubTab === 'games') {
+      await this.renderGamesTab(content);
+    } else if (this.currentSubTab === 'promotions') {
+      await this.renderPromotionsTab(content);
+    } else if (this.currentSubTab === 'venues') {
+      await this.renderVenuesTab(content);
     }
   }
 
@@ -529,6 +547,371 @@ export class AdminView {
       this.renderRefundsTab(this.container.querySelector('#admin-subtab-content'));
     } catch (err) {
       toast.error(err.message || 'Không thể từ chối');
+    }
+  }
+
+  // --- SUBTAB 4: GAMES & PRICING ---
+  async renderGamesTab(container) {
+    container.innerHTML = `<div style="text-align: center; padding: 30px; color: var(--color-text-muted);">Đang tải kho kịch bản...</div>`;
+
+    try {
+      const res = await api.get('/admin/games');
+      const games = res?.data?.games || [];
+
+      container.innerHTML = `
+        <div class="card" style="padding: 0; overflow: hidden;">
+          <div style="padding: 16px; border-bottom: 1px solid var(--color-border); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+            <div>
+              <h3 style="margin: 0; font-size: 1.1rem; font-weight: 600;">Quản Lý Kho Kịch Bản &amp; Bảng Giá (${games.length})</h3>
+              <span style="font-size: 0.8rem; color: var(--color-text-muted);">Điều chỉnh kịch bản, thời lượng và các khung giờ giá vé</span>
+            </div>
+            <button id="btn-admin-add-game" class="btn btn-primary" style="padding: 6px 14px; font-size: 0.85rem;">
+              + Thêm kịch bản mới
+            </button>
+          </div>
+          <div style="overflow-x: auto;">
+            <table class="data-table" style="width: 100%; border-collapse: collapse; font-size: 0.9rem;">
+              <thead>
+                <tr style="background: rgba(15, 23, 42, 0.7); text-align: left; border-bottom: 1px solid var(--color-border);">
+                  <th style="padding: 12px 16px;">ID</th>
+                  <th style="padding: 12px 16px;">Tên kịch bản</th>
+                  <th style="padding: 12px 16px;">Người chơi</th>
+                  <th style="padding: 12px 16px;">Thời lượng</th>
+                  <th style="padding: 12px 16px;">Mốc giá hiện tại</th>
+                  <th style="padding: 12px 16px;">Trạng thái</th>
+                  <th style="padding: 12px 16px; text-align: right;">Hành động</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${games.length === 0 ? `
+                  <tr><td colspan="7" style="text-align: center; padding: 24px;" class="text-muted">Chưa có kịch bản nào.</td></tr>
+                ` : games.map(g => {
+                  const prices = g.prices || [];
+                  const priceStr = prices.length > 0
+                    ? prices.map(p => `${Number(p.price_per_person).toLocaleString('vi-VN')} đ`).join(', ')
+                    : 'Chưa có giá';
+                  const isActive = g.status === 'ACTIVE';
+
+                  return `
+                    <tr style="border-bottom: 1px solid var(--color-border);">
+                      <td style="padding: 12px 16px; font-family: monospace; color: var(--color-primary);">#${escapeHtml(g.id)}</td>
+                      <td style="padding: 12px 16px; font-weight: 600;">${escapeHtml(g.name)}</td>
+                      <td style="padding: 12px 16px;">${escapeHtml(g.min_players)} – ${escapeHtml(g.max_players)} người</td>
+                      <td style="padding: 12px 16px;">${escapeHtml(g.duration_minutes)} phút</td>
+                      <td style="padding: 12px 16px; color: var(--color-warning); font-size: 0.85rem;">${escapeHtml(priceStr)}</td>
+                      <td style="padding: 12px 16px;">
+                        <span class="badge" style="background: ${isActive ? 'var(--color-success-bg)' : 'var(--color-error-bg)'}; color: ${isActive ? 'var(--color-success)' : 'var(--color-error)'};">
+                          ${isActive ? 'Hoạt động' : 'Tạm ẩn'}
+                        </span>
+                      </td>
+                      <td style="padding: 12px 16px; text-align: right;">
+                        <button class="btn" data-add-price="${g.id}" style="padding: 4px 8px; font-size: 0.78rem; background: transparent; border: 1px solid var(--color-border); color: var(--color-primary); margin-right: 4px;">
+                          + Thêm giá
+                        </button>
+                        <button class="btn" data-toggle-game="${g.id}" data-status="${g.status}" style="padding: 4px 8px; font-size: 0.78rem; background: ${isActive ? 'var(--color-error-bg)' : 'var(--color-success-bg)'}; color: ${isActive ? 'var(--color-error)' : 'var(--color-success)'}; border: none;">
+                          ${isActive ? 'Tạm ẩn' : 'Kích hoạt'}
+                        </button>
+                      </td>
+                    </tr>
+                  `;
+                }).join('')}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      `;
+
+      container.querySelector('#btn-admin-add-game')?.addEventListener('click', async () => {
+        const name = prompt('Nhập tên kịch bản mới:');
+        if (!name) return;
+        const price = prompt('Nhập giá vé cơ bản (VNĐ / người):', '180000');
+        try {
+          await api.post('/admin/games', {
+            name,
+            min_players: 5,
+            max_players: 8,
+            duration_minutes: 240,
+            price_per_person: Number(price) || 180000,
+          });
+          toast.success(`Đã thêm kịch bản "${name}" thành công!`);
+          this.renderGamesTab(container);
+        } catch (err) {
+          toast.error(err.message || 'Lỗi thêm kịch bản');
+        }
+      });
+
+      container.querySelectorAll('[data-add-price]').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          const gameId = btn.dataset.addPrice;
+          const price = prompt('Nhập mốc giá vé mới (VNĐ / người):', '200000');
+          if (!price) return;
+          try {
+            await api.post(`/admin/games/${gameId}/prices`, {
+              price_per_person: Number(price),
+              start_time: '18:00:00',
+              end_time: '23:00:00',
+            });
+            toast.success('Đã thêm mốc giá mới!');
+            this.renderGamesTab(container);
+          } catch (err) {
+            toast.error(err.message || 'Lỗi thêm giá');
+          }
+        });
+      });
+
+      container.querySelectorAll('[data-toggle-game]').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          const gameId = btn.dataset.toggleGame;
+          const currentStatus = btn.dataset.status;
+          const newStatus = currentStatus === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE';
+          try {
+            await api.patch(`/admin/games/${gameId}`, { status: newStatus });
+            toast.success('Đã cập nhật trạng thái kịch bản!');
+            this.renderGamesTab(container);
+          } catch (err) {
+            toast.error(err.message || 'Lỗi cập nhật');
+          }
+        });
+      });
+    } catch (err) {
+      container.innerHTML = `<div class="card" style="color: var(--color-error); padding: 20px;">Lỗi: ${escapeHtml(err.message)}</div>`;
+    }
+  }
+
+  // --- SUBTAB 5: PROMOTIONS ---
+  async renderPromotionsTab(container) {
+    container.innerHTML = `<div style="text-align: center; padding: 30px; color: var(--color-text-muted);">Đang tải danh sách khuyến mãi...</div>`;
+
+    try {
+      const res = await api.get('/admin/promotions');
+      const promos = res?.data?.promotions || [];
+
+      container.innerHTML = `
+        <div class="card" style="padding: 0; overflow: hidden;">
+          <div style="padding: 16px; border-bottom: 1px solid var(--color-border); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+            <div>
+              <h3 style="margin: 0; font-size: 1.1rem; font-weight: 600;">Quản Lý Mã Khuyến Mãi (${promos.length})</h3>
+              <span style="font-size: 0.8rem; color: var(--color-text-muted);">Cấu hình mã giảm giá, voucher HSSV và ưu đãi ngày trong tuần</span>
+            </div>
+            <button id="btn-admin-add-promo" class="btn btn-primary" style="padding: 6px 14px; font-size: 0.85rem;">
+              + Tạo mã khuyến mãi
+            </button>
+          </div>
+          <div style="overflow-x: auto;">
+            <table class="data-table" style="width: 100%; border-collapse: collapse; font-size: 0.9rem;">
+              <thead>
+                <tr style="background: rgba(15, 23, 42, 0.7); text-align: left; border-bottom: 1px solid var(--color-border);">
+                  <th style="padding: 12px 16px;">Mã Code</th>
+                  <th style="padding: 12px 16px;">Tên chương trình</th>
+                  <th style="padding: 12px 16px;">Loại &amp; Mức giảm</th>
+                  <th style="padding: 12px 16px;">Thời hạn</th>
+                  <th style="padding: 12px 16px;">Trạng thái</th>
+                  <th style="padding: 12px 16px; text-align: right;">Hành động</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${promos.length === 0 ? `
+                  <tr><td colspan="6" style="text-align: center; padding: 24px;" class="text-muted">Chưa có mã khuyến mãi nào.</td></tr>
+                ` : promos.map(p => {
+                  const isActive = Boolean(Number(p.is_active));
+                  const discountDisplay = p.discount_type === 'PERCENT'
+                    ? `Giảm ${p.discount_value}%`
+                    : `Giảm ${Number(p.discount_value).toLocaleString('vi-VN')} đ`;
+
+                  return `
+                    <tr style="border-bottom: 1px solid var(--color-border);">
+                      <td style="padding: 12px 16px; font-family: monospace; font-weight: 700; color: var(--color-primary);">${escapeHtml(p.code)}</td>
+                      <td style="padding: 12px 16px; font-weight: 600;">${escapeHtml(p.name)}</td>
+                      <td style="padding: 12px 16px; font-weight: 700; color: var(--color-warning);">${escapeHtml(discountDisplay)}</td>
+                      <td style="padding: 12px 16px; font-size: 0.82rem; color: var(--color-text-muted);">
+                        ${escapeHtml(p.start_at || p.valid_from || 'Bắt đầu')} &rarr; ${escapeHtml(p.end_at || p.valid_to || 'Dài hạn')}
+                      </td>
+                      <td style="padding: 12px 16px;">
+                        <span class="badge" style="background: ${isActive ? 'var(--color-success-bg)' : 'var(--color-error-bg)'}; color: ${isActive ? 'var(--color-success)' : 'var(--color-error)'};">
+                          ${isActive ? 'Đang áp dụng' : 'Tạm ngưng'}
+                        </span>
+                      </td>
+                      <td style="padding: 12px 16px; text-align: right;">
+                        <button class="btn" data-toggle-promo="${p.id}" data-active="${isActive ? '1' : '0'}" style="padding: 4px 8px; font-size: 0.78rem; background: ${isActive ? 'var(--color-error-bg)' : 'var(--color-success-bg)'}; color: ${isActive ? 'var(--color-error)' : 'var(--color-success)'}; border: none;">
+                          ${isActive ? 'Ngưng áp dụng' : 'Kích hoạt lại'}
+                        </button>
+                      </td>
+                    </tr>
+                  `;
+                }).join('')}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      `;
+
+      container.querySelector('#btn-admin-add-promo')?.addEventListener('click', async () => {
+        const code = prompt('Nhập mã code khuyến mãi (VD: VIP_50K):');
+        if (!code) return;
+        const name = prompt('Nhập tên chương trình:');
+        if (!name) return;
+        const discountValue = prompt('Nhập số tiền giảm (VNĐ):', '50000');
+        try {
+          await api.post('/admin/promotions', {
+            code: code.trim().toUpperCase(),
+            name,
+            discount_type: 'FIXED',
+            discount_value: Number(discountValue) || 50000,
+          });
+          toast.success(`Đã tạo mã "${code.toUpperCase()}" thành công!`);
+          this.renderPromotionsTab(container);
+        } catch (err) {
+          toast.error(err.message || 'Lỗi tạo khuyến mãi');
+        }
+      });
+
+      container.querySelectorAll('[data-toggle-promo]').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          const promoId = btn.dataset.togglePromo;
+          const isAct = btn.dataset.active === '1';
+          try {
+            if (isAct) {
+              await api.delete(`/admin/promotions/${promoId}`);
+              toast.info('Đã ngưng áp dụng mã khuyến mãi.');
+            } else {
+              await api.patch(`/admin/promotions/${promoId}`, { is_active: 1 });
+              toast.success('Đã kích hoạt lại mã khuyến mãi!');
+            }
+            this.renderPromotionsTab(container);
+          } catch (err) {
+            toast.error(err.message || 'Lỗi cập nhật');
+          }
+        });
+      });
+    } catch (err) {
+      container.innerHTML = `<div class="card" style="color: var(--color-error); padding: 20px;">Lỗi: ${escapeHtml(err.message)}</div>`;
+    }
+  }
+
+  // --- SUBTAB 6: VENUES & PHYSICAL ROOMS ---
+  async renderVenuesTab(container) {
+    container.innerHTML = `<div style="text-align: center; padding: 30px; color: var(--color-text-muted);">Đang tải dữ liệu chi nhánh...</div>`;
+
+    try {
+      const res = await api.get('/admin/venues');
+      const venues = res?.data?.venues || [];
+
+      container.innerHTML = `
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 10px;">
+          <div>
+            <h3 style="margin: 0; font-size: 1.15rem; font-weight: 600;">Hệ Thống Chi Nhánh &amp; Phòng Vật Lý (${venues.length} chi nhánh)</h3>
+            <span style="font-size: 0.82rem; color: var(--color-text-muted);">Quản lý cơ sở vật chất, phòng chơi và sức chứa tại mỗi địa điểm</span>
+          </div>
+          <button id="btn-admin-add-venue" class="btn btn-primary" style="padding: 6px 14px; font-size: 0.85rem;">
+            + Thêm chi nhánh mới
+          </button>
+        </div>
+
+        <div style="display: grid; gap: 20px;">
+          ${venues.length === 0 ? `
+            <div class="card" style="text-align: center; padding: 30px;" class="text-muted">Chưa có chi nhánh nào.</div>
+          ` : venues.map(v => {
+            const rooms = v.rooms || [];
+            const isActive = v.status === 'ACTIVE';
+
+            return `
+              <div class="card" style="border: 1px solid var(--color-border); padding: 20px;">
+                <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 10px; margin-bottom: 14px; border-bottom: 1px solid rgba(255,255,255,0.08); padding-bottom: 12px;">
+                  <div>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                      <h4 style="margin: 0; font-size: 1.2rem; font-weight: 700; color: var(--color-primary);">🏛️ ${escapeHtml(v.name)}</h4>
+                      <span class="badge" style="background: ${isActive ? 'var(--color-success-bg)' : 'var(--color-error-bg)'}; color: ${isActive ? 'var(--color-success)' : 'var(--color-error)'}; font-size: 0.72rem;">
+                        ${isActive ? 'Đang mở cửa' : 'Tạm ngưng'}
+                      </span>
+                    </div>
+                    <p style="margin: 4px 0 2px; font-size: 0.88rem; color: var(--color-text-main);">📍 ${escapeHtml(v.address)}</p>
+                    <p style="margin: 0; font-size: 0.82rem; color: var(--color-text-muted);">Hotline: ${escapeHtml(v.phone || 'Chưa cập nhật')}</p>
+                  </div>
+                  <div style="display: flex; gap: 6px;">
+                    <button class="btn btn-sm btn-ghost" data-add-room="${v.id}" style="font-size: 0.8rem; border-color: var(--color-primary); color: var(--color-primary);">
+                      + Thêm phòng
+                    </button>
+                    <button class="btn btn-sm" data-toggle-venue="${v.id}" data-status="${v.status}" style="font-size: 0.8rem; background: ${isActive ? 'var(--color-error-bg)' : 'var(--color-success-bg)'}; color: ${isActive ? 'var(--color-error)' : 'var(--color-success)'}; border: none;">
+                      ${isActive ? 'Đóng cửa' : 'Mở lại'}
+                    </button>
+                  </div>
+                </div>
+
+                <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 10px;">
+                  ${rooms.length === 0 ? `
+                    <div style="font-size: 0.85rem; color: var(--color-text-muted);">Chưa có phòng vật lý nào. Nhấn "+ Thêm phòng" để cấu hình.</div>
+                  ` : rooms.map(r => `
+                    <div style="background: rgba(15, 23, 42, 0.4); border: 1px solid var(--color-border); border-radius: var(--radius-sm); padding: 12px; display: flex; justify-content: space-between; align-items: center;">
+                      <div>
+                        <strong style="font-size: 0.9rem; color: var(--color-text-main); display: block;">🚪 ${escapeHtml(r.name)}</strong>
+                        <span style="font-size: 0.78rem; color: var(--color-text-muted);">Sức chứa: <strong>${escapeHtml(r.capacity)} người</strong></span>
+                      </div>
+                      <span class="badge" style="background: var(--color-success-bg); color: var(--color-success); font-size: 0.72rem;">
+                        ${escapeHtml(r.status || 'AVAILABLE')}
+                      </span>
+                    </div>
+                  `).join('')}
+                </div>
+              </div>
+            `;
+          }).join('')}
+        </div>
+      `;
+
+      container.querySelector('#btn-admin-add-venue')?.addEventListener('click', async () => {
+        const name = prompt('Nhập tên chi nhánh mới:');
+        if (!name) return;
+        const address = prompt('Nhập địa chỉ chi nhánh:');
+        if (!address) return;
+        const phone = prompt('Nhập số hotline liên hệ:', '0901234567');
+        try {
+          await api.post('/admin/venues', { name, address, phone });
+          toast.success(`Đã thêm chi nhánh "${name}" thành công!`);
+          this.renderVenuesTab(container);
+        } catch (err) {
+          toast.error(err.message || 'Lỗi thêm chi nhánh');
+        }
+      });
+
+      container.querySelectorAll('[data-add-room]').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          const venueId = btn.dataset.addRoom;
+          const name = prompt('Nhập tên phòng vật lý (VD: Phòng Mật Thất 03):');
+          if (!name) return;
+          const capacity = prompt('Nhập sức chứa tối đa (người):', '8');
+          try {
+            await api.post(`/admin/venues/${venueId}/rooms`, {
+              name,
+              capacity: Number(capacity) || 8,
+            });
+            toast.success(`Đã thêm phòng "${name}" thành công!`);
+            this.renderVenuesTab(container);
+          } catch (err) {
+            toast.error(err.message || 'Lỗi thêm phòng');
+          }
+        });
+      });
+
+      container.querySelectorAll('[data-toggle-venue]').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          const venueId = btn.dataset.toggleVenue;
+          const currentStatus = btn.dataset.status;
+          try {
+            if (currentStatus === 'ACTIVE') {
+              await api.delete(`/admin/venues/${venueId}`);
+              toast.info('Đã tạm ngưng hoạt động chi nhánh.');
+            } else {
+              await api.patch(`/admin/venues/${venueId}`, { status: 'ACTIVE' });
+              toast.success('Đã mở lại chi nhánh!');
+            }
+            this.renderVenuesTab(container);
+          } catch (err) {
+            toast.error(err.message || 'Lỗi cập nhật chi nhánh');
+          }
+        });
+      });
+    } catch (err) {
+      container.innerHTML = `<div class="card" style="color: var(--color-error); padding: 20px;">Lỗi: ${escapeHtml(err.message)}</div>`;
     }
   }
 }

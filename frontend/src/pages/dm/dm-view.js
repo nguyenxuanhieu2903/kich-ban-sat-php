@@ -169,6 +169,11 @@ export class DmView {
 
       // Gắn sự kiện các nút
       this.assignments.forEach(a => {
+        const togglePlayersBtn = listEl.querySelector(`#btn-toggle-players-${a.id}`);
+        if (togglePlayersBtn) {
+          togglePlayersBtn.onclick = () => this.togglePlayerList(a.id, a.game_room_id);
+        }
+
         const acceptBtn = listEl.querySelector(`#btn-accept-${a.id}`);
         if (acceptBtn) {
           acceptBtn.onclick = () => this.handleAccept(a.id);
@@ -246,6 +251,9 @@ export class DmView {
           </div>
 
           <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+            <button id="btn-toggle-players-${a.id}" class="btn" style="background: transparent; border: 1px solid var(--color-border); color: var(--color-text-main); padding: 6px 14px; font-size: 0.85rem;">
+              👥 Danh sách người chơi
+            </button>
             ${a.status === 'PENDING' ? `
               <button id="btn-accept-${a.id}" class="btn" style="background: var(--color-success); color: white; border: none; padding: 6px 14px; font-size: 0.85rem;">
                 ✓ Chấp nhận ca
@@ -290,6 +298,10 @@ export class DmView {
           </div>
         </div>
 
+        <div id="dm-players-container-${a.id}" style="display: none; margin-top: 14px; padding: 14px; background: rgba(0, 0, 0, 0.3); border: 1px solid var(--color-border); border-radius: var(--radius-sm);">
+          <div style="text-align: center; color: var(--color-text-muted); font-size: 0.85rem;">Đang tải danh sách người chơi...</div>
+        </div>
+
         ${a.rejection_reason ? `
           <div style="margin-top: 12px; padding: 10px; background: var(--color-error-bg); border-radius: var(--radius-sm); font-size: 0.85rem; color: var(--color-error);">
             <strong>Lý do từ chối:</strong> ${escapeHtml(a.rejection_reason)}
@@ -332,6 +344,66 @@ export class DmView {
       this.fetchAssignments();
     } catch (err) {
       toast.error(err.message || 'Không thể kết thúc buổi chơi');
+    }
+  }
+
+  async togglePlayerList(assignmentId, roomId) {
+    const container = this.container.querySelector(`#dm-players-container-${assignmentId}`);
+    if (!container) return;
+
+    if (container.style.display !== 'none' && container.dataset.loaded === 'true') {
+      container.style.display = 'none';
+      return;
+    }
+
+    container.style.display = 'block';
+    container.innerHTML = `<div style="text-align: center; color: var(--color-text-muted); padding: 12px; font-size: 0.85rem;">Đang tải danh sách người chơi...</div>`;
+
+    try {
+      const res = await api.get(`/rooms/${roomId}`);
+      const room = res.data?.room || res.data || {};
+      const participants = room.participants || [];
+
+      if (participants.length === 0) {
+        container.innerHTML = `<div style="text-align: center; color: var(--color-text-muted); font-size: 0.85rem;">Phòng chưa có thành viên nào tham gia.</div>`;
+        container.dataset.loaded = 'true';
+        return;
+      }
+
+      container.innerHTML = `
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; border-bottom: 1px solid var(--color-border); padding-bottom: 6px;">
+          <strong style="font-size: 0.9rem; color: var(--color-primary);">👥 Danh Sách Người Chơi (${participants.length} thành viên)</strong>
+          <span style="font-size: 0.75rem; color: var(--color-text-muted);">Điểm danh và kiểm tra tiền cọc</span>
+        </div>
+        <div style="display: grid; gap: 8px;">
+          ${participants.map(p => {
+            const isDeposited = p.status === 'DEPOSITED';
+            const depositBadge = isDeposited
+              ? `<span class="badge" style="background: var(--color-success-bg); color: var(--color-success); font-size: 0.75rem;">✓ Đã cọc 50k</span>`
+              : `<span class="badge" style="background: rgba(245,158,11,0.2); color: var(--color-warning); font-size: 0.75rem;">⏳ Chờ cọc</span>`;
+
+            return `
+              <div style="display: flex; justify-content: space-between; align-items: center; background: rgba(255,255,255,0.03); padding: 8px 12px; border-radius: 4px;">
+                <div style="display: flex; align-items: center; gap: 10px;">
+                  <span style="font-size: 1.1rem;">👤</span>
+                  <div>
+                    <strong style="font-size: 0.88rem; color: var(--color-text-main);">${escapeHtml(p.name || p.full_name || 'Người chơi')}</strong>
+                    ${p.is_creator ? '<span class="badge" style="font-size: 0.7rem; margin-left: 6px;">Chủ phòng</span>' : ''}
+                    <div style="font-size: 0.78rem; color: var(--color-text-muted);">SĐT: ${escapeHtml(p.phone || 'Chưa cung cấp')}</div>
+                  </div>
+                </div>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                  ${depositBadge}
+                  <span class="badge" style="font-size: 0.75rem;">${escapeHtml(p.status)}</span>
+                </div>
+              </div>
+            `;
+          }).join('')}
+        </div>
+      `;
+      container.dataset.loaded = 'true';
+    } catch (err) {
+      container.innerHTML = `<div style="color: var(--color-error); font-size: 0.85rem; text-align: center;">Lỗi tải người chơi: ${escapeHtml(err.message)}</div>`;
     }
   }
 }

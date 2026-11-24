@@ -185,4 +185,65 @@ class AuthController
 
         return Response::success(null, 'Đăng xuất thành công');
     }
+
+    /**
+     * PATCH /api/v1/auth/profile
+     */
+    public function updateProfile(Request $request): Response
+    {
+        $authUser = AuthMiddleware::authenticate($request);
+        if ($authUser instanceof Response) {
+            return $authUser;
+        }
+
+        $userId = (int) $authUser['id'];
+        $body = $request->getBodyParams();
+
+        $updateData = [];
+        $errors = [];
+
+        if (isset($body['full_name']) || isset($body['name'])) {
+            $fullName = trim((string) ($body['full_name'] ?? $body['name']));
+            if ($fullName === '') {
+                $errors['full_name'] = ['Họ và tên không được để trống'];
+            } else {
+                $updateData['full_name'] = $fullName;
+            }
+        }
+
+        if (array_key_exists('phone', $body)) {
+            $phone = $body['phone'] !== null ? trim((string) $body['phone']) : null;
+            if ($phone !== null && $phone !== '' && !preg_match('/^[0-9+\-. ()]{8,20}$/', $phone)) {
+                $errors['phone'] = ['Số điện thoại không hợp lệ'];
+            } else {
+                $updateData['phone'] = $phone !== '' ? $phone : null;
+            }
+        }
+
+        if (isset($body['password']) && trim((string) $body['password']) !== '') {
+            $password = (string) $body['password'];
+            if (strlen($password) < 6) {
+                $errors['password'] = ['Mật khẩu mới phải có ít nhất 6 ký tự'];
+            } else {
+                $updateData['password_hash'] = password_hash($password, PASSWORD_BCRYPT);
+            }
+        }
+
+        if (!empty($errors)) {
+            return Response::fail('Dữ liệu không hợp lệ', 'VALIDATION_ERROR', 422, $errors);
+        }
+
+        if (!empty($updateData)) {
+            $this->userRepo->update($userId, $updateData);
+        }
+
+        $updatedUser = $this->userRepo->findById($userId);
+        if ($updatedUser !== null) {
+            unset($updatedUser['password_hash']);
+        }
+
+        return Response::success([
+            'user' => $updatedUser,
+        ], 'Cập nhật thông tin cá nhân thành công');
+    }
 }

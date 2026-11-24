@@ -98,45 +98,11 @@
     import { escapeHtml, sanitizeUrl } from './src/utils/sanitize.js';
     import { initSharedChrome } from './src/utils/shared-header.js';
     import { AuthModal } from './src/pages/auth/auth-modal.js';
-    import { PHYSICAL_ROOMS } from './src/data/scripts.data.js';
 
     let dmTab = 'new';
     let authModalInstance = null;
-    let selectedRoomId = '104';
-    let localMockAssignments = [
-      {
-        id: 1,
-        room_id: 104,
-        game_name: 'Yandere: Lời Thề Máu',
-        scheduled_at: 'Hôm nay, 19:00',
-        physical_room: 'Phòng Mật Thất 01 — Tầng 2',
-        status: 'PENDING',
-        players: [
-          { name: 'Trần Gia Bảo (Chủ phòng)', phone: '0912.345.678', paid: true, checkedIn: true },
-          { name: 'Lê Thu Hà', phone: '0988.111.222', paid: true, checkedIn: true },
-          { name: 'Phạm Quốc Tuấn', phone: '0933.444.555', paid: true, checkedIn: false },
-          { name: 'Võ Ngọc Ánh', phone: '0977.888.999', paid: true, checkedIn: false },
-          { name: 'Đặng Hải Đăng', phone: '0903.222.333', paid: true, checkedIn: false },
-          { name: 'Nguyễn Minh Khôi', phone: '0909.123.456', paid: true, checkedIn: false }
-        ]
-      },
-      {
-        id: 2,
-        room_id: 109,
-        game_name: 'Căn Phòng Số 7',
-        scheduled_at: 'Ngày mai, 14:00',
-        physical_room: 'Phòng Biệt Thự Cổ 02 — Tầng 2',
-        status: 'ACCEPTED',
-        players: [
-          { name: 'Lê Hoàng Phúc', phone: '0901.000.001', paid: true, checkedIn: false },
-          { name: 'Nguyễn Thúy Quỳnh', phone: '0901.000.002', paid: true, checkedIn: false },
-          { name: 'Trần Văn Nam', phone: '0901.000.003', paid: true, checkedIn: false },
-          { name: 'Hồ Gia Huy', phone: '0901.000.004', paid: true, checkedIn: false },
-          { name: 'Bùi Lan Chi', phone: '0901.000.005', paid: true, checkedIn: false },
-          { name: 'Mai Trung Kiên', phone: '0901.000.006', paid: true, checkedIn: false }
-        ]
-      }
-    ];
+    let selectedRoomId = null;
+    let liveAssignments = [];
 
     async function initDmPage() {
       initSharedChrome('dm');
@@ -254,17 +220,14 @@
 
     async function renderDmAssignmentsList() {
       const container = document.getElementById('dm-assignments-container');
-      let apiAssignments = [];
       try {
         const res = await api.get('/dm/assignments');
-        apiAssignments = res?.data?.assignments || [];
+        liveAssignments = res?.data?.assignments || [];
       } catch {
-        apiAssignments = [];
+        liveAssignments = [];
       }
 
-      // Merge API assignments with mock display
-      const merged = apiAssignments.length > 0 ? apiAssignments : localMockAssignments;
-      const filtered = merged.filter(item => {
+      const filtered = liveAssignments.filter(item => {
         const st = (item.status || 'PENDING').toUpperCase();
         if (dmTab === 'new') return st === 'PENDING';
         if (dmTab === 'upcoming') return st === 'ACCEPTED' || st === 'SCHEDULED';
@@ -287,11 +250,11 @@
               <span class="badge ${item.status === 'ACCEPTED' ? 'badge-green' : item.status === 'REJECTED' ? 'badge-18' : 'badge-gold'}">
                 ${item.status === 'ACCEPTED' ? 'Đã nhận ca' : item.status === 'REJECTED' ? 'Đã từ chối' : 'Chờ bạn xác nhận'}
               </span>
-              <strong class="text-gold" style="font-family: var(--font-mono);">#${item.room_id || item.roomId || item.id}</strong>
+              <strong class="text-gold" style="font-family: var(--font-mono);">#${item.game_room_id || item.room_id || item.id}</strong>
             </div>
-            <h3 style="font-family: var(--font-display); font-size: 1.25rem; margin: 4px 0;">${escapeHtml(item.game_name || item.title || 'Kịch bản trinh thám')}</h3>
+            <h3 style="font-family: var(--font-display); font-size: 1.25rem; margin: 4px 0;">${escapeHtml(item.game_title || item.game_name || 'Kịch bản trinh thám')}</h3>
             <div class="text-muted" style="font-size: 0.86rem;">
-              📅 ${escapeHtml(item.scheduled_at || 'Hôm nay, 19:00')} &bull; 🚪 ${escapeHtml(item.physical_room || 'Phòng Mật Thất 01')}
+              📅 ${escapeHtml(item.session_start_at ? new Date(item.session_start_at).toLocaleString('vi-VN') : (item.scheduled_at || 'Chưa xếp giờ'))} &bull; 🚪 ${escapeHtml(item.room_name || item.physical_room || 'Phòng Diễn')} (${escapeHtml(item.venue_name || 'Chi nhánh trung tâm')})
             </div>
           </div>
 
@@ -300,7 +263,7 @@
               <button class="btn btn-gold btn-sm" data-dm-accept="${item.id}">✓ Chấp nhận</button>
               <button class="btn btn-ghost btn-sm" data-dm-reject="${item.id}">✕ Từ chối</button>
             ` : ''}
-            <button class="btn btn-crimson btn-sm" data-dm-inspect="${item.room_id || item.id}">
+            <button class="btn btn-crimson btn-sm" data-dm-inspect="${item.game_room_id || item.room_id || item.id}">
               📋 Điểm danh Check-in
             </button>
           </div>
@@ -313,8 +276,6 @@
           try {
             await api.post(`/dm/assignments/${assignId}/accept`);
             toast.success('Bạn đã chấp nhận ca dẫn! Lịch trực đã được ghi nhận.');
-            const found = localMockAssignments.find(x => x.id == assignId);
-            if (found) found.status = 'ACCEPTED';
             renderDmAssignmentsList();
           } catch (err) {
             toast.error(err.message || 'Lỗi chấp nhận ca');
@@ -338,38 +299,61 @@
       });
     }
 
-    function renderSessionDetail() {
+    async function renderSessionDetail() {
       const detailRoot = document.getElementById('session-detail-content');
-      const assignment = localMockAssignments.find(x => x.room_id == selectedRoomId || x.id == selectedRoomId) || localMockAssignments[0];
-      const players = assignment.players || [];
-      const presentCount = players.filter(p => p.checkedIn).length;
+      if (!selectedRoomId) {
+        detailRoot.innerHTML = `<div style="text-align: center; padding: 20px;" class="text-muted">Chọn một ca trực ở trên để mở bảng điểm danh Check-in tại quán.</div>`;
+        return;
+      }
+
+      detailRoot.innerHTML = `<div style="text-align: center; padding: 20px;" class="text-muted">Đang tải chi tiết phòng #${selectedRoomId}...</div>`;
+
+      let room = null;
+      try {
+        const res = await api.get(`/rooms/${selectedRoomId}`);
+        room = res?.data?.room || res?.data || null;
+      } catch (err) {
+        detailRoot.innerHTML = `<div style="color: var(--crimson-bright); padding: 20px;">Không thể tải dữ liệu phòng: ${escapeHtml(err.message)}</div>`;
+        return;
+      }
+
+      if (!room) {
+        detailRoot.innerHTML = `<div class="text-muted" style="padding: 20px;">Không tìm thấy thông tin phòng #${selectedRoomId}.</div>`;
+        return;
+      }
+
+      const assignment = liveAssignments.find(x => (x.game_room_id == selectedRoomId || x.room_id == selectedRoomId || x.id == selectedRoomId)) || {};
+      const players = room.participants || [];
+      const presentCount = players.filter(p => p.checkedIn || p.status === 'DEPOSITED').length;
 
       detailRoot.innerHTML = `
         <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 14px; margin-bottom: 20px; border-bottom: 1px solid rgba(255,255,255,0.08); padding-bottom: 16px;">
           <div>
-            <span class="badge badge-18">CHI TIẾT CA DẪN #${assignment.room_id || assignment.id}</span>
+            <span class="badge badge-18">CHI TIẾT CA DẪN #${room.id}</span>
             <h2 style="font-family: var(--font-display); font-size: 1.5rem; margin: 8px 0 4px;">
-              ${escapeHtml(assignment.game_name)}
+              ${escapeHtml(room.game_name || assignment.game_title || room.title || 'Kịch bản')}
             </h2>
             <p class="text-gold" style="font-size: 0.9rem; margin: 0;">
-              🚪 ${escapeHtml(assignment.physical_room)} &bull; ⏰ ${escapeHtml(assignment.scheduled_at)}
+              🚪 ${escapeHtml(assignment.room_name || assignment.physical_room || 'Phòng Diễn')} &bull; ⏰ ${escapeHtml(assignment.session_start_at ? new Date(assignment.session_start_at).toLocaleString('vi-VN') : 'Theo lịch phòng')}
             </p>
           </div>
           <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
             <span class="badge badge-green" style="font-size: 0.88rem; padding: 6px 12px;">
-              Đã có mặt: ${presentCount} / ${players.length} người
+              Đã tham gia: ${presentCount} / ${players.length} người
             </span>
-            <button class="btn btn-gold btn-sm" id="btn-start-play" style="padding: 8px 16px;">
-              🎬 Bắt đầu ca chơi
-            </button>
-            <button class="btn btn-ghost btn-sm" id="btn-finish-play" style="padding: 8px 14px;">
-              Hoàn thành ca
-            </button>
+            ${assignment.session_id ? `
+              <button class="btn btn-gold btn-sm" id="btn-start-play" style="padding: 8px 16px;">
+                🎬 Bắt đầu ca chơi
+              </button>
+              <button class="btn btn-ghost btn-sm" id="btn-finish-play" style="padding: 8px 14px;">
+                Hoàn thành ca
+              </button>
+            ` : ''}
           </div>
         </div>
 
         <h4 style="font-family: var(--font-display); font-size: 1.15rem; color: var(--gold); margin-bottom: 12px;">
-          Bảng Điểm Danh Người Chơi Tại Quán (Mobile 375px)
+          Bảng Điểm Danh Người Chơi Tại Quán
         </h4>
 
         <div class="table-wrap" style="background: rgba(0,0,0,0.25); border-radius: 8px; border: 1px solid rgba(255,255,255,0.08); overflow-x: auto;">
@@ -380,24 +364,26 @@
                 <th>Họ và tên</th>
                 <th>Số điện thoại</th>
                 <th>Cọc 50k</th>
-                <th>Điểm danh Check-in</th>
+                <th>Trạng thái ghế</th>
               </tr>
             </thead>
             <tbody>
-              ${players.map((p, idx) => `
+              ${players.length === 0 ? `
+                <tr><td colspan="5" style="text-align: center; padding: 20px;" class="text-muted">Chưa có người chơi nào trong phòng.</td></tr>
+              ` : players.map((p, idx) => `
                 <tr>
                   <td style="font-family: var(--font-mono); color: var(--gold);">Ghế #${idx + 1}</td>
-                  <td><strong>${escapeHtml(p.name)}</strong></td>
-                  <td><a href="${sanitizeUrl('tel:' + p.phone)}" class="text-gold" style="text-decoration: underline;">${escapeHtml(p.phone)}</a></td>
+                  <td><strong>${escapeHtml(p.name || p.full_name || 'Người chơi')}</strong> ${p.is_creator ? '<span class="badge" style="font-size: 0.7rem; margin-left: 4px;">Host</span>' : ''}</td>
+                  <td><a href="${sanitizeUrl('tel:' + (p.phone || '0901234567'))}" class="text-gold" style="text-decoration: underline;">${escapeHtml(p.phone || 'Chưa cập nhật')}</a></td>
                   <td>
-                    <span class="badge ${p.paid ? 'badge-green' : 'badge-18'}">
-                      ${p.paid ? 'Đã cọc 50k' : 'Chưa cọc'}
+                    <span class="badge ${p.status === 'DEPOSITED' ? 'badge-green' : 'badge-18'}">
+                      ${p.status === 'DEPOSITED' ? 'Đã cọc 50k' : 'Chờ cọc'}
                     </span>
                   </td>
                   <td>
-                    <button class="btn btn-sm ${p.checkedIn ? 'btn-gold' : 'btn-ghost'}" data-checkin-idx="${idx}" style="min-width: 130px; font-weight: 600;">
-                      ${p.checkedIn ? '✓ Đã có mặt' : 'Vắng mặt (Chạm)'}
-                    </button>
+                    <span class="badge badge-gold" style="font-size: 0.75rem;">
+                      ${escapeHtml(p.status)}
+                    </span>
                   </td>
                 </tr>
               `).join('')}
@@ -406,21 +392,26 @@
         </div>
       `;
 
-      detailRoot.querySelectorAll('[data-checkin-idx]').forEach(btn => {
-        btn.addEventListener('click', () => {
-          const idx = Number(btn.dataset.checkinIdx);
-          players[idx].checkedIn = !players[idx].checkedIn;
-          toast.info(players[idx].checkedIn ? `Đã điểm danh: ${players[idx].name}` : `Đã bỏ điểm danh: ${players[idx].name}`);
-          renderSessionDetail();
+      if (assignment.session_id) {
+        document.getElementById('btn-start-play')?.addEventListener('click', async () => {
+          try {
+            await api.post(`/sessions/${assignment.session_id}/start`);
+            toast.success(`Ca chơi #${room.id} chính thức BẮT ĐẦU! Chúc các thám tử phá án thành công.`);
+            renderDmAssignmentsList();
+          } catch (err) {
+            toast.error(err.message || 'Lỗi bắt đầu ca chơi');
+          }
         });
-      });
-
-      document.getElementById('btn-start-play')?.addEventListener('click', () => {
-        toast.success(`Ca chơi #${assignment.room_id || assignment.id} chính thức BẮT ĐẦU! Chúc các thám tử phá án thành công.`);
-      });
-      document.getElementById('btn-finish-play')?.addEventListener('click', () => {
-        toast.info(`Ca chơi #${assignment.room_id || assignment.id} đã hoàn thành. Kết quả ca trực được lưu vào hệ thống.`);
-      });
+        document.getElementById('btn-finish-play')?.addEventListener('click', async () => {
+          try {
+            await api.post(`/sessions/${assignment.session_id}/complete`);
+            toast.info(`Ca chơi #${room.id} đã hoàn thành. Kết quả ca trực được lưu vào hệ thống.`);
+            renderDmAssignmentsList();
+          } catch (err) {
+            toast.error(err.message || 'Lỗi kết thúc ca chơi');
+          }
+        });
+      }
     }
 
     // Modal reject events
@@ -437,8 +428,6 @@
       try {
         await api.post(`/dm/assignments/${assignId}/reject`, { reason });
         toast.info(`Đã gửi lý do từ chối ca #${assignId} về Quản Trị Viên.`);
-        const found = localMockAssignments.find(x => x.id == assignId);
-        if (found) found.status = 'REJECTED';
         document.getElementById('dm-reject-dialog').close();
         renderDmAssignmentsList();
       } catch (err) {

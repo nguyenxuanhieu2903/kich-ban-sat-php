@@ -9,6 +9,7 @@ import { RoomsView } from './pages/rooms/rooms-view.js';
 import { DmView } from './pages/dm/dm-view.js';
 import { AdminView } from './pages/admin/admin-view.js';
 import { NotificationsView } from './pages/notifications/notifications-view.js';
+import { VenuesView } from './pages/venues/venues-view.js';
 
 class App {
   constructor() {
@@ -61,6 +62,7 @@ class App {
       rooms: new RoomsView(this.mountPoint, () => this.authModal.show()),
       dm: new DmView(this.mountPoint, () => this.authModal.show(false, 'DM')),
       admin: new AdminView(this.mountPoint, () => this.authModal.show(false, 'ADMIN')),
+      venues: new VenuesView(this.mountPoint),
       notifications: new NotificationsView(this.mountPoint)
     };
   }

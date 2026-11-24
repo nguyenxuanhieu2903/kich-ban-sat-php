@@ -282,8 +282,28 @@
         }
       });
 
-      document.getElementById('btn-save-profile')?.addEventListener('click', () => {
-        toast.success('Đã lưu cập nhật thông tin cá nhân thành công!');
+      document.getElementById('btn-save-profile')?.addEventListener('click', async () => {
+        const fullName = document.getElementById('prof-name').value.trim();
+        const phone = document.getElementById('prof-phone').value.trim();
+        const password = document.getElementById('prof-pass').value.trim();
+        if (!fullName) {
+          toast.error('Họ và tên không được để trống!');
+          return;
+        }
+        try {
+          const res = await api.patch('/auth/profile', {
+            full_name: fullName,
+            phone: phone || null,
+            password: password || undefined,
+          });
+          toast.success(res.message || 'Đã lưu cập nhật thông tin cá nhân thành công!');
+          if (res?.data?.user) {
+            document.getElementById('player-greeting-name').textContent = `Chào mừng ${res.data.user.name || fullName}`;
+            document.getElementById('player-avatar').textContent = (res.data.user.name || fullName).charAt(0).toUpperCase();
+          }
+        } catch (err) {
+          toast.error(err.message || 'Lỗi cập nhật hồ sơ');
+        }
       });
 
       document.getElementById('btn-upload-student')?.addEventListener('click', () => {
@@ -299,7 +319,10 @@
         document.getElementById('player-greeting-name').textContent = `Chào mừng ${user.name}`;
         document.getElementById('player-avatar').textContent = (user.name || 'P').charAt(0).toUpperCase();
         document.getElementById('player-sub-info').textContent = `Vai trò: ${user.role} • ID: #${user.id} • Chi nhánh: 36/52 Nguyễn Gia Trí, Bình Thạnh`;
-        document.getElementById('prof-name').value = user.name;
+        document.getElementById('prof-name').value = user.name || '';
+        if (user.phone) {
+          document.getElementById('prof-phone').value = user.phone;
+        }
       }
 
       renderLobby();
@@ -383,94 +406,155 @@
       });
     }
 
-    function renderBookings() {
+    async function renderBookings() {
       const container = document.getElementById('player-bookings-list');
-      container.innerHTML = `
-        <!-- PHÒNG 1: SẮP DIỄN RA ĐÃ CỌC -->
-        <div class="paper-ticket" style="padding: 24px; position: relative;">
-          <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 12px; margin-bottom: 16px;">
-            <div>
-              <span class="badge badge-green" style="background: #1F5E39; color: #fff;">ĐÃ CỌC 50.000Đ &bull; PHÒNG ĐÃ CHỐT</span>
-              <h3 style="font-family: var(--font-display); font-size: 1.45rem; margin: 8px 0 4px; color: var(--ink-black);">
-                #KBS-104: Yandere — Lời Thề Máu (18+)
-              </h3>
-              <p style="font-size: 0.88rem; color: var(--ink-muted); margin: 0;">
-                📍 Chi nhánh Bình Thạnh &bull; 🚪 Phòng Mật Thất 01 (Tầng 2) &bull; ⏰ 19:00 Thứ 7 tuần này
-              </p>
+      const user = authState.getUser();
+
+      if (!user) {
+        container.innerHTML = `
+          <div style="padding: 36px; text-align: center; background: var(--bg-surface); border-radius: 8px; border: 1px dashed var(--gold-border);">
+            <p class="text-muted" style="margin-bottom: 16px;">Vui lòng đăng nhập để xem lịch sử vé và thanh toán.</p>
+            <button class="btn btn-gold btn-sm" id="btn-login-for-bookings">Đăng nhập</button>
+          </div>
+        `;
+        document.getElementById('btn-login-for-bookings')?.addEventListener('click', () => authModalInstance.show(false, 'PLAYER'));
+        return;
+      }
+
+      container.innerHTML = `<div style="text-align: center; padding: 30px;" class="text-muted">Đang tải lịch sử vé và thanh toán...</div>`;
+
+      let payments = [];
+      try {
+        const res = await api.get('/payments/my');
+        payments = res?.data?.payments || [];
+      } catch (err) {
+        container.innerHTML = `<div style="color: var(--crimson-bright); padding: 20px; text-align: center;">Lỗi tải vé: ${escapeHtml(err.message)}</div>`;
+        return;
+      }
+
+      if (payments.length === 0) {
+        container.innerHTML = `
+          <div style="padding: 40px; text-align: center; background: var(--bg-surface); border-radius: 8px; border: 1px dashed var(--gold-border);">
+            <div style="font-size: 2.5rem; margin-bottom: 12px;">🎟️</div>
+            <h3 style="margin: 0 0 8px 0; font-family: var(--font-display);">Bạn chưa có vé đặt phòng nào</h3>
+            <p class="text-muted" style="margin: 0 0 18px 0; font-size: 0.88rem;">Hãy tham gia một phòng tại sảnh hoặc tạo phòng mới để bắt đầu cuộc chơi!</p>
+            <button class="btn btn-gold btn-sm" id="btn-go-to-lobby">Khám phá Sảnh ghép phòng</button>
+          </div>
+        `;
+        document.getElementById('btn-go-to-lobby')?.addEventListener('click', () => {
+          document.querySelector('[data-ptab="lobby"]')?.click();
+        });
+        return;
+      }
+
+      container.innerHTML = payments.map(p => {
+        const isPaid = p.payment_status === 'PAID';
+        const isPending = p.payment_status === 'PENDING';
+        const remainingAmount = Math.max(0, Number(p.amount) - Number(p.paid_amount));
+        const statusBadge = isPaid
+          ? `<span class="badge badge-green" style="background: #1F5E39; color: #fff;">ĐÃ CỌC 50.000Đ &bull; PHÒNG ĐÃ CHỐT</span>`
+          : (isPending
+            ? `<span class="badge badge-18" style="background: var(--crimson); color: #fff;">CHỜ THANH TOÁN CỌC (4 GIỜ)</span>`
+            : `<span class="badge" style="background: rgba(255,255,255,0.1); color: #ccc;">${escapeHtml(p.payment_status)}</span>`);
+
+        return `
+          <div class="paper-ticket" style="padding: 24px; position: relative; border-left: 5px solid ${isPaid ? '#1F5E39' : 'var(--crimson)'}; margin-bottom: 18px;">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 12px; margin-bottom: 16px;">
+              <div>
+                ${statusBadge}
+                <h3 style="font-family: var(--font-display); font-size: 1.45rem; margin: 8px 0 4px; color: var(--ink-black);">
+                  #KBS-${escapeHtml(p.game_room_id)}: ${escapeHtml(p.game_title || p.room_title || 'Kịch bản sát')}
+                </h3>
+                <p style="font-size: 0.88rem; color: var(--ink-muted); margin: 0;">
+                  📍 ${escapeHtml(p.venue_name || 'Chi nhánh trung tâm')} &bull; 🚪 ${escapeHtml(p.physical_room_name || 'Phòng Diễn')} &bull; ⏰ ${escapeHtml(p.scheduled_at ? new Date(p.scheduled_at).toLocaleString('vi-VN') : 'Đang chốt lịch')}
+                </p>
+              </div>
+              <div style="text-align: right;">
+                <span style="font-family: var(--font-mono); font-size: 0.82rem; color: var(--crimson); font-weight: 700;">MÃ VÉ: KBS-${escapeHtml(p.payment_id)}</span>
+                <div style="font-size: 0.8rem; color: var(--ink-muted); margin-top: 4px;">Phòng: ${escapeHtml(p.room_status || 'ACTIVE')}</div>
+              </div>
             </div>
-            <div style="text-align: right;">
-              <span style="font-family: var(--font-mono); font-size: 0.82rem; color: var(--crimson); font-weight: 700;">MÃ ĐẶT: KBS-9821</span>
-              <div style="font-size: 0.8rem; color: var(--ink-muted); margin-top: 4px;">Host: Quản trò Hoàng Nam</div>
+
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 14px; background: var(--paper-aged); padding: 14px; border-radius: 6px; margin-bottom: 16px;">
+              <div>
+                <span style="font-size: 0.75rem; color: var(--ink-muted); display: block;">Tiền cọc giữ chỗ:</span>
+                <strong style="color: ${isPaid ? '#1F5E39' : 'var(--crimson)'}; font-size: 1.05rem;">
+                  ${Number(p.paid_amount || 0).toLocaleString('vi-VN')}đ ${isPaid ? '(Đã thanh toán)' : '(Chưa nộp)'}
+                </strong>
+              </div>
+              <div>
+                <span style="font-size: 0.75rem; color: var(--ink-muted); display: block;">Số tiền còn lại tại quán:</span>
+                <strong style="color: var(--crimson); font-size: 1.05rem;">${remainingAmount.toLocaleString('vi-VN')}đ / người</strong>
+              </div>
+              <div>
+                <span style="font-size: 0.75rem; color: var(--ink-muted); display: block;">Mã QR Check-in:</span>
+                <strong style="color: var(--ink-black); font-size: 0.95rem;">QR-KBS-${escapeHtml(p.payment_id)}-${escapeHtml(p.game_room_id)}</strong>
+              </div>
+            </div>
+
+            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+              <span style="font-size: 0.82rem; color: var(--ink-muted);">
+                🛡️ Chính sách: Hủy trước 24 giờ được xét duyệt hoàn tiền cọc vào tài khoản.
+              </span>
+              <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                ${isPending ? `
+                  <button class="btn btn-sm btn-gold" data-pay-deposit="${p.payment_id}" style="color: var(--ink-black);">
+                    💳 Thanh Toán Cọc 50.000đ (Simulated)
+                  </button>
+                ` : ''}
+                ${isPaid && remainingAmount > 0 ? `
+                  <button class="btn btn-sm btn-crimson" data-pay-remaining="${p.payment_id}">
+                    💳 Thanh Toán Còn Lại (${remainingAmount.toLocaleString('vi-VN')}đ)
+                  </button>
+                ` : ''}
+                <button class="btn btn-sm btn-ghost" data-leave-room="${p.game_room_id}" style="color: #555; border-color: #aaa;">
+                  Hủy ghế / Rời phòng
+                </button>
+              </div>
             </div>
           </div>
+        `;
+      }).join('');
 
-          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 14px; background: var(--paper-aged); padding: 14px; border-radius: 6px; margin-bottom: 16px;">
-            <div>
-              <span style="font-size: 0.75rem; color: var(--ink-muted); display: block;">Tiền cọc giữ chỗ:</span>
-              <strong style="color: #1F5E39; font-size: 1.05rem;">50.000đ (Đã thanh toán)</strong>
-            </div>
-            <div>
-              <span style="font-size: 0.75rem; color: var(--ink-muted); display: block;">Số tiền còn lại tại quán:</span>
-              <strong style="color: var(--crimson); font-size: 1.05rem;">79.000đ / người</strong>
-            </div>
-            <div>
-              <span style="font-size: 0.75rem; color: var(--ink-muted); display: block;">Mã QR Check-in:</span>
-              <strong style="color: var(--ink-black); font-size: 0.95rem;">QR-KBS-7742 (Hợp lệ)</strong>
-            </div>
-          </div>
-
-          <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
-            <span style="font-size: 0.82rem; color: var(--ink-muted);">
-              🛡️ Chính sách: Hủy trước 24 giờ được hoàn đủ 50.000đ vào tài khoản.
-            </span>
-            <div style="display: flex; gap: 8px;">
-              <button class="btn btn-sm btn-crimson" id="btn-pay-remaining">
-                💳 Thanh Toán Số Tiền Còn Lại (79.000đ)
-              </button>
-              <button class="btn btn-sm btn-ghost" style="color: #555; border-color: #aaa;" id="btn-cancel-my-seat">
-                Hủy ghế (Áp dụng 24h)
-              </button>
-            </div>
-          </div>
-        </div>
-
-        <!-- PHÒNG 2: ĐANG CHỜ CỌC GIỮ CHỖ 4 GIỜ -->
-        <div class="paper-ticket" style="padding: 24px; position: relative; border-left: 5px solid var(--crimson);">
-          <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 12px; margin-bottom: 14px;">
-            <div>
-              <span class="badge badge-18">CHỜ THANH TOÁN CỌC (4 GIỜ)</span>
-              <h3 style="font-family: var(--font-display); font-size: 1.45rem; margin: 8px 0 4px; color: var(--ink-black);">
-                #KBS-107: Căn Phòng Số 7 (Phá Án)
-              </h3>
-              <p style="font-size: 0.88rem; color: var(--ink-muted); margin: 0;">
-                📍 Chi nhánh Bình Thạnh &bull; ⏰ 14:00 Ngày mai
-              </p>
-            </div>
-            <div style="text-align: right;">
-              <span style="color: var(--crimson); font-weight: 700; font-size: 1.1rem;">⏳ Còn 02:45:18</span>
-              <div style="font-size: 0.75rem; color: var(--ink-muted);">Hết giờ ghế sẽ tự động nhả</div>
-            </div>
-          </div>
-
-          <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
-            <span style="font-size: 0.84rem; color: var(--ink-muted);">
-              Cọc 50.000đ ngay để khóa vị trí của bạn trong phòng chơi.
-            </span>
-            <button class="btn btn-sm btn-gold" id="btn-pay-deposit-now" style="color: var(--ink-black);">
-              Thanh Toán Cọc 50.000đ (VNPAY / Momo)
-            </button>
-          </div>
-        </div>
-      `;
-
-      document.getElementById('btn-pay-remaining')?.addEventListener('click', () => {
-        toast.success('Đã thanh toán số tiền còn lại 79.000đ qua cổng Simulated VNPAY! Vé của bạn đã hoàn tất 100%.');
+      container.querySelectorAll('[data-pay-deposit]').forEach(b => {
+        b.addEventListener('click', async () => {
+          const pid = b.dataset.payDeposit;
+          try {
+            await api.post(`/payments/${pid}/deposit`);
+            toast.success('Đã thanh toán cọc 50.000đ thành công! Ghế của bạn đã được xác nhận chính thức.');
+            renderBookings();
+          } catch (err) {
+            toast.error(err.message || 'Lỗi thanh toán cọc');
+          }
+        });
       });
-      document.getElementById('btn-pay-deposit-now')?.addEventListener('click', () => {
-        toast.success('Đã thanh toán cọc 50.000đ thành công! Ghế của bạn đã được xác nhận chính thức.');
+
+      container.querySelectorAll('[data-pay-remaining]').forEach(b => {
+        b.addEventListener('click', async () => {
+          const pid = b.dataset.payRemaining;
+          try {
+            await api.post(`/payments/${pid}/remaining`);
+            toast.success('Đã thanh toán số tiền còn lại thành công! Vé của bạn đã hoàn tất 100%.');
+            renderBookings();
+          } catch (err) {
+            toast.error(err.message || 'Lỗi thanh toán');
+          }
+        });
       });
-      document.getElementById('btn-cancel-my-seat')?.addEventListener('click', () => {
-        toast.info('Yêu cầu hủy ghế đã được tiếp nhận. Do thời gian trước giờ chơi > 24 giờ, tiền cọc 50.000đ sẽ được hoàn lại.');
+
+      container.querySelectorAll('[data-leave-room]').forEach(b => {
+        b.addEventListener('click', async () => {
+          const rid = b.dataset.leaveRoom;
+          if (!confirm('Bạn có chắc chắn muốn rời phòng chơi này không?')) return;
+          try {
+            await api.post(`/rooms/${rid}/leave`);
+            toast.info('Bạn đã rời phòng chơi thành công.');
+            renderBookings();
+            renderLobby();
+          } catch (err) {
+            toast.error(err.message || 'Lỗi rời phòng');
+          }
+        });
       });
     }
 

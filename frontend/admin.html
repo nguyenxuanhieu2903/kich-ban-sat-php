@@ -176,12 +176,11 @@
     import { escapeHtml } from './src/utils/sanitize.js';
     import { initSharedChrome } from './src/utils/shared-header.js';
     import { AuthModal } from './src/pages/auth/auth-modal.js';
-    import { ALL_SCRIPTS, PHYSICAL_ROOMS } from './src/data/scripts.data.js';
 
     let activeTab = 'overview';
     let authModalInstance = null;
-    let localScripts = [...ALL_SCRIPTS];
-    let localPhysical = [...PHYSICAL_ROOMS];
+    let gamesList = [];
+    let venuesList = [];
     let scenarioSearch = '';
     let scenarioPage = 1;
 
@@ -579,10 +578,22 @@
       }
 
       /* =========================================================================
-         TAB 4: KHO 42 KỊCH BẢN (SCENARIOS)
+         TAB 4: KHO KỊCH BẢN (SCENARIOS - REAL API)
          ========================================================================= */
       if (activeTab === 'scenarios') {
-        const filtered = localScripts.filter(s => s.title.toLowerCase().includes(scenarioSearch.toLowerCase()));
+        try {
+          const res = await api.get('/admin/games');
+          gamesList = res?.data?.games || [];
+        } catch {
+          try {
+            const res2 = await api.get('/games');
+            gamesList = res2?.data?.games || [];
+          } catch {
+            gamesList = [];
+          }
+        }
+
+        const filtered = gamesList.filter(s => (s.name || s.title || '').toLowerCase().includes(scenarioSearch.toLowerCase()));
         const perPage = 8;
         const totalPages = Math.ceil(filtered.length / perPage) || 1;
         if (scenarioPage > totalPages) scenarioPage = 1;
@@ -591,8 +602,8 @@
         root.innerHTML = `
           <div style="display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 20px;">
             <div>
-              <h1 class="page-title" style="font-family: var(--font-display); margin: 0;">Quản Lý Kho 42 Kịch Bản</h1>
-              <p class="text-muted" style="margin: 4px 0 0 0; font-size: 0.88rem;">Toàn bộ kịch bản trinh thám, kinh dị và phá án chuẩn V16</p>
+              <h1 class="page-title" style="font-family: var(--font-display); margin: 0;">Quản Lý Kho Kịch Bản</h1>
+              <p class="text-muted" style="margin: 4px 0 0 0; font-size: 0.88rem;">Toàn bộ kịch bản trinh thám, kinh dị và phá án chuẩn V16 (${gamesList.length} kịch bản)</p>
             </div>
             <button class="btn btn-gold btn-sm" id="btn-open-add-script">+ Thêm kịch bản mới</button>
           </div>
@@ -607,30 +618,34 @@
                 <tr>
                   <th>Mã</th>
                   <th>Tên kịch bản</th>
-                  <th>Thể loại</th>
                   <th>Số người</th>
+                  <th>Thời lượng</th>
                   <th>Giá vé</th>
-                  <th>Độ tuổi</th>
                   <th>Trạng thái</th>
                 </tr>
               </thead>
               <tbody>
-                ${items.map(s => `
-                  <tr>
-                    <td style="font-family: var(--font-mono); font-size: 0.8rem; color: var(--gold);">${s.code}</td>
-                    <td><strong>${escapeHtml(s.title)}</strong></td>
-                    <td class="text-muted">${escapeHtml(s.genre)}</td>
-                    <td>${s.playersMin}–${s.playersMax} người</td>
-                    <td class="text-gold font-bold">${(s.price).toLocaleString('vi-VN')}đ</td>
-                    <td>${s.is18Plus ? '<span class="badge badge-18">18+</span>' : '<span class="badge badge-green">Phổ thông</span>'}</td>
-                    <td>
-                      <label class="switch">
-                        <input type="checkbox" data-scr-toggle="${s.id}" ${s.isActive ? 'checked' : ''} />
-                        <span class="slider"></span>
-                      </label>
-                    </td>
-                  </tr>
-                `).join('')}
+                ${items.length === 0 ? `
+                  <tr><td colspan="6" style="text-align: center; padding: 24px;" class="text-muted">Chưa có kịch bản nào phù hợp.</td></tr>
+                ` : items.map(s => {
+                  const isActive = s.status === 'ACTIVE' || s.is_active;
+                  const price = s.prices?.[0]?.price_per_person || s.min_price || 180000;
+                  return `
+                    <tr>
+                      <td style="font-family: var(--font-mono); font-size: 0.8rem; color: var(--gold);">#${escapeHtml(s.id)}</td>
+                      <td><strong>${escapeHtml(s.name || s.title)}</strong></td>
+                      <td>${escapeHtml(s.min_players)}–${escapeHtml(s.max_players)} người</td>
+                      <td>${escapeHtml(s.duration_minutes || 240)} phút</td>
+                      <td class="text-gold font-bold">${Number(price).toLocaleString('vi-VN')}đ</td>
+                      <td>
+                        <label class="switch">
+                          <input type="checkbox" data-scr-toggle="${s.id}" data-current="${isActive ? 'ACTIVE' : 'INACTIVE'}" ${isActive ? 'checked' : ''} />
+                          <span class="slider"></span>
+                        </label>
+                      </td>
+                    </tr>
+                  `;
+                }).join('')}
               </tbody>
             </table>
           </div>
@@ -660,39 +675,109 @@
         });
 
         root.querySelectorAll('[data-scr-toggle]').forEach(chk => {
-          chk.addEventListener('change', () => {
-            const item = localScripts.find(s => s.id === chk.dataset.scrToggle);
-            if (item) {
-              item.isActive = chk.checked;
-              toast.info(`Kịch bản "${item.title}" đã ${chk.checked ? 'bật' : 'tắt'}.`);
+          chk.addEventListener('change', async () => {
+            const gameId = chk.dataset.scrToggle;
+            const newStatus = chk.checked ? 'ACTIVE' : 'INACTIVE';
+            try {
+              await api.patch(`/admin/games/${gameId}`, { status: newStatus });
+              toast.info(`Trạng thái kịch bản #${gameId} đã được cập nhật thành: ${newStatus}`);
+            } catch (err) {
+              toast.error(err.message || 'Lỗi cập nhật trạng thái');
+              chk.checked = !chk.checked;
             }
           });
         });
       }
 
       /* =========================================================================
-         TAB 5: PHÒNG VẬT LÝ TẠI QUÁN (PHYSICAL ROOMS)
+         TAB 5: PHÒNG VẬT LÝ TẠI QUÁN (PHYSICAL ROOMS - REAL API)
          ========================================================================= */
       if (activeTab === 'physical') {
-        root.innerHTML = `
-          <h1 class="page-title" style="margin-bottom: 8px; font-family: var(--font-display);">Trạng Thái Phòng Vật Lý Tại Chi Nhánh</h1>
-          <p class="text-muted" style="margin-bottom: 24px;">Chi nhánh 36/52 Nguyễn Gia Trí, P.25, Bình Thạnh (5 phòng chuyên đề nhập vai)</p>
+        try {
+          const res = await api.get('/admin/venues');
+          venuesList = res?.data?.venues || [];
+        } catch {
+          try {
+            const res2 = await api.get('/venues');
+            venuesList = res2?.data?.venues || [];
+          } catch {
+            venuesList = [];
+          }
+        }
 
-          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px;">
-            ${localPhysical.map(p => `
-              <div style="background: var(--bg-surface); border: 1px solid rgba(255,255,255,0.12); padding: 22px; border-radius: 8px; position: relative;">
-                <span class="badge ${p.status === 'available' ? 'badge-green' : p.status === 'occupied' ? 'badge-gold' : 'badge-18'}" style="margin-bottom: 12px;">
-                  ${p.status === 'available' ? '● Đang trống (Sẵn sàng)' : p.status === 'occupied' ? '● Đang có ca diễn' : '● Bảo trì đạo cụ'}
-                </span>
-                <h3 style="font-family: var(--font-display); font-size: 1.25rem; margin: 8px 0 6px;">${p.name}</h3>
-                <p class="text-muted" style="font-size: 0.88rem; margin-bottom: 12px;">Sức chứa tối đa: <strong>${p.capacity} người chơi</strong></p>
-                <div style="border-top: 1px solid rgba(255,255,255,0.08); padding-top: 10px; font-size: 0.82rem; color: var(--gold);">
-                  Mã phòng: #${p.id} ${p.currentBookingId ? `• Đang phục vụ: #${p.currentBookingId}` : ''}
+        root.innerHTML = `
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 10px;">
+            <div>
+              <h1 class="page-title" style="margin-bottom: 4px; font-family: var(--font-display);">Phòng Vật Lý Tại Các Chi Nhánh</h1>
+              <p class="text-muted" style="margin: 0;">Danh sách phòng chơi và sức chứa tại các cơ sở (${venuesList.length} chi nhánh)</p>
+            </div>
+            <button class="btn btn-gold btn-sm" id="btn-admin-add-branch">+ Thêm chi nhánh</button>
+          </div>
+
+          <div style="display: grid; gap: 24px;">
+            ${venuesList.length === 0 ? `
+              <div style="padding: 32px; background: var(--bg-surface); border-radius: 8px; text-align: center;" class="text-muted">Chưa có chi nhánh nào được thiết lập.</div>
+            ` : venuesList.map(v => {
+              const rooms = v.rooms || [];
+              return `
+                <div style="background: var(--bg-surface); border: 1px solid rgba(212,175,55,0.2); border-radius: 8px; padding: 22px;">
+                  <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 14px; flex-wrap: wrap; gap: 10px; border-bottom: 1px solid rgba(255,255,255,0.08); padding-bottom: 12px;">
+                    <div>
+                      <h3 style="font-family: var(--font-display); font-size: 1.35rem; margin: 0 0 4px 0; color: var(--gold);">🏛️ ${escapeHtml(v.name)}</h3>
+                      <p class="text-muted" style="margin: 0; font-size: 0.88rem;">📍 ${escapeHtml(v.address)} &bull; Hotline: <strong>${escapeHtml(v.phone || '0901234567')}</strong></p>
+                    </div>
+                    <button class="btn btn-gold btn-sm" data-branch-add-room="${v.id}">+ Thêm phòng vật lý</button>
+                  </div>
+
+                  <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px;">
+                    ${rooms.length === 0 ? `
+                      <div class="text-muted" style="font-size: 0.85rem; padding: 10px;">Chi nhánh này chưa có phòng vật lý nào.</div>
+                    ` : rooms.map(p => `
+                      <div style="background: rgba(15,23,42,0.5); border: 1px solid rgba(255,255,255,0.1); padding: 16px; border-radius: 6px;">
+                        <span class="badge ${p.status === 'ACTIVE' || p.status === 'AVAILABLE' ? 'badge-green' : 'badge-18'}" style="margin-bottom: 8px;">
+                          ● ${escapeHtml(p.status || 'AVAILABLE')}
+                        </span>
+                        <h4 style="font-family: var(--font-display); font-size: 1.15rem; margin: 6px 0 4px;">${escapeHtml(p.name)}</h4>
+                        <p class="text-muted" style="font-size: 0.84rem; margin-bottom: 8px;">Sức chứa: <strong class="text-gold">${escapeHtml(p.capacity || 8)} người chơi</strong></p>
+                        <div style="font-size: 0.78rem; color: var(--text-dim);">Mã phòng: #${escapeHtml(p.id)}</div>
+                      </div>
+                    `).join('')}
+                  </div>
                 </div>
-              </div>
-            `).join('')}
+              `;
+            }).join('')}
           </div>
         `;
+
+        document.getElementById('btn-admin-add-branch')?.addEventListener('click', async () => {
+          const name = prompt('Nhập tên chi nhánh mới:');
+          if (!name) return;
+          const address = prompt('Nhập địa chỉ:');
+          if (!address) return;
+          try {
+            await api.post('/admin/venues', { name, address });
+            toast.success(`Đã thêm chi nhánh "${name}"!`);
+            renderAdminDashboard();
+          } catch (err) {
+            toast.error(err.message || 'Lỗi thêm chi nhánh');
+          }
+        });
+
+        root.querySelectorAll('[data-branch-add-room]').forEach(b => {
+          b.addEventListener('click', async () => {
+            const venueId = b.dataset.branchAddRoom;
+            const name = prompt('Nhập tên phòng vật lý mới (VD: Phòng Án Mạng 05):');
+            if (!name) return;
+            const cap = prompt('Sức chứa tối đa (người):', '8');
+            try {
+              await api.post(`/admin/venues/${venueId}/rooms`, { name, capacity: Number(cap) || 8 });
+              toast.success(`Đã thêm phòng "${name}" thành công!`);
+              renderAdminDashboard();
+            } catch (err) {
+              toast.error(err.message || 'Lỗi thêm phòng');
+            }
+          });
+        });
       }
 
       /* =========================================================================
@@ -823,7 +908,7 @@
       document.getElementById('add-script-modal').classList.remove('open');
     });
 
-    document.getElementById('new-script-form')?.addEventListener('submit', (e) => {
+    document.getElementById('new-script-form')?.addEventListener('submit', async (e) => {
       e.preventDefault();
       const title = document.getElementById('ns-title').value.trim();
       const genre = document.getElementById('ns-genre').value.trim();
@@ -831,24 +916,21 @@
       const price = Number(document.getElementById('ns-price').value);
       const is18 = document.getElementById('ns-18').checked;
 
-      localScripts.unshift({
-        id: `SCR-${Date.now().toString().slice(-3)}`,
-        code: `KBS-${Math.floor(200 + Math.random() * 700)}`,
-        title,
-        genre,
-        playersMin: Math.max(5, maxP - 1),
-        playersMax: maxP,
-        difficulty: 'Trung bình',
-        durationHours: 3.5,
-        price,
-        is18Plus: is18,
-        isActive: true,
-        summary: 'Kịch bản mới được thêm vào kho hồ sơ mật Kịch Bản Sát V16.'
-      });
-
-      toast.success(`Đã lưu kịch bản "${title}" vào hệ thống!`);
-      document.getElementById('add-script-modal').classList.remove('open');
-      renderAdminDashboard();
+      try {
+        await api.post('/admin/games', {
+          name: title,
+          min_players: Math.max(4, maxP - 2),
+          max_players: maxP || 8,
+          duration_minutes: 240,
+          price_per_person: price || 180000,
+          description: genre || 'Kịch bản trinh thám V16'
+        });
+        toast.success(`Đã lưu kịch bản "${title}" vào hệ thống thành công!`);
+        document.getElementById('add-script-modal').classList.remove('open');
+        renderAdminDashboard();
+      } catch (err) {
+        toast.error(err.message || 'Lỗi thêm kịch bản');
+      }
     });
 
     initAdminPage();

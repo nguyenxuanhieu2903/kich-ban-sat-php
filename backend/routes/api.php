@@ -9,15 +9,18 @@ use App\Features\Identity\Controllers\AuthController;
 use App\Features\Identity\Controllers\AdminUserController;
 use App\Features\DMManagement\Controllers\DMAssignmentController;
 use App\Features\GameCatalog\Controllers\GameController;
+use App\Features\GameCatalog\Controllers\AdminGameController;
 use App\Features\GameroomManagement\Controllers\GameRoomController;
 use App\Features\GameroomManagement\Controllers\AdminGameRoomController;
 use App\Features\VenueScheduling\Controllers\SchedulingController;
 use App\Features\VenueScheduling\Controllers\SessionController;
+use App\Features\VenueScheduling\Controllers\AdminVenueController;
 use App\Features\PaymentRefund\Controllers\PaymentController;
 use App\Features\PaymentRefund\Controllers\AdminRefundController;
 use App\Features\Notification\Controllers\NotificationController;
 use App\Features\Pricing\Controllers\PricingController;
 use App\Features\Promotion\Controllers\PromotionController;
+use App\Features\Promotion\Controllers\AdminPromotionController;
 
 /** @var Router $router */
 
@@ -38,6 +41,7 @@ $registerApiRoutes = function (string $prefix) use ($router): void {
     $router->post($prefix . '/auth/register', [AuthController::class, 'register']);
     $router->post($prefix . '/auth/login', [AuthController::class, 'login']);
     $router->get($prefix . '/auth/me', [AuthController::class, 'me']);
+    $router->patch($prefix . '/auth/profile', [AuthController::class, 'updateProfile']);
     $router->post($prefix . '/auth/logout', [AuthController::class, 'logout']);
 
     // Admin User & Role Management
@@ -53,6 +57,21 @@ $registerApiRoutes = function (string $prefix) use ($router): void {
     $router->get($prefix . '/games/{id}', [GameController::class, 'show']);
     $router->get($prefix . '/games/{id}/prices', [GameController::class, 'prices']);
     $router->get($prefix . '/promotions', [PromotionController::class, 'index']);
+
+    // Admin Game & Pricing CRUD
+    $router->get($prefix . '/admin/games', [AdminGameController::class, 'index']);
+    $router->post($prefix . '/admin/games', [AdminGameController::class, 'create']);
+    $router->patch($prefix . '/admin/games/{id}', [AdminGameController::class, 'update']);
+    $router->delete($prefix . '/admin/games/{id}', [AdminGameController::class, 'delete']);
+    $router->post($prefix . '/admin/games/{id}/prices', [AdminGameController::class, 'addPrice']);
+    $router->patch($prefix . '/admin/prices/{id}', [AdminGameController::class, 'updatePrice']);
+    $router->delete($prefix . '/admin/prices/{id}', [AdminGameController::class, 'deletePrice']);
+
+    // Admin Promotion CRUD
+    $router->get($prefix . '/admin/promotions', [AdminPromotionController::class, 'index']);
+    $router->post($prefix . '/admin/promotions', [AdminPromotionController::class, 'create']);
+    $router->patch($prefix . '/admin/promotions/{id}', [AdminPromotionController::class, 'update']);
+    $router->delete($prefix . '/admin/promotions/{id}', [AdminPromotionController::class, 'delete']);
 
     // =============================================================
     // DOMAIN 3: GAMEROOM MANAGEMENT & PRICING SNAPSHOT API
@@ -79,6 +98,15 @@ $registerApiRoutes = function (string $prefix) use ($router): void {
     $router->get($prefix . '/proposals/{id}', [SchedulingController::class, 'showProposal']);
     $router->post($prefix . '/proposals/{id}/vote', [SchedulingController::class, 'vote']);
 
+    // Admin Venue & Physical Room CRUD
+    $router->get($prefix . '/admin/venues', [AdminVenueController::class, 'index']);
+    $router->post($prefix . '/admin/venues', [AdminVenueController::class, 'create']);
+    $router->patch($prefix . '/admin/venues/{id}', [AdminVenueController::class, 'update']);
+    $router->delete($prefix . '/admin/venues/{id}', [AdminVenueController::class, 'delete']);
+    $router->post($prefix . '/admin/venues/{id}/rooms', [AdminVenueController::class, 'createPhysicalRoom']);
+    $router->patch($prefix . '/admin/physical-rooms/{id}', [AdminVenueController::class, 'updatePhysicalRoom']);
+    $router->delete($prefix . '/admin/physical-rooms/{id}', [AdminVenueController::class, 'deletePhysicalRoom']);
+
     // Sessions Play Lifecycle (DEF-26)
     $router->get($prefix . '/sessions/{id}', [SessionController::class, 'show']);
     $router->post($prefix . '/sessions/{id}/start', [SessionController::class, 'start']);
@@ -96,6 +124,7 @@ $registerApiRoutes = function (string $prefix) use ($router): void {
     // =============================================================
     // DOMAIN 7: PAYMENT & REFUND API
     // =============================================================
+    $router->get($prefix . '/payments/my', [PaymentController::class, 'myPayments']);
     $router->post($prefix . '/payments/{paymentId}/deposit', [PaymentController::class, 'deposit']);
     $router->post($prefix . '/payments/{paymentId}/remaining', [PaymentController::class, 'remaining']);
 

@@ -237,4 +237,50 @@ class PaymentController
 
         return Response::success($result, 'Thanh toán số tiền còn lại thành công');
     }
+
+    /**
+     * GET /api/v1/payments/my
+     * Lấy lịch sử vé và thanh toán của chính người chơi đang đăng nhập
+     */
+    public function myPayments(Request $request): Response
+    {
+        $auth = AuthMiddleware::authenticate($request);
+        if ($auth instanceof Response) {
+            return $auth;
+        }
+
+        $userId = (int) $auth['id'];
+
+        $sql = 'SELECT pp.`id` AS `payment_id`, pp.`payment_type`, pp.`amount`, pp.`paid_amount`,
+                       pp.`status` AS `payment_status`, pp.`deadline_at`, pp.`paid_at`, pp.`created_at`,
+                       rp.`id` AS `room_participant_id`, rp.`status` AS `participant_status`,
+                       gr.`id` AS `game_room_id`, gr.`title` AS `room_title`, gr.`status` AS `room_status`,
+                       g.`id` AS `game_id`, g.`name` AS `game_title`, g.`image_url` AS `game_image`,
+                       v.`name` AS `venue_name`, v.`address` AS `venue_address`,
+                       pr.`name` AS `physical_room_name`,
+                       COALESCE(s.`start_at`, sp.`proposed_start_at`) AS `scheduled_at`,
+                       rf.`id` AS `refund_id`, rf.`amount` AS `refund_amount`, rf.`status` AS `refund_status`,
+                       rf.`reason` AS `refund_reason`
+                FROM `player_payments` pp
+                INNER JOIN `room_participants` rp ON rp.`id` = pp.`room_participant_id`
+                INNER JOIN `game_rooms` gr ON gr.`id` = rp.`game_room_id`
+                INNER JOIN `games` g ON g.`id` = gr.`game_id`
+                LEFT JOIN `sessions` s ON s.`game_room_id` = gr.`id` AND s.`status` != \'CANCELLED\'
+                LEFT JOIN `schedule_proposals` sp ON sp.`game_room_id` = gr.`id` AND sp.`status` = \'CONFIRMED\'
+                LEFT JOIN `venues` v ON v.`id` = s.`venue_id`
+                LEFT JOIN `physical_rooms` pr ON pr.`id` = s.`physical_room_id`
+                LEFT JOIN `refunds` rf ON rf.`player_payment_id` = pp.`id`
+                WHERE rp.`user_id` = :user_id
+                ORDER BY pp.`id` DESC';
+
+        $stmt = $this->pdo->prepare($sql);
+        $stmt->bindValue(':user_id', $userId, PDO::PARAM_INT);
+        $stmt->execute();
+        $payments = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        return Response::success([
+            'payments' => $payments,
+            'count' => count($payments),
+        ], 'Lịch sử thanh toán và đặt vé');
+    }
 }
