@@ -167,7 +167,7 @@ export class DmView {
         </div>
       `;
 
-      // Gắn sự kiện nút Accept và Reject
+      // Gắn sự kiện các nút
       this.assignments.forEach(a => {
         const acceptBtn = listEl.querySelector(`#btn-accept-${a.id}`);
         if (acceptBtn) {
@@ -177,6 +177,18 @@ export class DmView {
         const rejectBtn = listEl.querySelector(`#btn-reject-${a.id}`);
         if (rejectBtn) {
           rejectBtn.onclick = () => this.openRejectModal(a.id);
+        }
+
+        if (a.session_id) {
+          const startBtn = listEl.querySelector(`#btn-start-session-${a.session_id}`);
+          if (startBtn) {
+            startBtn.onclick = () => this.handleStartSession(a.session_id);
+          }
+
+          const completeBtn = listEl.querySelector(`#btn-complete-session-${a.session_id}`);
+          if (completeBtn) {
+            completeBtn.onclick = () => this.handleCompleteSession(a.session_id);
+          }
         }
       });
     } catch (err) {
@@ -203,6 +215,17 @@ export class DmView {
       statusBadge = `<span class="badge">${escapeHtml(a.status)}</span>`;
     }
 
+    let sessionBadge = '';
+    if (a.session_status === 'SCHEDULED') {
+      sessionBadge = `<span class="badge" style="background: rgba(59, 130, 246, 0.2); color: #60a5fa; border: 1px solid #3b82f6;">📅 Đã lên lịch</span>`;
+    } else if (a.session_status === 'IN_PROGRESS') {
+      sessionBadge = `<span class="badge" style="background: rgba(16, 185, 129, 0.2); color: #34d399; border: 1px solid #10b981;">▶ Đang diễn ra</span>`;
+    } else if (a.session_status === 'COMPLETED') {
+      sessionBadge = `<span class="badge" style="background: rgba(148, 163, 184, 0.2); color: #94a3b8; border: 1px solid #64748b;">🏁 Đã hoàn thành</span>`;
+    } else if (a.session_status === 'CANCELLED') {
+      sessionBadge = `<span class="badge" style="background: var(--color-error-bg); color: var(--color-error); border: 1px solid var(--color-error);">Đã hủy</span>`;
+    }
+
     const sessionStart = a.session_start_at ? escapeHtml(new Date(a.session_start_at).toLocaleString('vi-VN')) : 'Chưa xếp giờ';
     const sessionEnd = a.session_end_at ? escapeHtml(new Date(a.session_end_at).toLocaleString('vi-VN')) : 'Chưa xếp giờ';
 
@@ -210,18 +233,19 @@ export class DmView {
       <div class="card" style="border-left: 4px solid ${a.status === 'PENDING' ? 'var(--color-warning)' : (a.status === 'ACCEPTED' ? 'var(--color-success)' : 'var(--color-border)')};">
         <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 12px; margin-bottom: 14px;">
           <div>
-            <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 6px;">
+            <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 6px; flex-wrap: wrap;">
               <h3 style="margin: 0; font-size: 1.2rem; font-weight: 700;">
                 🎭 ${escapeHtml(a.game_title || 'Kịch bản sát')}
               </h3>
               ${statusBadge}
+              ${sessionBadge}
             </div>
             <div style="font-size: 0.85rem; color: var(--color-text-muted);">
-              Mã phòng: <strong style="color: var(--color-text-main);">${escapeHtml(a.game_room_code || 'ROOM-#' + a.game_room_id)}</strong> &bull; Phân công lúc: ${escapeHtml(new Date(a.assigned_at || a.created_at).toLocaleString('vi-VN'))}
+              Mã phòng: <strong style="color: var(--color-text-main);">${escapeHtml(a.room_title || 'Phòng #' + a.game_room_id)}</strong> &bull; Phân công lúc: ${escapeHtml(new Date(a.assigned_at || a.created_at).toLocaleString('vi-VN'))}
             </div>
           </div>
 
-          <div style="display: flex; gap: 8px;">
+          <div style="display: flex; gap: 8px; flex-wrap: wrap;">
             ${a.status === 'PENDING' ? `
               <button id="btn-accept-${a.id}" class="btn" style="background: var(--color-success); color: white; border: none; padding: 6px 14px; font-size: 0.85rem;">
                 ✓ Chấp nhận ca
@@ -229,6 +253,18 @@ export class DmView {
               <button id="btn-reject-${a.id}" class="btn" style="background: var(--color-error); color: white; border: none; padding: 6px 14px; font-size: 0.85rem;">
                 ✕ Từ chối ca
               </button>
+            ` : ''}
+            ${a.status === 'ACCEPTED' && a.session_id ? `
+              ${a.session_status === 'SCHEDULED' ? `
+                <button id="btn-start-session-${a.session_id}" class="btn" style="background: var(--color-primary); color: white; border: none; padding: 6px 14px; font-size: 0.85rem; font-weight: 600;">
+                  ▶ Bắt đầu buổi chơi
+                </button>
+              ` : ''}
+              ${a.session_status === 'IN_PROGRESS' ? `
+                <button id="btn-complete-session-${a.session_id}" class="btn" style="background: var(--color-success); color: white; border: none; padding: 6px 14px; font-size: 0.85rem; font-weight: 600;">
+                  ✔ Kết thúc buổi chơi
+                </button>
+              ` : ''}
             ` : ''}
           </div>
         </div>
@@ -272,6 +308,30 @@ export class DmView {
       this.fetchAssignments();
     } catch (err) {
       toast.error(err.message || 'Không thể chấp nhận ca');
+    }
+  }
+
+  async handleStartSession(sessionId) {
+    if (!confirm('Bạn có chắc chắn muốn BẮT ĐẦU buổi chơi này ngay bây giờ?')) return;
+
+    try {
+      const res = await api.post(`/sessions/${sessionId}/start`);
+      toast.success(res.message || 'Đã bắt đầu buổi chơi thành công!');
+      this.fetchAssignments();
+    } catch (err) {
+      toast.error(err.message || 'Không thể bắt đầu buổi chơi');
+    }
+  }
+
+  async handleCompleteSession(sessionId) {
+    if (!confirm('Xác nhận KẾT THÚC buổi chơi? Hành động này sẽ chuyển trạng thái phòng và buổi chơi sang COMPLETED.')) return;
+
+    try {
+      const res = await api.post(`/sessions/${sessionId}/complete`);
+      toast.success(res.message || 'Đã kết thúc buổi chơi thành công!');
+      this.fetchAssignments();
+    } catch (err) {
+      toast.error(err.message || 'Không thể kết thúc buổi chơi');
     }
   }
 }

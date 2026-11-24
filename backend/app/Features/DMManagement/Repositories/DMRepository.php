@@ -120,12 +120,29 @@ class DMRepository extends BaseRepository
                         a.`assigned_at`, a.`responded_at`, a.`revoked_at`, a.`reason`,
                         a.`created_at`, a.`updated_at`,
                         gr.`title` AS `room_title`, gr.`status` AS `room_status`,
-                        g.`id` AS `game_id`, g.`name` AS `game_name`,
-                        u.`full_name` AS `dm_name`, u.`email` AS `dm_email`
+                        g.`id` AS `game_id`, g.`name` AS `game_name`, g.`name` AS `game_title`,
+                        u.`full_name` AS `dm_name`, u.`email` AS `dm_email`,
+                        s.`id` AS `session_id`, s.`status` AS `session_status`,
+                        COALESCE(s.`start_at`, sp.`proposed_start_at`) AS `session_start_at`,
+                        COALESCE(s.`end_at`, sp.`proposed_end_at`) AS `session_end_at`,
+                        v.`name` AS `venue_name`, pr.`name` AS `room_name`
                  FROM `dm_assignments` a
                  INNER JOIN `game_rooms` gr ON gr.`id` = a.`game_room_id`
                  INNER JOIN `games` g ON g.`id` = gr.`game_id`
                  INNER JOIN `users` u ON u.`id` = a.`dm_user_id`
+                 LEFT JOIN `sessions` s ON s.`game_room_id` = a.`game_room_id` AND s.`status` != \'CANCELLED\'
+                 LEFT JOIN (
+                     SELECT sp1.`game_room_id`, sp1.`proposed_start_at`, sp1.`proposed_end_at`
+                     FROM `schedule_proposals` sp1
+                     INNER JOIN (
+                         SELECT `game_room_id`, MAX(`id`) AS `max_id`
+                         FROM `schedule_proposals`
+                         WHERE `status` IN (\'CONFIRMED\', \'PROPOSED\')
+                         GROUP BY `game_room_id`
+                     ) sp_latest ON sp1.`id` = sp_latest.`max_id`
+                 ) sp ON sp.`game_room_id` = a.`game_room_id`
+                 LEFT JOIN `venues` v ON v.`id` = s.`venue_id`
+                 LEFT JOIN `physical_rooms` pr ON pr.`id` = s.`physical_room_id`
                  WHERE a.`id` = :id
                  LIMIT 1'
             );
@@ -163,12 +180,29 @@ class DMRepository extends BaseRepository
                            a.`assigned_at`, a.`responded_at`, a.`revoked_at`, a.`reason`,
                            a.`created_at`, a.`updated_at`,
                            gr.`title` AS `room_title`, gr.`status` AS `room_status`,
-                           g.`id` AS `game_id`, g.`name` AS `game_name`,
-                           u.`full_name` AS `dm_name`
+                           g.`id` AS `game_id`, g.`name` AS `game_name`, g.`name` AS `game_title`,
+                           u.`full_name` AS `dm_name`,
+                           s.`id` AS `session_id`, s.`status` AS `session_status`,
+                           COALESCE(s.`start_at`, sp.`proposed_start_at`) AS `session_start_at`,
+                           COALESCE(s.`end_at`, sp.`proposed_end_at`) AS `session_end_at`,
+                           v.`name` AS `venue_name`, pr.`name` AS `room_name`
                     FROM `dm_assignments` a
                     INNER JOIN `game_rooms` gr ON gr.`id` = a.`game_room_id`
                     INNER JOIN `games` g ON g.`id` = gr.`game_id`
                     INNER JOIN `users` u ON u.`id` = a.`dm_user_id`
+                    LEFT JOIN `sessions` s ON s.`game_room_id` = a.`game_room_id` AND s.`status` != 'CANCELLED'
+                    LEFT JOIN (
+                        SELECT sp1.`game_room_id`, sp1.`proposed_start_at`, sp1.`proposed_end_at`
+                        FROM `schedule_proposals` sp1
+                        INNER JOIN (
+                            SELECT `game_room_id`, MAX(`id`) AS `max_id`
+                            FROM `schedule_proposals`
+                            WHERE `status` IN ('CONFIRMED', 'PROPOSED')
+                            GROUP BY `game_room_id`
+                        ) sp_latest ON sp1.`id` = sp_latest.`max_id`
+                    ) sp ON sp.`game_room_id` = a.`game_room_id`
+                    LEFT JOIN `venues` v ON v.`id` = s.`venue_id`
+                    LEFT JOIN `physical_rooms` pr ON pr.`id` = s.`physical_room_id`
                     WHERE {$whereSql}
                     ORDER BY a.`id` DESC";
 
