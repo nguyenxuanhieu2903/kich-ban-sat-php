@@ -14,7 +14,7 @@ const FORMAT_VND = ScriptData.FORMAT_VND || formatVND;
 initChrome('home');
 
 /* =========================================================
-   1. HIỆU ỨNG SCROLLYTELLING PARALLAX 3 PHÂN CẢNH
+1. HIỆU ỨNG SCROLLYTELLING PARALLAX 3 PHÂN CẢNH
    ========================================================= */
 function initScrollyParallax() {
   const stage = document.getElementById('scrolly-stage');
@@ -100,7 +100,7 @@ function initScrollyParallax() {
 }
 
 /* =========================================================
-   2. KHỐI PHÒNG ĐANG TUYỂN NGƯỜI CHƠI
+2. KHỐI PHÒNG ĐANG TUYỂN NGƯỜI CHƠI
    ========================================================= */
 function renderOpenRooms() {
   const grid = document.getElementById('home-rooms-grid');
@@ -137,10 +137,19 @@ function renderOpenRooms() {
 }
 
 /* =========================================================
-   3. KHỐI KỊCH BẢN NỔI BẬT & POPUP 18+
+3. KHỐI KỊCH BẢN NỔI BẬT (DẠNG POSTER + TÌM KIẾM + POPUP 18+)
    ========================================================= */
 let activeGenre = 'Tất cả';
+let searchKeyword = '';
 let pendingUrl = '';
+
+function normalizeText(str) {
+  return (str || '')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/đ/g, 'd');
+}
 
 function renderGenreFilters() {
   const wrap = document.getElementById('home-genre-filters');
@@ -162,62 +171,77 @@ function renderGenreFilters() {
   });
 }
 
+function initScriptSearch() {
+  const input = document.getElementById('script-search-input');
+  const clearBtn = document.getElementById('script-search-clear');
+  if (!input) return;
+
+  input.addEventListener('input', (e) => {
+    searchKeyword = e.target.value;
+    if (clearBtn) clearBtn.style.display = searchKeyword ? 'inline-block' : 'none';
+    renderFeaturedScripts();
+  });
+
+  if (clearBtn) {
+    clearBtn.addEventListener('click', () => {
+      input.value = '';
+      searchKeyword = '';
+      clearBtn.style.display = 'none';
+      renderFeaturedScripts();
+      input.focus();
+    });
+  }
+}
+
 function renderFeaturedScripts() {
   const grid = document.getElementById('home-scripts-grid');
   if (!grid) return;
 
-  const list = activeGenre === 'Tất cả'
-    ? SCENARIOS
-    : SCENARIOS.filter((s) => s.genre === activeGenre);
+  const kw = normalizeText(searchKeyword.trim());
+
+  const list = SCENARIOS.filter((s) => {
+    const matchGenre = activeGenre === 'Tất cả' || s.genre === activeGenre;
+    const title = s.title || s.name || '';
+    const matchKeyword = !kw || normalizeText(title).includes(kw);
+    return matchGenre && matchKeyword;
+  });
+
+  if (!list.length) {
+    grid.innerHTML = `<p class="text-muted" style="grid-column: 1 / -1; text-align: center; padding: 32px 0;">Không tìm thấy kịch bản nào phù hợp.</p>`;
+    return;
+  }
 
   grid.innerHTML = list.map((sc) => {
     const title = sc.title || sc.name;
-    const desc = sc.summary || sc.desc || '';
-    const price = sc.priceDay || sc.price || 159000;
     const posterFile = (sc.poster || '').split('/').pop();
+    const imgSrc = posterFile ? `./src/assets/images/${posterFile}` : '';
 
     return `
-      <article class="script-card" style="background:var(--bg-surface); border:1px solid rgba(212,175,55,0.25); border-radius:var(--radius-md); overflow:hidden; display:flex; flex-direction:column;">
-        <div style="height:210px; background:${sc.coverGrad || '#23201D'}; position:relative; overflow:hidden;">
-          ${posterFile ? `<img src="./src/assets/images/${posterFile}" alt="${title}" style="width:100%;height:100%;object-fit:cover;" onerror="this.style.display='none'" />` : ''}
-          <span class="badge badge-gold" style="position:absolute; top:12px; left:12px;">${sc.genre || 'Trinh thám'}</span>
-          ${sc.is18Plus ? '<span class="badge badge-18" style="position:absolute; top:12px; right:12px;">18+</span>' : ''}
+      <a href="./pages/scenario-detail.html?id=${sc.id}"
+         class="poster-card"
+         data-open-script="${sc.id}"
+         data-title="${title}"
+         data-18="${Boolean(sc.is18Plus)}">
+        <div class="poster-thumb" style="background:${sc.coverGrad || '#181512'};">
+          ${imgSrc
+            ? `<img src="${imgSrc}" alt="${title}" loading="lazy" onerror="this.src='https://placehold.co/400x600/181512/d4af37?text=${encodeURIComponent(title)}'" />`
+            : `<img src="https://placehold.co/400x600/181512/d4af37?text=${encodeURIComponent(title)}" alt="${title}" loading="lazy" />`
+          }
+          ${sc.is18Plus ? '<span class="poster-tag">18+</span>' : ''}
         </div>
-
-        <div style="padding:20px; flex:1; display:flex; flex-direction:column; justify-content:space-between; gap:14px;">
-          <div>
-            <h3 style="font-family:var(--font-display); font-size:1.25rem; margin-bottom:8px;">${title}</h3>
-            <p class="text-muted" style="font-size:0.88rem; margin-bottom:12px;">${desc}</p>
-            <div style="font-size:0.82rem; color:var(--text-secondary); display:grid; gap:4px;">
-              <span>⏱ Thời lượng: <strong>${sc.duration || '3 - 4 tiếng'}</strong> • Độ khó: <strong>${sc.difficulty || 'Trung bình'}</strong></span>
-              <span>👥 Đội hình: <strong>${sc.playersText || `${sc.players?.total || 8} người`}</strong></span>
-            </div>
-          </div>
-
-          <div style="padding-top:12px; border-top:1px solid rgba(255,255,255,0.08); display:flex; justify-content:space-between; align-items:center;">
-            <div>
-              <div style="font-size:0.72rem; color:var(--text-secondary);">GIÁ VÉ TỪ</div>
-              <strong style="color:var(--gold); font-size:1.05rem;">${FORMAT_VND(price)}</strong>
-            </div>
-            <button type="button" class="btn btn-gold btn-sm" data-open-script="${sc.id}" data-title="${title}" data-18="${sc.is18Plus}">
-              Chọn kịch bản
-            </button>
-          </div>
-        </div>
-      </article>
+        <h3 class="poster-title">${title}</h3>
+      </a>
     `;
   }).join('');
 
-  grid.querySelectorAll('[data-open-script]').forEach((btn) => {
-    btn.addEventListener('click', () => {
-      const targetUrl = `./pages/scenario-detail.html?id=${btn.dataset.openScript}`;
-      if (btn.dataset['18'] === 'true') {
-        pendingUrl = targetUrl;
+  grid.querySelectorAll('[data-open-script]').forEach((card) => {
+    card.addEventListener('click', (e) => {
+      if (card.dataset['18'] === 'true') {
+        e.preventDefault();
+        pendingUrl = card.getAttribute('href');
         const nameEl = document.getElementById('age-script-name');
-        if (nameEl) nameEl.textContent = btn.dataset.title;
+        if (nameEl) nameEl.textContent = card.dataset.title;
         document.getElementById('age-modal')?.classList.add('open');
-      } else {
-        window.location.href = targetUrl;
       }
     });
   });
@@ -238,5 +262,6 @@ function initAgeModal() {
 initScrollyParallax();
 renderOpenRooms();
 renderGenreFilters();
+initScriptSearch();
 renderFeaturedScripts();
 initAgeModal();
