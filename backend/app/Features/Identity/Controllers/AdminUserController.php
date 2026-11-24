@@ -45,8 +45,9 @@ class AdminUserController
         $search = $request->query('search') !== null ? (string) $request->query('search') : null;
         $roleCode = $request->query('role') !== null ? (string) $request->query('role') : null;
         $status = $request->query('status') !== null ? (string) $request->query('status') : null;
+        $studentStatus = $request->query('student_status') !== null ? (string) $request->query('student_status') : null;
 
-        $result = $this->userRepo->listUsers($page, $perPage, $search, $roleCode, $status);
+        $result = $this->userRepo->listUsers($page, $perPage, $search, $roleCode, $status, $studentStatus);
 
         return Response::paginated(
             $result['items'],
@@ -190,5 +191,72 @@ class AdminUserController
             'user' => $updated,
             'assigned_role' => $role,
         ], 'Gán vai trò cho người dùng thành công');
+    }
+
+    /**
+     * POST /api/v1/admin/users/{id}/verify-student
+     * Body: status: 'APPROVED' | 'REJECTED', reason?: string
+     */
+    public function verifyStudent(Request $request, string $id): Response
+    {
+        $auth = AuthMiddleware::authenticate($request, ['ADMIN']);
+        if ($auth instanceof Response) {
+            return $auth;
+        }
+
+        $targetUserId = (int) $id;
+        $user = $this->userRepo->findById($targetUserId);
+        if ($user === null) {
+            return Response::fail('Không tìm thấy người dùng', 'USER_NOT_FOUND', 404);
+        }
+
+        $body = $request->getBodyParams();
+        $status = strtoupper(trim((string) ($body['status'] ?? '')));
+        $reason = trim((string) ($body['reason'] ?? ''));
+
+        if (!in_array($status, ['APPROVED', 'REJECTED'], true)) {
+            return Response::fail('Trạng thái xác thực không hợp lệ. Chỉ chấp nhận APPROVED hoặc REJECTED', 'VALIDATION_ERROR', 422);
+        }
+
+        $updateData = [
+            'student_card_status' => $status,
+            'student_verified_at' => $status === 'APPROVED' ? date('Y-m-d H:i:s') : null,
+            'student_reject_reason' => $status === 'REJECTED' ? ($reason !== '' ? $reason : 'Thẻ không hợp lệ hoặc không rõ thông tin') : null,
+        ];
+
+        $this->userRepo->update($targetUserId, $updateData);
+        $this->auditLogger->log('STUDENT_VERIFICATION_REVIEWED', 'USER', $targetUserId, ['student_card_status' => $user['student_card_status'] ?? 'NONE'], $updateData, (int) $auth['id'], $request);
+
+        try {
+            $notiRepo = new \App\Features\Notification\Repositories\NotificationRepository($this->pdo);
+            if ($status === 'APPROVED') {
+                $notiRepo->createNotification(
+                    'Thẻ HSSV đã được duyệt',
+                    'Thẻ học sinh / sinh viên của bạn đã được Quản trị viên phê duyệt. Bạn được tự động giảm giá 20.000đ khi đặt phòng chơi ca ngày thường!',
+                    'PROMOTION',
+                    (int) $auth['id'],
+                    [$targetUserId]
+                );
+            } else {
+                $notiRepo->createNotification(
+                    'Yêu cầu thẻ HSSV bị từ chối',
+                    'Yêu cầu xác minh thẻ HSSV của bạn đã bị từ chối. Lý do: ' . ($reason !== '' ? $reason : 'Ảnh thẻ không hợp lệ.'),
+                    'PROMOTION',
+                    (int) $auth['id'],
+                    [$targetUserId]
+                );
+            }
+        } catch (\Throwable) {
+        }
+
+        $updated = $this->userRepo->findById($targetUserId);
+        if ($updated !== null) {
+            unset($updated['password_hash']);
+        }
+
+        return Response::success([
+            'user' => $updated,
+            'student_card_status' => $status,
+        ], $status === 'APPROVED' ? 'Đã duyệt thẻ HSSV thành công' : 'Đã từ chối thẻ HSSV');
     }
 }

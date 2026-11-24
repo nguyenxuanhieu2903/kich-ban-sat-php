@@ -147,16 +147,24 @@ class SessionController
             return Response::fail("Chỉ có thể kết thúc buổi chơi khi đang diễn ra (IN_PROGRESS) (Hiện tại: {$session['status']})", 'INVALID_SESSION_STATUS', 400);
         }
 
+        $body = $request->getBodyParams();
+        $sessionNotes = isset($body['session_notes']) && trim((string) $body['session_notes']) !== '' ? trim((string) $body['session_notes']) : null;
+        $incidentReport = isset($body['incident_report']) && trim((string) $body['incident_report']) !== '' ? trim((string) $body['incident_report']) : null;
+
         $this->pdo->beginTransaction();
         try {
-            // 1. Cập nhật session sang COMPLETED
+            // 1. Cập nhật session sang COMPLETED kèm ghi chú và báo cáo sự cố (nếu có)
             $stmt = $this->pdo->prepare(
                 'UPDATE `sessions`
                  SET `status` = \'COMPLETED\',
                      `completed_at` = COALESCE(`completed_at`, NOW()),
+                     `session_notes` = :session_notes,
+                     `incident_report` = :incident_report,
                      `updated_at` = NOW()
                  WHERE `id` = :id'
             );
+            $stmt->bindValue(':session_notes', $sessionNotes, $sessionNotes !== null ? PDO::PARAM_STR : PDO::PARAM_NULL);
+            $stmt->bindValue(':incident_report', $incidentReport, $incidentReport !== null ? PDO::PARAM_STR : PDO::PARAM_NULL);
             $stmt->bindValue(':id', $sessionId, PDO::PARAM_INT);
             $stmt->execute();
 
@@ -196,6 +204,7 @@ class SessionController
             'SELECT s.`id`, s.`game_room_id`, s.`schedule_proposal_id`, s.`dm_assignment_id`,
                     s.`venue_id`, s.`physical_room_id`, s.`start_at`, s.`end_at`, s.`status`,
                     s.`started_at`, s.`completed_at`, s.`cancelled_at`, s.`cancel_reason`,
+                    s.`session_notes`, s.`incident_report`,
                     s.`created_at`, s.`updated_at`,
                     a.`dm_user_id`, a.`status` AS `dm_assignment_status`,
                     dm.`full_name` AS `dm_name`, dm.`email` AS `dm_email`,

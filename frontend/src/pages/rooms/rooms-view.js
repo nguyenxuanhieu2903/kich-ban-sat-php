@@ -400,6 +400,9 @@ export class RoomsView {
     const currentUser = authState.user;
     const isHost = currentUser && Number(currentUser.id) === Number(room.creator_id);
     const participants = room.participants || [];
+    const currentUser = authState.getUser();
+    const isHost = currentUser && (Number(currentUser.id) === Number(room.creator_id) || currentUser.role === 'ADMIN');
+    const canKick = isHost && ['FORMING', 'SCHEDULING', 'VOTING'].includes(room.status);
     const myParticipant = currentUser ? participants.find(p => Number(p.user_id) === Number(currentUser.id)) : null;
     const isJoined = myParticipant && ['PENDING_DEPOSIT', 'DEPOSITED', 'LEAVE_REQUESTED'].includes(myParticipant.status);
     const isReplacementOpen = room.replacement_status === 'OPEN';
@@ -476,10 +479,15 @@ export class RoomsView {
                         <div style="font-size: 0.75rem; color: #94a3b8;">${escapeHtml(p.email || '')}</div>
                       </div>
                     </div>
-                    <div>
+                    <div style="display: flex; align-items: center; gap: 8px;">
                       <span class="badge" style="font-size: 0.75rem; background: ${p.status === 'DEPOSITED' ? 'rgba(16, 185, 129, 0.2)' : p.status === 'LEAVE_REQUESTED' ? 'rgba(245, 158, 11, 0.2)' : 'rgba(59, 130, 246, 0.2)'}; color: ${p.status === 'DEPOSITED' ? '#10b981' : p.status === 'LEAVE_REQUESTED' ? '#f59e0b' : '#60a5fa'};">
                         ${escapeHtml(p.status)}
                       </span>
+                      ${canKick && !isMe ? `
+                        <button class="btn btn-sm btn-kick-member" data-kick-user="${escapeHtml(p.user_id)}" data-user-name="${escapeHtml(p.name || p.user_name || 'Người chơi')}" style="padding: 2px 8px; font-size: 0.75rem; background: rgba(239, 68, 68, 0.15); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.3); border-radius: 4px; cursor: pointer;">
+                          Mời ra
+                        </button>
+                      ` : ''}
                     </div>
                   </div>
                 `;
@@ -612,6 +620,26 @@ export class RoomsView {
     if (payRemainingBtn) {
       payRemainingBtn.onclick = () => this.handlePayRemaining();
     }
+
+    this.container.querySelectorAll('.btn-kick-member').forEach(btn => {
+      btn.onclick = async () => {
+        const targetUserId = btn.dataset.kickUser;
+        const targetName = btn.dataset.userName;
+        const reason = prompt(`Nhập lý do mời thành viên '${targetName}' ra khỏi phòng:`, 'Không nộp cọc / Không phản hồi');
+        if (reason !== null) {
+          try {
+            const res = await api.post(`/rooms/${room.id}/kick`, {
+              user_id: targetUserId,
+              reason: reason.trim() || 'Chủ phòng mời ra khỏi phòng',
+            });
+            toast.success(res.message || 'Đã mời thành viên ra khỏi phòng');
+            this.openRoomDetails(room.id);
+          } catch (err) {
+            toast.error(err.message || 'Không thể mời thành viên ra khỏi phòng');
+          }
+        }
+      };
+    });
 
     this.bindProposalEvents();
   }

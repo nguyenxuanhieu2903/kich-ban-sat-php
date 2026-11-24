@@ -302,6 +302,17 @@ export class DmView {
           <div style="text-align: center; color: var(--color-text-muted); font-size: 0.85rem;">Đang tải danh sách người chơi...</div>
         </div>
 
+        ${a.session_notes ? `
+          <div style="margin-top: 10px; padding: 10px 14px; background: rgba(59, 130, 246, 0.08); border-left: 3px solid #3b82f6; border-radius: var(--radius-sm); font-size: 0.85rem;">
+            <strong>📝 Kết quả buổi chơi:</strong> ${escapeHtml(a.session_notes)}
+          </div>
+        ` : ''}
+        ${a.incident_report ? `
+          <div style="margin-top: 8px; padding: 10px 14px; background: rgba(239, 68, 68, 0.08); border-left: 3px solid #ef4444; border-radius: var(--radius-sm); font-size: 0.85rem; color: var(--color-error);">
+            <strong>⚠️ Báo cáo sự cố / hỏng đạo cụ:</strong> ${escapeHtml(a.incident_report)}
+          </div>
+        ` : ''}
+
         ${a.rejection_reason ? `
           <div style="margin-top: 12px; padding: 10px; background: var(--color-error-bg); border-radius: var(--radius-sm); font-size: 0.85rem; color: var(--color-error);">
             <strong>Lý do từ chối:</strong> ${escapeHtml(a.rejection_reason)}
@@ -338,8 +349,18 @@ export class DmView {
   async handleCompleteSession(sessionId) {
     if (!confirm('Xác nhận KẾT THÚC buổi chơi? Hành động này sẽ chuyển trạng thái phòng và buổi chơi sang COMPLETED.')) return;
 
+    const notes = prompt('Nhập tóm tắt kết quả buổi chơi (hoặc bấm OK để tiếp tục):', 'Buổi chơi hoàn thành tốt đẹp, người chơi phá án thành công.');
+    if (notes === null) return;
+
+    const incident = prompt('Ghi nhận sự cố phát sinh / hỏng đạo cụ nếu có (hoặc để trống nếu không có):', '');
+    if (incident === null) return;
+
     try {
-      const res = await api.post(`/sessions/${sessionId}/complete`);
+      // api.post(`/sessions/${sessionId}/complete`)
+      const res = await api.post(`/sessions/${sessionId}/complete`, {
+        session_notes: notes.trim() || undefined,
+        incident_report: incident.trim() || undefined,
+      });
       toast.success(res.message || 'Đã kết thúc buổi chơi thành công!');
       this.fetchAssignments();
     } catch (err) {

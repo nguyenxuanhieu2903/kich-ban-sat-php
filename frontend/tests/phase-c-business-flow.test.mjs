@@ -103,3 +103,30 @@ test('Phase C: Notifications view and app badge correctly unpack notifications a
     'App updateNotificationsCount unpacks res.data.notifications for unread badge count'
   );
 });
+
+test('Gói 1: Player profile and Admin view wire live HSSV verification API', () => {
+  const playerHtml = fs.readFileSync(path.resolve('frontend/player.html'), 'utf-8');
+  assert.ok(playerHtml.includes("api.post('/auth/student-card'"), 'Player wires HSSV upload to /auth/student-card');
+  assert.ok(playerHtml.includes('updateStudentUI'), 'Player updates student badge & status box');
+
+  const adminHtml = fs.readFileSync(path.resolve('frontend/admin.html'), 'utf-8');
+  assert.ok(adminHtml.includes('/verify-student'), 'Admin HTML wires verification to /verify-student');
+
+  const adminViewJs = fs.readFileSync(path.resolve('frontend/src/pages/admin/admin-view.js'), 'utf-8');
+  assert.ok(adminViewJs.includes('/verify-student'), 'Admin View JS wires verification to /verify-student');
+});
+
+test('Gói 1: Host Kick member is wired in rooms-view.js', () => {
+  const roomsCode = fs.readFileSync(path.resolve('frontend/src/pages/rooms/rooms-view.js'), 'utf-8');
+  assert.ok(roomsCode.includes('btn-kick-member'), 'Contains kick member button');
+  assert.ok(roomsCode.includes('/kick'), 'Calls /kick endpoint');
+});
+
+test('Gói 1: DM View collects session notes and incident report on complete', () => {
+  const dmViewCode = fs.readFileSync(path.resolve('frontend/src/pages/dm/dm-view.js'), 'utf-8');
+  assert.ok(dmViewCode.includes('session_notes'), 'Collects session notes');
+  assert.ok(dmViewCode.includes('incident_report'), 'Collects incident report');
+
+  const dmHtml = fs.readFileSync(path.resolve('frontend/dm.html'), 'utf-8');
+  assert.ok(dmHtml.includes('session_notes'), 'DM HTML passes session notes');
+});

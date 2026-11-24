@@ -123,6 +123,7 @@ class DMRepository extends BaseRepository
                         g.`id` AS `game_id`, g.`name` AS `game_name`, g.`name` AS `game_title`,
                         u.`full_name` AS `dm_name`, u.`email` AS `dm_email`,
                         s.`id` AS `session_id`, s.`status` AS `session_status`,
+                        s.`session_notes`, s.`incident_report`,
                         COALESCE(s.`start_at`, sp.`proposed_start_at`) AS `session_start_at`,
                         COALESCE(s.`end_at`, sp.`proposed_end_at`) AS `session_end_at`,
                         v.`name` AS `venue_name`, pr.`name` AS `room_name`
@@ -183,6 +184,7 @@ class DMRepository extends BaseRepository
                            g.`id` AS `game_id`, g.`name` AS `game_name`, g.`name` AS `game_title`,
                            u.`full_name` AS `dm_name`,
                            s.`id` AS `session_id`, s.`status` AS `session_status`,
+                           s.`session_notes`, s.`incident_report`,
                            COALESCE(s.`start_at`, sp.`proposed_start_at`) AS `session_start_at`,
                            COALESCE(s.`end_at`, sp.`proposed_end_at`) AS `session_end_at`,
                            v.`name` AS `venue_name`, pr.`name` AS `room_name`

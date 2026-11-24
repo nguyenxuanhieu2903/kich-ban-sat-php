@@ -49,6 +49,10 @@ CREATE TABLE `users` (
     `email` VARCHAR(255) NOT NULL,
     `password_hash` VARCHAR(255) NOT NULL,
     `phone` VARCHAR(20) NULL,
+    `student_card_url` VARCHAR(500) NULL,
+    `student_card_status` VARCHAR(20) NOT NULL DEFAULT 'NONE',
+    `student_verified_at` DATETIME(3) NULL,
+    `student_reject_reason` TEXT NULL,
     `avatar_url` VARCHAR(500) NULL,
     `status` VARCHAR(20) NOT NULL DEFAULT 'ACTIVE',
     `email_verified_at` DATETIME(3) NULL,
@@ -248,6 +252,8 @@ CREATE TABLE `room_participants` (
     `left_at` DATETIME(3) NULL,
     `cancelled_at` DATETIME(3) NULL,
     `cancel_reason` TEXT NULL,
+    `session_notes` TEXT NULL,
+    `incident_report` TEXT NULL,
     `created_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
     `updated_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3)
         ON UPDATE CURRENT_TIMESTAMP(3),
@@ -453,6 +459,8 @@ CREATE TABLE `sessions` (
     `completed_at` DATETIME(3) NULL,
     `cancelled_at` DATETIME(3) NULL,
     `cancel_reason` TEXT NULL,
+    `session_notes` TEXT NULL,
+    `incident_report` TEXT NULL,
     `created_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
     `updated_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3)
         ON UPDATE CURRENT_TIMESTAMP(3),

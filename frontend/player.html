@@ -306,23 +306,96 @@
         }
       });
 
-      document.getElementById('btn-upload-student')?.addEventListener('click', () => {
-        const file = document.getElementById('student-file-input').files[0];
-        toast.success(`Đã gửi ảnh thẻ HSSV (${file ? file.name : 'the_sinh_vien.jpg'}) đến Quản Trị Viên! Vui lòng chờ phê duyệt.`);
+      document.getElementById('btn-upload-student')?.addEventListener('click', async () => {
+        const file = document.getElementById('student-file-input')?.files?.[0];
+        const fileName = file ? file.name : 'the_sinh_vien.jpg';
+        try {
+          const res = await api.post('/auth/student-card', {
+            file_name: fileName,
+            card_url: `/uploads/students/${fileName}`,
+          });
+          toast.success(res.message || 'Đã gửi ảnh thẻ HSSV đến Quản Trị Viên! Vui lòng chờ phê duyệt.');
+          if (res?.data?.user) {
+            updateStudentUI(res.data.user);
+          }
+        } catch (err) {
+          toast.error(err.message || 'Lỗi gửi thẻ HSSV');
+        }
       });
     }
 
+    function updateStudentUI(user) {
+      const badge = document.getElementById('player-student-badge');
+      const box = document.getElementById('student-status-box');
+      if (!badge || !box) return;
+
+      const st = user.student_card_status || 'NONE';
+      if (st === 'APPROVED') {
+        badge.className = 'badge badge-green';
+        badge.style.background = '#10b981';
+        badge.style.color = '#fff';
+        badge.textContent = 'HSSV: Đã Duyệt (-20k)';
+        box.innerHTML = `
+          <span class="badge badge-green" style="background: #1F5E39; color: #fff;">ĐÃ XÁC MINH HỢP LỆ</span>
+          <p style="font-size: 0.85rem; color: var(--ink-black); margin-top: 6px;">
+            Bạn đang được hưởng ưu đãi giảm 20.000đ/người cho mọi kịch bản khi đặt ca T2–T5.
+          </p>
+        `;
+      } else if (st === 'PENDING') {
+        badge.className = 'badge badge-gold';
+        badge.style.background = '#f59e0b';
+        badge.style.color = '#fff';
+        badge.textContent = 'HSSV: Đang Chờ Duyệt';
+        box.innerHTML = `
+          <span class="badge badge-gold" style="background: #B45309; color: #fff;">ĐANG CHỜ QUẢN TRỊ VIÊN DUYỆT</span>
+          <p style="font-size: 0.85rem; color: var(--ink-black); margin-top: 6px;">
+            Yêu cầu xác minh thẻ HSSV đã được tiếp nhận. Quản trị viên sẽ phê duyệt trong vòng 24 giờ.
+          </p>
+        `;
+      } else if (st === 'REJECTED') {
+        badge.className = 'badge';
+        badge.style.background = '#ef4444';
+        badge.style.color = '#fff';
+        badge.textContent = 'HSSV: Bị Từ Chối';
+        box.innerHTML = `
+          <span class="badge" style="background: #DC2626; color: #fff;">YÊU CẦU BỊ TỪ CHỐI</span>
+          <p style="font-size: 0.85rem; color: var(--ink-black); margin-top: 6px;">
+            Lý do: ${escapeHtml(user.student_reject_reason || 'Ảnh thẻ không hợp lệ hoặc hết hạn.')}. Vui lòng tải lại ảnh mới.
+          </p>
+        `;
+      } else {
+        badge.className = 'badge';
+        badge.style.background = '#64748b';
+        badge.style.color = '#fff';
+        badge.textContent = 'Chưa xác minh HSSV';
+        box.innerHTML = `
+          <span class="badge" style="background: #64748b; color: #fff;">CHƯA XÁC MINH THẺ</span>
+          <p style="font-size: 0.85rem; color: var(--ink-black); margin-top: 6px;">
+            Tải ảnh thẻ HSSV còn hạn để nhận ưu đãi giảm 20.000đ khi đặt phòng chơi.
+          </p>
+        `;
+      }
+    }
+
     async function renderPlayerPage() {
-      const user = authState.getUser();
+      let user = authState.getUser();
+      try {
+        const meRes = await api.get('/auth/me');
+        if (meRes?.data?.user) {
+          user = meRes.data.user;
+          authState.setUser(user);
+        }
+      } catch {}
 
       if (user) {
-        document.getElementById('player-greeting-name').textContent = `Chào mừng ${user.name}`;
-        document.getElementById('player-avatar').textContent = (user.name || 'P').charAt(0).toUpperCase();
-        document.getElementById('player-sub-info').textContent = `Vai trò: ${user.role} • ID: #${user.id} • Chi nhánh: 36/52 Nguyễn Gia Trí, Bình Thạnh`;
-        document.getElementById('prof-name').value = user.name || '';
+        document.getElementById('player-greeting-name').textContent = `Chào mừng ${user.name || user.full_name || 'Player'}`;
+        document.getElementById('player-avatar').textContent = (user.name || user.full_name || 'P').charAt(0).toUpperCase();
+        document.getElementById('player-sub-info').textContent = `Vai trò: ${user.role || user.role_code || 'PLAYER'} • ID: #${user.id} • Chi nhánh: 36/52 Nguyễn Gia Trí, Bình Thạnh`;
+        document.getElementById('prof-name').value = user.name || user.full_name || '';
         if (user.phone) {
           document.getElementById('prof-phone').value = user.phone;
         }
+        updateStudentUI(user);
       }
 
       renderLobby();

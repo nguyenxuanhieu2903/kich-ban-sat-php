@@ -802,18 +802,30 @@
           <!-- Khung Duyệt Thẻ HSSV -->
           <div class="paper-ticket" style="padding: 24px; margin-bottom: 28px;">
             <span class="badge badge-18">DUYỆT ƯU ĐÃI HỌC SINH — SINH VIÊN (-20.000Đ)</span>
-            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 14px; margin-top: 12px;">
-              <div>
-                <strong style="font-size: 1.1rem; color: #111;">Nguyễn Minh Khôi</strong> (0909.123.456)<br />
-                <span style="font-size: 0.86rem; color: var(--ink-muted);">
-                  Ảnh thẻ đính kèm: <strong>the_sinh_vien_khoi_2026.jpg</strong> &bull; Trạng thái: <span class="badge badge-gold" style="color: #8A6200;">Chờ duyệt</span>
-                </span>
-              </div>
-              <div style="display: flex; gap: 8px;">
-                <button class="btn btn-gold btn-sm" id="btn-approve-student">Duyệt thẻ HSSV (-20k)</button>
-                <button class="btn btn-crimson btn-sm" id="btn-reject-student">Từ chối</button>
-              </div>
-            </div>
+            ${(() => {
+              const pendingStudents = users.filter(u => u.student_card_status === 'PENDING');
+              if (pendingStudents.length === 0) {
+                return `
+                  <p style="margin: 12px 0 0; font-size: 0.9rem; color: var(--ink-muted);">
+                    Hiện không có yêu cầu xác thực thẻ HSSV nào đang chờ duyệt.
+                  </p>
+                `;
+              }
+              return pendingStudents.map(su => `
+                <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 14px; margin-top: 12px; padding-bottom: 12px; border-bottom: 1px dashed rgba(0,0,0,0.15);">
+                  <div>
+                    <strong style="font-size: 1.1rem; color: #111;">${escapeHtml(su.full_name || su.name || 'Người dùng')}</strong> (${escapeHtml(su.phone || su.email || '—')})<br />
+                    <span style="font-size: 0.86rem; color: var(--ink-muted);">
+                      Ảnh thẻ đính kèm: <strong>${escapeHtml(su.student_card_url || 'the_sinh_vien.jpg')}</strong> &bull; Trạng thái: <span class="badge badge-gold" style="color: #8A6200;">Chờ duyệt</span>
+                    </span>
+                  </div>
+                  <div style="display: flex; gap: 8px;">
+                    <button class="btn btn-gold btn-sm" data-approve-student="${su.id}">Duyệt thẻ HSSV (-20k)</button>
+                    <button class="btn btn-crimson btn-sm" data-reject-student="${su.id}">Từ chối</button>
+                  </div>
+                </div>
+              `).join('');
+            })()}
           </div>
 
           <!-- Bảng Danh Sách Tài Khoản & RBAC -->
@@ -854,18 +866,34 @@
           </div>
         `;
 
-        const approveBtn = document.getElementById('btn-approve-student');
-        if (approveBtn) {
-          approveBtn.onclick = () => {
-            toast.success('Đã duyệt thẻ HSSV cho bạn Nguyễn Minh Khôi! Hệ thống tự động trừ 20.000đ khi đặt phòng T2-T5.');
+        root.querySelectorAll('[data-approve-student]').forEach(btn => {
+          btn.onclick = async () => {
+            const uid = btn.dataset.approveStudent;
+            try {
+              const res = await api.post(`/admin/users/${uid}/verify-student`, { status: 'APPROVED' });
+              toast.success(res.message || 'Đã duyệt thẻ HSSV thành công!');
+              renderAdminTab(currentTab);
+            } catch (err) {
+              toast.error(err.message || 'Lỗi duyệt thẻ HSSV');
+            }
           };
-        }
-        const rejectBtn = document.getElementById('btn-reject-student');
-        if (rejectBtn) {
-          rejectBtn.onclick = () => {
-            toast.info('Đã từ chối ảnh thẻ HSSV do không hợp lệ.');
+        });
+
+        root.querySelectorAll('[data-reject-student]').forEach(btn => {
+          btn.onclick = async () => {
+            const uid = btn.dataset.rejectStudent;
+            const reason = prompt('Nhập lý do từ chối ảnh thẻ:', 'Ảnh mờ hoặc không có ngày hết hạn');
+            if (reason !== null) {
+              try {
+                const res = await api.post(`/admin/users/${uid}/verify-student`, { status: 'REJECTED', reason });
+                toast.info(res.message || 'Đã từ chối thẻ HSSV');
+                renderAdminTab(currentTab);
+              } catch (err) {
+                toast.error(err.message || 'Lỗi từ chối thẻ HSSV');
+              }
+            }
           };
-        }
+        });
 
         root.querySelectorAll('[data-change-role]').forEach(sel => {
           sel.addEventListener('change', async () => {

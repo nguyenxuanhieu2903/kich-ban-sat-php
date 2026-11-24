@@ -42,6 +42,7 @@ $registerApiRoutes = function (string $prefix) use ($router): void {
     $router->post($prefix . '/auth/login', [AuthController::class, 'login']);
     $router->get($prefix . '/auth/me', [AuthController::class, 'me']);
     $router->patch($prefix . '/auth/profile', [AuthController::class, 'updateProfile']);
+    $router->post($prefix . '/auth/student-card', [AuthController::class, 'submitStudentCard']);
     $router->post($prefix . '/auth/logout', [AuthController::class, 'logout']);
 
     // Admin User & Role Management
@@ -49,6 +50,7 @@ $registerApiRoutes = function (string $prefix) use ($router): void {
     $router->get($prefix . '/admin/users/{id}', [AdminUserController::class, 'show']);
     $router->patch($prefix . '/admin/users/{id}', [AdminUserController::class, 'update']);
     $router->put($prefix . '/admin/users/{id}/role', [AdminUserController::class, 'assignRole']);
+    $router->post($prefix . '/admin/users/{id}/verify-student', [AdminUserController::class, 'verifyStudent']);
 
     // =============================================================
     // DOMAIN 2: GAME CATALOG & PROMOTIONS API
@@ -88,6 +90,10 @@ $registerApiRoutes = function (string $prefix) use ($router): void {
     $router->post($prefix . '/game-rooms/{id}/leave', [GameRoomController::class, 'leave']);
     $router->post($prefix . '/rooms/{id}/cancel', [GameRoomController::class, 'cancel']);
     $router->post($prefix . '/game-rooms/{id}/cancel', [GameRoomController::class, 'cancel']);
+    $router->post($prefix . '/rooms/{id}/kick', [GameRoomController::class, 'kick']);
+    $router->post($prefix . '/game-rooms/{id}/kick', [GameRoomController::class, 'kick']);
+    $router->post($prefix . '/rooms/{id}/transfer-host', [GameRoomController::class, 'transferHost']);
+    $router->post($prefix . '/game-rooms/{id}/transfer-host', [GameRoomController::class, 'transferHost']);
 
     // Pricing calculation & snapshot
     $router->post($prefix . '/rooms/{id}/calculate-price', [PricingController::class, 'calculate']);

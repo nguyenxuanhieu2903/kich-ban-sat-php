@@ -207,6 +207,7 @@ export class AdminView {
                   <th style="padding: 12px 16px;">Họ tên</th>
                   <th style="padding: 12px 16px;">Email</th>
                   <th style="padding: 12px 16px;">Vai trò (RBAC)</th>
+                  <th style="padding: 12px 16px;">Thẻ HSSV</th>
                   <th style="padding: 12px 16px;">Trạng thái</th>
                   <th style="padding: 12px 16px; text-align: right;">Hành động</th>
                 </tr>
@@ -231,6 +232,25 @@ export class AdminView {
           toggleActiveBtn.onclick = () => this.handleToggleActive(u.id, u.is_active);
         }
       });
+
+      container.querySelectorAll('[data-verify-student]').forEach(btn => {
+        btn.onclick = async () => {
+          const userId = btn.dataset.verifyStudent;
+          const action = btn.dataset.action;
+          let reason = '';
+          if (action === 'REJECTED') {
+            reason = prompt('Nhập lý do từ chối thẻ HSSV:', 'Ảnh thẻ không rõ ràng hoặc không hợp lệ');
+            if (reason === null) return;
+          }
+          try {
+            const res = await api.post(`/admin/users/${userId}/verify-student`, { status: action, reason });
+            toast.success(res.message || 'Thao tác xác thực thẻ HSSV thành công!');
+            this.renderUsersTab(container);
+          } catch (err) {
+            toast.error(err.message || 'Lỗi xác thực thẻ HSSV');
+          }
+        };
+      });
     } catch (err) {
       container.innerHTML = `<div class="card" style="color: var(--color-error); padding: 20px;">Lỗi: ${escapeHtml(err.message)}</div>`;
     }
@@ -253,7 +273,19 @@ export class AdminView {
           </select>
         </td>
         <td style="padding: 12px 16px;">
-          ${u.is_active ? 
+          ${u.student_card_status === 'APPROVED' ? `
+            <span class="badge" style="background: var(--color-success-bg); color: var(--color-success);">Đã duyệt (-20k)</span>
+          ` : u.student_card_status === 'PENDING' ? `
+            <div style="display: flex; align-items: center; gap: 4px;">
+              <span class="badge" style="background: rgba(245, 158, 11, 0.2); color: #f59e0b;">Chờ duyệt</span>
+              <button data-verify-student="${escapeHtml(u.id)}" data-action="APPROVED" class="btn" style="padding: 2px 6px; font-size: 0.72rem; background: var(--color-success-bg); color: var(--color-success); border: 1px solid var(--color-success); cursor: pointer;">Duyệt</button>
+              <button data-verify-student="${escapeHtml(u.id)}" data-action="REJECTED" class="btn" style="padding: 2px 6px; font-size: 0.72rem; background: var(--color-error-bg); color: var(--color-error); border: 1px solid var(--color-error); cursor: pointer;">Từ chối</button>
+            </div>
+          ` : u.student_card_status === 'REJECTED' ? `
+            <span class="badge" style="background: var(--color-error-bg); color: var(--color-error);">Bị từ chối</span>
+          ` : `<span style="color: var(--color-text-muted); font-size: 0.8rem;">Chưa gửi</span>`}
+        </td>
+        <td style="padding: 12px 16px;">
             `<span class="badge" style="background: var(--color-success-bg); color: var(--color-success);">Hoạt động</span>` : 
             `<span class="badge" style="background: var(--color-error-bg); color: var(--color-error);">Bị khóa</span>`}
         </td>

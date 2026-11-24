@@ -246,4 +246,46 @@ class AuthController
             'user' => $updatedUser,
         ], 'Cập nhật thông tin cá nhân thành công');
     }
+
+    /**
+     * POST /api/v1/auth/student-card
+     * Gửi ảnh thẻ HSSV để xin phê duyệt ưu đãi (-20.000đ)
+     */
+    public function submitStudentCard(Request $request): Response
+    {
+        $authUser = AuthMiddleware::authenticate($request);
+        if ($authUser instanceof Response) {
+            return $authUser;
+        }
+
+        $userId = (int) $authUser['id'];
+        $body = $request->getBodyParams();
+
+        $cardUrl = trim((string) ($body['card_url'] ?? $body['student_card_url'] ?? ''));
+        if ($cardUrl === '') {
+            $fileName = trim((string) ($body['file_name'] ?? ''));
+            if ($fileName !== '') {
+                $cardUrl = '/uploads/students/' . rawurlencode($fileName);
+            } else {
+                $cardUrl = '/uploads/students/student_' . $userId . '_' . time() . '.jpg';
+            }
+        }
+
+        $this->userRepo->update($userId, [
+            'student_card_url' => $cardUrl,
+            'student_card_status' => 'PENDING',
+            'student_reject_reason' => null,
+        ]);
+
+        $updatedUser = $this->userRepo->findById($userId);
+        if ($updatedUser !== null) {
+            unset($updatedUser['password_hash']);
+        }
+
+        return Response::success([
+            'user' => $updatedUser,
+            'student_card_status' => 'PENDING',
+            'student_card_url' => $cardUrl,
+        ], 'Đã gửi ảnh thẻ HSSV thành công, vui lòng chờ Quản trị viên duyệt');
+    }
 }

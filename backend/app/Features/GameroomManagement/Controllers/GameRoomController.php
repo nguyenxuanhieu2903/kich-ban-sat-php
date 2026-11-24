@@ -919,6 +919,245 @@ class GameRoomController
     }
 
     /**
+     * POST /api/v1/rooms/{id}/kick
+     * Chủ phòng (Host) loại thành viên khỏi phòng chơi
+     * Body: user_id: int (hoặc participant_id: int), reason?: string
+     */
+    public function kick(Request $request, string $id): Response
+    {
+        $userId = $this->resolveCurrentUserId($request);
+        if ($userId === null) {
+            return Response::fail('Bạn cần đăng nhập để thực hiện thao tác này', 'UNAUTHORIZED', 401);
+        }
+
+        $roomId = (int) $id;
+        $body = $request->getBodyParams();
+        $targetUserId = isset($body['user_id']) ? (int) $body['user_id'] : null;
+        $targetPartId = isset($body['participant_id']) ? (int) $body['participant_id'] : null;
+        $kickReason = trim((string) ($body['reason'] ?? 'Chủ phòng mời thành viên ra khỏi phòng'));
+
+        if ($targetUserId === null && $targetPartId === null) {
+            return Response::fail('Vui lòng chỉ định thành viên cần mời ra khỏi phòng (user_id hoặc participant_id)', 'VALIDATION_ERROR', 422);
+        }
+
+        $this->pdo->beginTransaction();
+        try {
+            $rStmt = $this->pdo->prepare('SELECT `id`, `title`, `creator_id`, `status` FROM `game_rooms` WHERE `id` = :id FOR UPDATE');
+            $rStmt->bindValue(':id', $roomId, PDO::PARAM_INT);
+            $rStmt->execute();
+            $room = $rStmt->fetch(PDO::FETCH_ASSOC);
+
+            if ($room === false) {
+                $this->pdo->rollBack();
+                return Response::fail('Phòng chơi không tồn tại', 'ROOM_NOT_FOUND', 404);
+            }
+
+            $auth = AuthMiddleware::authenticate($request);
+            $isAdmin = is_array($auth) && strtoupper((string) ($auth['role_code'] ?? '')) === 'ADMIN';
+
+            if ((int) $room['creator_id'] !== $userId && !$isAdmin) {
+                $this->pdo->rollBack();
+                return Response::fail('Chỉ Chủ phòng mới có quyền mời thành viên ra khỏi phòng', 'FORBIDDEN', 403);
+            }
+
+            if (!in_array($room['status'], ['FORMING', 'SCHEDULING', 'VOTING'], true)) {
+                $this->pdo->rollBack();
+                return Response::fail('Chỉ có thể mời thành viên ra khi phòng đang trong giai đoạn gom người hoặc biểu quyết (Trạng thái hiện tại: ' . $room['status'] . ')', 'INVALID_ROOM_STATUS', 400);
+            }
+
+            $sql = 'SELECT `id`, `user_id`, `status` FROM `room_participants` WHERE `game_room_id` = :room_id AND `status` IN (\'PENDING_DEPOSIT\', \'DEPOSITED\', \'LEAVE_REQUESTED\')';
+            if ($targetPartId !== null) {
+                $sql .= ' AND `id` = :target_part_id';
+            } else {
+                $sql .= ' AND `user_id` = :target_user_id';
+            }
+            $sql .= ' LIMIT 1 FOR UPDATE';
+
+            $pStmt = $this->pdo->prepare($sql);
+            $pStmt->bindValue(':room_id', $roomId, PDO::PARAM_INT);
+            if ($targetPartId !== null) {
+                $pStmt->bindValue(':target_part_id', $targetPartId, PDO::PARAM_INT);
+            } else {
+                $pStmt->bindValue(':target_user_id', $targetUserId, PDO::PARAM_INT);
+            }
+            $pStmt->execute();
+            $targetPart = $pStmt->fetch(PDO::FETCH_ASSOC);
+
+            if ($targetPart === false) {
+                $this->pdo->rollBack();
+                return Response::fail('Không tìm thấy thành viên đang hoạt động trong phòng này', 'PARTICIPANT_NOT_FOUND', 404);
+            }
+
+            $kickedUserId = (int) $targetPart['user_id'];
+            $kickedPartId = (int) $targetPart['id'];
+
+            if ($kickedUserId === (int) $room['creator_id']) {
+                $this->pdo->rollBack();
+                return Response::fail('Chủ phòng không thể tự mời chính mình ra khỏi phòng. Vui lòng chuyển quyền hoặc hủy phòng.', 'CANNOT_KICK_HOST', 400);
+            }
+
+            $upPart = $this->pdo->prepare(
+                'UPDATE `room_participants`
+                 SET `status` = \'CANCELLED_BY_ADMIN\',
+                     `left_at` = NOW(),
+                     `cancelled_at` = NOW(),
+                     `cancel_reason` = :reason,
+                     `updated_at` = NOW()
+                 WHERE `id` = :id'
+            );
+            $upPart->bindValue(':reason', $kickReason, PDO::PARAM_STR);
+            $upPart->bindValue(':id', $kickedPartId, PDO::PARAM_INT);
+            $upPart->execute();
+
+            $upUnpaid = $this->pdo->prepare(
+                'UPDATE `player_payments`
+                 SET `status` = \'CANCELLED\', `updated_at` = NOW()
+                 WHERE `room_participant_id` = :part_id AND `status` = \'PENDING\''
+            );
+            $upUnpaid->bindValue(':part_id', $kickedPartId, PDO::PARAM_INT);
+            $upUnpaid->execute();
+
+            $payStmt = $this->pdo->prepare(
+                'SELECT `id`, `paid_amount` FROM `player_payments`
+                 WHERE `room_participant_id` = :part_id AND `paid_amount` > 0
+                 LIMIT 1 FOR UPDATE'
+            );
+            $payStmt->bindValue(':part_id', $kickedPartId, PDO::PARAM_INT);
+            $payStmt->execute();
+            $paidPayment = $payStmt->fetch(PDO::FETCH_ASSOC);
+
+            if ($paidPayment !== false && (int) $paidPayment['paid_amount'] > 0) {
+                $chkRef = $this->pdo->prepare('SELECT COUNT(*) FROM `refunds` WHERE `player_payment_id` = :payment_id');
+                $chkRef->bindValue(':payment_id', (int) $paidPayment['id'], PDO::PARAM_INT);
+                $chkRef->execute();
+                if ((int) $chkRef->fetchColumn() === 0) {
+                    $insRef = $this->pdo->prepare(
+                        'INSERT INTO `refunds` (`player_payment_id`, `amount`, `reason`, `status`, `requested_at`, `created_at`, `updated_at`)
+                         VALUES (:payment_id, :amount, :reason, \'PENDING\', NOW(), NOW(), NOW())'
+                    );
+                    $insRef->bindValue(':payment_id', (int) $paidPayment['id'], PDO::PARAM_INT);
+                    $insRef->bindValue(':amount', (int) $paidPayment['paid_amount'], PDO::PARAM_INT);
+                    $insRef->bindValue(':reason', "Thành viên bị chủ phòng mời ra khỏi phòng chơi '{$room['title']}'", PDO::PARAM_STR);
+                    $insRef->execute();
+                }
+            }
+
+            $this->pdo->commit();
+
+            try {
+                $notiRepo = new \App\Features\Notification\Repositories\NotificationRepository($this->pdo);
+                $notiRepo->createNotification(
+                    'Bạn đã được mời rời khỏi phòng chơi',
+                    "Bạn đã được mời rời khỏi phòng '{$room['title']}'. Lý do: {$kickReason}.",
+                    'ROOM',
+                    $userId,
+                    [$kickedUserId]
+                );
+            } catch (\Throwable) {
+            }
+
+            return Response::success([
+                'game_room_id' => $roomId,
+                'kicked_user_id' => $kickedUserId,
+                'kicked_participant_id' => $kickedPartId,
+            ], 'Đã mời thành viên ra khỏi phòng thành công');
+        } catch (\Throwable $e) {
+            if ($this->pdo->inTransaction()) {
+                $this->pdo->rollBack();
+            }
+            throw $e;
+        }
+    }
+
+    /**
+     * POST /api/v1/rooms/{id}/transfer-host
+     * Chuyển quyền Chủ phòng (Host) sang thành viên khác
+     * Body: new_host_user_id: int
+     */
+    public function transferHost(Request $request, string $id): Response
+    {
+        $userId = $this->resolveCurrentUserId($request);
+        if ($userId === null) {
+            return Response::fail('Bạn cần đăng nhập để thực hiện thao tác này', 'UNAUTHORIZED', 401);
+        }
+
+        $roomId = (int) $id;
+        $body = $request->getBodyParams();
+        $newHostUserId = (int) ($body['new_host_user_id'] ?? 0);
+
+        if ($newHostUserId <= 0) {
+            return Response::fail('Vui lòng chọn thành viên mới để trao quyền Chủ phòng', 'VALIDATION_ERROR', 422);
+        }
+
+        $this->pdo->beginTransaction();
+        try {
+            $rStmt = $this->pdo->prepare('SELECT `id`, `title`, `creator_id`, `status` FROM `game_rooms` WHERE `id` = :id FOR UPDATE');
+            $rStmt->bindValue(':id', $roomId, PDO::PARAM_INT);
+            $rStmt->execute();
+            $room = $rStmt->fetch(PDO::FETCH_ASSOC);
+
+            if ($room === false) {
+                $this->pdo->rollBack();
+                return Response::fail('Phòng chơi không tồn tại', 'ROOM_NOT_FOUND', 404);
+            }
+
+            if ((int) $room['creator_id'] !== $userId) {
+                $this->pdo->rollBack();
+                return Response::fail('Chỉ Chủ phòng hiện tại mới có quyền chuyển giao quyền Chủ phòng', 'FORBIDDEN', 403);
+            }
+
+            if ($newHostUserId === $userId) {
+                $this->pdo->rollBack();
+                return Response::fail('Bạn hiện đã là Chủ phòng này rồi', 'ALREADY_HOST', 400);
+            }
+
+            $pStmt = $this->pdo->prepare(
+                'SELECT `id` FROM `room_participants`
+                 WHERE `game_room_id` = :room_id AND `user_id` = :user_id
+                   AND `status` IN (\'PENDING_DEPOSIT\', \'DEPOSITED\')
+                 LIMIT 1 FOR UPDATE'
+            );
+            $pStmt->bindValue(':room_id', $roomId, PDO::PARAM_INT);
+            $pStmt->bindValue(':user_id', $newHostUserId, PDO::PARAM_INT);
+            $pStmt->execute();
+
+            if ($pStmt->fetch() === false) {
+                $this->pdo->rollBack();
+                return Response::fail('Thành viên được chỉ định không tồn tại hoặc không đang hoạt động trong phòng', 'PARTICIPANT_NOT_FOUND', 404);
+            }
+
+            $upRoom = $this->pdo->prepare('UPDATE `game_rooms` SET `creator_id` = :new_host, `updated_at` = NOW() WHERE `id` = :room_id');
+            $upRoom->bindValue(':new_host', $newHostUserId, PDO::PARAM_INT);
+            $upRoom->bindValue(':room_id', $roomId, PDO::PARAM_INT);
+            $upRoom->execute();
+
+            $this->pdo->commit();
+
+            try {
+                $notiRepo = new \App\Features\Notification\Repositories\NotificationRepository($this->pdo);
+                $notiRepo->createNotification(
+                    'Bạn đã được trao quyền Chủ phòng',
+                    "Bạn đã được trao quyền Chủ phòng tại phòng chơi '{$room['title']}'.",
+                    'ROOM',
+                    $userId,
+                    [$newHostUserId]
+                );
+            } catch (\Throwable) {
+            }
+
+            return Response::success([
+                'game_room_id' => $roomId,
+                'new_host_user_id' => $newHostUserId,
+            ], 'Đã chuyển giao quyền Chủ phòng thành công');
+        } catch (\Throwable $e) {
+            if ($this->pdo->inTransaction()) {
+                $this->pdo->rollBack();
+            }
+            throw $e;
+        }
+    }
+
+    /**
      * Resolve current user ID from session or header.
      */
     protected function resolveCurrentUserId(Request $request): ?int

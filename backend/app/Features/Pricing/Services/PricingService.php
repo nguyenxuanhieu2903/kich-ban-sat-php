@@ -149,7 +149,22 @@ class PricingService
                         $discountAmount = (int) round(($subtotal * $percent) / 100);
                     } elseif ($promo['discount_type'] === 'FIXED') {
                         $perPersonDiscount = (int) ($rules['discount_per_eligible_person'] ?? $promo['discount_value']);
-                        $discountAmount = $perPersonDiscount * $totalParticipants;
+                        if (!empty($rules['requires_student_verification'])) {
+                            $stStmt = $this->pdo->prepare(
+                                'SELECT COUNT(*) FROM `room_participants` rp
+                                 INNER JOIN `users` u ON u.`id` = rp.`user_id`
+                                 WHERE rp.`game_room_id` = :room_id
+                                   AND rp.`status` IN (\'PENDING_DEPOSIT\', \'DEPOSITED\', \'LEAVE_REQUESTED\')
+                                   AND u.`student_card_status` = \'APPROVED\''
+                            );
+                            $stStmt->bindValue(':room_id', $roomId, PDO::PARAM_INT);
+                            $stStmt->execute();
+                            $eligibleCount = (int) $stStmt->fetchColumn();
+                            $discountCount = $eligibleCount > 0 ? $eligibleCount : 1;
+                            $discountAmount = $perPersonDiscount * $discountCount;
+                        } else {
+                            $discountAmount = $perPersonDiscount * $totalParticipants;
+                        }
                     }
                 }
             }

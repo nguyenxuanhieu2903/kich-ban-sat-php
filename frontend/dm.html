@@ -403,8 +403,15 @@
           }
         });
         document.getElementById('btn-finish-play')?.addEventListener('click', async () => {
+          const notes = prompt('Nhập kết quả buổi chơi (hoặc bấm OK để tiếp tục):', 'Người chơi phá án thành công.');
+          if (notes === null) return;
+          const incident = prompt('Ghi nhận sự cố / hỏng đạo cụ (nếu có, hoặc bấm OK nếu không có):', '');
+          if (incident === null) return;
           try {
-            await api.post(`/sessions/${assignment.session_id}/complete`);
+            await api.post(`/sessions/${assignment.session_id}/complete`, {
+              session_notes: notes.trim() || undefined,
+              incident_report: incident.trim() || undefined,
+            });
             toast.info(`Ca chơi #${room.id} đã hoàn thành. Kết quả ca trực được lưu vào hệ thống.`);
             renderDmAssignmentsList();
           } catch (err) {
