@@ -29,6 +29,8 @@ final class InitKichBanSatV3Schema extends AbstractMigration
     {
         $this->execute(<<<SQL
         SET FOREIGN_KEY_CHECKS = 0;
+        DROP TABLE IF EXISTS `offline_room_blocks`;
+        DROP TABLE IF EXISTS `audit_logs`;
         DROP TABLE IF EXISTS `outbox_events`;
         DROP TABLE IF EXISTS `idempotency_records`;
         DROP TABLE IF EXISTS `notifications`;

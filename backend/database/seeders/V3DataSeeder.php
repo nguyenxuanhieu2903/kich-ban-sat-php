@@ -7,11 +7,10 @@ use Phinx\Seed\AbstractSeed;
 class V3DataSeeder extends AbstractSeed
 {
     /**
-     * Nạp dữ liệu mẫu tham chiếu chuẩn cho CSDL V3
+     * Nạp dữ liệu mẫu tham chiếu chuẩn cho CSDL V16 (42 kịch bản không cài ảnh, 10 phòng vật lý, 2 chi nhánh, 4 tài khoản).
      */
     public function run(): void
     {
-        // 1. Roles
         $this->execute("
             INSERT INTO `roles` (`id`, `code`, `name`, `description`)
             VALUES
@@ -21,72 +20,106 @@ class V3DataSeeder extends AbstractSeed
             ON DUPLICATE KEY UPDATE `name` = VALUES(`name`), `description` = VALUES(`description`);
         ");
 
-        // 2. Sample Users
-        $defaultHash = password_hash('password123', PASSWORD_BCRYPT); // 'password123'
+        $defaultHash = password_hash('password123', PASSWORD_BCRYPT);
         $this->execute("
-            INSERT INTO `users` (`id`, `role_id`, `full_name`, `email`, `password_hash`, `phone`, `avatar_url`, `status`, `email_verified_at`)
+            INSERT INTO `users` (`id`, `role_id`, `full_name`, `email`, `password_hash`, `phone`, `avatar_url`, `status`, `student_verified`, `email_verified_at`)
             VALUES
-                (1, 3, 'Quản Trị Viên', 'admin@kichbansat.vn', '{$defaultHash}', '0901000001', 'https://api.dicebear.com/7.x/bottts/svg?seed=Admin', 'ACTIVE', NOW()),
-                (2, 2, 'Host Hoàng Nam (DM)', 'dm.nam@kichbansat.vn', '{$defaultHash}', '0902000002', 'https://api.dicebear.com/7.x/bottts/svg?seed=HostNam', 'ACTIVE', NOW()),
-                (3, 1, 'Nguyễn Xuân Hiếu (Player)', 'player.hieu@kichbansat.vn', '{$defaultHash}', '0903000003', 'https://api.dicebear.com/7.x/bottts/svg?seed=HieuPlayer', 'ACTIVE', NOW()),
-                (4, 1, 'Trần Minh Anh (Player)', 'minhanh@gmail.com', '{$defaultHash}', '0904000004', 'https://api.dicebear.com/7.x/bottts/svg?seed=MinhAnh', 'ACTIVE', NOW())
-            ON DUPLICATE KEY UPDATE `full_name` = VALUES(`full_name`);
+                (1, 3, 'Quản Trị Viên', 'admin@kichbansat.vn', '{$defaultHash}', '0901000001', NULL, 'ACTIVE', 0, NOW()),
+                (2, 2, 'Host Hoàng Nam (DM)', 'dm.nam@kichbansat.vn', '{$defaultHash}', '0902000002', NULL, 'ACTIVE', 0, NOW()),
+                (3, 1, 'Nguyễn Xuân Hiếu (Player)', 'player.hieu@kichbansat.vn', '{$defaultHash}', '0903000003', NULL, 'ACTIVE', 1, NOW()),
+                (4, 1, 'Trần Minh Anh (Player)', 'minhanh@gmail.com', '{$defaultHash}', '0904000004', NULL, 'ACTIVE', 0, NOW())
+            ON DUPLICATE KEY UPDATE `full_name` = VALUES(`full_name`), `password_hash` = VALUES(`password_hash`), `student_verified` = VALUES(`student_verified`);
         ");
 
-        // 3. Venues
         $this->execute("
             INSERT INTO `venues` (`id`, `name`, `address`, `phone`, `description`, `status`)
             VALUES
                 (1, 'Kịch Bản Sát Station - Chi nhánh Quận 1', '123 Nguyễn Huệ, Phường Bến Nghé, Quận 1, TP. Hồ Chí Minh', '0901234567', 'Chi nhánh trung tâm với không gian nhập vai phong cách Châu Âu cổ điển', 'ACTIVE'),
-                (2, 'Kịch Bản Sát Hub - Chi nhánh Bình Thạnh', '45 Điện Biên Phủ, Phường 15, Quận Bình Thạnh, TP. Hồ Chí Minh', '0907654321', 'Không gian hiện đại chuyên kịch bản kinh dị & trinh thám Á Đông', 'ACTIVE')
-            ON DUPLICATE KEY UPDATE `name` = VALUES(`name`);
+                (2, 'Kịch Bản Sát Hub - Chi nhánh Bình Thạnh', '36/52 Nguyễn Gia Trí, Phường 25, Quận Bình Thạnh, TP. Hồ Chí Minh', '0915690033', 'Không gian hiện đại chuyên kịch bản kinh dị & trinh thám Á Đông', 'ACTIVE')
+            ON DUPLICATE KEY UPDATE `name` = VALUES(`name`), `address` = VALUES(`address`), `phone` = VALUES(`phone`);
         ");
 
-        // 4. Physical Rooms
         $this->execute("
-            INSERT INTO `physical_rooms` (`id`, `venue_id`, `name`, `capacity`, `description`, `status`)
+            INSERT INTO `physical_rooms` (`id`, `venue_id`, `name`, `capacity`, `description`, `status`, `is_maintenance`, `theme_code`)
             VALUES
-                (1, 1, 'Phòng Sherlock Holmes', 8, 'Phòng phong cách phòng khách quý tộc Anh quốc, ánh sáng ấm cúng', 'ACTIVE'),
-                (2, 1, 'Phòng VIP Huyết Tộc Dracula', 10, 'Phòng VIP rộng rãi, hệ thống âm thanh vòm và đèn đổi màu theo bối cảnh', 'ACTIVE'),
-                (3, 2, 'Phòng Cổ Trang Á Đông', 8, 'Bối cảnh dinh thự phong kiến, trà cụ và phục trang kèm theo', 'ACTIVE')
-            ON DUPLICATE KEY UPDATE `name` = VALUES(`name`);
+                (1, 1, 'Phòng Sherlock Holmes', 8, 'Phòng phong cách phòng khách quý tộc Anh quốc, ánh sáng ấm cúng', 'ACTIVE', 0, 'DETECTIVE'),
+                (2, 1, 'Phòng VIP Huyết Tộc Dracula', 10, 'Phòng VIP rộng rãi, hệ thống âm thanh vòm và đèn đổi màu theo bối cảnh', 'ACTIVE', 0, 'VAMPIRE'),
+                (3, 2, 'Phòng Cổ Trang Á Đông', 8, 'Bối cảnh dinh thự phong kiến, trà cụ và phục trang kèm theo', 'ACTIVE', 0, 'ORIENTAL'),
+                (4, 1, 'Phòng Biệt Thự Thám Tử', 8, 'Không gian cổ điển Châu Âu với giá sách bí mật và két sắt cổ', 'ACTIVE', 0, 'DETECTIVE'),
+                (5, 1, 'Phòng Mật Thất Gothic', 10, 'Thiết kế hầm rượu Gothic bí ẩn, phù hợp kịch bản kinh dị giật gân', 'ACTIVE', 0, 'GOTHIC'),
+                (6, 1, 'Phòng Tòa Án Phán Xét', 12, 'Mô phỏng phiên tòa tranh luận kịch tính, bục thẩm phán và nhân chứng', 'ACTIVE', 0, 'COURT'),
+                (7, 2, 'Phòng Trinh Thám Hiện Đại', 8, 'Văn phòng thám tử tư hiện đại với bảng manh mối và máy ghi âm', 'ACTIVE', 0, 'MODERN'),
+                (8, 2, 'Phòng Quán Rượu Thập Niên 80', 10, 'Không gian hoài niệm ánh đèn ấm, thích hợp kịch bản cơ chế và đấu trí', 'ACTIVE', 0, 'MODERN'),
+                (9, 2, 'Phòng Tàu Hỏa Phương Đông', 8, 'Khoang tàu lửa sang trọng trên tuyến tốc hành xuyên biên giới', 'ACTIVE', 0, 'TRAIN'),
+                (10, 2, 'Phòng Bệnh Viện Bỏ Hoang', 10, 'Không gian hành lang bệnh viện u ám với hồ sơ bệnh án cổ và trạm không gian', 'ACTIVE', 0, 'HOSPITAL')
+            ON DUPLICATE KEY UPDATE `name` = VALUES(`name`), `theme_code` = VALUES(`theme_code`), `capacity` = VALUES(`capacity`);
         ");
 
-        // 5. Games
-        $this->execute("
-            INSERT INTO `games` (`id`, `name`, `slug`, `description`, `image_url`, `min_players`, `max_players`, `duration_minutes`, `status`, `display_order`)
+        $scenarios = require dirname(__DIR__) . '/catalog_42_scenarios.php';
+        $pdo = $this->getAdapter()->getConnection();
+
+        $gameStmt = $pdo->prepare("
+            INSERT INTO `games`
+                (`id`, `name`, `slug`, `description`, `image_url`, `min_players`, `max_players`, `duration_minutes`, `status`, `is_18_plus`, `theme_code`, `display_order`, `created_at`, `updated_at`)
             VALUES
-                (1, 'Đêm Đoạt Mệnh Tại Trang Viên', 'dem-doat-menh-tai-trang-vien', 'Một bữa tiệc gia tộc bí ẩn nơi người đứng đầu bị sát hại trong đêm giông bão. Mỗi người đều có một bí mật không thể tiết lộ.', 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23', 6, 8, 240, 'ACTIVE', 1),
-                (2, 'Biệt Thự Huyết Tộc', 'biet-thu-huyet-toc', 'Cuộc đối đầu tâm lý nghẹt thở giữa các gia tộc ma cà rồng cổ đại khi bảo vật ngàn năm biến mất.', 'https://images.unsplash.com/photo-1509198397868-475647b2a1e5', 5, 7, 210, 'ACTIVE', 2),
-                (3, 'Án Mạng Trên Chuyến Tàu Tuyết', 'an-mang-tren-chuyen-tau-tuyet', 'Chuyến tàu Bắc Cực bị mắc kẹt giữa bão tuyết và một thi thể được tìm thấy trong toa hành khách hạng nhất.', 'https://images.unsplash.com/photo-1515263487990-61b07816b324', 6, 8, 240, 'ACTIVE', 3)
-            ON DUPLICATE KEY UPDATE `name` = VALUES(`name`);
+                (:id, :name, :slug, :description, NULL, :min_players, :max_players, :duration_minutes, 'ACTIVE', :is_18_plus, :theme_code, :display_order, NOW(), NOW())
+            ON DUPLICATE KEY UPDATE
+                `name` = VALUES(`name`), `description` = VALUES(`description`), `image_url` = NULL,
+                `is_18_plus` = VALUES(`is_18_plus`), `theme_code` = VALUES(`theme_code`), `display_order` = VALUES(`display_order`)
         ");
 
-        // 6. Game Configurations
-        $this->execute("
-            INSERT INTO `game_configurations` (`id`, `game_id`, `version`, `configuration`, `description`, `is_active`, `created_by`)
-            VALUES
-                (1, 1, 1, JSON_OBJECT('props', JSON_ARRAY('Thư tống tiền', 'Dao găm cổ', 'Chiếc nhẫn ngọc bích'), 'clue_count', 24, 'bgm_playlist', 'gothic_mystery_v1'), 'Phiên bản đạo cụ chuẩn 8 người chơi', 1, 1),
-                (2, 2, 1, JSON_OBJECT('props', JSON_ARRAY('Bình rượu máu', 'Gia huy bạc', 'Cuốn nhật ký cổ'), 'clue_count', 20, 'bgm_playlist', 'vampire_noir'), 'Phiên bản kinh dị tâm lý', 1, 1),
-                (3, 3, 1, JSON_OBJECT('props', JSON_ARRAY('Vé tàu hạng nhất', 'Đồng hồ quả quýt dừng ở 11h15', 'Chai thuốc ngủ'), 'clue_count', 26, 'bgm_playlist', 'snow_train_soundtrack'), 'Phiên bản suy luận cổ điển', 1, 1)
-            ON DUPLICATE KEY UPDATE `version` = VALUES(`version`);
+        $cfgStmt = $pdo->prepare("
+            INSERT INTO `game_configurations` (`id`, `game_id`, `version`, `configuration`, `description`, `is_active`, `created_by`, `created_at`)
+            VALUES (:cfg_id, :game_id, 1, :cfg, :desc_config, 1, 1, NOW())
+            ON DUPLICATE KEY UPDATE `configuration` = VALUES(`configuration`), `description` = VALUES(`description`), `is_active` = 1
         ");
 
-        // 7. Game Prices
-        $this->execute("
-            INSERT INTO `game_prices` (`id`, `game_id`, `price_per_person`, `start_time`, `end_time`, `effective_from`, `effective_until`, `status`)
-            VALUES
-                (1, 1, 180000, '09:00:00', '13:00:00', '2026-01-01', '2030-12-31', 'ACTIVE'),
-                (2, 1, 220000, '13:00:00', '18:00:00', '2026-01-01', '2030-12-31', 'ACTIVE'),
-                (3, 1, 250000, '18:00:00', '23:00:00', '2026-01-01', '2030-12-31', 'ACTIVE'),
-                (4, 2, 200000, '09:00:00', '17:00:00', '2026-01-01', '2030-12-31', 'ACTIVE'),
-                (5, 2, 240000, '17:00:00', '23:00:00', '2026-01-01', '2030-12-31', 'ACTIVE'),
-                (6, 3, 200000, '09:00:00', '17:00:00', '2026-01-01', '2030-12-31', 'ACTIVE'),
-                (7, 3, 250000, '17:00:00', '23:00:00', '2026-01-01', '2030-12-31', 'ACTIVE')
-            ON DUPLICATE KEY UPDATE `price_per_person` = VALUES(`price_per_person`);
+        $delPriceStmt = $pdo->prepare("DELETE FROM `game_prices` WHERE `game_id` = :gid");
+        $insPriceStmt = $pdo->prepare("
+            INSERT INTO `game_prices` (`game_id`, `price_per_person`, `start_time`, `end_time`, `effective_from`, `effective_until`, `status`, `created_at`, `updated_at`)
+            VALUES (:gid, :p, :st, :et, '2026-01-01', '2030-12-31', 'ACTIVE', NOW(), NOW())
         ");
 
-        // 8. Promotions
+        foreach ($scenarios as $sc) {
+            $id = (int) $sc['id'];
+            $props = array_map('trim', $sc['props']);
+            $gameStmt->execute([
+                ':id' => $id,
+                ':name' => $sc['name'],
+                ':slug' => $sc['slug'],
+                ':description' => $sc['description'],
+                ':min_players' => (int) $sc['min_players'],
+                ':max_players' => (int) $sc['max_players'],
+                ':duration_minutes' => (int) $sc['duration_minutes'],
+                ':is_18_plus' => (int) $sc['is_18_plus'],
+                ':theme_code' => (string) $sc['theme_code'],
+                ':display_order' => $id,
+            ]);
+            $cfgJson = json_encode([
+                'props' => $props,
+                'clue_count' => count($props) * 6,
+                'bgm_playlist' => $sc['slug'] . '_bgm',
+                'genre' => $sc['genre'],
+                'difficulty' => $sc['difficulty'],
+                'theme_code' => $sc['theme_code'],
+            ], JSON_UNESCAPED_UNICODE);
+            $cfgStmt->execute([
+                ':cfg_id' => $id,
+                ':game_id' => $id,
+                ':cfg' => $cfgJson,
+                ':desc_config' => "Kịch bản {$sc['genre']} - Độ khó: {$sc['difficulty']}",
+            ]);
+            $delPriceStmt->execute([':gid' => $id]);
+            [$pMorning, $pAfternoon, $pEvening] = $sc['prices'];
+            foreach ([
+                ['p' => $pMorning, 's' => '09:00:00', 'e' => '13:00:00'],
+                ['p' => $pAfternoon, 's' => '13:00:00', 'e' => '18:00:00'],
+                ['p' => $pEvening, 's' => '18:00:00', 'e' => '23:00:00'],
+            ] as $slot) {
+                $insPriceStmt->execute([':gid' => $id, ':p' => (int) $slot['p'], ':st' => $slot['s'], ':et' => $slot['e']]);
+            }
+        }
+
         $this->execute("
             INSERT INTO `promotions` (`id`, `code`, `name`, `promotion_type`, `discount_type`, `discount_value`, `start_at`, `end_at`, `rules`, `is_active`)
             VALUES
@@ -95,7 +128,6 @@ class V3DataSeeder extends AbstractSeed
             ON DUPLICATE KEY UPDATE `name` = VALUES(`name`), `rules` = VALUES(`rules`);
         ");
 
-        // 9. Sample Game Room & Participant
         $this->execute("
             INSERT INTO `game_rooms` (`id`, `game_id`, `game_configuration_id`, `creator_id`, `title`, `description`, `min_players`, `max_players`, `status`, `formation_deadline_at`)
             VALUES

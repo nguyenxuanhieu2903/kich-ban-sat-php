@@ -99,11 +99,12 @@ class RoomSchedulingService
                 );
             }
 
-            // 2. Kiểm tra phòng vật lý & sức chứa
+            // 2. Kiểm tra phòng vật lý & sức chứa (chặn phòng đang bảo trì)
             $prStmt = $this->pdo->prepare(
                 'SELECT `id`, `venue_id`, `name`, `capacity`, `status`
                  FROM `physical_rooms`
                  WHERE `id` = :prid AND `venue_id` = :vid AND `status` = \'ACTIVE\'
+                   AND (`is_maintenance` = 0 OR `is_maintenance` IS NULL)
                  LIMIT 1 FOR UPDATE'
             );
             $prStmt->bindValue(':prid', $physicalRoomId, PDO::PARAM_INT);
@@ -165,6 +166,26 @@ class RoomSchedulingService
             if ($roomConflictStmt->fetch(PDO::FETCH_ASSOC) !== false) {
                 throw new RuntimeException(
                     'PHYSICAL_ROOM_CONFLICT:Phòng vật lý bị trùng lịch hoặc vi phạm khoảng đệm dọn phòng 30 phút',
+                    409
+                );
+            }
+
+            // 3a-bis. Trùng lịch khóa giữ chỗ Hotline / Walk-in (offline_room_blocks kèm đệm 30 phút)
+            $offlineConflictStmt = $this->pdo->prepare(
+                'SELECT `id`
+                 FROM `offline_room_blocks`
+                 WHERE `physical_room_id` = :prid
+                   AND `start_at` < :buf_end
+                   AND `end_at` > :buf_start
+                 LIMIT 1'
+            );
+            $offlineConflictStmt->bindValue(':prid', $physicalRoomId, PDO::PARAM_INT);
+            $offlineConflictStmt->bindValue(':buf_end', $bufferEnd, PDO::PARAM_STR);
+            $offlineConflictStmt->bindValue(':buf_start', $bufferStart, PDO::PARAM_STR);
+            $offlineConflictStmt->execute();
+            if ($offlineConflictStmt->fetch(PDO::FETCH_ASSOC) !== false) {
+                throw new RuntimeException(
+                    'PHYSICAL_ROOM_CONFLICT:Phòng vật lý đã được khóa giữ chỗ cho khách Hotline/Walk-in trong khung giờ này',
                     409
                 );
             }

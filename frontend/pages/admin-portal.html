@@ -256,6 +256,39 @@
       </div>
     </div>
 
+    <!-- Users & Account Suspension Lifecycle Card -->
+    <div class="ticket-card" style="margin-bottom: 24px;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 10px;">
+        <div>
+          <h3 style="margin: 0;">Quản Trị Tài Khoản, Phân Quyền & Khóa Tài Khoản (Identity & Suspension)</h3>
+          <p style="font-size: 0.85rem; color: var(--text-muted); margin-top: 2px;">
+            Gán vai trò (Player / DM / Admin) và khóa/mở khóa tài khoản tự động kích hoạt chuyển quyền Host hoặc giải phóng slot phòng
+          </p>
+        </div>
+        <span class="stamp-badge open">RBAC & SUSPENSION</span>
+      </div>
+
+      <div style="overflow-x: auto;">
+        <table class="admin-table">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Họ Tên & Email</th>
+              <th>Vai Trò</th>
+              <th>HSSV</th>
+              <th>Trạng Thái</th>
+              <th>Thao Tác Quản Trị</th>
+            </tr>
+          </thead>
+          <tbody id="usersTableBody">
+            <tr>
+              <td colspan="6" style="text-align: center; padding: 20px; color: var(--text-muted);">Đang tải danh sách người dùng...</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
     <!-- Student Verification & Audit Logs -->
     <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(360px, 1fr)); gap: 24px;">
       <!-- Student Card Approval -->
@@ -459,10 +492,84 @@
       }
     }
 
-    async function loadStudents() {
+    window.toggleUserSuspension = async function(userId, currentStatus) {
+      const nextStatus = currentStatus === 'ACTIVE' ? 'SUSPENDED' : 'ACTIVE';
+      const label = nextStatus === 'SUSPENDED' ? 'KHÓA tài khoản (tự động xử lý phòng đang tham gia)' : 'MỞ KHÓA tài khoản';
+      if (!confirm(`Xác nhận ${label} cho người dùng #${userId}?`)) return;
       try {
-        const res = await apiClient.get('/admin/users?limit=50');
+        const res = await apiClient.patch(`/admin/users/${userId}`, { status: nextStatus });
+        alert(res.message || 'Đã cập nhật trạng thái tài khoản thành công!');
+        loadStudents();
+        loadRooms();
+        loadAuditLogs();
+      } catch (err) {
+        alert('Lỗi cập nhật trạng thái tài khoản: ' + (err.message || 'Không thể thực hiện'));
+      }
+    };
+
+    window.changeUserRole = async function(userId, currentRole) {
+      const nextRole = prompt('Nhập mã vai trò mới cho tài khoản (PLAYER, DM, ADMIN):', currentRole || 'PLAYER');
+      if (!nextRole) return;
+      const code = nextRole.trim().toUpperCase();
+      if (!['PLAYER', 'DM', 'ADMIN'].includes(code)) {
+        alert('Vai trò không hợp lệ. Vui lòng nhập PLAYER, DM hoặc ADMIN.');
+        return;
+      }
+      try {
+        const res = await apiClient.put(`/admin/users/${userId}/role`, { role_code: code });
+        alert(res.message || 'Đã cập nhật vai trò người dùng thành công!');
+        loadStudents();
+        loadAuditLogs();
+      } catch (err) {
+        alert('Lỗi phân quyền: ' + (err.message || 'Không thể cập nhật vai trò'));
+      }
+    };
+
+    async function loadStudents() {
+      const usersTableBody = document.getElementById('usersTableBody');
+      try {
+        const res = await apiClient.get('/admin/users?per_page=50');
         const users = Array.isArray(res.data) ? res.data : (res.data?.items || res.data?.users || []);
+
+        if (usersTableBody) {
+          if (!Array.isArray(users) || users.length === 0) {
+            usersTableBody.innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 20px; color: var(--text-muted);">Chưa có dữ liệu người dùng.</td></tr>';
+          } else {
+            usersTableBody.innerHTML = users.slice(0, 30).map(u => {
+              const uid = Number(u.id);
+              const roleCode = String(u.role_code || u.role || 'PLAYER').toUpperCase();
+              const statusStr = String(u.status || 'ACTIVE').toUpperCase();
+              const isVerified = Number(u.student_verified) === 1;
+              return `
+                <tr>
+                  <td><strong>#${uid}</strong></td>
+                  <td>
+                    <strong>${escapeHtml(u.full_name || 'Người dùng #' + uid)}</strong>
+                    <div style="font-size: 0.8rem; color: var(--text-muted);">${escapeHtml(u.email || '')}${u.phone ? ' • ' + escapeHtml(u.phone) : ''}</div>
+                  </td>
+                  <td><span class="stamp-badge" style="font-size: 0.75rem;">${escapeHtml(roleCode)}</span></td>
+                  <td>${isVerified ? '<span style="color: #4ade80; font-size: 0.82rem;">Đã xác minh</span>' : '<span style="color: var(--text-muted); font-size: 0.82rem;">Chưa</span>'}</td>
+                  <td>
+                    <span class="stamp-badge ${statusStr === 'ACTIVE' ? 'open' : ''}" style="${statusStr !== 'ACTIVE' ? 'color: #f87171; border-color: #f87171;' : ''} font-size: 0.75rem;">
+                      ${escapeHtml(statusStr)}
+                    </span>
+                  </td>
+                  <td>
+                    <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+                      <button type="button" class="btn btn-outline" style="font-size: 0.78rem; padding: 4px 8px;" onclick="changeUserRole(${uid}, '${escapeHtml(roleCode)}')">Đổi Vai Trò</button>
+                      ${uid !== 1 ? `
+                        <button type="button" class="btn btn-outline" style="font-size: 0.78rem; padding: 4px 8px; ${statusStr === 'ACTIVE' ? 'border-color: #992b2b; color: #ef9a9a;' : 'border-color: #4ade80; color: #4ade80;'}" onclick="toggleUserSuspension(${uid}, '${escapeHtml(statusStr)}')">
+                          ${statusStr === 'ACTIVE' ? 'Khóa TK' : 'Mở Khóa'}
+                        </button>
+                      ` : '<span style="font-size: 0.78rem; color: var(--text-muted);">Root Admin</span>'}
+                    </div>
+                  </td>
+                </tr>
+              `;
+            }).join('');
+          }
+        }
+
         const students = Array.isArray(users)
           ? users.filter(u => (u.role_code || u.role || '').toUpperCase() === 'PLAYER' || u.student_card_id || Number(u.student_verified) === 1)
           : [];
@@ -869,6 +976,8 @@
         document.getElementById('proposalsTableBody').innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 20px; color: var(--text-muted);">Yêu cầu đăng nhập tài khoản Quản Trị Viên (Admin).</td></tr>';
         document.getElementById('physicalRoomsTableBody').innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 20px; color: var(--text-muted);">Yêu cầu đăng nhập tài khoản Quản Trị Viên (Admin).</td></tr>';
         document.getElementById('refundsTableBody').innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 20px; color: var(--text-muted);">Yêu cầu đăng nhập tài khoản Quản Trị Viên (Admin).</td></tr>';
+        const uBody = document.getElementById('usersTableBody');
+        if (uBody) uBody.innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 20px; color: var(--text-muted);">Yêu cầu đăng nhập tài khoản Quản Trị Viên (Admin).</td></tr>';
         studentListContainer.innerHTML = '<div style="padding: 12px; text-align: center; color: var(--text-muted); font-size: 0.85rem;">Yêu cầu đăng nhập tài khoản Quản Trị Viên (Admin).</div>';
         auditLogContainer.innerHTML = '<p style="color: var(--text-muted);">Yêu cầu đăng nhập tài khoản Quản Trị Viên (Admin).</p>';
         return;

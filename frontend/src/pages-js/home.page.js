@@ -26,22 +26,25 @@ function inferScenarioMeta(game) {
   const desc = String(game.description || '');
   const text = (name + ' ' + desc).toLowerCase();
 
-  let genre = 'Suy luận phá án';
-  let difficulty = 'Trung bình';
-  let is18Plus = name.includes('18+') || text.includes('đẫm máu') || text.includes('hiến tế');
+  let genre = game.genre || 'Suy luận phá án';
+  let difficulty = game.difficulty || 'Trung bình';
+  const is18Plus = Number(game.is_18_plus) === 1 || name.includes('18+');
+  const themeCode = String(game.theme_code || 'DETECTIVE').toUpperCase();
 
-  if (text.includes('ma cà rồng') || text.includes('huyết tộc') || text.includes('hắc miêu') || text.includes('đẫm máu') || text.includes('kinh dị') || text.includes('số 13')) {
-    genre = 'Kinh dị tâm linh';
-    difficulty = 'Khó';
-  } else if (text.includes('học đường') || text.includes('hài hước') || text.includes('trộm đề')) {
-    genre = 'Cơ chế, hài hước';
-    difficulty = 'Dễ';
-  } else if (text.includes('không gian') || text.includes('viễn tưởng') || text.includes('pháp thuật')) {
-    genre = 'Giả tưởng, siêu nhiên';
-    difficulty = 'Khó';
-  } else if (text.includes('giao hưởng') || text.includes('gatsby') || text.includes('dạ hội')) {
-    genre = 'Tình cảm, tâm lý xã hội';
-    difficulty = 'Trung bình';
+  if (!game.genre) {
+    if (text.includes('ma cà rồng') || text.includes('huyết tộc') || text.includes('hắc miêu') || text.includes('đẫm máu') || text.includes('kinh dị') || text.includes('số 13')) {
+      genre = 'Kinh dị tâm linh';
+      difficulty = 'Khó';
+    } else if (text.includes('học đường') || text.includes('hài hước') || text.includes('trộm đề')) {
+      genre = 'Cơ chế, hài hước';
+      difficulty = 'Dễ';
+    } else if (text.includes('không gian') || text.includes('viễn tưởng') || text.includes('pháp thuật')) {
+      genre = 'Giả tưởng, siêu nhiên';
+      difficulty = 'Khó';
+    } else if (text.includes('giao hưởng') || text.includes('gatsby') || text.includes('dạ hội')) {
+      genre = 'Tình cảm, tâm lý xã hội';
+      difficulty = 'Trung bình';
+    }
   }
 
   const minP = Number(game.min_players || 6);
@@ -56,11 +59,11 @@ function inferScenarioMeta(game) {
     title: name,
     genre,
     difficulty,
+    theme_code: themeCode,
     duration: `${hrs} tiếng (${mins}p)`,
-    price: Number(game.min_price || 220000),
+    price: Number(game.min_price || 180000),
     is18Plus,
-    players: { total: `${minP}-${maxP}`, male, female },
-    imageUrl: sanitizeUrl(game.image_url) || 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=500&auto=format&fit=crop',
+    players: { total: minP === maxP ? `${minP}` : `${minP}-${maxP}`, male, female },
     summary: desc
   };
 }
@@ -81,28 +84,38 @@ function renderScenarios(genreFilter = 'ALL') {
   gridEl.innerHTML = list
     .slice(0, 6)
     .map((item) => {
-      const imgSrc = item.imageUrl
-        ? item.imageUrl
-        : `./src/assets/images/${escapeHtml(item.poster || 'poster-suy-luan.jpg')}`;
+      const codeStr = 'HS-' + String(item.id).padStart(2, '0');
       const safeTitle = escapeHtml(item.title);
       const safeGenre = escapeHtml(item.genre);
       const safeDiff = escapeHtml(item.difficulty);
+      const safeTheme = escapeHtml(item.theme_code || 'DETECTIVE');
       const safeDuration = escapeHtml(item.duration);
       const safeSummary = escapeHtml(item.summary);
       return `
       <div class="home-flip-card">
         <div class="home-flip-inner">
           <div class="home-flip-front">
-            <img src="${imgSrc}" onerror="this.onerror=null; this.src='https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=500&auto=format&fit=crop';" alt="${safeTitle}" />
+            <div class="dossier-cover">
+              <div style="display: flex; justify-content: space-between; align-items: center; gap: 8px;">
+                <span class="dossier-code">HỒ SƠ #${escapeHtml(codeStr)} • ${safeTheme}</span>
+                ${item.is18Plus ? '<span class="stamp-badge">18+</span>' : `<span class="stamp-badge open">${safeDiff}</span>`}
+              </div>
+              <div>
+                <div class="dossier-cover-title">${safeTitle}</div>
+                <p class="dossier-summary-excerpt">${safeSummary}</p>
+              </div>
+              <div style="font-size: 0.78rem; color: var(--color-gold); opacity: 0.9;">
+                [BÌA HỒ SƠ LƯU TRỮ CHÍNH THỨC]
+              </div>
+            </div>
             <div class="home-flip-front-info">
               <div class="home-card-tags">
                 <span>${safeGenre}</span>
-                ${item.is18Plus ? '<span class="stamp-badge">18+</span>' : '<span>' + safeDuration + '</span>'}
+                <span>${safeDuration}</span>
               </div>
-              <h3>${safeTitle}</h3>
-              <div class="home-card-tags">
-                <span>${item.players.male} Nam / ${item.players.female} Nữ</span>
-                <strong>${formatPrice(item.price)}</strong>
+              <div class="home-card-tags" style="margin-top: 8px;">
+                <span>${escapeHtml(String(item.players.total))} người (${item.players.male}N/${item.players.female}N)</span>
+                <strong>Từ ${formatPrice(item.price)}</strong>
               </div>
             </div>
           </div>
@@ -116,6 +129,7 @@ function renderScenarios(genreFilter = 'ALL') {
               <p style="font-size: 0.9rem; margin-bottom: 12px;">${safeSummary}</p>
               <hr class="ticket-divider" />
               <ul class="home-spec-list">
+                <li><strong>Mã hồ sơ:</strong> #${escapeHtml(codeStr)} (${safeTheme})</li>
                 <li><strong>Thời lượng:</strong> ${safeDuration}</li>
                 <li><strong>Đội hình:</strong> ${escapeHtml(String(item.players.total))} người (${item.players.male} Nam - ${item.players.female} Nữ)</li>
                 <li><strong>Giá vé từ:</strong> ${formatPrice(item.price)} (Cọc 50.000đ)</li>

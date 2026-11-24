@@ -20,6 +20,8 @@ class GameRepository extends BaseRepository
             $stmt = $this->pdo->prepare(
                 'SELECT `id`, `name` AS `title`, `name`, `slug`, `description`, `image_url`,
                         `min_players`, `max_players`, `duration_minutes`, `status`,
+                        COALESCE(`is_18_plus`, 0) AS `is_18_plus`,
+                        COALESCE(`theme_code`, \'GENERAL\') AS `theme_code`,
                         (CASE WHEN `status` = \'ACTIVE\' THEN 1 ELSE 0 END) AS `is_active`,
                         `display_order`, `created_at`, `updated_at`
                  FROM `games`
@@ -30,7 +32,11 @@ class GameRepository extends BaseRepository
             $stmt->execute();
 
             $result = $stmt->fetch(PDO::FETCH_ASSOC);
-            return $result !== false ? $result : null;
+            if ($result !== false) {
+                $result['is_18_plus'] = (int) $result['is_18_plus'];
+                return $result;
+            }
+            return null;
         });
     }
 
@@ -45,6 +51,8 @@ class GameRepository extends BaseRepository
             $stmt = $this->pdo->prepare(
                 'SELECT `id`, `name` AS `title`, `name`, `slug`, `description`, `image_url`,
                         `min_players`, `max_players`, `duration_minutes`, `status`,
+                        COALESCE(`is_18_plus`, 0) AS `is_18_plus`,
+                        COALESCE(`theme_code`, \'GENERAL\') AS `theme_code`,
                         (CASE WHEN `status` = \'ACTIVE\' THEN 1 ELSE 0 END) AS `is_active`,
                         `display_order`, `created_at`, `updated_at`
                  FROM `games`
@@ -55,18 +63,35 @@ class GameRepository extends BaseRepository
             $stmt->execute();
 
             $result = $stmt->fetch(PDO::FETCH_ASSOC);
-            return $result !== false ? $result : null;
+            if ($result !== false) {
+                $result['is_18_plus'] = (int) $result['is_18_plus'];
+                return $result;
+            }
+            return null;
+        });
+    }
+
+    public function countActive(): int
+    {
+        return $this->executeQuery(function (): int {
+            return (int) $this->pdo->query("SELECT COUNT(*) FROM `games` WHERE `status` = 'ACTIVE'")->fetchColumn();
         });
     }
 
     /**
-     * List active games with pagination, optional player filtering and search.
+     * List active games with pagination, optional player filtering, search, theme, and 18+ filter.
      *
      * @return list<array<string, mixed>>
      */
-    public function listActive(int $limit = 20, int $offset = 0, ?int $players = null, ?string $search = null): array
-    {
-        return $this->executeQuery(function () use ($limit, $offset, $players, $search): array {
+    public function listActive(
+        int $limit = 50,
+        int $offset = 0,
+        ?int $players = null,
+        ?string $search = null,
+        ?string $theme = null,
+        ?int $is18Plus = null
+    ): array {
+        return $this->executeQuery(function () use ($limit, $offset, $players, $search, $theme, $is18Plus): array {
             $where = ['g.`status` = \'ACTIVE\''];
             $params = [];
 
@@ -83,16 +108,31 @@ class GameRepository extends BaseRepository
                 $params[':s2'] = $searchTerm;
             }
 
+            if ($theme !== null && $theme !== '' && $theme !== 'ALL') {
+                $where[] = 'g.`theme_code` = :theme';
+                $params[':theme'] = $theme;
+            }
+
+            if ($is18Plus !== null) {
+                $where[] = 'g.`is_18_plus` = :is18';
+                $params[':is18'] = $is18Plus;
+            }
+
             $sql = 'SELECT g.`id`, g.`name` AS `title`, g.`name`, g.`slug`, g.`description`, g.`image_url`,
                            g.`min_players`, g.`max_players`, g.`duration_minutes`, g.`status`,
+                           COALESCE(g.`is_18_plus`, 0) AS `is_18_plus`,
+                           COALESCE(g.`theme_code`, \'GENERAL\') AS `theme_code`,
                            1 AS `is_active`, g.`display_order`, g.`created_at`, g.`updated_at`,
                            MIN(gp.`price_per_person`) AS `min_price`,
-                           MAX(gp.`price_per_person`) AS `max_price`
+                           MAX(gp.`price_per_person`) AS `max_price`,
+                           (SELECT gc.`configuration` FROM `game_configurations` gc
+                            WHERE gc.`game_id` = g.`id` AND gc.`is_active` = 1
+                            ORDER BY gc.`version` DESC LIMIT 1) AS `raw_configuration`
                     FROM `games` g
                     LEFT JOIN `game_prices` gp ON gp.`game_id` = g.`id` AND gp.`status` = \'ACTIVE\'
                     WHERE ' . implode(' AND ', $where) . '
                     GROUP BY g.`id`
-                    ORDER BY g.`display_order` ASC, g.`name` ASC
+                    ORDER BY g.`display_order` ASC, g.`id` ASC
                     LIMIT :limit OFFSET :offset';
 
             $stmt = $this->pdo->prepare($sql);
@@ -108,6 +148,12 @@ class GameRepository extends BaseRepository
             foreach ($rows as &$row) {
                 $row['min_price'] = $row['min_price'] !== null ? (int) $row['min_price'] : null;
                 $row['max_price'] = $row['max_price'] !== null ? (int) $row['max_price'] : null;
+                $row['is_18_plus'] = (int) ($row['is_18_plus'] ?? 0);
+                $cfg = !empty($row['raw_configuration']) ? json_decode((string) $row['raw_configuration'], true) : null;
+                unset($row['raw_configuration']);
+                $row['genre'] = is_array($cfg) && !empty($cfg['genre']) ? (string) $cfg['genre'] : null;
+                $row['difficulty'] = is_array($cfg) && !empty($cfg['difficulty']) ? (string) $cfg['difficulty'] : null;
+                $row['props'] = is_array($cfg) && !empty($cfg['props']) ? $cfg['props'] : [];
             }
             return $rows;
         });
@@ -143,17 +189,7 @@ class GameRepository extends BaseRepository
     /**
      * Create a new game.
      *
-     * @param array{
-     *     name?: string,
-     *     title?: string,
-     *     slug: string,
-     *     description?: string|null,
-     *     min_players?: int,
-     *     max_players?: int,
-     *     duration_minutes?: int,
-     *     status?: string,
-     *     is_active?: bool
-     * } $data
+     * @param array<string, mixed> $data
      */
     public function create(array $data): int
     {
@@ -162,17 +198,19 @@ class GameRepository extends BaseRepository
             $status = $data['status'] ?? (($data['is_active'] ?? true) ? 'ACTIVE' : 'INACTIVE');
 
             $stmt = $this->pdo->prepare(
-                'INSERT INTO `games` (`name`, `slug`, `description`, `min_players`, `max_players`, `duration_minutes`, `status`, `created_at`, `updated_at`)
-                 VALUES (:name, :slug, :description, :min_players, :max_players, :duration_minutes, :status, NOW(), NOW())'
+                'INSERT INTO `games` (`name`, `slug`, `description`, `image_url`, `min_players`, `max_players`, `duration_minutes`, `status`, `is_18_plus`, `theme_code`, `created_at`, `updated_at`)
+                 VALUES (:name, :slug, :description, NULL, :min_players, :max_players, :duration_minutes, :status, :is_18_plus, :theme_code, NOW(), NOW())'
             );
 
-            $stmt->bindValue(':name', $name, PDO::PARAM_STR);
-            $stmt->bindValue(':slug', $data['slug'], PDO::PARAM_STR);
+            $stmt->bindValue(':name', (string) $name, PDO::PARAM_STR);
+            $stmt->bindValue(':slug', (string) $data['slug'], PDO::PARAM_STR);
             $stmt->bindValue(':description', $data['description'] ?? null, ($data['description'] ?? null) === null ? PDO::PARAM_NULL : PDO::PARAM_STR);
-            $stmt->bindValue(':min_players', $data['min_players'] ?? 4, PDO::PARAM_INT);
-            $stmt->bindValue(':max_players', $data['max_players'] ?? 8, PDO::PARAM_INT);
-            $stmt->bindValue(':duration_minutes', $data['duration_minutes'] ?? 240, PDO::PARAM_INT);
-            $stmt->bindValue(':status', $status, PDO::PARAM_STR);
+            $stmt->bindValue(':min_players', (int) ($data['min_players'] ?? 4), PDO::PARAM_INT);
+            $stmt->bindValue(':max_players', (int) ($data['max_players'] ?? 8), PDO::PARAM_INT);
+            $stmt->bindValue(':duration_minutes', (int) ($data['duration_minutes'] ?? 240), PDO::PARAM_INT);
+            $stmt->bindValue(':status', (string) $status, PDO::PARAM_STR);
+            $stmt->bindValue(':is_18_plus', !empty($data['is_18_plus']) ? 1 : 0, PDO::PARAM_INT);
+            $stmt->bindValue(':theme_code', (string) ($data['theme_code'] ?? 'GENERAL'), PDO::PARAM_STR);
 
             $stmt->execute();
 

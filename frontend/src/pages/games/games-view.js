@@ -51,7 +51,7 @@ export class GamesView {
     grid.innerHTML = '<div style="grid-column: 1 / -1; text-align: center; padding: 40px; color: var(--color-text-muted);">Đang tải dữ liệu...</div>';
 
     try {
-      const endpoint = this.selectedPlayersFilter ? `/games?players=${this.selectedPlayersFilter}` : '/games';
+      const endpoint = this.selectedPlayersFilter ? `/games?limit=100&players=${this.selectedPlayersFilter}` : '/games?limit=100';
       const res = await api.get(endpoint);
       this.games = res?.data?.games || [];
 
@@ -61,13 +61,15 @@ export class GamesView {
       }
 
       grid.innerHTML = this.games.map(game => {
-        const safeImg = sanitizeUrl(game.image_url);
+        const codeStr = 'HS-' + String(game.id).padStart(2, '0');
+        const themeCode = escapeHtml(String(game.theme_code || 'DETECTIVE'));
+        const is18 = Number(game.is_18_plus) === 1;
         return `
         <div class="card" style="display: flex; flex-direction: column; overflow: hidden; height: 100%;">
-          <div style="height: 180px; background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); position: relative; overflow: hidden; display: flex; align-items: center; justify-content: center;">
-            ${safeImg ? `<img src="${safeImg}" alt="${escapeHtml(game.name)}" style="width: 100%; height: 100%; object-fit: cover;">` : `<div style="font-size: 3rem; opacity: 0.3;"></div>`}
-            <span style="position: absolute; top: 12px; right: 12px; background: rgba(15, 23, 42, 0.85); backdrop-filter: blur(4px); font-size: 0.75rem; padding: 4px 8px; border-radius: 4px; border: 1px solid rgba(255, 255, 255, 0.1);">
-              ⏱ ${Number(game.duration_minutes) || 240} phút
+          <div style="padding: 18px; background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-bottom: 1px dashed rgba(201, 162, 94, 0.35); display: flex; justify-content: space-between; align-items: center;">
+            <span style="font-family: monospace; font-size: 0.8rem; color: #c9a25e; font-weight: 700;">HỒ SƠ #${escapeHtml(codeStr)} • ${themeCode}</span>
+            <span style="background: rgba(15, 23, 42, 0.85); font-size: 0.75rem; padding: 4px 8px; border-radius: 4px; border: 1px solid rgba(255, 255, 255, 0.15);">
+              ${is18 ? '18+ • ' : ''}${Number(game.duration_minutes) || 240} phút
             </span>
           </div>
           <div style="padding: 18px; display: flex; flex-direction: column; flex-grow: 1;">
@@ -76,15 +78,15 @@ export class GamesView {
               ${escapeHtml(game.description || 'Kịch bản nhập vai trinh thám ly kỳ với cốt truyện hấp dẫn và bất ngờ.')}
             </p>
             <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.85rem; color: #94a3b8; border-top: 1px solid var(--color-border); padding-top: 12px; margin-bottom: 14px;">
-              <span> ${Number(game.min_players)} - ${Number(game.max_players)} người chơi</span>
+              <span>${Number(game.min_players)} - ${Number(game.max_players)} người chơi</span>
               <span style="color: #10b981; font-weight: 600;">Cọc: 50.000đ/người</span>
             </div>
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
               <button class="btn btn-secondary btn-prices" data-id="${Number(game.id)}" style="font-size: 0.85rem; padding: 8px;">
-                 Xem giá
+                Xem giá
               </button>
               <button class="btn btn-primary btn-create-room" data-id="${Number(game.id)}" style="font-size: 0.85rem; padding: 8px;">
-                 Tạo phòng
+                Tạo phòng
               </button>
             </div>
           </div>

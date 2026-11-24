@@ -279,10 +279,10 @@ Cấu hình các mốc thời gian tự động xử lý (Automated Cron SLAs) t
      - Bước 2 (Xử lý khi bất khả kháng): Trong trường hợp Admin xác nhận cơ sở hoàn toàn bất khả kháng không thể bố trí Quản trò, hệ thống kích hoạt trạng thái từ chối đề xuất (`PROPOSAL_REJECTED`), gửi thông báo giải thích đến Host và các thành viên, đồng thời giữ nguyên trạng thái phòng ở `FORMING` kèm gợi ý đổi sang các khung giờ khác trong ngày có Quản trò trực ca. Do bước này phòng mới ở giai đoạn giữ chỗ tạm thời và chưa thu tiền cọc, khách hàng hoàn toàn không bị giam giữ tài chính.
 
 ### 3.10. Xử lý độ lệch dữ liệu truyền thông (Điểm 14)
-- Vấn đề: Giao diện quảng bá "Kho 42 Kịch Bản" nhưng CSDL chỉ có 3 kịch bản hạt giống.
-- Giải pháp chuẩn hóa:
-  1. Cập nhật seeder `V3DataSeeder.php` bổ sung thêm danh mục lên **12 kịch bản hoàn chỉnh** đại diện cho đầy đủ các trường phái: Âu cổ, Cổ trang Á Đông, Kinh dị giật gân, Trinh thám hiện đại, Học đường, Cơ chế hài hước.
-  2. Với các kịch bản còn lại trên giao diện catalog, hiển thị nhãn trạng thái rõ ràng: `[Đang Hoạt Động]` (cho 12 kịch bản sẵn sàng đặt bàn) và `[Sắp Ra Mắt - Coming Soon]` (cho các kịch bản đang trong quá trình dịch thuật và thử nghiệm đạo cụ). Điều này vừa giữ nguyên quy mô thương hiệu 42 kịch bản, vừa bảo đảm tính trung thực tuyệt đối khi đặt phòng.
+- Vấn đề trước đây: Giao diện quảng bá "Kho 42 Kịch Bản" nhưng CSDL ban đầu chỉ có 3 kịch bản hạt giống.
+- Giải pháp chuẩn hóa đã hoàn tất:
+  1. Cập nhật đồng bộ bộ dữ liệu chuẩn (`catalog_42_scenarios.php`, `seed_rich_catalog.php`, `V3DataSeeder.php` và `kich_ban_sat_v3_clean.sql`) nạp đầy đủ **42 kịch bản Jubensha hoàn chỉnh** (`id = 1..42`) đại diện cho toàn bộ các trường phái: Âu cổ, Cổ trang Á Đông, Kinh dị tâm linh, Trinh thám phòng kín, Khoa học viễn tưởng, Học đường, Cơ chế hài hước, Phiên tòa, Pháp y.
+  2. Toàn bộ 42 kịch bản được thiết kế dạng **Bìa Hồ Sơ Vụ Án chuẩn Typography (không sử dụng ảnh ngoài hay đường dẫn ảnh bên thứ ba, `image_url = NULL`)**, đi kèm 42 bộ cấu hình đạo cụ (`game_configurations`) và 126 khung giá Sáng - Chiều - Tối (`game_prices`), bảo đảm tính nhất quán 100% giữa giao diện, API và CSDL.
 
 ---
 
@@ -478,22 +478,22 @@ Toàn bộ 28 hạng mục được phân rã thành 3 giai đoạn triển khai
 gantt
     title Lộ Trình Triển Khai Nâng Cấp Hệ Thống Kịch Bản Sát V16
     dateFormat  YYYY-MM-DD
-    section Giai đoạn P0 (Nền tảng - 100% PASS)
+    section Giai đoạn P0
     Phân quyền DM - System - Admin & Chốt 3 quyết định :done, p0_1, 2026-11-20, 2d
-    Mô hình Public & Private Group Booking             :done, p0_2, 2026-11-21, 2d
-    Đảo luồng Lịch trước - Cọc sau & 4 State Machines :done, p0_3, 2026-11-22, 2d
-    Cơ chế cọc linh hoạt & 7 Kịch bản ngoại lệ        :done, p0_4, 2026-11-22, 2d
-    Buffer cứng 30 phút dọn phòng & SLAs Timeout       :done, p0_5, 2026-11-23, 2d
-    section Giai đoạn P1 (Vận hành cốt lõi - 100% PASS)
-    Gắn chi nhánh & khung giờ lúc tạo phòng            :done, p1_1, 2026-11-23, 2d
-    Quy trình rời phòng, Host transfer & Thế chỗ       :done, p1_2, 2026-11-23, 2d
-    DM Console: Check-in, Timer 240p & Incident Report :done, p1_3, 2026-11-23, 2d
-    Xác nhận tất toán quầy & Thông báo nhắc 24h       :done, p1_4, 2026-11-24, 2d
-    section Giai đoạn P2 (Trải nghiệm & Mở rộng - 100% PASS)
-    Mở rộng kho kịch bản (12 kịch bản hoàn chỉnh)     :done, p2_1, 2026-11-24, 1d
-    Khóa phòng thủ công Hotline / Walk-in             :done, p2_2, 2026-11-24, 1d
-    Quy tắc giá vắt khung giờ, HSSV, Chống chơi lại   :done, p2_3, 2026-11-24, 1d
-    Báo cáo tài chính chuyên sâu & Đo lường KPI        :done, p2_4, 2026-11-24, 1d
+    Mô hình Public & Private Group Booking             :done, p0_2, 2026-11-22, 2d
+    Đảo luồng Lịch trước - Cọc sau & 4 State Machines :active, p0_3, 2026-11-24, 2d
+    Cơ chế cọc linh hoạt & 7 Kịch bản ngoại lệ        :active, p0_4, 2026-11-24, 2d
+    Buffer cứng 30 phút dọn phòng & SLAs Timeout       :p0_5, after p0_3, 2d
+    section Giai đoạn P1
+    Gắn chi nhánh & khung giờ lúc tạo phòng            :p1_1, after p0_5, 2d
+    Quy trình rời phòng, Host transfer & Thế chỗ       :p1_2, after p1_1, 2d
+    DM Console: Check-in, Timer 240p & Incident Report :p1_3, after p1_2, 2d
+    Xác nhận tất toán quầy & Thông báo nhắc 24h       :p1_4, after p1_3, 2d
+    section Giai đoạn P2
+    Mở rộng kho kịch bản (42 kịch bản hoàn chỉnh)     :p2_1, after p1_4, 2d
+    Khóa phòng thủ công Hotline / Walk-in             :p2_2, after p2_1, 1d
+    Quy tắc giá vắt khung giờ, HSSV, Chống chơi lại   :p2_3, after p2_2, 2d
+    Báo cáo tài chính chuyên sâu & Đo lường KPI        :p2_4, after p2_3, 1d
 ```
 
 ### Chi tiết các gói công việc:
@@ -514,7 +514,7 @@ gantt
 - Triển khai thông báo tự động nhắc lịch trước 24 giờ (Hoàn thành 100%).
 
 #### Gói P2 (Ưu tiên trung bình - Hoàn thiện trải nghiệm & Nghiệp vụ mở rộng - ĐÃ HOÀN THÀNH 100%):
-- Nạp bổ sung 12 kịch bản đa dạng thể loại vào CSDL qua seeder (`seed_rich_catalog.php` - Hoàn thành 100%).
+- Nạp đầy đủ toàn bộ 42 kịch bản đa dạng thể loại (không cài ảnh ngoài, kèm 42 cấu hình đạo cụ & 126 mức giá) vào CSDL qua seeder (`catalog_42_scenarios.php`, `seed_rich_catalog.php`, `kich_ban_sat_v3_clean.sql` - Hoàn thành 100%).
 - Xây dựng tính năng khóa phòng thủ công cho khách gọi điện hotline / khách vãng lai (`POST /api/v1/admin/rooms/offline-block` - Hoàn thành 100%).
 - Triển khai quy tắc tính giá khi ca chơi vắt qua hai khung giờ (Majority Time Block Rule trong `PricingService.php` - Hoàn thành 100%).
 - Hoàn thiện kiểm soát chống chơi lại kịch bản cũ và chống trùng lịch ca chơi (`ALREADY_COMPLETED_SCENARIO`, `PLAYER_SCHEDULE_CONFLICT` - Hoàn thành 100%).
@@ -522,8 +522,6 @@ gantt
 - Hoàn tất vòng đời chi trả hoàn tiền cọc kế toán sang COMPLETED (`POST /api/v1/admin/refunds/{id}/complete` - Hoàn thành 100%).
 - Tự động phát thông báo nhắc lịch ca chơi trước 24 giờ cho khách hàng và Quản trò (Job 6 `runUpcomingSession24hReminder` trong `BackgroundJobService.php` - Hoàn thành 100%).
 - Bộ kiểm thử tự động đạt mốc 150/150 tests PASS (100%), 731 assertions và 12/12 trang web đạt chuẩn hoàn hảo qua Chrome DevTools Protocol.
-- Xây dựng bộ cẩm nang bảo vệ đồ án và 10 câu hỏi phản biện hóc búa nhất (`docs/BO_CAU_HOI_PHAN_BIEN_VA_KICH_BAN_DEMO.md` - Hoàn thành 100%).
-- Chuẩn hóa Sổ tay hướng dẫn cách vận hành chi tiết (`CACH_VAN_HANH.md` - Hoàn thành 100%).
 
 ---
 

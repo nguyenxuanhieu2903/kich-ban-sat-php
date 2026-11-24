@@ -126,10 +126,20 @@ class V16StandardP1FeaturesTest extends TestCase
         $this->pdo->exec("INSERT INTO `game_rooms` (`game_id`, `game_configuration_id`, `creator_id`, `title`, `min_players`, `max_players`, `status`, `formation_deadline_at`, `created_at`, `updated_at`) VALUES (1, 1, 3, 'Phòng Test No Show 2', 6, 8, 'CONFIRMED', DATE_ADD(NOW(), INTERVAL 3 DAY), NOW(), NOW())");
         $roomId = (int) $this->pdo->lastInsertId();
 
-        // 3 thành viên
-        $this->pdo->exec("INSERT INTO `room_participants` (`game_room_id`, `user_id`, `status`, `joined_at`) VALUES ({$roomId}, 401, 'DEPOSITED', NOW()), ({$roomId}, 402, 'DEPOSITED', NOW()), ({$roomId}, 403, 'DEPOSITED', NOW())");
+        // Tạo 3 người chơi hợp lệ cho bài kiểm thử
+        $pwd = password_hash('password123', PASSWORD_BCRYPT);
+        $uIds = [];
+        for ($i = 1; $i <= 3; $i++) {
+            $email = 'noshow_p1_' . $i . '_' . uniqid() . '@kichbansat.vn';
+            $st = $this->pdo->prepare("INSERT INTO `users` (`role_id`, `full_name`, `email`, `password_hash`, `status`, `created_at`, `updated_at`) VALUES (1, :n, :e, :p, 'ACTIVE', NOW(), NOW())");
+            $st->execute([':n' => "NoShow User {$i}", ':e' => $email, ':p' => $pwd]);
+            $uIds[] = (int) $this->pdo->lastInsertId();
+        }
 
-        $this->pdo->exec("INSERT INTO `schedule_proposals` (`game_room_id`, `proposed_by`, `proposed_start_at`, `proposed_end_at`, `status`, `expires_at`, `created_at`) VALUES ({$roomId}, 401, NOW(), DATE_ADD(NOW(), INTERVAL 4 HOUR), 'CONFIRMED', DATE_ADD(NOW(), INTERVAL 24 HOUR), NOW())");
+        // 3 thành viên
+        $this->pdo->exec("INSERT INTO `room_participants` (`game_room_id`, `user_id`, `status`, `joined_at`) VALUES ({$roomId}, {$uIds[0]}, 'DEPOSITED', NOW()), ({$roomId}, {$uIds[1]}, 'DEPOSITED', NOW()), ({$roomId}, {$uIds[2]}, 'DEPOSITED', NOW())");
+
+        $this->pdo->exec("INSERT INTO `schedule_proposals` (`game_room_id`, `proposed_by`, `proposed_start_at`, `proposed_end_at`, `status`, `expires_at`, `created_at`) VALUES ({$roomId}, {$uIds[0]}, NOW(), DATE_ADD(NOW(), INTERVAL 4 HOUR), 'CONFIRMED', DATE_ADD(NOW(), INTERVAL 24 HOUR), NOW())");
         $propId = (int) $this->pdo->lastInsertId();
 
         $this->pdo->exec("INSERT INTO `dm_assignments` (`game_room_id`, `dm_user_id`, `assigned_by`, `status`, `assigned_at`, `created_at`, `updated_at`) VALUES ({$roomId}, 2, 1, 'ACCEPTED', NOW(), NOW(), NOW())");
@@ -138,13 +148,13 @@ class V16StandardP1FeaturesTest extends TestCase
         $this->pdo->exec("INSERT INTO `sessions` (`game_room_id`, `schedule_proposal_id`, `dm_assignment_id`, `venue_id`, `physical_room_id`, `start_at`, `end_at`, `status`, `created_at`, `updated_at`) VALUES ({$roomId}, {$propId}, {$assignId}, 1, 1, NOW(), DATE_ADD(NOW(), INTERVAL 4 HOUR), 'IN_PROGRESS', NOW(), NOW())");
         $sessId = (int) $this->pdo->lastInsertId();
 
-        // Báo 2 người vắng mặt (401, 402)
+        // Báo 2 người vắng mặt
         $request = new Request(
             method: 'POST',
             path: "/api/dm/sessions/{$sessId}/no-show",
             queryParams: [],
             bodyParams: [
-                'absent_user_ids' => [401, 402],
+                'absent_user_ids' => [$uIds[0], $uIds[1]],
             ],
             headers: [
                 'Authorization' => 'Bearer 2',
@@ -158,7 +168,7 @@ class V16StandardP1FeaturesTest extends TestCase
         $this->assertSame('CANCELLED', $data['data']['session_status']);
         $this->assertSame('CANCELLED_ON_SITE', $data['data']['action']);
         $this->assertCount(2, $data['data']['forfeited_users']);
-        $this->assertContains(403, $data['data']['refunded_users']);
+        $this->assertContains($uIds[2], $data['data']['refunded_users']);
     }
 
     public function testSuspensionOfMemberDoesNotDisbandFormingRoom(): void

@@ -3,18 +3,19 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Kho Kịch Bản — Kịch Bản Sát V16</title>
+  <title>Kho 42 Kịch Bản — Kịch Bản Sát V16</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:ital,wght@0,600;0,700;1,600&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&family=Playfair+Display:ital,wght@0,600;0,700;1,600&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="../src/styles/components.css" />
   <link rel="stylesheet" href="../src/styles/home.css" />
   <style>
     .catalog-search-bar {
       display: flex;
       gap: 12px;
-      margin-bottom: 24px;
+      margin-bottom: 18px;
       flex-wrap: wrap;
+      align-items: center;
     }
     .catalog-input {
       flex: 1;
@@ -24,6 +25,16 @@
       background: var(--bg-surface);
       color: var(--text-light);
       border-radius: var(--radius-sm);
+    }
+    .catalog-count-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+      font-size: 0.9rem;
+      color: var(--text-muted);
+      flex-wrap: wrap;
+      gap: 8px;
     }
   </style>
 </head>
@@ -36,7 +47,7 @@
       </a>
       <nav class="nav-links">
         <a href="../index.html">Trang chủ</a>
-        <a href="./scenarios.html" class="active">Kho Kịch Bản</a>
+        <a href="./scenarios.html" class="active">Kho 42 Kịch Bản</a>
         <a href="./lobby.html">Sảnh Ghép Phòng</a>
         <a href="./info.html">Bảng Giá & Nội Quy</a>
       </nav>
@@ -49,30 +60,41 @@
 
   <main class="container" style="padding-top: 40px; padding-bottom: 60px;">
     <div class="home-section-head">
-      <span class="stamp-badge">BỘ SƯU TẬP CHÍNH THỨC</span>
-      <h1 class="home-section-title" style="margin-top: 8px;">Kho Kịch Bản Án Mạng Nhập Vai</h1>
-      <p class="home-section-desc">Khám phá các vụ án ly kỳ được thiết kế chuẩn quốc tế, trang phục và đạo cụ chi tiết</p>
+      <span class="stamp-badge">BỘ SƯU TẬP CHÍNH THỨC V16</span>
+      <h1 class="home-section-title" style="margin-top: 8px;">Kho 42 Kịch Bản Án Mạng Nhập Vai</h1>
+      <p class="home-section-desc">Hệ thống lưu trữ hồ sơ vụ án chuẩn biên tập chuyên môn, đạo cụ vật lý và khung giá minh bạch</p>
     </div>
 
     <div class="catalog-search-bar">
-      <input type="text" id="searchInput" class="catalog-input" placeholder="Tìm theo tên kịch bản, từ khóa... (nhấn / để tìm nhanh)" />
-      <select id="playerFilter" class="catalog-input" style="flex: 0 0 200px;">
+      <input type="text" id="searchInput" class="catalog-input" placeholder="Tìm theo tên kịch bản, mã hồ sơ, từ khóa cốt truyện... (nhấn / để tìm nhanh)" />
+      <select id="playerFilter" class="catalog-input" style="flex: 0 0 190px;">
         <option value="">Tất cả số người</option>
         <option value="5">5 người chơi</option>
         <option value="6">6 người chơi</option>
         <option value="7">7 người chơi</option>
         <option value="8">8 người chơi</option>
         <option value="9">9 người chơi</option>
+        <option value="10">10 người chơi</option>
+      </select>
+      <select id="ageFilter" class="catalog-input" style="flex: 0 0 190px;">
+        <option value="ALL">Mọi độ tuổi</option>
+        <option value="GENERAL">Phổ thông (Dưới 18+)</option>
+        <option value="18PLUS">Giới hạn 18+</option>
       </select>
     </div>
 
     <div class="home-filter-bar" id="genreFilters">
-      <button class="btn btn-gold active" data-genre="ALL">Tất cả thể loại</button>
-      <button class="btn btn-outline" data-genre="Kinh dị">Kinh dị tâm linh</button>
-      <button class="btn btn-outline" data-genre="Suy luận">Suy luận phá án</button>
-      <button class="btn btn-outline" data-genre="Cơ chế">Cơ chế hài hước</button>
-      <button class="btn btn-outline" data-genre="Tình cảm">Tình cảm tâm lý</button>
-      <button class="btn btn-outline" data-genre="Giả tưởng">Giả tưởng</button>
+      <button type="button" class="btn btn-gold active" data-genre="ALL">Tất cả thể loại</button>
+      <button type="button" class="btn btn-outline" data-genre="Kinh dị">Kinh dị tâm linh</button>
+      <button type="button" class="btn btn-outline" data-genre="Suy luận">Suy luận phá án</button>
+      <button type="button" class="btn btn-outline" data-genre="Cơ chế">Cơ chế hài hước</button>
+      <button type="button" class="btn btn-outline" data-genre="Tình cảm">Tình cảm tâm lý</button>
+      <button type="button" class="btn btn-outline" data-genre="Giả tưởng">Giả tưởng siêu nhiên</button>
+    </div>
+
+    <div class="catalog-count-bar">
+      <span id="catalogCounter">Đang đồng bộ danh mục 42 kịch bản từ CSDL...</span>
+      <span>Di chuột vào bìa hồ sơ để lật xem thông số chi tiết</span>
     </div>
 
     <div class="home-scenarios-grid" id="scenariosGrid">
@@ -80,59 +102,66 @@
     </div>
   </main>
 
+  <!-- Modal xác nhận 18+ -->
+  <div class="home-modal-backdrop" id="catalogAgeModal" hidden>
+    <div class="ticket-card home-modal-box">
+      <span class="stamp-badge">CẢNH BÁO NỘI DUNG 18+</span>
+      <h3 id="catalogAgeTitle">Xác Nhận Độ Tuổi Tham Gia</h3>
+      <p>Hồ sơ kịch bản này có yếu tố kinh dị tâm lý hoặc án mạng phức tạp, chỉ dành cho người chơi từ đủ <strong>18 tuổi trở lên</strong>.</p>
+      <hr class="ticket-divider" />
+      <div class="home-modal-actions">
+        <button type="button" class="btn btn-outline" id="catalogAgeCancel">Quay lại</button>
+        <button type="button" class="btn btn-primary" id="catalogAgeConfirm">Tôi đủ 18 tuổi — Tiếp tục</button>
+      </div>
+    </div>
+  </div>
+
   <script type="module">
     import { apiClient } from '../src/api/api-client.js';
     import { SCENARIOS } from '../src/data/scripts.data.js';
-    import { escapeHtml, sanitizeUrl } from '../src/utils/sanitize.js';
+    import { escapeHtml } from '../src/utils/sanitize.js';
 
     let allScenarios = [];
     let currentGenre = 'ALL';
     let currentSearch = '';
     let currentPlayerFilter = '';
+    let currentAgeFilter = 'ALL';
+    let pendingAdultUrl = '';
 
     const scenariosGrid = document.getElementById('scenariosGrid');
     const genreFilters = document.getElementById('genreFilters');
     const searchInput = document.getElementById('searchInput');
     const playerFilter = document.getElementById('playerFilter');
+    const ageFilter = document.getElementById('ageFilter');
+    const catalogCounter = document.getElementById('catalogCounter');
+    const ageModal = document.getElementById('catalogAgeModal');
+    const ageModalTitle = document.getElementById('catalogAgeTitle');
 
     function mapApiGame(g) {
       const name = String(g.name || '');
       const desc = String(g.description || '');
-      const text = (name + ' ' + desc).toLowerCase();
-
-      let genre = 'Suy luận phá án';
-      let difficulty = 'Trung bình';
-      const is18Plus = name.includes('18+') || text.includes('đẫm máu') || text.includes('hiến tế');
-
-      if (text.includes('ma cà rồng') || text.includes('huyết tộc') || text.includes('hắc miêu') || text.includes('đẫm máu') || text.includes('số 13')) {
-        genre = 'Kinh dị tâm linh';
-        difficulty = 'Khó';
-      } else if (text.includes('học đường') || text.includes('hài hước') || text.includes('trộm đề')) {
-        genre = 'Cơ chế hài hước';
-        difficulty = 'Dễ';
-      } else if (text.includes('không gian') || text.includes('viễn tưởng')) {
-        genre = 'Giả tưởng';
-        difficulty = 'Khó';
-      } else if (text.includes('giao hưởng') || text.includes('gatsby') || text.includes('dạ hội')) {
-        genre = 'Tình cảm tâm lý';
-        difficulty = 'Trung bình';
-      }
-
+      const is18Plus = Number(g.is_18_plus) === 1 || name.includes('18+');
+      const genre = g.genre || (is18Plus ? 'Kinh dị tâm linh' : 'Suy luận phá án');
+      const difficulty = g.difficulty || (is18Plus ? 'Khó' : 'Trung bình');
+      const themeCode = String(g.theme_code || 'DETECTIVE').toUpperCase();
       const mins = Number(g.duration_minutes || 240);
       const hrs = (mins / 60).toFixed(1).replace('.0', '');
+
       return {
-        id: g.id,
+        id: Number(g.id),
+        code: 'HS-' + String(g.id).padStart(2, '0'),
         title: name,
         genre,
         difficulty,
+        theme_code: themeCode,
         duration: `${hrs} tiếng (${mins}p)`,
         duration_minutes: mins,
-        price: Number(g.min_price || 220000),
+        price: Number(g.min_price || 180000),
         max_price: Number(g.max_price || g.min_price || 250000),
         is18Plus,
         min_players: Number(g.min_players || 6),
         max_players: Number(g.max_players || 8),
-        image_url: sanitizeUrl(g.image_url) || 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=500&auto=format&fit=crop',
+        props: Array.isArray(g.props) ? g.props : [],
         summary: desc
       };
     }
@@ -140,11 +169,23 @@
     function render() {
       const filtered = allScenarios.filter(item => {
         const matchGenre = currentGenre === 'ALL' || String(item.genre || '').toLowerCase().includes(currentGenre.toLowerCase());
-        const matchSearch = !currentSearch || String(item.title || '').toLowerCase().includes(currentSearch.toLowerCase()) || String(item.summary || '').toLowerCase().includes(currentSearch.toLowerCase());
+        const q = currentSearch.toLowerCase();
+        const matchSearch = !q
+          || String(item.title || '').toLowerCase().includes(q)
+          || String(item.code || '').toLowerCase().includes(q)
+          || String(item.summary || '').toLowerCase().includes(q)
+          || String(item.theme_code || '').toLowerCase().includes(q);
         const pf = Number(currentPlayerFilter);
         const matchPlayer = !currentPlayerFilter || (Number(item.min_players) <= pf && Number(item.max_players) >= pf);
-        return matchGenre && matchSearch && matchPlayer;
+        const matchAge = currentAgeFilter === 'ALL'
+          || (currentAgeFilter === '18PLUS' && item.is18Plus)
+          || (currentAgeFilter === 'GENERAL' && !item.is18Plus);
+        return matchGenre && matchSearch && matchPlayer && matchAge;
       });
+
+      if (catalogCounter) {
+        catalogCounter.textContent = `Đang hiển thị ${filtered.length} / ${allScenarios.length} kịch bản lưu trữ trong CSDL`;
+      }
 
       if (filtered.length === 0) {
         scenariosGrid.innerHTML = '<p style="text-align: center; grid-column: 1/-1; color: var(--text-muted); padding: 40px 0;">Không tìm thấy kịch bản phù hợp với tiêu chí lọc.</p>';
@@ -152,29 +193,43 @@
       }
 
       scenariosGrid.innerHTML = filtered.map(item => {
+        const safeCode = escapeHtml(item.code || ('HS-' + String(item.id).padStart(2, '0')));
         const safeTitle = escapeHtml(item.title);
         const safeGenre = escapeHtml(item.genre);
+        const safeTheme = escapeHtml(item.theme_code || 'DETECTIVE');
+        const safeDiff = escapeHtml(item.difficulty || 'Trung bình');
         const safeSummary = escapeHtml(item.summary || '');
         const minP = Number(item.min_players || 6);
         const maxP = Number(item.max_players || 8);
+        const playerLabel = minP === maxP ? `${minP} người` : `${minP}-${maxP} người`;
         const male = Math.ceil(minP / 2);
         const female = Math.max(1, minP - male);
-        const imgSrc = item.image_url || 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=500&auto=format&fit=crop';
+
         return `
         <div class="home-flip-card">
           <div class="home-flip-inner">
             <div class="home-flip-front">
-              <img src="${imgSrc}" onerror="this.onerror=null; this.src='https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=500&auto=format&fit=crop';" alt="${safeTitle}" />
+              <div class="dossier-cover">
+                <div style="display: flex; justify-content: space-between; align-items: center; gap: 8px;">
+                  <span class="dossier-code">HỒ SƠ #${safeCode} • ${safeTheme}</span>
+                  ${item.is18Plus ? '<span class="stamp-badge">18+</span>' : `<span class="stamp-badge open">${safeDiff}</span>`}
+                </div>
+                <div>
+                  <div class="dossier-cover-title">${safeTitle}</div>
+                  <p class="dossier-summary-excerpt">${safeSummary}</p>
+                </div>
+                <div style="font-size: 0.76rem; color: var(--color-gold); opacity: 0.9;">
+                  [HỒ SƠ VỤ ÁN LƯU TRỮ — KHÔNG HÌNH ẢNH TIẾT LỘ]
+                </div>
+              </div>
               <div class="home-flip-front-info">
                 <div class="home-card-tags">
                   <span>${safeGenre}</span>
-                  ${item.is18Plus ? '<span class="stamp-badge">18+</span>' : '<span>' + escapeHtml(item.duration) + '</span>'}
+                  <span>${escapeHtml(item.duration)}</span>
                 </div>
-                <h3>${safeTitle}</h3>
-                <div class="home-card-tags">
-                  <span>${minP}-${maxP} người</span>
-                  <span>${male}N - ${female}N</span>
-                  <strong>${Number(item.price || 220000).toLocaleString('vi-VN')}đ</strong>
+                <div class="home-card-tags" style="margin-top: 8px;">
+                  <span>${playerLabel} (${male}N - ${female}N)</span>
+                  <strong>Từ ${Number(item.price || 180000).toLocaleString('vi-VN')}đ</strong>
                 </div>
               </div>
             </div>
@@ -182,22 +237,22 @@
             <div class="home-flip-back">
               <div>
                 <span class="stamp-badge ${item.is18Plus ? '' : 'open'}">
-                  ${item.is18Plus ? 'GIỚI HẠN 18+' : escapeHtml(item.difficulty || 'Trung bình')}
+                  ${item.is18Plus ? 'GIỚI HẠN ĐỘ TUỔI 18+' : 'ĐỘ KHÓ: ' + safeDiff}
                 </span>
                 <h3>${safeTitle}</h3>
-                <p style="font-size: 0.9rem; margin-bottom: 12px;">${safeSummary}</p>
+                <p style="font-size: 0.88rem; margin-bottom: 10px;">${safeSummary}</p>
                 <hr class="ticket-divider" />
                 <ul class="home-spec-list">
+                  <li><strong>Mã lưu trữ:</strong> #${safeCode} (Chuyên đề: ${safeTheme})</li>
                   <li><strong>Thời lượng:</strong> ${escapeHtml(item.duration)}</li>
-                  <li><strong>Số lượng:</strong> ${minP} - ${maxP} người chơi</li>
-                  <li><strong>Tỷ lệ vai:</strong> ${male} Nam - ${female} Nữ (Hỗ trợ đóng chéo vai)</li>
-                  <li><strong>Tiền cọc:</strong> 50.000đ / người (Cố định)</li>
+                  <li><strong>Số lượng:</strong> ${playerLabel} (${male} Nam - ${female} Nữ)</li>
+                  <li><strong>Tiền cọc giữ chỗ:</strong> 50.000đ / người</li>
                 </ul>
               </div>
 
-              <div style="display: flex; gap: 8px; margin-top: 16px;">
-                <a href="./scenario-detail.html?id=${encodeURIComponent(item.id)}" class="btn btn-outline" style="flex: 1; text-align: center;">Chi tiết</a>
-                <a href="./create-room.html?game_id=${encodeURIComponent(item.id)}" class="btn btn-primary" style="flex: 1; text-align: center;">Tạo phòng</a>
+              <div style="display: flex; gap: 8px; margin-top: 14px;">
+                <a href="./scenario-detail.html?id=${encodeURIComponent(item.id)}" data-adult="${item.is18Plus ? 'true' : 'false'}" data-title="${safeTitle}" class="btn btn-outline scenario-nav-link" style="flex: 1; text-align: center;">Chi tiết</a>
+                <a href="./create-room.html?game_id=${encodeURIComponent(item.id)}" data-adult="${item.is18Plus ? 'true' : 'false'}" data-title="${safeTitle}" class="btn btn-primary scenario-nav-link" style="flex: 1; text-align: center;">Tạo phòng</a>
               </div>
             </div>
           </div>
@@ -205,6 +260,29 @@
       `;
       }).join('');
     }
+
+    scenariosGrid.addEventListener('click', (e) => {
+      const link = e.target.closest('a.scenario-nav-link');
+      if (!link) return;
+      if (link.dataset.adult === 'true' && ageModal) {
+        e.preventDefault();
+        pendingAdultUrl = link.getAttribute('href') || '';
+        if (ageModalTitle) {
+          ageModalTitle.textContent = `Xác Nhận Độ Tuổi 18+ — "${link.dataset.title || ''}"`;
+        }
+        ageModal.hidden = false;
+      }
+    });
+
+    document.getElementById('catalogAgeCancel')?.addEventListener('click', () => {
+      if (ageModal) ageModal.hidden = true;
+      pendingAdultUrl = '';
+    });
+
+    document.getElementById('catalogAgeConfirm')?.addEventListener('click', () => {
+      if (ageModal) ageModal.hidden = true;
+      if (pendingAdultUrl) window.location.href = pendingAdultUrl;
+    });
 
     genreFilters.addEventListener('click', (e) => {
       const btn = e.target.closest('button[data-genre]');
@@ -229,19 +307,29 @@
       render();
     });
 
+    ageFilter.addEventListener('change', (e) => {
+      currentAgeFilter = e.target.value;
+      render();
+    });
+
     window.addEventListener('keydown', (e) => {
       if (e.key === '/' && document.activeElement !== searchInput) {
         e.preventDefault();
         searchInput.focus();
-      } else if (e.key === 'Escape' && document.activeElement === searchInput) {
-        searchInput.value = '';
-        currentSearch = '';
-        searchInput.blur();
-        render();
+      } else if (e.key === 'Escape') {
+        if (ageModal && !ageModal.hidden) {
+          ageModal.hidden = true;
+          return;
+        }
+        if (document.activeElement === searchInput) {
+          searchInput.value = '';
+          currentSearch = '';
+          searchInput.blur();
+          render();
+        }
       }
     });
 
-    // Sync header auth
     apiClient.get('/auth/me')
       .then(me => {
         if (me.success && me.data?.user) {
@@ -254,18 +342,30 @@
       })
       .catch(() => {});
 
-    // Load 100% live games from backend API (fallback to SCENARIOS only if API unavailable)
-    apiClient.get('/games?limit=50')
+    apiClient.get('/games?limit=100')
       .then(json => {
         if (json.success && Array.isArray(json.data?.games) && json.data.games.length > 0) {
           allScenarios = json.data.games.map(mapApiGame);
         } else {
-          allScenarios = SCENARIOS || [];
+          allScenarios = SCENARIOS.map((s, idx) => ({
+            id: s.id || (idx + 1),
+            code: 'HS-' + String(s.id || (idx + 1)).padStart(2, '0'),
+            title: s.title,
+            genre: s.genre,
+            difficulty: s.difficulty,
+            theme_code: s.theme_code || 'DETECTIVE',
+            duration: s.duration,
+            price: s.price,
+            is18Plus: Boolean(s.is18Plus),
+            min_players: 6,
+            max_players: 8,
+            summary: s.summary
+          }));
         }
         render();
       })
       .catch(() => {
-        allScenarios = SCENARIOS || [];
+        allScenarios = SCENARIOS;
         render();
       });
   </script>

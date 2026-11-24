@@ -59,9 +59,10 @@ class SchedulingRepository extends BaseRepository
     {
         return $this->executeQuery(function () use ($minCapacity): array {
             $stmt = $this->pdo->prepare(
-                'SELECT `id`, `venue_id`, CONCAT(\'ROOM_\', `id`) AS `code`, `name`, `capacity`, `status`, `description`
+                'SELECT `id`, `venue_id`, CONCAT(\'ROOM_\', `id`) AS `code`, `name`, `capacity`, `status`,
+                        COALESCE(`is_maintenance`, 0) AS `is_maintenance`, COALESCE(`theme_code`, \'GENERAL\') AS `theme_code`, `description`
                  FROM `physical_rooms`
-                 WHERE `status` = \'ACTIVE\' AND `capacity` >= :min_capacity
+                 WHERE `status` = \'ACTIVE\' AND (`is_maintenance` = 0 OR `is_maintenance` IS NULL) AND `capacity` >= :min_capacity
                  ORDER BY `capacity` ASC, `name` ASC'
             );
             $stmt->bindValue(':min_capacity', max(1, $minCapacity), PDO::PARAM_INT);
@@ -74,7 +75,7 @@ class SchedulingRepository extends BaseRepository
     }
 
     /**
-     * Check if a physical room has conflicting reservations.
+     * Check if a physical room has conflicting reservations (sessions or offline hotline blocks).
      */
     public function hasPhysicalRoomConflict(int $physicalRoomId, string $date, string $startTime, string $endTime): bool
     {
@@ -83,17 +84,24 @@ class SchedulingRepository extends BaseRepository
             $endAt = $date . ' ' . $endTime;
 
             $stmt = $this->pdo->prepare(
-                'SELECT COUNT(*) AS conflict_count
-                 FROM `sessions`
-                 WHERE `physical_room_id` = :physical_room_id
-                   AND `status` IN (\'SCHEDULED\', \'IN_PROGRESS\')
-                   AND `start_at` < :end_at
-                   AND `end_at` > :start_at'
+                'SELECT (
+                    (SELECT COUNT(*) FROM `sessions`
+                     WHERE `physical_room_id` = :pr1
+                       AND `status` IN (\'SCHEDULED\', \'IN_PROGRESS\')
+                       AND `start_at` < :end1 AND `end_at` > :start1)
+                    +
+                    (SELECT COUNT(*) FROM `offline_room_blocks`
+                     WHERE `physical_room_id` = :pr2
+                       AND `start_at` < :end2 AND `end_at` > :start2)
+                 ) AS conflict_count'
             );
 
-            $stmt->bindValue(':physical_room_id', $physicalRoomId, PDO::PARAM_INT);
-            $stmt->bindValue(':start_at', $startAt, PDO::PARAM_STR);
-            $stmt->bindValue(':end_at', $endAt, PDO::PARAM_STR);
+            $stmt->bindValue(':pr1', $physicalRoomId, PDO::PARAM_INT);
+            $stmt->bindValue(':start1', $startAt, PDO::PARAM_STR);
+            $stmt->bindValue(':end1', $endAt, PDO::PARAM_STR);
+            $stmt->bindValue(':pr2', $physicalRoomId, PDO::PARAM_INT);
+            $stmt->bindValue(':start2', $startAt, PDO::PARAM_STR);
+            $stmt->bindValue(':end2', $endAt, PDO::PARAM_STR);
             $stmt->execute();
 
             $result = $stmt->fetch(PDO::FETCH_ASSOC);

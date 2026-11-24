@@ -202,14 +202,18 @@
       updateLumpSumDisplay();
     }
 
-    // Load catalog games dynamically
-    apiClient.get('/games?limit=50')
+    // Load full 42-scenario catalog dynamically
+    apiClient.get('/games?limit=100')
       .then(res => {
         if (res.success && Array.isArray(res.data?.games) && res.data.games.length > 0) {
           gamesCatalog = res.data.games;
-          gameSelect.innerHTML = gamesCatalog.map(g => `
-            <option value="${Number(g.id)}">${escapeHtml(g.name)} (${Number(g.min_players)} - ${Number(g.max_players)} người, ${Number(g.duration_minutes || 240)} phút)</option>
-          `).join('');
+          gameSelect.innerHTML = gamesCatalog.map(g => {
+            const code = 'HS-' + String(g.id).padStart(2, '0');
+            const tag18 = Number(g.is_18_plus) === 1 ? ' [18+]' : '';
+            return `
+              <option value="${Number(g.id)}">#${escapeHtml(code)} — ${escapeHtml(g.name)}${tag18} (${Number(g.min_players)} - ${Number(g.max_players)} người, ${Number(g.duration_minutes || 240)} phút)</option>
+            `;
+          }).join('');
           if (preselectedGameId && gamesCatalog.some(g => String(g.id) === String(preselectedGameId))) {
             gameSelect.value = preselectedGameId;
           }

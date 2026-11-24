@@ -359,6 +359,8 @@ CREATE TABLE `physical_rooms` (
     `capacity` SMALLINT UNSIGNED NOT NULL,
     `description` TEXT NULL,
     `status` VARCHAR(20) NOT NULL DEFAULT 'ACTIVE',
+    `is_maintenance` TINYINT(1) NOT NULL DEFAULT 0,
+    `theme_code` VARCHAR(50) NOT NULL DEFAULT 'GENERAL',
     `created_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
     `updated_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3)
         ON UPDATE CURRENT_TIMESTAMP(3),
@@ -782,10 +784,45 @@ CREATE TABLE `outbox_events` (
         CHECK (`status` IN ('PENDING', 'PROCESSING', 'PROCESSED', 'FAILED'))
 ) ENGINE=InnoDB;
 
+
+-- 22. audit_logs: Nhật ký kiểm toán hệ thống (Stage 3 & V16)
+DROP TABLE IF EXISTS `audit_logs`;
+CREATE TABLE `audit_logs` (
+    `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    `actor_id` BIGINT UNSIGNED NULL,
+    `action` VARCHAR(100) NOT NULL,
+    `entity_type` VARCHAR(80) NOT NULL,
+    `entity_id` BIGINT UNSIGNED NULL,
+    `metadata` JSON NULL,
+    `ip_address` VARCHAR(45) NULL,
+    `created_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    PRIMARY KEY (`id`),
+    KEY `idx_audit_actor_created` (`actor_id`, `created_at`),
+    KEY `idx_audit_entity` (`entity_type`, `entity_id`),
+    KEY `idx_audit_action` (`action`)
+) ENGINE=InnoDB;
+
+-- 23. offline_room_blocks: Khóa giữ chỗ phòng vật lý cho khách Hotline / Walk-in
+DROP TABLE IF EXISTS `offline_room_blocks`;
+CREATE TABLE `offline_room_blocks` (
+    `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    `venue_id` BIGINT UNSIGNED NOT NULL,
+    `physical_room_id` BIGINT UNSIGNED NOT NULL,
+    `start_at` DATETIME(3) NOT NULL,
+    `end_at` DATETIME(3) NOT NULL,
+    `customer_name` VARCHAR(150) NOT NULL,
+    `customer_phone` VARCHAR(30) NOT NULL,
+    `notes` TEXT NULL,
+    `created_by` BIGINT UNSIGNED NOT NULL,
+    `created_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    PRIMARY KEY (`id`),
+    KEY `idx_offline_room_time` (`physical_room_id`, `start_at`, `end_at`)
+) ENGINE=InnoDB;
+
 SET FOREIGN_KEY_CHECKS = 1;
 
 -- =============================================================
--- SEED DATA ĐẦY ĐỦ CHO DỰ ÁN V3
+-- SEED DATA ĐẦY ĐỦ CHO HỆ THỐNG KỊCH BẢN SÁT V16 (42 KỊCH BẢN KHÔNG CÀI ẢNH)
 -- =============================================================
 
 -- 1. Roles
@@ -796,80 +833,275 @@ VALUES
     (3, 'ADMIN', 'Administrator', 'Quản trị viên hệ thống')
 ON DUPLICATE KEY UPDATE `name` = VALUES(`name`), `description` = VALUES(`description`);
 
--- 2. Users (Mật khẩu mặc định: 'password123' mã hóa bằng bcrypt $2y$10$...)
--- Hash: $2y$10$e8wJ5g6X81xVw3lZ4J8n1OQYyD54gTqW4h8L6r.x6Z9V3x.H7v1sK (hoặc chuẩn PHP password_hash)
-INSERT INTO `users` (`id`, `role_id`, `full_name`, `email`, `password_hash`, `phone`, `avatar_url`, `status`, `email_verified_at`)
+-- 2. Users (Mật khẩu mặc định chuẩn: 'password123')
+INSERT INTO `users` (`id`, `role_id`, `full_name`, `email`, `password_hash`, `phone`, `avatar_url`, `status`, `student_verified`, `email_verified_at`)
 VALUES
-    (1, 3, 'Quản Trị Viên', 'admin@kichbansat.vn', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', '0901000001', 'https://api.dicebear.com/7.x/bottts/svg?seed=Admin', 'ACTIVE', NOW()),
-    (2, 2, 'Host Hoàng Nam (DM)', 'dm.nam@kichbansat.vn', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', '0902000002', 'https://api.dicebear.com/7.x/bottts/svg?seed=HostNam', 'ACTIVE', NOW()),
-    (3, 1, 'Nguyễn Xuân Hiếu (Player)', 'player.hieu@kichbansat.vn', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', '0903000003', 'https://api.dicebear.com/7.x/bottts/svg?seed=HieuPlayer', 'ACTIVE', NOW()),
-    (4, 1, 'Trần Minh Anh (Player)', 'minhanh@gmail.com', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', '0904000004', 'https://api.dicebear.com/7.x/bottts/svg?seed=MinhAnh', 'ACTIVE', NOW())
-ON DUPLICATE KEY UPDATE `full_name` = VALUES(`full_name`);
+    (1, 3, 'Quản Trị Viên', 'admin@kichbansat.vn', '$2y$10$r4QuAePIauap1X43qe70L.g87g4PGWb4l/xh346lrZbNFcbNTTbSO', '0901000001', NULL, 'ACTIVE', 0, NOW()),
+    (2, 2, 'Host Hoàng Nam (DM)', 'dm.nam@kichbansat.vn', '$2y$10$r4QuAePIauap1X43qe70L.g87g4PGWb4l/xh346lrZbNFcbNTTbSO', '0902000002', NULL, 'ACTIVE', 0, NOW()),
+    (3, 1, 'Nguyễn Xuân Hiếu (Player)', 'player.hieu@kichbansat.vn', '$2y$10$r4QuAePIauap1X43qe70L.g87g4PGWb4l/xh346lrZbNFcbNTTbSO', '0903000003', NULL, 'ACTIVE', 1, NOW()),
+    (4, 1, 'Trần Minh Anh (Player)', 'minhanh@gmail.com', '$2y$10$r4QuAePIauap1X43qe70L.g87g4PGWb4l/xh346lrZbNFcbNTTbSO', '0904000004', NULL, 'ACTIVE', 0, NOW())
+ON DUPLICATE KEY UPDATE `full_name` = VALUES(`full_name`), `password_hash` = VALUES(`password_hash`), `student_verified` = VALUES(`student_verified`);
 
 -- 3. Venues (Chi nhánh quán)
 INSERT INTO `venues` (`id`, `name`, `address`, `phone`, `description`, `status`)
 VALUES
     (1, 'Kịch Bản Sát Station - Chi nhánh Quận 1', '123 Nguyễn Huệ, Phường Bến Nghé, Quận 1, TP. Hồ Chí Minh', '0901234567', 'Chi nhánh trung tâm với không gian nhập vai phong cách Châu Âu cổ điển', 'ACTIVE'),
-    (2, 'Kịch Bản Sát Hub - Chi nhánh Bình Thạnh', '45 Điện Biên Phủ, Phường 15, Quận Bình Thạnh, TP. Hồ Chí Minh', '0907654321', 'Không gian hiện đại chuyên kịch bản kinh dị & trinh thám Á Đông', 'ACTIVE')
-ON DUPLICATE KEY UPDATE `name` = VALUES(`name`);
+    (2, 'Kịch Bản Sát Hub - Chi nhánh Bình Thạnh', '36/52 Nguyễn Gia Trí, Phường 25, Quận Bình Thạnh, TP. Hồ Chí Minh', '0915690033', 'Không gian hiện đại chuyên kịch bản kinh dị & trinh thám Á Đông', 'ACTIVE')
+ON DUPLICATE KEY UPDATE `name` = VALUES(`name`), `address` = VALUES(`address`), `phone` = VALUES(`phone`);
 
--- 4. Physical Rooms (Phòng chơi ngoài đời)
-INSERT INTO `physical_rooms` (`id`, `venue_id`, `name`, `capacity`, `description`, `status`)
+-- 4. Physical Rooms (10 Phòng chơi chuyên đề)
+INSERT INTO `physical_rooms` (`id`, `venue_id`, `name`, `capacity`, `description`, `status`, `is_maintenance`, `theme_code`)
 VALUES
-    (1, 1, 'Phòng Sherlock Holmes', 8, 'Phòng phong cách phòng khách quý tộc Anh quốc, ánh sáng ấm cúng', 'ACTIVE'),
-    (2, 1, 'Phòng VIP Huyết Tộc Dracula', 10, 'Phòng VIP rộng rãi, hệ thống âm thanh vòm và đèn đổi màu theo bối cảnh', 'ACTIVE'),
-    (3, 2, 'Phòng Cổ Trang Á Đông', 8, 'Bối cảnh dinh thự phong kiến, trà cụ và phục trang kèm theo', 'ACTIVE'),
-    (4, 1, 'Phòng Biệt Thự Thám Tử', 8, 'Không gian cổ điển Châu Âu với giá sách bí mật và két sắt cổ', 'ACTIVE'),
-    (5, 1, 'Phòng Mật Thất Gothic', 10, 'Thiết kế hầm rượu Gothic bí ẩn, phù hợp kịch bản kinh dị giật gân', 'ACTIVE'),
-    (6, 1, 'Phòng Tòa Án Phán Xét', 12, 'Mô phỏng phiên tòa tranh luận kịch tính, bục thẩm phán và nhân chứng', 'ACTIVE'),
-    (7, 2, 'Phòng Trinh Thám Hiện Đại', 8, 'Văn phòng thám tử tư New York thập niên 90 với bảng manh mối và máy ghi âm', 'ACTIVE'),
-    (8, 2, 'Phòng Quán Rượu Thập Niên 80', 10, 'Quán pub hoài niệm ánh đèn neon, thích hợp kịch bản xã hội đen và gián điệp', 'ACTIVE'),
-    (9, 2, 'Phòng Tàu Hỏa Phương Đông', 8, 'Khoang tàu lửa sang trọng trên tuyến tốc hành xuyên biên giới', 'ACTIVE'),
-    (10, 2, 'Phòng Bệnh Viện Bỏ Hoang', 10, 'Không gian hành lang bệnh viện u ám với đèn chớp tắt và hồ sơ bệnh án cổ', 'ACTIVE')
-ON DUPLICATE KEY UPDATE `name` = VALUES(`name`), `capacity` = VALUES(`capacity`), `description` = VALUES(`description`), `status` = VALUES(`status`);
+    (1, 1, 'Phòng Sherlock Holmes', 8, 'Phòng phong cách phòng khách quý tộc Anh quốc, ánh sáng ấm cúng', 'ACTIVE', 0, 'DETECTIVE'),
+    (2, 1, 'Phòng VIP Huyết Tộc Dracula', 10, 'Phòng VIP rộng rãi, hệ thống âm thanh vòm và đèn đổi màu theo bối cảnh', 'ACTIVE', 0, 'VAMPIRE'),
+    (3, 2, 'Phòng Cổ Trang Á Đông', 8, 'Bối cảnh dinh thự phong kiến, trà cụ và phục trang kèm theo', 'ACTIVE', 0, 'ORIENTAL'),
+    (4, 1, 'Phòng Biệt Thự Thám Tử', 8, 'Không gian cổ điển Châu Âu với giá sách bí mật và két sắt cổ', 'ACTIVE', 0, 'DETECTIVE'),
+    (5, 1, 'Phòng Mật Thất Gothic', 10, 'Thiết kế hầm rượu Gothic bí ẩn, phù hợp kịch bản kinh dị giật gân', 'ACTIVE', 0, 'GOTHIC'),
+    (6, 1, 'Phòng Tòa Án Phán Xét', 12, 'Mô phỏng phiên tòa tranh luận kịch tính, bục thẩm phán và nhân chứng', 'ACTIVE', 0, 'COURT'),
+    (7, 2, 'Phòng Trinh Thám Hiện Đại', 8, 'Văn phòng thám tử tư hiện đại với bảng manh mối và máy ghi âm', 'ACTIVE', 0, 'MODERN'),
+    (8, 2, 'Phòng Quán Rượu Thập Niên 80', 10, 'Không gian hoài niệm ánh đèn ấm, thích hợp kịch bản cơ chế và đấu trí', 'ACTIVE', 0, 'MODERN'),
+    (9, 2, 'Phòng Tàu Hỏa Phương Đông', 8, 'Khoang tàu lửa sang trọng trên tuyến tốc hành xuyên biên giới', 'ACTIVE', 0, 'TRAIN'),
+    (10, 2, 'Phòng Bệnh Viện Bỏ Hoang', 10, 'Không gian hành lang bệnh viện u ám với hồ sơ bệnh án cổ và trạm không gian', 'ACTIVE', 0, 'HOSPITAL')
+ON DUPLICATE KEY UPDATE `name` = VALUES(`name`), `capacity` = VALUES(`capacity`), `description` = VALUES(`description`), `status` = VALUES(`status`), `is_maintenance` = VALUES(`is_maintenance`), `theme_code` = VALUES(`theme_code`);
 
--- 5. Games (Kịch bản án mạng hấp dẫn)
-INSERT INTO `games` (`id`, `name`, `slug`, `description`, `image_url`, `min_players`, `max_players`, `duration_minutes`, `status`, `display_order`)
+-- 5. Games (Đầy đủ 42 kịch bản Jubensha - Tuyệt đối không cài ảnh: image_url = NULL)
+INSERT INTO `games` (`id`, `name`, `slug`, `description`, `image_url`, `min_players`, `max_players`, `duration_minutes`, `status`, `is_18_plus`, `theme_code`, `display_order`)
 VALUES
-    (1, 'Đêm Đoạt Mệnh Tại Trang Viên', 'dem-doat-menh-tai-trang-vien', 'Một bữa tiệc gia tộc bí ẩn nơi người đứng đầu bị sát hại trong đêm giông bão. Mỗi người đều có một bí mật không thể tiết lộ.', 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23', 6, 8, 240, 'ACTIVE', 1),
-    (2, 'Biệt Thự Huyết Tộc', 'biet-thu-huyet-toc', 'Cuộc đối đầu tâm lý nghẹt thở giữa các gia tộc ma cà rồng cổ đại khi bảo vật ngàn năm biến mất.', 'https://images.unsplash.com/photo-1509198397868-475647b2a1e5', 5, 7, 210, 'ACTIVE', 2),
-    (3, 'Án Mạng Trên Chuyến Tàu Tuyết', 'an-mang-tren-chuyen-tau-tuyet', 'Chuyến tàu Bắc Cực bị mắc kẹt giữa bão tuyết và một thi thể được tìm thấy trong toa hành khách hạng nhất.', 'https://images.unsplash.com/photo-1515263487990-61b07816b324', 6, 8, 240, 'ACTIVE', 3)
-ON DUPLICATE KEY UPDATE `name` = VALUES(`name`);
+    (1, 'Đêm Đoạt Mệnh Tại Trang Viên', 'dem-doat-menh-tai-trang-vien', 'Một bữa tiệc gia tộc bí ẩn nơi người đứng đầu bị sát hại trong đêm giông bão. Tám vị khách bị cô lập giữa dinh thự cổ với những bí mật huyết thống không thể tiết lộ.', NULL, 6, 8, 240, 'ACTIVE', 0, 'DETECTIVE', 1),
+    (2, 'Biệt Thự Huyết Tộc', 'biet-thu-huyet-toc', 'Cuộc đối đầu tâm lý nghẹt thở giữa các nhánh ma cà rồng cổ đại khi chén thánh ngàn năm biến mất ngay trước nghi lễ thức tỉnh.', NULL, 5, 7, 210, 'ACTIVE', 1, 'VAMPIRE', 2),
+    (3, 'Án Mạng Trên Chuyến Tàu Tuyết', 'an-mang-tren-chuyen-tau-tuyet', 'Chuyến tàu xuyên Bắc Cực mắc kẹt giữa bão tuyết trắng xóa. Một thi thể được phát hiện trong toa hạng nhất khóa kín từ bên trong.', NULL, 6, 8, 240, 'ACTIVE', 0, 'TRAIN', 3),
+    (4, 'Kỳ Án Trường An', 'ky-an-truong-an', 'Đêm hội hoa đăng kinh thành, vị Thượng thư bộ Hình trúng độc gục chết giữa yến tiệc. Ân oán triều đình buộc các nhân vật phải giải án trước canh năm.', NULL, 6, 8, 240, 'ACTIVE', 0, 'ORIENTAL', 4),
+    (5, 'Hồi Ức Đẫm Máu 18+', 'hoi-uc-dam-mau', 'Nhóm bạn đại học hội ngộ tại căn nhà gỗ ven rừng sau 10 năm. Khi màn đêm buông xuống, chân tướng vụ mất tích năm xưa trỗi dậy qua từng bức thư nặc danh.', NULL, 5, 7, 210, 'ACTIVE', 1, 'GOTHIC', 5),
+    (6, 'Án Mạng Trong Thư Viện Cổ', 'an-mang-trong-thu-vien-co', 'Nhà sử học danh tiếng gục chết trong thư viện khóa trái hai lớp cửa gỗ sồi. Không dấu chân lạ, không hung khí hiện trường, chỉ có 24 mảnh văn thư cổ.', NULL, 6, 8, 240, 'ACTIVE', 0, 'DETECTIVE', 6),
+    (7, 'Trạm Không Gian Vô Định', 'tram-khong-gian-vo-dinh', 'Năm 2140, trạm nghiên cứu quỹ đạo mất liên lạc với mặt đất. Chỉ huy trưởng tử vong trong khoang sinh học, hệ thống oxy chỉ còn đủ cho 4 giờ điều tra.', NULL, 6, 8, 240, 'ACTIVE', 0, 'SCIFI', 7),
+    (8, 'Bữa Tiệc Tử Thần Gatsby', 'bua-tiec-tu-than-gatsby', 'Thập niên 1920 hoa lệ, bữa tiệc xa hoa tại dinh thự Long Island hóa thành hiện trường án mạng ngay thời khắc pháo hoa giao thừa bùng nổ.', NULL, 7, 9, 240, 'ACTIVE', 0, 'MODERN', 8),
+    (9, 'Căn Phòng Số 13', 'can-phong-so-13', 'Khách sạn ven đồi đóng cửa mùa mưa bão chỉ còn sáu vị khách trọ. Cánh cửa phòng số 13 bị niêm phong suốt bảy năm bất ngờ bật mở lúc nửa đêm.', NULL, 5, 6, 180, 'ACTIVE', 1, 'GOTHIC', 9),
+    (10, 'Bí Mật Làng Cổ Hắc Miêu', 'bi-mat-lang-co-hac-mieu', 'Ngôi làng biệt lập giữa thung lũng sương mù cử hành lễ tế hằng năm. Đúng khắc giao thời, vị tộc trưởng bị sát hại ngay trước từ đường.', NULL, 6, 8, 240, 'ACTIVE', 1, 'ORIENTAL', 10),
+    (11, 'Vụ Trộm Đề Thi Học Đường', 'vu-trom-de-thi-hoc-duong', 'Bộ đề thi học kỳ đặc biệt biến mất khỏi két sắt phòng giáo vụ trước giờ thi một đêm. Sáu thành viên hội học sinh vừa đấu trí vừa che giấu những trò nhất quỷ nhì ma.', NULL, 5, 7, 180, 'ACTIVE', 0, 'SCHOOL', 11),
+    (12, 'Bản Giao Hưởng Lúc Nửa Đêm', 'ban-giao-huong-luc-nua-dem', 'Nhạc trưởng tài hoa của nhà hát giao hưởng gục ngã ngay trên bục chỉ huy trong buổi tổng duyệt kín. Mỗi khuông nhạc để lại là một mật mã chỉ tên hung thủ.', NULL, 6, 8, 210, 'ACTIVE', 0, 'DETECTIVE', 12),
+    (13, 'Quỷ Ám Nhà Họ Trần', 'quy-am-nha-ho-tran', 'Đêm cúng thất tuần tại phủ cổ đất thần kinh, bức bình phong gỗ lim đổ sập làm lộ ra căn mật thất bị bít kín từ hai mươi năm trước.', NULL, 6, 8, 240, 'ACTIVE', 1, 'ORIENTAL', 13),
+    (14, 'Đại Hội Võ Lâm Lầy Lội', 'dai-hoi-vo-lam-lay-loi', 'Minh chủ võ lâm đột ngột bặt vô âm tín ngay trước giờ trao thưởng ngân phiếu vạn lượng. Quần hùng vừa truy tìm chân tướng vừa đấu giá bí kíp giả thật lẫn lộn.', NULL, 6, 9, 210, 'ACTIVE', 0, 'ORIENTAL', 14),
+    (15, 'Thư Gửi Người Ở Lại', 'thu-gui-nguoi-o-lai', 'Bảy người bạn cũ hội ngộ tại tiệm cà phê sương mù Đà Lạt theo di nguyện của người bạn đã khuất, cùng mở chiếc hộp thiếc chôn dưới gốc thông già.', NULL, 6, 7, 240, 'ACTIVE', 0, 'MODERN', 15),
+    (16, 'Học Viện Pháp Thuật Nocturne', 'hoc-vien-phap-thuat-nocturne', 'Viên đá phong ấn tại tháp chuông học viện pháp thuật bị đánh tráo trong đêm nguyệt thực. Sáu học viên ưu tú phải giải mã ma trận cổ ngữ trước khi cổng hư không mở.', NULL, 6, 8, 240, 'ACTIVE', 0, 'GOTHIC', 16),
+    (17, 'Biệt Thự Hoa Hồng Đen', 'biet-thu-hoa-hong-den', 'Bữa tiệc kỷ niệm mười năm ngày cưới biến thành phiên chất vấn sinh tử khi mỗi vị khách mở phong bì dưới đĩa ăn và thấy bằng chứng tội lỗi của chính mình.', NULL, 6, 8, 240, 'ACTIVE', 1, 'GOTHIC', 17),
+    (18, 'Phiên Tòa Bóng Đêm', 'phien-toa-bong-dem', 'Mười năm sau một vụ án oan chấn động thành phố, thẩm phán, công tố viên, luật sư và các nhân chứng năm xưa bị triệu tập vào một phòng xử án đóng kín.', NULL, 7, 10, 240, 'ACTIVE', 0, 'COURT', 18),
+    (19, 'Hồ Sơ Bệnh Viện Saint Jude', 'ho-so-benh-vien-saint-jude', 'Khu điều trị nội trú bỏ hoang từ trận dịch mười năm trước bất ngờ sáng đèn. Bảy bác sĩ và điều dưỡng cũ phải đối mặt với bệnh án số không chưa từng công bố.', NULL, 6, 8, 240, 'ACTIVE', 1, 'HOSPITAL', 19),
+    (20, 'Đêm Nhạc Jazz Phố Cảng', 'dem-nhac-jazz-pho-cang', 'Tại quán rượu ngầm thập niên 1980 nơi bến cảng sương mù, ông trùm buôn cổ vật ngã gục ngay khi bản kèn saxophone vừa dứt tiếng.', NULL, 6, 9, 210, 'ACTIVE', 0, 'MODERN', 20),
+    (21, 'Mật Mệnh Hoàng Cung', 'mat-menh-hoang-cung', 'Đêm trước lễ đăng cơ thái tử, ngọc tỷ truyền quốc biến mất khỏi điện Càn Thanh. Các hoàng thân và đại thần vừa tra xét manh mối vừa tranh đoạt quyền nhiếp chính.', NULL, 7, 10, 240, 'ACTIVE', 0, 'ORIENTAL', 21),
+    (22, 'Người Khách Cuối Cùng Lúc Mưa Rơi', 'nguoi-khach-cuoi-cung-luc-mua-roi', 'Tại nhà trọ ven đèo bị sạt lở chia cắt đường xuống núi, một thám tử tư được phát hiện tử vong cùng cuốn sổ ghi chép ba vụ án chưa khép lại.', NULL, 5, 6, 210, 'ACTIVE', 0, 'DETECTIVE', 22),
+    (23, 'Di Chúc Nhà Họ Hứa', 'di-chuc-nha-ho-hua', 'Thương gia giàu nhất thương cảng qua đời để lại khối tài sản khổng lồ với điều kiện người thừa kế phải vạch trần kẻ đã đầu độc ông ngay trong buổi công bố di chúc.', NULL, 6, 8, 240, 'ACTIVE', 0, 'DETECTIVE', 23),
+    (24, 'Lời Nguyền Cổ Mộ Lâu Lan', 'loi-nguyen-co-mo-lau-lan', 'Đoàn khảo cổ tiến sâu vào lăng mộ sa mạc bị cát vùi ngàn năm. Khi cánh cửa đá sập xuống, từng thành viên phát hiện trong đoàn có kẻ mang thân phận giả mạo.', NULL, 6, 8, 240, 'ACTIVE', 0, 'ORIENTAL', 24),
+    (25, 'Tín Hiệu Từ Vực Thẳm Mariana', 'tin-hieu-tu-vuc-tham-mariana', 'Trạm nghiên cứu dưới đáy đại dương ở độ sâu 10.000 mét nhận được tín hiệu cầu cứu phát ra từ chính tần số nội bộ đã ngừng hoạt động ba năm trước.', NULL, 6, 7, 240, 'ACTIVE', 0, 'SCIFI', 25),
+    (26, 'Tiệm Cầm Đồ Thời Gian', 'tiem-cam-do-thoi-gian', 'Một tiệm cầm đồ kỳ lạ chỉ mở cửa lúc không giờ, nơi khách hàng đem cầm cố ký ức để đổi lấy điều ước. Đêm nay, chủ tiệm biến mất để lại sáu món đồ vô chủ.', NULL, 5, 6, 210, 'ACTIVE', 0, 'GOTHIC', 26),
+    (27, 'Sát Nhân Màn Sương Luân Đôn', 'sat-nhan-man-suong-luan-don', 'Luân Đôn cuối thế kỷ XIX chìm trong sương mù dày đặc. Một vụ án mạng xảy ra ngay bên ngoài trụ sở cảnh sát khiến giới thám tử tư buộc phải vào cuộc.', NULL, 6, 8, 240, 'ACTIVE', 1, 'DETECTIVE', 27),
+    (28, 'Cuộc Chiến Thừa Kế Tập Đoàn Tinh Vân', 'cuoc-chien-thua-ke-tap-doan-tinh-van', 'Cuộc họp hội đồng quản trị khẩn cấp trên tầng cao nhất tòa tháp tài chính. Ai gom đủ cổ phần và lật tẩy được kẻ biển thủ quỹ đầu tư sẽ nắm quyền chủ tịch.', NULL, 6, 9, 210, 'ACTIVE', 0, 'MODERN', 28),
+    (29, 'Hẹn Ước Mùa Hoa Anh Đào', 'hen-uoc-mua-hoa-anh-dao', 'Mười năm sau lễ tốt nghiệp trung học, sáu người bạn trở về sân trường cũ chuẩn bị giải tỏa để tìm lại viên nang thời gian và lời hứa chưa kịp nói.', NULL, 5, 6, 210, 'ACTIVE', 0, 'SCHOOL', 29),
+    (30, 'Đêm Trực Xác Số 7', 'dem-truc-xac-so-7', 'Ca trực đêm mưa bão tại viện pháp y ngoại ô: ngăn tủ lạnh số 7 trống rỗng và camera hành lang bị xóa sạch đúng mười lăm phút định mệnh.', NULL, 5, 7, 210, 'ACTIVE', 1, 'HOSPITAL', 30),
+    (31, 'Bí Ẩn Đoàn Kịch Mặt Nạ Trắng', 'bi-an-doan-kich-mat-na-trang', 'Đêm công diễn vở bi kịch cổ điển, diễn viên chính ngã gục ngay trên sân khấu trước hàng trăm khán giả khi tưởng rằng đó chỉ là màn diễn xuất nhập tâm.', NULL, 6, 8, 240, 'ACTIVE', 0, 'GOTHIC', 31),
+    (32, 'Khách Sạn Hoàng Hôn Đỏ', 'khach-san-hoang-hon-do', 'Giữa hoang mạc miền Tây rực nắng, bảy kẻ săn tiền thưởng và lữ khách bị bão cát giam chân trong quán trọ gỗ cùng một rương vàng bị đánh cắp từ đoàn tàu.', NULL, 6, 8, 210, 'ACTIVE', 0, 'MODERN', 32),
+    (33, 'Thần Thoại Đảo Sương Mù', 'than-thoai-dao-suong-mu', 'Con thuyền phà duy nhất rời đảo bị đánh đắm trong đêm sương dày. Tám du khách nhận ra câu đồng dao cổ trên bia đá hải đăng đang ứng nghiệm từng câu một.', NULL, 6, 8, 240, 'ACTIVE', 0, 'DETECTIVE', 33),
+    (34, 'Vòng Lặp Không Giờ', 'vong-lap-khong-gio', 'Mỗi khi kim đồng hồ điểm đúng 00:00, tiếng chuông vang lên và cả sáu người lại tỉnh dậy lúc 22:00 trước khi vụ nổ xảy ra. Chỉ kẻ tìm ra nguyên mẫu thời gian mới thoát khỏi vòng lặp.', NULL, 5, 6, 240, 'ACTIVE', 0, 'SCIFI', 34),
+    (35, 'Phong Hoa Tuyết Nguyệt Lâu', 'phong-hoa-tuyet-nguyet-lau', 'Giữa buổi đấu thơ nhạc tại trà lâu bậc nhất Giang Nam, bức họa tuyệt mật chứa danh sách mật thám biên ải không cánh mà bay ngay sau tiếng đàn tỳ bà đứt dây.', NULL, 6, 8, 240, 'ACTIVE', 0, 'ORIENTAL', 35),
+    (36, 'Bản Án Mười Hai Bồi Thẩm', 'ban-an-muoi-hai-boi-tham', 'Trong phòng nghị án khóa kín không điều hòa giữa trưa hè oi bức, các bồi thẩm viên tranh biện nảy lửa về một vụ án tưởng chừng đã rõ mười mươi.', NULL, 7, 10, 210, 'ACTIVE', 0, 'COURT', 36),
+    (37, 'Hôn Lễ Áo Đỏ', 'hon-le-ao-do', 'Đêm rước dâu vào dinh thự cổ miền sơn cước, kiệu hoa dừng lại trước cổng đá nhưng bên trong không phải tân nương mà là một bức huyết thư buộc tội.', NULL, 6, 7, 240, 'ACTIVE', 1, 'ORIENTAL', 37),
+    (38, 'Ký Túc Xá Tầng Tư', 'ky-tuc-xa-tang-tu', 'Kỳ nghỉ lễ vắng người, sáu sinh viên ở lại dãy ký túc xá cũ tình cờ tìm thấy cuốn sổ trực ban năm 1998 giấu dưới tấm ván sàn phòng sinh hoạt chung.', NULL, 5, 6, 180, 'ACTIVE', 1, 'SCHOOL', 38),
+    (39, 'Phi Vụ Đấu Giá Kim Cương Xanh', 'phi-vu-dau-gia-kim-cuong-xanh', 'Đúng ba mươi giây mất điện tại buổi đấu giá từ thiện thượng lưu, viên kim cương xanh trị giá triệu đô bị đánh tráo bằng một viên đá thủy tinh hoàn hảo.', NULL, 6, 9, 210, 'ACTIVE', 0, 'MODERN', 39),
+    (40, 'Chuyến Tàu Đêm Đi Về Phía Nam', 'chuyen-tau-dem-di-ve-phia-nam', 'Trên chuyến tàu thống nhất xuyên đêm cuối năm, sáu hành khách xa lạ cùng chung một toa giường nằm dần nhận ra cuộc đời họ được nối với nhau bởi một vụ hỏa hoạn cũ.', NULL, 6, 6, 240, 'ACTIVE', 0, 'TRAIN', 40),
+    (41, 'Thành Phố Ngầm Cyber 2099', 'thanh-pho-ngam-cyber-2099', 'Tại khu đô thị ngầm điều hành bởi trí tuệ nhân tạo trung tâm, một kỹ sư giải mã ký ức bị xóa sạch dữ liệu não bộ ngay trước phiên điều trần công nghệ.', NULL, 6, 8, 240, 'ACTIVE', 0, 'SCIFI', 41),
+    (42, 'Mật Thất Tháp Đồng Hồ Cổ', 'mat-that-thap-dong-ho-co', 'Bậc thầy chế tác đồng hồ cơ khí để lại lời thách đố cuối cùng bên trong tháp chuông cổ: chỉ khi sáu bánh răng manh mối khớp nhau, chân tướng ba mươi năm trước mới hé mở.', NULL, 6, 8, 240, 'ACTIVE', 0, 'DETECTIVE', 42)
+ON DUPLICATE KEY UPDATE `name` = VALUES(`name`), `description` = VALUES(`description`), `image_url` = NULL, `is_18_plus` = VALUES(`is_18_plus`), `theme_code` = VALUES(`theme_code`), `display_order` = VALUES(`display_order`);
 
--- 6. Game Configurations (Phiên bản cấu hình đạo cụ v1)
+-- 6. Game Configurations (42 cấu hình đạo cụ & thể loại)
 INSERT INTO `game_configurations` (`id`, `game_id`, `version`, `configuration`, `description`, `is_active`, `created_by`)
 VALUES
-    (1, 1, 1, JSON_OBJECT('props', JSON_ARRAY('Thư tống tiền', 'Dao găm cổ', 'Chiếc nhẫn ngọc bích'), 'clue_count', 24, 'bgm_playlist', 'gothic_mystery_v1'), 'Phiên bản đạo cụ chuẩn 8 người chơi', 1, 1),
-    (2, 2, 1, JSON_OBJECT('props', JSON_ARRAY('Bình rượu máu', 'Gia huy bạc', 'Cuốn nhật ký cổ'), 'clue_count', 20, 'bgm_playlist', 'vampire_noir'), 'Phiên bản kinh dị tâm lý', 1, 1),
-    (3, 3, 1, JSON_OBJECT('props', JSON_ARRAY('Vé tàu hạng nhất', 'Đồng hồ quả quýt dừng ở 11h15', 'Chai thuốc ngủ'), 'clue_count', 26, 'bgm_playlist', 'snow_train_soundtrack'), 'Phiên bản suy luận cổ điển', 1, 1)
-ON DUPLICATE KEY UPDATE `version` = VALUES(`version`);
+    (1, 1, 1, '{"props":["Thư tống tiền niêm sáp đỏ","Dao găm bạc khắc gia huy","Chiếc nhẫn ngọc bích","Sơ đồ hầm rượu mật"],"clue_count":24,"bgm_playlist":"dem-doat-menh-tai-trang-vien_bgm","genre":"Suy luận phá án","difficulty":"Trung bình","theme_code":"DETECTIVE"}', 'Kịch bản Suy luận phá án - Độ khó: Trung bình', 1, 1),
+    (2, 2, 1, '{"props":["Ly rượu huyết phách","Gia huy bạc cổ","Cuốn nhật ký bìa da đen","Đồng hồ cát đỏ"],"clue_count":24,"bgm_playlist":"biet-thu-huyet-toc_bgm","genre":"Kinh dị tâm linh","difficulty":"Khó","theme_code":"VAMPIRE"}', 'Kịch bản Kinh dị tâm linh - Độ khó: Khó', 1, 1),
+    (3, 3, 1, '{"props":["Vé tàu khoang hạng nhất","Đồng hồ quả quýt dừng ở 11:15","Lọ thuốc an thần","Sổ trực ban trưởng tàu"],"clue_count":24,"bgm_playlist":"an-mang-tren-chuyen-tau-tuyet_bgm","genre":"Suy luận phá án","difficulty":"Khó","theme_code":"TRAIN"}', 'Kịch bản Suy luận phá án - Độ khó: Khó', 1, 1),
+    (4, 4, 1, '{"props":["Lệnh bài Cẩm Y Vệ","Mật chỉ hoàng cung","Bình rượu hoa quỳnh","Ngọc bội khắc chữ Minh"],"clue_count":24,"bgm_playlist":"ky-an-truong-an_bgm","genre":"Suy luận phá án","difficulty":"Khó","theme_code":"ORIENTAL"}', 'Kịch bản Suy luận phá án - Độ khó: Khó', 1, 1),
+    (5, 5, 1, '{"props":["Cuốn nhật ký ố vàng","Băng ghi âm cũ","Chiếc vòng tay đứt đoạn","Chìa khóa tầng hầm rỉ sét"],"clue_count":24,"bgm_playlist":"hoi-uc-dam-mau_bgm","genre":"Kinh dị tâm linh","difficulty":"Khó","theme_code":"GOTHIC"}', 'Kịch bản Kinh dị tâm linh - Độ khó: Khó', 1, 1),
+    (6, 6, 1, '{"props":["Kính lúp đồng cổ","Bản thảo da cừu","Lọ mực tím nghi độc","Sổ mượn sách mật"],"clue_count":24,"bgm_playlist":"an-mang-trong-thu-vien-co_bgm","genre":"Suy luận phá án","difficulty":"Khó","theme_code":"DETECTIVE"}', 'Kịch bản Suy luận phá án - Độ khó: Khó', 1, 1),
+    (7, 7, 1, '{"props":["Thẻ từ kỹ thuật viên","Ống mẫu sinh học niêm phong","Nhật ký hộp đen buồng lái","Mã khóa khoang thoát hiểm"],"clue_count":24,"bgm_playlist":"tram-khong-gian-vo-dinh_bgm","genre":"Giả tưởng, siêu nhiên","difficulty":"Khó","theme_code":"SCIFI"}', 'Kịch bản Giả tưởng, siêu nhiên - Độ khó: Khó', 1, 1),
+    (8, 8, 1, '{"props":["Ly pha lê vương vết son","Chuỗi ngọc trai đứt","Bật lửa mạ vàng khắc chữ","Thiệp mời dạ hội ẩn mật mã"],"clue_count":24,"bgm_playlist":"bua-tiec-tu-than-gatsby_bgm","genre":"Tình cảm, tâm lý xã hội","difficulty":"Trung bình","theme_code":"MODERN"}', 'Kịch bản Tình cảm, tâm lý xã hội - Độ khó: Trung bình', 1, 1),
+    (9, 9, 1, '{"props":["Chìa khóa đồng số 13","Sổ lưu trú khách sạn","Biên lai thuốc ngủ","Sơ đồ hành lang thoát hiểm"],"clue_count":24,"bgm_playlist":"can-phong-so-13_bgm","genre":"Kinh dị tâm linh","difficulty":"Trung bình","theme_code":"GOTHIC"}', 'Kịch bản Kinh dị tâm linh - Độ khó: Trung bình', 1, 1),
+    (10, 10, 1, '{"props":["Chuông đồng cổ","Tượng mèo gỗ mun","Mảnh giấy khấn cổ","Gia phả dòng họ khuyết trang"],"clue_count":24,"bgm_playlist":"bi-mat-lang-co-hac-mieu_bgm","genre":"Kinh dị tâm linh","difficulty":"Khó","theme_code":"ORIENTAL"}', 'Kịch bản Kinh dị tâm linh - Độ khó: Khó', 1, 1),
+    (11, 11, 1, '{"props":["Chìa khóa phòng giáo vụ","Thẻ hội trưởng học sinh","Biên bản trực tuần","Mảnh phong bì niêm phong"],"clue_count":24,"bgm_playlist":"vu-trom-de-thi-hoc-duong_bgm","genre":"Cơ chế, hài hước","difficulty":"Dễ","theme_code":"SCHOOL"}', 'Kịch bản Cơ chế, hài hước - Độ khó: Dễ', 1, 1),
+    (12, 12, 1, '{"props":["Bản tổng phổ chương cuối","Đũa chỉ huy gãy đôi","Vé lô thượng hạng nhà hát","Thư nặc danh hậu trường"],"clue_count":24,"bgm_playlist":"ban-giao-huong-luc-nua-dem_bgm","genre":"Tình cảm, tâm lý xã hội","difficulty":"Trung bình","theme_code":"DETECTIVE"}', 'Kịch bản Tình cảm, tâm lý xã hội - Độ khó: Trung bình', 1, 1),
+    (13, 13, 1, '{"props":["Khế ước cổ chữ Hán Nôm","Đèn dầu đồng cổ","Tràng hạt gỗ trầm","Chìa khóa rương gia bảo"],"clue_count":24,"bgm_playlist":"quy-am-nha-ho-tran_bgm","genre":"Kinh dị tâm linh","difficulty":"Trung bình","theme_code":"ORIENTAL"}', 'Kịch bản Kinh dị tâm linh - Độ khó: Trung bình', 1, 1),
+    (14, 14, 1, '{"props":["Ngân phiếu thông hành trang","Bí kíp võ công khuyết trang","Lệnh bài minh chủ","Xúc xắc điểm huyệt"],"clue_count":24,"bgm_playlist":"dai-hoi-vo-lam-lay-loi_bgm","genre":"Cơ chế, hài hước","difficulty":"Dễ","theme_code":"ORIENTAL"}', 'Kịch bản Cơ chế, hài hước - Độ khó: Dễ', 1, 1),
+    (15, 15, 1, '{"props":["Hộp thiếc kỷ niệm","Bảy phong thư viết tay","Cuộn phim máy ảnh cơ","Vé tàu hỏa Đà Lạt cũ"],"clue_count":24,"bgm_playlist":"thu-gui-nguoi-o-lai_bgm","genre":"Tình cảm, tâm lý xã hội","difficulty":"Dễ","theme_code":"MODERN"}', 'Kịch bản Tình cảm, tâm lý xã hội - Độ khó: Dễ', 1, 1),
+    (16, 16, 1, '{"props":["Huy hiệu bốn học viện","Sách cổ ngữ nguyên tố","Bình pha chế giả kim","Bản đồ hành lang biến đổi"],"clue_count":24,"bgm_playlist":"hoc-vien-phap-thuat-nocturne_bgm","genre":"Giả tưởng, siêu nhiên","difficulty":"Trung bình","theme_code":"GOTHIC"}', 'Kịch bản Giả tưởng, siêu nhiên - Độ khó: Trung bình', 1, 1),
+    (17, 17, 1, '{"props":["Bông hồng nhung đen","Phong bì sáp đen ẩn danh","Nhẫn cưới khắc ngày tháng","Bản di chúc sửa đổi"],"clue_count":24,"bgm_playlist":"biet-thu-hoa-hong-den_bgm","genre":"Kinh dị tâm linh","difficulty":"Khó","theme_code":"GOTHIC"}', 'Kịch bản Kinh dị tâm linh - Độ khó: Khó', 1, 1),
+    (18, 18, 1, '{"props":["Búa gỗ chủ tọa","Hồ sơ giám định pháp y cũ","Băng ghi âm lời khai","Biên bản nghị án niêm phong"],"clue_count":24,"bgm_playlist":"phien-toa-bong-dem_bgm","genre":"Suy luận phá án","difficulty":"Khó","theme_code":"COURT"}', 'Kịch bản Suy luận phá án - Độ khó: Khó', 1, 1),
+    (19, 19, 1, '{"props":["Bệnh án mã số 00","Thẻ trực ca đêm bác sĩ","Chìa khóa tủ dược phẩm","Phim chụp X-quang đánh dấu"],"clue_count":24,"bgm_playlist":"ho-so-benh-vien-saint-jude_bgm","genre":"Kinh dị tâm linh","difficulty":"Khó","theme_code":"HOSPITAL"}', 'Kịch bản Kinh dị tâm linh - Độ khó: Khó', 1, 1),
+    (20, 20, 1, '{"props":["Đĩa than bản giới hạn","Phỉnh sòng bài khắc ký hiệu","Hóa đơn kho hàng bến cảng","Vé tàu viễn dương"],"clue_count":24,"bgm_playlist":"dem-nhac-jazz-pho-cang_bgm","genre":"Cơ chế, hài hước","difficulty":"Trung bình","theme_code":"MODERN"}', 'Kịch bản Cơ chế, hài hước - Độ khó: Trung bình', 1, 1),
+    (21, 21, 1, '{"props":["Hộp đựng ngọc tỷ trống","Thẻ bài nội đình","Bản tấu chương mật","Túi hương cung đình"],"clue_count":24,"bgm_playlist":"mat-menh-hoang-cung_bgm","genre":"Cơ chế, hài hước","difficulty":"Trung bình","theme_code":"ORIENTAL"}', 'Kịch bản Cơ chế, hài hước - Độ khó: Trung bình', 1, 1),
+    (22, 22, 1, '{"props":["Sổ tay thám tử bìa da","Áo mưa dính bùn đất đỏ","Chìa khóa cốp xe","Tờ báo cắt rời mười năm trước"],"clue_count":24,"bgm_playlist":"nguoi-khach-cuoi-cung-luc-mua-roi_bgm","genre":"Suy luận phá án","difficulty":"Trung bình","theme_code":"DETECTIVE"}', 'Kịch bản Suy luận phá án - Độ khó: Trung bình', 1, 1),
+    (23, 23, 1, '{"props":["Bản di chúc niêm phong","Tách trà sứ Thanh Hoa","Con dấu thương hội","Sổ nợ mật phòng thu ngân"],"clue_count":24,"bgm_playlist":"di-chuc-nha-ho-hua_bgm","genre":"Suy luận phá án","difficulty":"Trung bình","theme_code":"DETECTIVE"}', 'Kịch bản Suy luận phá án - Độ khó: Trung bình', 1, 1),
+    (24, 24, 1, '{"props":["La bàn định vị cổ mộ","Bản dập bia đá Lâu Lan","Mặt nạ đồng xanh","Nhật ký đoàn thám hiểm"],"clue_count":24,"bgm_playlist":"loi-nguyen-co-mo-lau-lan_bgm","genre":"Giả tưởng, siêu nhiên","difficulty":"Trung bình","theme_code":"ORIENTAL"}', 'Kịch bản Giả tưởng, siêu nhiên - Độ khó: Trung bình', 1, 1),
+    (25, 25, 1, '{"props":["Băng sóng âm sonar","Nhật ký áp suất khoang ngầm","Thẻ phân quyền kỹ sư trưởng","Mẫu khoáng vật phát quang"],"clue_count":24,"bgm_playlist":"tin-hieu-tu-vuc-tham-mariana_bgm","genre":"Giả tưởng, siêu nhiên","difficulty":"Khó","theme_code":"SCIFI"}', 'Kịch bản Giả tưởng, siêu nhiên - Độ khó: Khó', 1, 1),
+    (26, 26, 1, '{"props":["Sáu biên lai cầm cố ký ức","Đồng hồ quả lắc chạy ngược","Cân tiểu ly đồng","Chiếc hộp nhạc gỗ sồi"],"clue_count":24,"bgm_playlist":"tiem-cam-do-thoi-gian_bgm","genre":"Tình cảm, tâm lý xã hội","difficulty":"Dễ","theme_code":"GOTHIC"}', 'Kịch bản Tình cảm, tâm lý xã hội - Độ khó: Dễ', 1, 1),
+    (27, 27, 1, '{"props":["Tờ nhật báo buổi sáng","Ống tẩu thuốc gỗ thạch nam","Bản đồ các con hẻm Đông Luân Đôn","Găng tay da dính vết than"],"clue_count":24,"bgm_playlist":"sat-nhan-man-suong-luan-don_bgm","genre":"Suy luận phá án","difficulty":"Khó","theme_code":"DETECTIVE"}', 'Kịch bản Suy luận phá án - Độ khó: Khó', 1, 1),
+    (28, 28, 1, '{"props":["Chứng nhận cổ phần ủy thác","Báo cáo kiểm toán mật","USB mã hóa hai lớp","Biên bản họp hội đồng quản trị"],"clue_count":24,"bgm_playlist":"cuoc-chien-thua-ke-tap-doan-tinh-van_bgm","genre":"Cơ chế, hài hước","difficulty":"Trung bình","theme_code":"MODERN"}', 'Kịch bản Cơ chế, hài hước - Độ khó: Trung bình', 1, 1),
+    (29, 29, 1, '{"props":["Lưu bút lớp 12A3","Huy hiệu áo đồng phục","Tấm vé tàu điện mùa xuân","Bản nhạc viết dở trên giấy tập"],"clue_count":24,"bgm_playlist":"hen-uoc-mua-hoa-anh-dao_bgm","genre":"Tình cảm, tâm lý xã hội","difficulty":"Dễ","theme_code":"SCHOOL"}', 'Kịch bản Tình cảm, tâm lý xã hội - Độ khó: Dễ', 1, 1),
+    (30, 30, 1, '{"props":["Sổ bàn giao ca trực đêm","Thẻ gắn hồ sơ số 7","Nhật ký ra vào cửa từ","Biên bản khám nghiệm ban đầu"],"clue_count":24,"bgm_playlist":"dem-truc-xac-so-7_bgm","genre":"Kinh dị tâm linh","difficulty":"Khó","theme_code":"HOSPITAL"}', 'Kịch bản Kinh dị tâm linh - Độ khó: Khó', 1, 1),
+    (31, 31, 1, '{"props":["Chiếc mặt nạ sứ trắng","Kịch bản sân khấu ghi chú đỏ","Chai rượu đạo cụ bị tráo","Chìa khóa phòng thay phục trang"],"clue_count":24,"bgm_playlist":"bi-an-doan-kich-mat-na-trang_bgm","genre":"Suy luận phá án","difficulty":"Trung bình","theme_code":"GOTHIC"}', 'Kịch bản Suy luận phá án - Độ khó: Trung bình', 1, 1),
+    (32, 32, 1, '{"props":["Lệnh truy nã thưởng vàng","Huy hiệu cảnh sát trưởng","Bản đồ mỏ vàng biên giới","Chìa khóa rương sắt"],"clue_count":24,"bgm_playlist":"khach-san-hoang-hon-do_bgm","genre":"Cơ chế, hài hước","difficulty":"Dễ","theme_code":"MODERN"}', 'Kịch bản Cơ chế, hài hước - Độ khó: Dễ', 1, 1),
+    (33, 33, 1, '{"props":["Bản chép bài đồng dao cổ","Nhật ký người gác hải đăng","Dây thừng mỏ neo bị cắt","Ống nhòm đồng hải quân"],"clue_count":24,"bgm_playlist":"than-thoai-dao-suong-mu_bgm","genre":"Suy luận phá án","difficulty":"Khó","theme_code":"DETECTIVE"}', 'Kịch bản Suy luận phá án - Độ khó: Khó', 1, 1),
+    (34, 34, 1, '{"props":["Đồng hồ bấm giờ ký ức","Sơ đồ mạch lõi thời gian","Ghi chú từ lần lặp thứ tư","Thẻ định danh phòng thí nghiệm"],"clue_count":24,"bgm_playlist":"vong-lap-khong-gio_bgm","genre":"Giả tưởng, siêu nhiên","difficulty":"Khó","theme_code":"SCIFI"}', 'Kịch bản Giả tưởng, siêu nhiên - Độ khó: Khó', 1, 1),
+    (35, 35, 1, '{"props":["Ống đựng tranh lụa trống","Quạt xếp đề thơ ẩn ý","Trâm cài ngọc bích","Thẻ bài khách quý trà lâu"],"clue_count":24,"bgm_playlist":"phong-hoa-tuyet-nguyet-lau_bgm","genre":"Tình cảm, tâm lý xã hội","difficulty":"Trung bình","theme_code":"ORIENTAL"}', 'Kịch bản Tình cảm, tâm lý xã hội - Độ khó: Trung bình', 1, 1),
+    (36, 36, 1, '{"props":["Phiếu biểu quyết bồi thẩm đoàn","Sơ đồ căn hộ hiện trường","Cặp kính cận nhân chứng","Biên bản thực nghiệm thời gian"],"clue_count":24,"bgm_playlist":"ban-an-muoi-hai-boi-tham_bgm","genre":"Suy luận phá án","difficulty":"Trung bình","theme_code":"COURT"}', 'Kịch bản Suy luận phá án - Độ khó: Trung bình', 1, 1),
+    (37, 37, 1, '{"props":["Khăn voan thêu phượng","Thiếp hồng khắc bát tự","Đôi nến long phụng tắt nửa chừng","Hộp sính lễ khóa đồng"],"clue_count":24,"bgm_playlist":"hon-le-ao-do_bgm","genre":"Kinh dị tâm linh","difficulty":"Khó","theme_code":"ORIENTAL"}', 'Kịch bản Kinh dị tâm linh - Độ khó: Khó', 1, 1),
+    (38, 38, 1, '{"props":["Sổ trực ký túc xá 1998","Chìa khóa phòng kho tầng tư","Thẻ thư viện mờ tên","Đèn pin tuần tra bảo vệ"],"clue_count":24,"bgm_playlist":"ky-tuc-xa-tang-tu_bgm","genre":"Kinh dị tâm linh","difficulty":"Trung bình","theme_code":"SCHOOL"}', 'Kịch bản Kinh dị tâm linh - Độ khó: Trung bình', 1, 1),
+    (39, 39, 1, '{"props":["Bảng số đấu giá VIP","Kính lúp kiểm định kim hoàn","Danh mục vật phẩm niêm yết","Sơ đồ hệ thống tia hồng ngoại"],"clue_count":24,"bgm_playlist":"phi-vu-dau-gia-kim-cuong-xanh_bgm","genre":"Cơ chế, hài hước","difficulty":"Dễ","theme_code":"MODERN"}', 'Kịch bản Cơ chế, hài hước - Độ khó: Dễ', 1, 1),
+    (40, 40, 1, '{"props":["Vé tàu giường nằm khoang 4","Tấm ảnh gia đình cháy xém góc","Chiếc đồng hồ đeo tay cũ","Hộp quà tết buộc dây đỏ"],"clue_count":24,"bgm_playlist":"chuyen-tau-dem-di-ve-phia-nam_bgm","genre":"Tình cảm, tâm lý xã hội","difficulty":"Trung bình","theme_code":"TRAIN"}', 'Kịch bản Tình cảm, tâm lý xã hội - Độ khó: Trung bình', 1, 1),
+    (41, 41, 1, '{"props":["Chip lưu trữ ký ức phân mảnh","Nhật ký truy cập máy chủ lõi","Thẻ căn cước sinh trắc học","Bản thiết kế giao thức tường lửa"],"clue_count":24,"bgm_playlist":"thanh-pho-ngam-cyber-2099_bgm","genre":"Giả tưởng, siêu nhiên","difficulty":"Khó","theme_code":"SCIFI"}', 'Kịch bản Giả tưởng, siêu nhiên - Độ khó: Khó', 1, 1),
+    (42, 42, 1, '{"props":["Sáu bánh răng đồng khắc ký tự","Bản vẽ cơ khí tháp chuông","Chìa lên dây cót cổ","Nhật ký người thợ đồng hồ"],"clue_count":24,"bgm_playlist":"mat-that-thap-dong-ho-co_bgm","genre":"Suy luận phá án","difficulty":"Khó","theme_code":"DETECTIVE"}', 'Kịch bản Suy luận phá án - Độ khó: Khó', 1, 1)
+ON DUPLICATE KEY UPDATE `configuration` = VALUES(`configuration`), `description` = VALUES(`description`), `is_active` = 1;
 
--- 7. Game Prices (Bảng giá theo khung giờ)
+-- 7. Game Prices (126 khung giá Sáng - Chiều - Tối cho 42 kịch bản)
 INSERT INTO `game_prices` (`id`, `game_id`, `price_per_person`, `start_time`, `end_time`, `effective_from`, `effective_until`, `status`)
 VALUES
     (1, 1, 180000, '09:00:00', '13:00:00', '2026-01-01', '2030-12-31', 'ACTIVE'),
     (2, 1, 220000, '13:00:00', '18:00:00', '2026-01-01', '2030-12-31', 'ACTIVE'),
     (3, 1, 250000, '18:00:00', '23:00:00', '2026-01-01', '2030-12-31', 'ACTIVE'),
-    (4, 2, 200000, '09:00:00', '17:00:00', '2026-01-01', '2030-12-31', 'ACTIVE'),
-    (5, 2, 240000, '17:00:00', '23:00:00', '2026-01-01', '2030-12-31', 'ACTIVE'),
-    (6, 3, 200000, '09:00:00', '17:00:00', '2026-01-01', '2030-12-31', 'ACTIVE'),
-    (7, 3, 250000, '17:00:00', '23:00:00', '2026-01-01', '2030-12-31', 'ACTIVE')
-ON DUPLICATE KEY UPDATE `price_per_person` = VALUES(`price_per_person`);
+    (4, 2, 200000, '09:00:00', '13:00:00', '2026-01-01', '2030-12-31', 'ACTIVE'),
+    (5, 2, 230000, '13:00:00', '18:00:00', '2026-01-01', '2030-12-31', 'ACTIVE'),
+    (6, 2, 260000, '18:00:00', '23:00:00', '2026-01-01', '2030-12-31', 'ACTIVE'),
+    (7, 3, 200000, '09:00:00', '13:00:00', '2026-01-01', '2030-12-31', 'ACTIVE'),
+    (8, 3, 230000, '13:00:00', '18:00:00', '2026-01-01', '2030-12-31', 'ACTIVE'),
+    (9, 3, 250000, '18:00:00', '23:00:00', '2026-01-01', '2030-12-31', 'ACTIVE'),
+    (10, 4, 190000, '09:00:00', '13:00:00', '2026-01-01', '2030-12-31', 'ACTIVE'),
+    (11, 4, 220000, '13:00:00', '18:00:00', '2026-01-01', '2030-12-31', 'ACTIVE'),
+    (12, 4, 250000, '18:00:00', '23:00:00', '2026-01-01', '2030-12-31', 'ACTIVE'),
+    (13, 5, 200000, '09:00:00', '13:00:00', '2026-01-01', '2030-12-31', 'ACTIVE'),
+    (14, 5, 230000, '13:00:00', '18:00:00', '2026-01-01', '2030-12-31', 'ACTIVE'),
+    (15, 5, 260000, '18:00:00', '23:00:00', '2026-01-01', '2030-12-31', 'ACTIVE'),
+    (16, 6, 180000, '09:00:00', '13:00:00', '2026-01-01', '2030-12-31', 'ACTIVE'),
+    (17, 6, 220000, '13:00:00', '18:00:00', '2026-01-01', '2030-12-31', 'ACTIVE'),
+    (18, 6, 240000, '18:00:00', '23:00:00', '2026-01-01', '2030-12-31', 'ACTIVE'),
+    (19, 7, 210000, '09:00:00', '13:00:00', '2026-01-01', '2030-12-31', 'ACTIVE'),
+    (20, 7, 240000, '13:00:00', '18:00:00', '2026-01-01', '2030-12-31', 'ACTIVE'),
+    (21, 7, 270000, '18:00:00', '23:00:00', '2026-01-01', '2030-12-31', 'ACTIVE'),
+    (22, 8, 210000, '09:00:00', '13:00:00', '2026-01-01', '2030-12-31', 'ACTIVE'),
+    (23, 8, 240000, '13:00:00', '18:00:00', '2026-01-01', '2030-12-31', 'ACTIVE'),
+    (24, 8, 270000, '18:00:00', '23:00:00', '2026-01-01', '2030-12-31', 'ACTIVE'),
+    (25, 9, 180000, '09:00:00', '13:00:00', '2026-01-01', '2030-12-31', 'ACTIVE'),
+    (26, 9, 200000, '13:00:00', '18:00:00', '2026-01-01', '2030-12-31', 'ACTIVE'),
+    (27, 9, 230000, '18:00:00', '23:00:00', '2026-01-01', '2030-12-31', 'ACTIVE'),
+    (28, 10, 190000, '09:00:00', '13:00:00', '2026-01-01', '2030-12-31', 'ACTIVE'),
+    (29, 10, 220000, '13:00:00', '18:00:00', '2026-01-01', '2030-12-31', 'ACTIVE'),
+    (30, 10, 250000, '18:00:00', '23:00:00', '2026-01-01', '2030-12-31', 'ACTIVE'),
+    (31, 11, 160000, '09:00:00', '13:00:00', '2026-01-01', '2030-12-31', 'ACTIVE'),
+    (32, 11, 190000, '13:00:00', '18:00:00', '2026-01-01', '2030-12-31', 'ACTIVE'),
+    (33, 11, 210000, '18:00:00', '23:00:00', '2026-01-01', '2030-12-31', 'ACTIVE'),
+    (34, 12, 190000, '09:00:00', '13:00:00', '2026-01-01', '2030-12-31', 'ACTIVE'),
+    (35, 12, 220000, '13:00:00', '18:00:00', '2026-01-01', '2030-12-31', 'ACTIVE'),
+    (36, 12, 250000, '18:00:00', '23:00:00', '2026-01-01', '2030-12-31', 'ACTIVE'),
+    (37, 13, 190000, '09:00:00', '13:00:00', '2026-01-01', '2030-12-31', 'ACTIVE'),
+    (38, 13, 220000, '13:00:00', '18:00:00', '2026-01-01', '2030-12-31', 'ACTIVE'),
+    (39, 13, 250000, '18:00:00', '23:00:00', '2026-01-01', '2030-12-31', 'ACTIVE'),
+    (40, 14, 170000, '09:00:00', '13:00:00', '2026-01-01', '2030-12-31', 'ACTIVE'),
+    (41, 14, 190000, '13:00:00', '18:00:00', '2026-01-01', '2030-12-31', 'ACTIVE'),
+    (42, 14, 220000, '18:00:00', '23:00:00', '2026-01-01', '2030-12-31', 'ACTIVE'),
+    (43, 15, 180000, '09:00:00', '13:00:00', '2026-01-01', '2030-12-31', 'ACTIVE'),
+    (44, 15, 210000, '13:00:00', '18:00:00', '2026-01-01', '2030-12-31', 'ACTIVE'),
+    (45, 15, 240000, '18:00:00', '23:00:00', '2026-01-01', '2030-12-31', 'ACTIVE'),
+    (46, 16, 190000, '09:00:00', '13:00:00', '2026-01-01', '2030-12-31', 'ACTIVE'),
+    (47, 16, 230000, '13:00:00', '18:00:00', '2026-01-01', '2030-12-31', 'ACTIVE'),
+    (48, 16, 260000, '18:00:00', '23:00:00', '2026-01-01', '2030-12-31', 'ACTIVE'),
+    (49, 17, 200000, '09:00:00', '13:00:00', '2026-01-01', '2030-12-31', 'ACTIVE'),
+    (50, 17, 230000, '13:00:00', '18:00:00', '2026-01-01', '2030-12-31', 'ACTIVE'),
+    (51, 17, 260000, '18:00:00', '23:00:00', '2026-01-01', '2030-12-31', 'ACTIVE'),
+    (52, 18, 190000, '09:00:00', '13:00:00', '2026-01-01', '2030-12-31', 'ACTIVE'),
+    (53, 18, 220000, '13:00:00', '18:00:00', '2026-01-01', '2030-12-31', 'ACTIVE'),
+    (54, 18, 250000, '18:00:00', '23:00:00', '2026-01-01', '2030-12-31', 'ACTIVE'),
+    (55, 19, 200000, '09:00:00', '13:00:00', '2026-01-01', '2030-12-31', 'ACTIVE'),
+    (56, 19, 230000, '13:00:00', '18:00:00', '2026-01-01', '2030-12-31', 'ACTIVE'),
+    (57, 19, 260000, '18:00:00', '23:00:00', '2026-01-01', '2030-12-31', 'ACTIVE'),
+    (58, 20, 180000, '09:00:00', '13:00:00', '2026-01-01', '2030-12-31', 'ACTIVE'),
+    (59, 20, 210000, '13:00:00', '18:00:00', '2026-01-01', '2030-12-31', 'ACTIVE'),
+    (60, 20, 240000, '18:00:00', '23:00:00', '2026-01-01', '2030-12-31', 'ACTIVE'),
+    (61, 21, 190000, '09:00:00', '13:00:00', '2026-01-01', '2030-12-31', 'ACTIVE'),
+    (62, 21, 220000, '13:00:00', '18:00:00', '2026-01-01', '2030-12-31', 'ACTIVE'),
+    (63, 21, 250000, '18:00:00', '23:00:00', '2026-01-01', '2030-12-31', 'ACTIVE'),
+    (64, 22, 180000, '09:00:00', '13:00:00', '2026-01-01', '2030-12-31', 'ACTIVE'),
+    (65, 22, 210000, '13:00:00', '18:00:00', '2026-01-01', '2030-12-31', 'ACTIVE'),
+    (66, 22, 240000, '18:00:00', '23:00:00', '2026-01-01', '2030-12-31', 'ACTIVE'),
+    (67, 23, 180000, '09:00:00', '13:00:00', '2026-01-01', '2030-12-31', 'ACTIVE'),
+    (68, 23, 220000, '13:00:00', '18:00:00', '2026-01-01', '2030-12-31', 'ACTIVE'),
+    (69, 23, 250000, '18:00:00', '23:00:00', '2026-01-01', '2030-12-31', 'ACTIVE'),
+    (70, 24, 190000, '09:00:00', '13:00:00', '2026-01-01', '2030-12-31', 'ACTIVE'),
+    (71, 24, 220000, '13:00:00', '18:00:00', '2026-01-01', '2030-12-31', 'ACTIVE'),
+    (72, 24, 250000, '18:00:00', '23:00:00', '2026-01-01', '2030-12-31', 'ACTIVE'),
+    (73, 25, 200000, '09:00:00', '13:00:00', '2026-01-01', '2030-12-31', 'ACTIVE'),
+    (74, 25, 230000, '13:00:00', '18:00:00', '2026-01-01', '2030-12-31', 'ACTIVE'),
+    (75, 25, 260000, '18:00:00', '23:00:00', '2026-01-01', '2030-12-31', 'ACTIVE'),
+    (76, 26, 180000, '09:00:00', '13:00:00', '2026-01-01', '2030-12-31', 'ACTIVE'),
+    (77, 26, 210000, '13:00:00', '18:00:00', '2026-01-01', '2030-12-31', 'ACTIVE'),
+    (78, 26, 240000, '18:00:00', '23:00:00', '2026-01-01', '2030-12-31', 'ACTIVE'),
+    (79, 27, 190000, '09:00:00', '13:00:00', '2026-01-01', '2030-12-31', 'ACTIVE'),
+    (80, 27, 230000, '13:00:00', '18:00:00', '2026-01-01', '2030-12-31', 'ACTIVE'),
+    (81, 27, 260000, '18:00:00', '23:00:00', '2026-01-01', '2030-12-31', 'ACTIVE'),
+    (82, 28, 180000, '09:00:00', '13:00:00', '2026-01-01', '2030-12-31', 'ACTIVE'),
+    (83, 28, 210000, '13:00:00', '18:00:00', '2026-01-01', '2030-12-31', 'ACTIVE'),
+    (84, 28, 240000, '18:00:00', '23:00:00', '2026-01-01', '2030-12-31', 'ACTIVE'),
+    (85, 29, 170000, '09:00:00', '13:00:00', '2026-01-01', '2030-12-31', 'ACTIVE'),
+    (86, 29, 200000, '13:00:00', '18:00:00', '2026-01-01', '2030-12-31', 'ACTIVE'),
+    (87, 29, 230000, '18:00:00', '23:00:00', '2026-01-01', '2030-12-31', 'ACTIVE'),
+    (88, 30, 200000, '09:00:00', '13:00:00', '2026-01-01', '2030-12-31', 'ACTIVE'),
+    (89, 30, 230000, '13:00:00', '18:00:00', '2026-01-01', '2030-12-31', 'ACTIVE'),
+    (90, 30, 260000, '18:00:00', '23:00:00', '2026-01-01', '2030-12-31', 'ACTIVE'),
+    (91, 31, 180000, '09:00:00', '13:00:00', '2026-01-01', '2030-12-31', 'ACTIVE'),
+    (92, 31, 220000, '13:00:00', '18:00:00', '2026-01-01', '2030-12-31', 'ACTIVE'),
+    (93, 31, 250000, '18:00:00', '23:00:00', '2026-01-01', '2030-12-31', 'ACTIVE'),
+    (94, 32, 170000, '09:00:00', '13:00:00', '2026-01-01', '2030-12-31', 'ACTIVE'),
+    (95, 32, 200000, '13:00:00', '18:00:00', '2026-01-01', '2030-12-31', 'ACTIVE'),
+    (96, 32, 230000, '18:00:00', '23:00:00', '2026-01-01', '2030-12-31', 'ACTIVE'),
+    (97, 33, 190000, '09:00:00', '13:00:00', '2026-01-01', '2030-12-31', 'ACTIVE'),
+    (98, 33, 230000, '13:00:00', '18:00:00', '2026-01-01', '2030-12-31', 'ACTIVE'),
+    (99, 33, 260000, '18:00:00', '23:00:00', '2026-01-01', '2030-12-31', 'ACTIVE'),
+    (100, 34, 200000, '09:00:00', '13:00:00', '2026-01-01', '2030-12-31', 'ACTIVE'),
+    (101, 34, 230000, '13:00:00', '18:00:00', '2026-01-01', '2030-12-31', 'ACTIVE'),
+    (102, 34, 260000, '18:00:00', '23:00:00', '2026-01-01', '2030-12-31', 'ACTIVE'),
+    (103, 35, 190000, '09:00:00', '13:00:00', '2026-01-01', '2030-12-31', 'ACTIVE'),
+    (104, 35, 220000, '13:00:00', '18:00:00', '2026-01-01', '2030-12-31', 'ACTIVE'),
+    (105, 35, 250000, '18:00:00', '23:00:00', '2026-01-01', '2030-12-31', 'ACTIVE'),
+    (106, 36, 180000, '09:00:00', '13:00:00', '2026-01-01', '2030-12-31', 'ACTIVE'),
+    (107, 36, 210000, '13:00:00', '18:00:00', '2026-01-01', '2030-12-31', 'ACTIVE'),
+    (108, 36, 240000, '18:00:00', '23:00:00', '2026-01-01', '2030-12-31', 'ACTIVE'),
+    (109, 37, 200000, '09:00:00', '13:00:00', '2026-01-01', '2030-12-31', 'ACTIVE'),
+    (110, 37, 230000, '13:00:00', '18:00:00', '2026-01-01', '2030-12-31', 'ACTIVE'),
+    (111, 37, 260000, '18:00:00', '23:00:00', '2026-01-01', '2030-12-31', 'ACTIVE'),
+    (112, 38, 170000, '09:00:00', '13:00:00', '2026-01-01', '2030-12-31', 'ACTIVE'),
+    (113, 38, 200000, '13:00:00', '18:00:00', '2026-01-01', '2030-12-31', 'ACTIVE'),
+    (114, 38, 230000, '18:00:00', '23:00:00', '2026-01-01', '2030-12-31', 'ACTIVE'),
+    (115, 39, 180000, '09:00:00', '13:00:00', '2026-01-01', '2030-12-31', 'ACTIVE'),
+    (116, 39, 210000, '13:00:00', '18:00:00', '2026-01-01', '2030-12-31', 'ACTIVE'),
+    (117, 39, 240000, '18:00:00', '23:00:00', '2026-01-01', '2030-12-31', 'ACTIVE'),
+    (118, 40, 180000, '09:00:00', '13:00:00', '2026-01-01', '2030-12-31', 'ACTIVE'),
+    (119, 40, 210000, '13:00:00', '18:00:00', '2026-01-01', '2030-12-31', 'ACTIVE'),
+    (120, 40, 240000, '18:00:00', '23:00:00', '2026-01-01', '2030-12-31', 'ACTIVE'),
+    (121, 41, 200000, '09:00:00', '13:00:00', '2026-01-01', '2030-12-31', 'ACTIVE'),
+    (122, 41, 230000, '13:00:00', '18:00:00', '2026-01-01', '2030-12-31', 'ACTIVE'),
+    (123, 41, 260000, '18:00:00', '23:00:00', '2026-01-01', '2030-12-31', 'ACTIVE'),
+    (124, 42, 190000, '09:00:00', '13:00:00', '2026-01-01', '2030-12-31', 'ACTIVE'),
+    (125, 42, 220000, '13:00:00', '18:00:00', '2026-01-01', '2030-12-31', 'ACTIVE'),
+    (126, 42, 250000, '18:00:00', '23:00:00', '2026-01-01', '2030-12-31', 'ACTIVE')
+ON DUPLICATE KEY UPDATE `price_per_person` = VALUES(`price_per_person`), `start_time` = VALUES(`start_time`), `end_time` = VALUES(`end_time`), `status` = VALUES(`status`);
 
--- 8. Promotions (Khuyến mãi)
+-- 8. Promotions (Khuyến mãi chuẩn V16)
 INSERT INTO `promotions` (`id`, `code`, `name`, `promotion_type`, `discount_type`, `discount_value`, `start_at`, `end_at`, `rules`, `is_active`)
 VALUES
     (1, 'TUESDAY_30', 'Ưu đãi vui vẻ - Thứ Ba Giảm 30%', 'WEEKDAY', 'PERCENT', 30, '2026-01-01 00:00:00.000', '2035-12-31 23:59:59.999', JSON_OBJECT('weekdays', JSON_ARRAY(2), 'valid_from', '09:00:00', 'valid_until', '19:00:00', 'minimum_booking_hours', 24, 'applies_to', 'ANY_GAME', 'stackable', FALSE), 1),
     (2, 'HSSV_20000', 'Ưu đãi học sinh sinh viên', 'STUDENT', 'FIXED', 20000, '2026-01-01 00:00:00.000', '2035-12-31 23:59:59.999', JSON_OBJECT('weekdays', JSON_ARRAY(1, 2, 3, 4), 'valid_from', '09:00:00', 'valid_until', '19:00:00', 'discount_per_eligible_person', 20000, 'requires_student_verification', TRUE, 'stackable', FALSE), 1)
 ON DUPLICATE KEY UPDATE `name` = VALUES(`name`), `rules` = VALUES(`rules`);
 
--- 9. Game Room mẫu (Phòng đang ghép người)
-INSERT INTO `game_rooms` (`id`, `game_id`, `game_configuration_id`, `creator_id`, `title`, `description`, `min_players`, `max_players`, `status`, `formation_deadline_at`)
+-- 9. Sample Game Room
+INSERT INTO `game_rooms` (`id`, `game_id`, `game_configuration_id`, `creator_id`, `title`, `description`, `min_players`, `max_players`, `status`, `booking_type`, `target_venue_id`, `total_players`, `confirmed_players`, `required_players`, `guest_slots`, `formation_deadline_at`)
 VALUES
-    (1, 1, 1, 3, 'Tuyển thám tử phá án Đêm Đoạt Mệnh tối Thứ 7', 'Tìm thêm 4 bạn cùng sở thích suy luận, không toxic, chơi hết mình!', 6, 8, 'FORMING', DATE_ADD(NOW(), INTERVAL 3 DAY))
+    (1, 1, 1, 3, 'Tuyển thám tử phá án Đêm Đoạt Mệnh tối Thứ 7', 'Tìm thêm đồng đội suy luận logic, không khí thân thiện.', 6, 6, 'FORMING', 'PUBLIC', 1, 6, 1, 6, 0, DATE_ADD(NOW(), INTERVAL 3 DAY))
 ON DUPLICATE KEY UPDATE `title` = VALUES(`title`);
 
--- 10. Room Participant mẫu (Host đã tham gia phòng)
 INSERT INTO `room_participants` (`id`, `game_room_id`, `user_id`, `status`, `joined_at`)
 VALUES
     (1, 1, 3, 'PENDING_DEPOSIT', NOW())

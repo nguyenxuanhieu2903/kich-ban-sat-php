@@ -113,91 +113,111 @@ class PricingService
         $depositTotal = $depositPerPerson * $totalParticipants;
         $depositTotal = $depositPerPerson * $totalParticipants;
 
-        // 5. Xử lý khuyến mãi
+        // 5. Xử lý khuyến mãi (Không cộng dồn - Tự động chọn mức có lợi nhất nếu không truyền mã cụ thể)
         $discountAmount = 0;
         $appliedPromotion = null;
         $promoId = null;
+        $appliedRequiresStudent = false;
+        $appliedStudentDiscountPerPerson = 0;
+        $verifiedUserIds = [];
 
+        if (!empty($participants)) {
+            $userIds = array_map(fn($p) => (int) $p['user_id'], $participants);
+            $placeholders = implode(',', array_fill(0, count($userIds), '?'));
+            $stuStmt = $this->pdo->prepare("SELECT `id` FROM `users` WHERE `id` IN ($placeholders) AND `student_verified` = 1");
+            $stuStmt->execute($userIds);
+            $verifiedUserIds = array_map('intval', $stuStmt->fetchAll(PDO::FETCH_COLUMN));
+        }
+
+        $candidatePromos = [];
         if ($promotionCode !== null && trim($promotionCode) !== '') {
             $codeUpper = strtoupper(trim($promotionCode));
-            $promoStmt = $this->pdo->prepare(
-                'SELECT `id`, `code`, `name`, `promotion_type`, `discount_type`, `discount_value`, `rules`, `start_at`, `end_at`
-                 FROM `promotions`
-                 WHERE (`code` = :code OR `code` LIKE :code_like) AND `is_active` = 1
-                 LIMIT 1'
-            );
-            $promoStmt->bindValue(':code', $codeUpper, PDO::PARAM_STR);
-            $promoStmt->bindValue(':code_like', $codeUpper . '%', PDO::PARAM_STR);
-            $promoStmt->execute();
-            $promo = $promoStmt->fetch(PDO::FETCH_ASSOC);
-
-            if ($promo !== false) {
-                $rules = !empty($promo['rules']) ? json_decode((string) $promo['rules'], true) : [];
-                $isEligible = true;
-
-                // Kiểm tra thời hạn hiệu lực của chương trình khuyến mãi (start_at -> end_at)
-                if (!empty($promo['start_at']) && !empty($promo['end_at'])) {
-                    $playTs = strtotime($playDateTime);
-                    $startTs = strtotime((string) $promo['start_at']);
-                    $endTs = strtotime((string) $promo['end_at']);
-                    if ($playTs < $startTs || $playTs > $endTs) {
-                        $isEligible = false;
-                    }
+            if ($codeUpper === 'AUTO' || $codeUpper === 'BEST') {
+                $allPromoStmt = $this->pdo->query(
+                    'SELECT `id`, `code`, `name`, `promotion_type`, `discount_type`, `discount_value`, `rules`, `start_at`, `end_at`
+                     FROM `promotions`
+                     WHERE `is_active` = 1
+                     ORDER BY `id` ASC'
+                );
+                $candidatePromos = $allPromoStmt->fetchAll(PDO::FETCH_ASSOC);
+            } else {
+                $promoStmt = $this->pdo->prepare(
+                    'SELECT `id`, `code`, `name`, `promotion_type`, `discount_type`, `discount_value`, `rules`, `start_at`, `end_at`
+                     FROM `promotions`
+                     WHERE (`code` = :code OR `code` LIKE :code_like) AND `is_active` = 1
+                     LIMIT 1'
+                );
+                $promoStmt->bindValue(':code', $codeUpper, PDO::PARAM_STR);
+                $promoStmt->bindValue(':code_like', $codeUpper . '%', PDO::PARAM_STR);
+                $promoStmt->execute();
+                $row = $promoStmt->fetch(PDO::FETCH_ASSOC);
+                if ($row !== false) {
+                    $candidatePromos[] = $row;
                 }
+            }
+        }
 
-                // Kiểm tra ngày trong tuần nếu có rule
-                if (!empty($rules['weekdays']) && is_array($rules['weekdays'])) {
-                    if (!in_array($dayOfWeek, $rules['weekdays'], true)) {
-                        $isEligible = false; // Ví dụ mã Thứ 3 mà đặt ngày khác
-                    }
+        foreach ($candidatePromos as $promo) {
+            $rules = !empty($promo['rules']) ? json_decode((string) $promo['rules'], true) : [];
+            $isEligible = true;
+
+            if (!empty($promo['start_at']) && !empty($promo['end_at'])) {
+                $playTs = strtotime($playDateTime);
+                $startTs = strtotime((string) $promo['start_at']);
+                $endTs = strtotime((string) $promo['end_at']);
+                if ($playTs < $startTs || $playTs > $endTs) {
+                    $isEligible = false;
                 }
+            }
 
-                // Kiểm tra khung giờ hợp lệ nếu có rule
-                if ($isEligible && !empty($rules['valid_from']) && !empty($rules['valid_until'])) {
-                    if ($timeOfDay < $rules['valid_from'] || $timeOfDay > $rules['valid_until']) {
-                        $isEligible = false;
-                    }
+            if ($isEligible && !empty($rules['weekdays']) && is_array($rules['weekdays'])) {
+                if (!in_array($dayOfWeek, $rules['weekdays'], true)) {
+                    $isEligible = false;
                 }
+            }
 
-                // Kiểm tra xác thực học sinh / sinh viên nếu rule yêu cầu
-                $eligibleParticipantsCount = $totalParticipants;
-                $verifiedUserIds = [];
-                if ($isEligible && !empty($rules['requires_student_verification'])) {
-                    if (!empty($participants)) {
-                        $userIds = array_map(fn($p) => (int) $p['user_id'], $participants);
-                        $placeholders = implode(',', array_fill(0, count($userIds), '?'));
-                        $stuStmt = $this->pdo->prepare("SELECT `id` FROM `users` WHERE `id` IN ($placeholders) AND `student_verified` = 1");
-                        $stuStmt->execute($userIds);
-                        $verifiedUserIds = array_map('intval', $stuStmt->fetchAll(PDO::FETCH_COLUMN));
-                        $eligibleParticipantsCount = count($verifiedUserIds);
-                    } else {
-                        $eligibleParticipantsCount = 0;
-                    }
-
-                    if ($eligibleParticipantsCount === 0) {
-                        $isEligible = false;
-                    }
+            if ($isEligible && !empty($rules['valid_from']) && !empty($rules['valid_until'])) {
+                if ($timeOfDay < $rules['valid_from'] || $timeOfDay > $rules['valid_until']) {
+                    $isEligible = false;
                 }
+            }
 
-                if ($isEligible) {
-                    $promoId = (int) $promo['id'];
-                    $appliedPromotion = [
-                        'id' => $promoId,
-                        'code' => $promo['code'],
-                        'name' => $promo['name'],
-                        'discount_type' => $promo['discount_type'],
-                        'discount_value' => (int) $promo['discount_value'],
-                        'eligible_players' => $eligibleParticipantsCount,
-                    ];
-
-                    if ($promo['discount_type'] === 'PERCENT') {
-                        $percent = (int) $promo['discount_value'];
-                        $discountAmount = (int) round(($subtotal * $percent) / 100);
-                    } elseif ($promo['discount_type'] === 'FIXED') {
-                        $perPersonDiscount = (int) ($rules['discount_per_eligible_person'] ?? $promo['discount_value']);
-                        $discountAmount = $perPersonDiscount * $eligibleParticipantsCount;
-                    }
+            $eligibleParticipantsCount = $totalParticipants;
+            $requiresStudent = !empty($rules['requires_student_verification']);
+            if ($isEligible && $requiresStudent) {
+                $eligibleParticipantsCount = count($verifiedUserIds);
+                if ($eligibleParticipantsCount === 0) {
+                    $isEligible = false;
                 }
+            }
+
+            if (!$isEligible) {
+                continue;
+            }
+
+            $candDiscount = 0;
+            $candPerStudent = 0;
+            if ($promo['discount_type'] === 'PERCENT') {
+                $percent = (int) $promo['discount_value'];
+                $candDiscount = (int) round(($subtotal * $percent) / 100);
+            } elseif ($promo['discount_type'] === 'FIXED') {
+                $candPerStudent = (int) ($rules['discount_per_eligible_person'] ?? $promo['discount_value']);
+                $candDiscount = $candPerStudent * $eligibleParticipantsCount;
+            }
+
+            if ($candDiscount > $discountAmount) {
+                $discountAmount = $candDiscount;
+                $promoId = (int) $promo['id'];
+                $appliedRequiresStudent = $requiresStudent;
+                $appliedStudentDiscountPerPerson = $candPerStudent;
+                $appliedPromotion = [
+                    'id' => $promoId,
+                    'code' => $promo['code'],
+                    'name' => $promo['name'],
+                    'discount_type' => $promo['discount_type'],
+                    'discount_value' => (int) $promo['discount_value'],
+                    'eligible_players' => $eligibleParticipantsCount,
+                ];
             }
         }
 
@@ -276,13 +296,21 @@ class PricingService
                 );
 
                 foreach ($participants as $part) {
+                    $indivDiscount = $perPlayerDiscount;
+                    if ($appliedRequiresStudent) {
+                        $isVerifiedStu = in_array((int) $part['user_id'], $verifiedUserIds, true);
+                        $indivDiscount = $isVerifiedStu ? min($appliedStudentDiscountPerPerson, max(0, $basePricePerPerson - $depositPerPerson)) : 0;
+                    }
+                    $indivFinal = max($depositPerPerson, $basePricePerPerson - $indivDiscount);
+                    $indivRemaining = max(0, $indivFinal - $depositPerPerson);
+
                     $snapStmt->bindValue(':room_id', $roomId, PDO::PARAM_INT);
                     $snapStmt->bindValue(':part_id', (int) $part['id'], PDO::PARAM_INT);
                     $snapStmt->bindValue(':base_price', $basePricePerPerson, PDO::PARAM_INT);
-                    $snapStmt->bindValue(':discount', $perPlayerDiscount, PDO::PARAM_INT);
-                    $snapStmt->bindValue(':final_amount', $perPlayerFinal, PDO::PARAM_INT);
+                    $snapStmt->bindValue(':discount', $indivDiscount, PDO::PARAM_INT);
+                    $snapStmt->bindValue(':final_amount', $indivFinal, PDO::PARAM_INT);
                     $snapStmt->bindValue(':deposit', $depositPerPerson, PDO::PARAM_INT);
-                    $snapStmt->bindValue(':remaining', $perPlayerRemaining, PDO::PARAM_INT);
+                    $snapStmt->bindValue(':remaining', $indivRemaining, PDO::PARAM_INT);
                     $snapStmt->bindValue(':promo_id', $promoId, $promoId === null ? PDO::PARAM_NULL : PDO::PARAM_INT);
                     $snapStmt->execute();
                 }

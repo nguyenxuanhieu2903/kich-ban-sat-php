@@ -279,7 +279,7 @@
         const playTime = currentRoomData?.session?.start_at
           || currentRoomData?.proposals?.[0]?.proposed_start_at
           || `${tomorrowStr} 14:00:00`;
-        const res = await apiClient.post(`/rooms/${roomId}/calculate-price`, { play_time: playTime });
+        const res = await apiClient.post(`/rooms/${roomId}/calculate-price`, { play_time: playTime, promotion_code: 'AUTO' });
         const d = res.data || {};
         const subtotal = Number(d.subtotal || d.price_subtotal || 0);
         const discount = Number(d.discount_amount || d.price_discount_amount || 0);

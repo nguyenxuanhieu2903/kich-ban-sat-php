@@ -400,17 +400,14 @@ export class HomeView {
             ? minPriceText
             : `${minPriceText} - ${maxPriceText}`;
 
-          const safeImgUrl = sanitizeUrl(game.image_url);
+          const codeStr = 'HS-' + String(game.id).padStart(2, '0');
+          const themeCode = escapeHtml(String(game.theme_code || 'DETECTIVE'));
 
           return `
             <div class="game-card">
-              <div class="game-card-img-wrap">
-                ${safeImgUrl
-                  ? `<img src="${safeImgUrl}" alt="${escapeHtml(game.name)}" class="game-card-img" loading="lazy" onerror="this.src=''; this.parentElement.innerHTML='<div style=\\'font-size:3.5rem; opacity:0.3;\\'></div>';">`
-                  : `<div style="font-size: 3.5rem; opacity: 0.3;"></div>`
-                }
-                <span class="game-card-badge status">Đang mở đặt</span>
-                <span class="game-card-badge duration">⏱ ${Number(game.duration_minutes) || 240} phút</span>
+              <div class="game-card-img-wrap" style="height: 110px; display: flex; align-items: center; justify-content: space-between; padding: 0 18px; background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-bottom: 1px dashed rgba(201,162,94,0.35);">
+                <span style="font-family: monospace; font-size: 0.82rem; color: #c9a25e; font-weight: 700;">HỒ SƠ #${escapeHtml(codeStr)} • ${themeCode}</span>
+                <span class="game-card-badge duration" style="position: static;">${Number(game.duration_minutes) || 240} phút</span>
               </div>
 
               <div class="game-card-body">
@@ -420,8 +417,8 @@ export class HomeView {
                 </p>
 
                 <div class="game-card-meta">
-                  <span> ${Number(game.min_players)} - ${Number(game.max_players)} người chơi</span>
-                  <span> Chi nhánh TP.HCM</span>
+                  <span>${Number(game.min_players)} - ${Number(game.max_players)} người chơi</span>
+                  <span>Chi nhánh TP.HCM</span>
                 </div>
 
                 <div class="game-card-price-row">
