@@ -3,212 +3,252 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Kịch Bản Sát V16 — Trải Nghiệm Nhập Vai Phá Án Thực Tế TP.HCM</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&family=Playfair+Display:ital,wght@0,600;0,700;1,600&display=swap" rel="stylesheet" />
+  <title>KỊCH BẢN SÁT V16 — Nhập Vai Phá Án Murder Mystery TP.HCM</title>
+  <link rel="stylesheet" href="./src/styles/tokens.css" />
   <link rel="stylesheet" href="./src/styles/components.css" />
   <link rel="stylesheet" href="./src/styles/home.css" />
 </head>
 <body>
-  <!-- HEADER ĐIỀU HƯỚNG CHUNG (Sau khi tạo src/logic/layout.js có thể thay bằng <div id="appHeader"></div>) -->
-  <header class="site-header">
-    <div class="container header-inner">
-      <a href="./index.html" class="brand-logo">
-        <img src="./src/assets/images/logo.png" alt="Logo Kịch Bản Sát" />
-        <span>KỊCH BẢN SÁT</span>
-      </a>
+  <div id="app-header"></div>
 
-      <nav class="nav-links">
-        <a href="./index.html" class="active">Trang chủ</a>
-        <a href="./pages/scenarios.html">Kho 42 Kịch Bản</a>
-        <a href="./pages/lobby.html">Sảnh Ghép Phòng</a>
-        <a href="./pages/info.html">Bảng Giá & Nội Quy</a>
-      </nav>
+  <!-- VÙNG SCROLLYTELLING PARALLAX 3 TẦNG -->
+  <section class="scrolly-stage" id="scrolly-stage">
+    <div class="scrolly-sticky">
+      <div class="scrolly-progress-bar" id="scrolly-progress"></div>
 
-      <div class="home-header-actions">
-        <button type="button" id="notifBellBtn" class="btn btn-outline" title="Thông báo hệ thống" aria-label="Thông báo">
-          🔔 <span id="notifBadge">0</span>
-        </button>
-        <select id="demoRoleSwitcher" class="home-role-select" title="Chuyển nhanh vai trò để demo báo cáo">
-          <option value="guest">Vai trò: Khách vãng lai</option>
-          <option value="player">Vai trò: Player (Đã duyệt HSSV)</option>
-          <option value="dm">Vai trò: Quản trò (DM)</option>
-          <option value="admin">Vai trò: Quản trị (Admin)</option>
-        </select>
-        <a href="./pages/auth.html" id="authActionBtn" class="btn btn-outline">Đăng nhập</a>
-        <a href="./pages/create-room.html" class="btn btn-primary">Đặt Phòng Ngay</a>
+      <!-- PHÂN CẢNH 1: CỔNG DINH THỰ & MÀN SƯƠNG (0.00 -> 0.35) -->
+      <div class="scene-layer s1-sky" id="s1-sky">
+        <div class="blood-moon"></div>
+      </div>
+
+      <div class="scene-layer s1-mansion" id="s1-mansion">
+        <svg class="mansion-svg" viewBox="0 0 800 320" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M80 320V170L160 110L240 170V130L400 40L560 130V170L640 110L720 170V320H80Z" fill="#0B0909"/>
+          <polygon points="400,15 385,45 415,45" fill="#0B0909"/>
+          <!-- Các ô cửa sổ sáng ánh đèn vàng ấm #D4AF37 -->
+          <rect x="372" y="95" width="20" height="32" rx="2" fill="#D4AF37" opacity="0.9"/>
+          <rect x="408" y="95" width="20" height="32" rx="2" fill="#D4AF37" opacity="0.75"/>
+          <rect x="280" y="165" width="22" height="36" rx="2" fill="#D4AF37" opacity="0.85"/>
+          <rect x="330" y="165" width="22" height="36" rx="2" fill="#D4AF37" opacity="0.5"/>
+          <rect x="448" y="165" width="22" height="36" rx="2" fill="#D4AF37" opacity="0.9"/>
+          <rect x="498" y="165" width="22" height="36" rx="2" fill="#D4AF37" opacity="0.65"/>
+          <rect x="148" y="195" width="24" height="38" rx="2" fill="#D4AF37" opacity="0.7"/>
+          <rect x="628" y="195" width="24" height="38" rx="2" fill="#D4AF37" opacity="0.85"/>
+        </svg>
+      </div>
+
+      <div class="scene-layer s1-gates" id="s1-gates">
+        <div class="iron-gate left" id="gate-left"></div>
+        <div class="iron-gate right" id="gate-right"></div>
+      </div>
+
+      <div class="s1-content" id="s1-content">
+        <span class="hero-kicker">36/52 NGUYỄN GIA TRÍ • BÌNH THẠNH</span>
+        <h1 class="hero-title">KỊCH BẢN <span class="text-crimson">SÁT</span></h1>
+        <p class="hero-desc">
+          Chọn kịch bản, ghép đủ 5–8 người, giữ chỗ trong 4 giờ. Hung thủ đang ngồi ngay trong phòng.
+        </p>
+        <div class="hero-cta-row">
+          <a href="./pages/scenarios.html" class="btn btn-gold">Khám phá kịch bản</a>
+          <a href="./pages/create-room.html" class="btn btn-ghost">Tạo phòng ngay</a>
+        </div>
+        <div class="scroll-cue" id="scroll-cue">↓ Cuộn để bước vào hiện trường</div>
+      </div>
+
+      <!-- PHÂN CẢNH 2: BÀN TRÒN NGHI PHẠM & ÁNH NẾN (0.35 -> 0.70) -->
+      <div class="scene-layer s2-room" id="s2-room">
+        <div class="s2-copy" id="s2-copy">
+          <span class="hero-kicker">PHÒNG THẨM VẤN KÍN</span>
+          <h2>5–8 NGHI PHẠM.<br /><span class="text-crimson">1 HUNG THỦ.</span></h2>
+          <p class="text-muted" style="font-size:1.05rem;">
+            Mỗi người cầm một vai và giấu một bí mật. DM giữ nhịp, cả nhóm lần ra sự thật.
+          </p>
+        </div>
+
+        <div class="suspects-row">
+          <div class="suspect-silhouette"></div>
+          <div class="suspect-silhouette"></div>
+          <div class="suspect-silhouette"></div>
+          <div class="suspect-silhouette"></div>
+          <div class="suspect-silhouette culprit" title="Nghi phạm số 5"></div>
+          <div class="suspect-silhouette"></div>
+          <div class="suspect-silhouette"></div>
+        </div>
+        <div class="interrogation-table">
+          <div class="candle"></div>
+          <div class="candle"></div>
+          <div class="candle"></div>
+        </div>
+      </div>
+
+      <!-- PHÂN CẢNH 3: RÚT HỒ SƠ NHÂN VẬT 3D CARD FAN (0.70 -> 1.00) -->
+      <div class="scene-layer s3-cards-scene" id="s3-cards">
+        <div class="card-fan">
+          <div class="dossier-card dossier-paper" id="card-left">
+            <span class="dossier-stamp">HỒ SƠ A</span>
+            <div>
+              <h3 style="font-family:var(--font-display);color:var(--crimson);margin-bottom:6px;">Người thừa kế</h3>
+              <p style="font-size:0.8rem;color:var(--ink-muted);">Có mặt tại thư phòng lúc 22:15. Giữ chìa khóa két sắt.</p>
+            </div>
+            <span style="font-family:var(--font-mono);font-size:0.72rem;">MẬT MÃ #01</span>
+          </div>
+
+          <div class="dossier-card dossier-culprit" id="card-center">
+            <span class="badge badge-gold" style="width:fit-content;">#KBS</span>
+            <div>
+              <div class="question-emblem">?</div>
+              <p style="text-align:center;color:var(--gold);font-weight:700;font-size:0.95rem;">Ai là hung thủ?</p>
+            </div>
+            <span style="font-family:var(--font-mono);font-size:0.72rem;color:var(--text-dim);text-align:center;">VAI DIỄN BÍ MẬT</span>
+          </div>
+
+          <div class="dossier-card dossier-paper" id="card-right">
+            <span class="dossier-stamp">HỒ SƠ B</span>
+            <div>
+              <h3 style="font-family:var(--font-display);color:var(--ink-black);margin-bottom:6px;">Quản gia</h3>
+              <p style="font-size:0.8rem;color:var(--ink-muted);">Người cuối cùng dâng trà cho nạn nhân trước khi mất điện.</p>
+            </div>
+            <span style="font-family:var(--font-mono);font-size:0.72rem;">MẬT MÃ #02</span>
+          </div>
+        </div>
+
+        <div class="s3-copy">
+          <h2>RÚT MỘT HỒ SƠ. <span class="text-gold">LẬT MỘT VAI.</span></h2>
+          <p class="text-muted" style="margin-bottom:20px;">Mỗi kịch bản là một vụ án khác nhau.</p>
+          <a href="./pages/scenarios.html" class="btn btn-gold">Chọn kịch bản</a>
+        </div>
       </div>
     </div>
-  </header>
+  </section>
 
-  <!-- 1. HERO PARALLAX BANNER -->
-  <section class="home-hero">
-    <div class="home-hero-overlay"></div>
-    <div class="container home-hero-content">
-      <span class="stamp-badge">HỒ SƠ VỤ ÁN #V16 • TP. HỒ CHÍ MINH</span>
-      <h1 class="home-hero-title">Bước Vào Màn Sương.<br />Tìm Ra Kẻ Thủ Ác.</h1>
-      <p class="home-hero-subtitle">
-        Trò chơi nhập vai phá án thực tế (Murder Mystery / TTRPG) với trang phục cổ trang – trinh thám, phòng chơi cách âm chuyên biệt và Quản trò (DM) dẫn dắt kịch tính.
+  <!-- KHỐI 1: PHÒNG ĐANG TUYỂN -->
+  <section class="home-section" id="phong-dang-tuyen">
+
+    <div class="container">
+      <div class="section-head">
+        <div>
+          <div class="section-kicker">GHÉP NHÓM NHANH</div>
+          <h2 class="section-title">Phòng đang tuyển người chơi</h2>
+        </div>
+        <a href="./pages/lobby.html" class="btn btn-ghost btn-sm">Xem tất cả phòng →</a>
+      </div>
+      <div class="rooms-grid" id="home-rooms-grid"></div>
+    </div>
+  </section>
+
+  <!-- KHỐI 2: KỊCH BẢN NỔI BẬT -->
+  <section class="home-section" id="kho-kich-ban">
+    <div class="container">
+      <div class="section-head">
+        <div>
+          <div class="section-kicker">KHO VỤ ÁN ĐẶC SẮC</div>
+          <h2 class="section-title">Kịch bản nổi bật</h2>
+        </div>
+        <a href="./pages/scenarios.html" class="btn btn-gold btn-sm">Mở toàn bộ kho kịch bản →</a>
+      </div>
+      <div class="filter-pills" id="home-genre-filters"></div>
+      <div class="scripts-grid" id="home-scripts-grid"></div>
+    </div>
+  </section>
+
+  <!-- KHỐI 3: NIỀM TIN KHÁCH HÀNG -->
+  <section class="home-section" id="danh-gia">
+    <div class="container">
+      <div class="trust-banner">
+        <div class="trust-watermark">59</div>
+        <span class="badge badge-gold">XÁC THỰC TỪ CỘNG ĐỒNG FACEBOOK QUÁN</span>
+        <h2 class="section-title" style="margin-top:12px;">KHÁCH ĐÁNH GIÁ: <span class="text-gold">100% ĐỀ XUẤT</span></h2>
+        <p class="text-muted" style="max-width:600px;margin-top:8px;">
+          Trải nghiệm nhập vai phá án có Quản trò dẫn dắt tận tâm, đạo cụ &amp; phòng riêng tư ngay trung tâm Bình Thạnh.
+        </p>
+        <div class="trust-metrics">
+          <div>
+            <div class="metric-value">100%</div>
+            <div class="text-muted">Đề xuất quán trên Facebook</div>
+          </div>
+          <div>
+            <div class="metric-value">59</div>
+            <div class="text-muted">Lượt đánh giá thực tế</div>
+          </div>
+          <div>
+            <div class="metric-value">2,2K</div>
+            <div class="text-muted">Người theo dõi cộng đồng</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- KHỐI 4: QUY TRÌNH & BẢNG GIÁ -->
+  <section class="home-section">
+    <div class="container">
+      <div class="section-head">
+        <div>
+          <div class="section-kicker">MINH BẠCH &amp; RÕ RÀNG</div>
+          <h2 class="section-title">Quy trình 4 bước &amp; Chính sách vé</h2>
+        </div>
+        <a href="./pages/info.html#policies" class="btn btn-ghost btn-sm">Chi tiết ưu đãi Thứ 3 &amp; HSSV</a>
+      </div>
+
+      <div class="steps-grid">
+        <div class="step-card">
+          <div class="step-num">1</div>
+          <h3 style="margin-bottom:6px;">Chọn kịch bản hợp số người</h3>
+          <p class="text-muted" style="font-size:0.9rem;">Lọc theo 5–8 người, độ khó và thể loại trinh thám, kinh dị hoặc cổ trang.</p>
+        </div>
+        <div class="step-card">
+          <div class="step-num">2</div>
+          <h3 style="margin-bottom:6px;">Tạo phòng hoặc vào phòng</h3>
+          <p class="text-muted" style="font-size:0.9rem;">Tự mở phòng khung giờ chẵn hoặc ghép slot cùng nhóm đang thiếu người.</p>
+        </div>
+        <div class="step-card">
+          <div class="step-num">3</div>
+          <h3 style="margin-bottom:6px;">Cọc 50.000đ/người trong 4 giờ</h3>
+          <p class="text-muted" style="font-size:0.9rem;">Hệ thống giữ chỗ 4 giờ để hoàn tất chuyển khoản cọc và nhận mã QR.</p>
+        </div>
+        <div class="step-card">
+          <div class="step-num">4</div>
+          <h3 style="margin-bottom:6px;">Đến quán, DM dẫn ca</h3>
+          <p class="text-muted" style="font-size:0.9rem;">Check-in tại 36/52 Nguyễn Gia Trí, nhận hồ sơ nhân vật và bắt đầu phá án.</p>
+        </div>
+      </div>
+
+      <div class="policy-cards">
+        <div class="paper-ticket policy-ticket">
+          <span class="badge badge-18">CỌC CỐ ĐỊNH</span>
+          <h3 style="font-family:var(--font-display);font-size:1.4rem;margin:10px 0 6px;">Cọc 50.000đ / người</h3>
+          <p style="font-size:0.9rem;color:var(--ink-muted);">Khấu trừ trực tiếp vào tiền vé khi thanh toán phần còn lại tại quán. Mã QR mở khóa ngay sau khi cọc.</p>
+        </div>
+        <div class="paper-ticket policy-ticket">
+          <span class="badge badge-18">THỜI HẠN GIỮ GHẾ</span>
+          <h3 style="font-family:var(--font-display);font-size:1.4rem;margin:10px 0 6px;">Giữ chỗ 4 giờ</h3>
+          <p style="font-size:0.9rem;color:var(--ink-muted);">Đồng hồ đếm ngược 4 giờ kích hoạt ngay khi tạo hoặc giữ ghế. Quá 4 giờ chưa cọc ghế sẽ tự động mở lại.</p>
+        </div>
+        <div class="paper-ticket policy-ticket">
+          <span class="badge badge-18">BẢO VỆ NGƯỜI CHƠI</span>
+          <h3 style="font-family:var(--font-display);font-size:1.4rem;margin:10px 0 6px;">Hoàn 100% trước 24h</h3>
+          <p style="font-size:0.9rem;color:var(--ink-muted);">Hủy trước giờ chơi trên 24 tiếng được hoàn đủ 50.000đ/người. Hủy dưới 24 tiếng sẽ mất tiền cọc.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+  
+  <!-- POPUP XÁC NHẬN 18+ -->
+  <div class="modal-backdrop" id="age-modal">
+    <div class="paper-ticket modal-box">
+      <span class="badge badge-18">CẢNH BÁO NỘI DUNG 18+</span>
+      <h3 style="font-family:var(--font-display);font-size:1.5rem;margin:12px 0 8px;">Xác nhận độ tuổi tham gia</h3>
+      <p style="font-size:0.92rem;color:var(--ink-muted);margin-bottom:20px;">
+        Kịch bản <strong id="age-script-name"></strong> chứa yếu tố tâm lý nặng, kinh dị hoặc tình tiết nhạy cảm chỉ dành cho người chơi từ <strong>18 tuổi trở lên</strong>.
       </p>
-      <div class="home-hero-cta">
-        <a href="./pages/lobby.html" class="btn btn-primary">Tìm Phòng Đang Tuyển (8 Slot)</a>
-        <a href="./pages/scenarios.html" class="btn btn-gold">Khám Phá 42 Kịch Bản</a>
-      </div>
-
-      <div class="home-hero-meta">
-        <div>📍 <strong>36/52 Nguyễn Gia Trí, P.25, Q.Bình Thạnh</strong></div>
-        <div>⏰ <strong>09:00 – 23:00 mỗi ngày</strong></div>
-        <div>📞 Hotline: <strong>091.569.0033</strong></div>
-      </div>
-    </div>
-  </section>
-
-  <!-- 2. BẢNG ƯU ĐÃI & QUY TẮC VÉ ĐẶC BIỆT -->
-  <section class="home-section">
-    <div class="container">
-      <div class="home-section-head">
-        <h2 class="home-section-title">Đặc Quyền & Quy Tắc Đặt Vé</h2>
-        <p class="home-section-desc">Hệ thống tự động áp dụng mức ưu đãi có lợi nhất (không cộng dồn) và giữ chỗ theo thời gian thực</p>
-      </div>
-
-      <div class="home-promo-grid">
-        <article class="ticket-card home-promo-ticket">
-          <span class="stamp-badge">THỨ 3 BÍ ẨN</span>
-          <h3>Giảm Ngay 30% Giá Vé</h3>
-          <p>Áp dụng tự động cho mọi ca chơi diễn ra vào ngày <strong>Thứ 3 hàng tuần</strong> trên toàn bộ 42 kịch bản.</p>
-          <hr class="ticket-divider" />
-          <small>Không cộng dồn với ưu đãi HSSV • Tự chọn mức lợi nhất</small>
-        </article>
-
-        <article class="ticket-card home-promo-ticket">
-          <span class="stamp-badge open">ƯU ĐÃI HSSV</span>
-          <h3>Giảm 20.000đ / Người</h3>
-          <p>Áp dụng từ <strong>Thứ 2 – Thứ 5 (09:00 – 19:59)</strong> sau khi tải lên và được Admin duyệt thẻ Học sinh – Sinh viên.</p>
-          <hr class="ticket-divider" />
-          <small>Xác minh 1 lần • Dùng cho mọi lần đặt vé</small>
-        </article>
-
-        <article class="ticket-card home-promo-ticket">
-          <span class="stamp-badge hold">CỌC 50.000Đ</span>
-          <h3>Giữ Chỗ 4h & Hoàn Cọc 24h</h3>
-          <p>Tạo/vào phòng giữ ghế trong <strong>4 giờ</strong>. Hủy trước giờ chơi <strong>&gt; 24 giờ</strong> được gửi yêu cầu hoàn <strong>100% cọc</strong>.</p>
-          <hr class="ticket-divider" />
-          <small>Mã QR Check-in cấp ngay sau khi xác nhận cọc</small>
-        </article>
-      </div>
-    </div>
-  </section>
-
-  <!-- 3. KỊCH BẢN NỔI BẬT (3D FLIP CARD + BỘ LỌC NHANH) -->
-  <section class="home-section home-section-dark">
-    <div class="container">
-      <div class="home-section-head">
-        <h2 class="home-section-title">Hồ Sơ Kịch Bản Tuyển Chọn</h2>
-        <p class="home-section-desc">Di chuột vào từng tấm poster để lật xem tóm tắt vụ án & tỷ lệ Nam/Nữ</p>
-      </div>
-
-      <div class="home-filter-bar" id="homeGenreFilters">
-        <button class="btn btn-gold active" data-genre="ALL">Tất cả thể loại</button>
-        <button class="btn btn-outline" data-genre="Kinh dị">Kinh dị tâm linh</button>
-        <button class="btn btn-outline" data-genre="Suy luận">Suy luận phá án</button>
-        <button class="btn btn-outline" data-genre="Cơ chế">Cơ chế, hài hước</button>
-        <button class="btn btn-outline" data-genre="Tình cảm">Tình cảm, tâm lý</button>
-        <button class="btn btn-outline" data-genre="Giả tưởng">Giả tưởng, siêu nhiên</button>
-      </div>
-
-      <div class="home-scenarios-grid" id="featuredScenariosGrid">
-        <!-- Render tự động từ home.page.js -->
-      </div>
-
-      <div class="home-center-cta">
-        <a href="./pages/scenarios.html" class="btn btn-outline">Xem Toàn Bộ 42 Kịch Bản &rarr;</a>
-      </div>
-    </div>
-  </section>
-
-  <!-- 4. QUY TRÌNH 4 BƯỚC NHẬP VAI -->
-  <section class="home-section">
-    <div class="container">
-      <div class="home-section-head">
-        <h2 class="home-section-title">Quy Trình Tham Gia 4 Bước</h2>
-      </div>
-      <div class="home-steps-grid">
-        <div class="home-step-item">
-          <span class="home-step-num">01</span>
-          <h4>Chọn Kịch Bản</h4>
-          <p>Lọc theo thể loại, độ khó, tỷ lệ Nam/Nữ và kiểm tra giới hạn độ tuổi 18+.</p>
-        </div>
-        <div class="home-step-item">
-          <span class="home-step-num">02</span>
-          <h4>Tạo Hoặc Ghép Phòng</h4>
-          <p>Mở phòng mới hoặc vào phòng đang tuyển đủ 8 người chơi tại Sảnh.</p>
-        </div>
-        <div class="home-step-item">
-          <span class="home-step-num">03</span>
-          <h4>Cọc 50k Trong 4 Giờ</h4>
-          <p>Quét mã QR thanh toán cọc giữ chỗ trước khi đồng hồ 4 tiếng kết thúc.</p>
-        </div>
-        <div class="home-step-item">
-          <span class="home-step-num">04</span>
-          <h4>Nhận QR & Phá Án</h4>
-          <p>Đưa vé QR cho DM check-in tại quán, thanh toán phần còn lại và bắt đầu nhập vai.</p>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- POPUP CẢNH BÁO 18+ -->
-  <div class="home-modal-backdrop" id="ageGateModal" hidden>
-    <div class="ticket-card home-modal-box">
-      <span class="stamp-badge">CẢNH BÁO NỘI DUNG 18+</span>
-      <h3 id="ageGateTitle">Xác Nhận Độ Tuổi Tham Gia</h3>
-      <p>Kịch bản này chứa yếu tố kinh dị nặng, tâm lý u ám hoặc bạo lực hư cấu, chỉ dành cho người chơi từ <strong>18 tuổi trở lên</strong>.</p>
-      <hr class="ticket-divider" />
-      <div class="home-modal-actions">
-        <button type="button" class="btn btn-outline" id="ageCancelBtn">Quay lại</button>
-        <button type="button" class="btn btn-primary" id="ageConfirmBtn">Tôi đã đủ 18 tuổi — Tiếp tục</button>
+      <div style="display:flex;gap:10px;justify-content:flex-end;">
+        <button class="btn btn-ghost" style="color:var(--ink-black);border-color:#999;" id="age-cancel-btn">Quay lại</button>
+        <button class="btn btn-crimson" id="age-confirm-btn">Tôi đã đủ 18 tuổi</button>
       </div>
     </div>
   </div>
 
-  <!-- FOOTER 4 CỘT (Sau khi tạo src/logic/layout.js có thể thay bằng <div id="appFooter"></div>) -->
-  <footer class="site-footer">
-    <div class="container home-footer-grid" style="grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));">
-      <div>
-        <strong style="color: var(--color-gold); font-family: var(--font-serif); font-size: 1.15rem;">KỊCH BẢN SÁT V16</strong>
-        <p style="margin-top: 8px;">Không gian nhập vai phá án Murder Mystery chuyên nghiệp tại TP.HCM.</p>
-      </div>
-      <div>
-        <strong style="color: var(--color-cream);">Điều Hướng Nhanh</strong>
-        <ul style="list-style: none; padding: 0; margin-top: 8px; line-height: 1.8;">
-          <li><a href="./pages/scenarios.html">Kho 42 Kịch Bản</a></li>
-          <li><a href="./pages/lobby.html">Sảnh Ghép Phòng</a></li>
-          <li><a href="./pages/info.html">Bảng Giá & Nội Quy</a></li>
-        </ul>
-      </div>
-      <div>
-        <strong style="color: var(--color-cream);">Liên Hệ & Giờ Mở Cửa</strong>
-        <p style="margin-top: 8px;">📍 36/52 Nguyễn Gia Trí, P.25, Q.Bình Thạnh</p>
-        <p>⏰ Mở cửa: 09:00 – 23:00 mỗi ngày</p>
-        <p>📞 Đặt phòng: <strong>091.569.0033</strong></p>
-        <p>🤝 Hợp tác: <strong>0989.896.833 (Mrs Yến)</strong></p>
-      </div>
-      <div>
-        <strong style="color: var(--color-cream);">Bản Đồ Quán</strong>
-        <div style="margin-top: 8px; border-radius: 6px; overflow: hidden; border: 1px solid rgba(212,175,55,0.3);">
-          <iframe
-            title="Bản đồ Kịch Bản Sát"
-            src="https://www.google.com/maps?q=36/52+Nguyen+Gia+Tri,+Phuong+25,+Binh+Thanh,+Ho+Chi+Minh&output=embed"
-            width="100%"
-            height="120"
-            style="border:0; display:block;"
-            loading="lazy">
-          </iframe>
-        </div>
-      </div>
-    </div>
-  </footer>
+  <div id="app-footer"></div>
 
   <script type="module" src="./src/pages-js/home.page.js"></script>
 </body>

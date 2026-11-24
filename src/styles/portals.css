@@ -1,0 +1,40 @@
+/* Admin Layout 1440px */
+.admin-layout {
+  display: grid;
+  grid-template-columns: 260px 1fr;
+  min-height: calc(100vh - 110px);
+}
+.admin-sidebar {
+  background: #12100E;
+  border-right: 1px solid rgba(212, 175, 55, 0.2);
+  padding: 24px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.admin-nav-btn {
+  text-align: left;
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--text-muted);
+  padding: 11px 14px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.92rem;
+  font-weight: 500;
+}
+.admin-nav-btn:hover, .admin-nav-btn.active {
+  background: var(--gold-soft);
+  color: var(--color-gold);
+  border-color: var(--gold-border);
+  font-weight: 700;
+}
+.admin-main {
+  padding: 28px 32px;
+}
+
+@media (max-width: 960px) {
+  .admin-layout { grid-template-columns: 1fr; }
+  .admin-sidebar { flex-direction: row; overflow-x: auto; border-right: none; border-bottom: 1px solid var(--gold-border); }
+  .admin-main { padding: 20px 16px; }
+}
