@@ -13,7 +13,8 @@ if (file_exists($autoloader)) {
 // Initialize environment configuration
 App\Infrastructure\Config\Config::load($basePath);
 
-// Ensure session is started for application lifecycle
+// Ensure session is configured and started for application lifecycle
+App\Core\Application::configureSession($basePath);
 if (session_status() === PHP_SESSION_NONE && !headers_sent()) {
     @session_start();
 }

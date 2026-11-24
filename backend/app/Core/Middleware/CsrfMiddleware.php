@@ -23,7 +23,8 @@ class CsrfMiddleware implements MiddlewareInterface
     public static function getToken(): string
     {
         if (session_status() === PHP_SESSION_NONE && !headers_sent()) {
-            session_start();
+            \App\Core\Application::configureSession();
+            @session_start();
         }
 
         if (empty($_SESSION['_csrf_token'])) {
@@ -55,9 +56,8 @@ class CsrfMiddleware implements MiddlewareInterface
             return $next($request);
         }
 
-        // Skip in testing environment or test header
-        $isTesting = Config::get('APP_ENV') === 'testing' || $request->getHeader('x-testing') === '1';
-        if ($isTesting) {
+        // Skip exclusively in testing environment; never trust client headers (e.g. x-testing) in production/staging/local
+        if (Config::get('APP_ENV') === 'testing') {
             return $next($request);
         }
 

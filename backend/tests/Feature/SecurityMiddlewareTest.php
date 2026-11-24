@@ -447,4 +447,75 @@ class SecurityMiddlewareTest extends TestCase
             $this->assertArrayHasKey('message', $data);
         }
     }
+
+    /**
+     * SEC-04 Test 1: In production environment, X-Testing header cannot bypass CSRF verification.
+     */
+    public function testCsrfMiddlewareBlocksStateChangeEvenWithTestingHeaderInProduction(): void
+    {
+        $app = new Application(dirname(__DIR__, 2));
+        $app->addMiddleware(new CsrfMiddleware());
+
+        $app->getRouter()->post('/api/v1/test-mutation-bypass', function (Request $req) {
+            return Response::success(['ok' => true]);
+        });
+
+        Config::set('APP_ENV', 'production');
+
+        $request = new Request(
+            method: 'POST',
+            path: '/api/v1/test-mutation-bypass',
+            queryParams: [],
+            bodyParams: [],
+            headers: [
+                'X-Testing' => '1',
+            ]
+        );
+        $response = $app->dispatch($request);
+
+        $this->assertSame(403, $response->getStatusCode());
+        $data = json_decode($response->getContent(), true);
+        $this->assertFalse($data['success']);
+        $this->assertSame('CSRF_TOKEN_INVALID', $data['error']['code']);
+
+        Config::set('APP_ENV', 'testing');
+    }
+
+    /**
+     * SEC-04 Test 2: In testing environment, state change mutations can bypass CSRF.
+     */
+    public function testCsrfMiddlewareAllowsBypassWhenEnvIsTesting(): void
+    {
+        $app = new Application(dirname(__DIR__, 2));
+        $app->addMiddleware(new CsrfMiddleware());
+
+        $app->getRouter()->post('/api/v1/test-mutation-testing-env', function (Request $req) {
+            return Response::success(['ok' => true]);
+        });
+
+        Config::set('APP_ENV', 'testing');
+
+        $request = new Request(
+            method: 'POST',
+            path: '/api/v1/test-mutation-testing-env'
+        );
+        $response = $app->dispatch($request);
+
+        $this->assertSame(200, $response->getStatusCode());
+        $data = json_decode($response->getContent(), true);
+        $this->assertTrue($data['success']);
+    }
+
+    /**
+     * SEC-04 Test 3: Session configuration applies secure parameters from config/session.php.
+     */
+    public function testSessionConfigurationAppliesSecureParametersFromConfig(): void
+    {
+        $params = session_get_cookie_params();
+
+        $this->assertTrue((bool) $params['httponly'], 'Session cookie must have HttpOnly set to true');
+        $this->assertSame('Lax', $params['samesite'], 'Session cookie must have SameSite set to Lax');
+        $this->assertSame(7200, (int) $params['lifetime'], 'Session lifetime must match configuration');
+        $this->assertSame('kbs_session_id', session_name(), 'Session name must match configured cookie_name');
+    }
 }

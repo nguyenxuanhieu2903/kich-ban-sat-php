@@ -34,6 +34,7 @@ class AuthMiddleware implements MiddlewareInterface
     public static function authenticate(Request $request, array $allowedRoles = []): array|Response
     {
         if (session_status() === PHP_SESSION_NONE && !headers_sent()) {
+            \App\Core\Application::configureSession();
             $preSession = $_SESSION ?? [];
             @session_start();
             if (!empty($preSession) && empty($_SESSION)) {

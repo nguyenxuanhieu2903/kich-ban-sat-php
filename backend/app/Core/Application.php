@@ -38,12 +38,43 @@ class Application
     }
 
     /**
+     * Configure session cookie and security options based on config/session.php.
+     */
+    public static function configureSession(?string $basePath = null): void
+    {
+        if (session_status() !== PHP_SESSION_NONE || headers_sent()) {
+            return;
+        }
+
+        $basePath = $basePath ?? dirname(__DIR__, 2);
+        $sessionConfigFile = rtrim($basePath, '/\\') . '/config/session.php';
+
+        if (file_exists($sessionConfigFile)) {
+            $sessionConfig = require $sessionConfigFile;
+
+            if (!empty($sessionConfig['cookie_name'])) {
+                session_name((string) $sessionConfig['cookie_name']);
+            }
+
+            session_set_cookie_params([
+                'lifetime' => (int) ($sessionConfig['lifetime'] ?? 7200),
+                'path' => '/',
+                'domain' => '',
+                'secure' => (bool) ($sessionConfig['secure'] ?? false),
+                'httponly' => (bool) ($sessionConfig['httponly'] ?? true),
+                'samesite' => (string) ($sessionConfig['samesite'] ?? 'Lax'),
+            ]);
+        }
+    }
+
+    /**
      * Dispatch an incoming Request through middleware pipeline and Router.
      */
     public function dispatch(Request $request): Response
     {
         try {
             if (session_status() === PHP_SESSION_NONE && !headers_sent()) {
+                self::configureSession($this->basePath);
                 $preSession = $_SESSION ?? [];
                 @session_start();
                 if (!empty($preSession) && empty($_SESSION)) {
