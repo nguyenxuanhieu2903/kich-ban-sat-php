@@ -199,4 +199,60 @@ class BusinessRulesTest extends TestCase
         $this->assertFalse($checkCanCreateRoom(3));
         $this->assertFalse($checkCanCreateRoom(4));
     }
+
+    /**
+     * Rule 6: Student Verification Discount (HSSV -20,000 VND).
+     */
+    public function testStudentVerificationDiscountCalculation(): void
+    {
+        $calculateStudentDiscount = function (int $basePrice, string $studentCardStatus): array {
+            $discount = 0;
+            if ($studentCardStatus === 'APPROVED') {
+                $discount = 20000;
+            }
+            $finalPrice = max(0, $basePrice - $discount);
+            return [
+                'base_price' => $basePrice,
+                'discount' => $discount,
+                'final_price' => $finalPrice,
+            ];
+        };
+
+        // Approved Student Card
+        $approved = $calculateStudentDiscount(150000, 'APPROVED');
+        $this->assertSame(20000, $approved['discount']);
+        $this->assertSame(130000, $approved['final_price']);
+
+        // Pending or Rejected Student Card
+        $pending = $calculateStudentDiscount(150000, 'PENDING');
+        $this->assertSame(0, $pending['discount']);
+        $this->assertSame(150000, $pending['final_price']);
+
+        $rejected = $calculateStudentDiscount(150000, 'REJECTED');
+        $this->assertSame(0, $rejected['discount']);
+        $this->assertSame(150000, $rejected['final_price']);
+    }
+
+    /**
+     * Rule 7: Host Kick Member Eligibility Rule.
+     * Host can only kick players who have not deposited (PENDING_DEPOSIT).
+     */
+    public function testHostKickMemberEligibilityRule(): void
+    {
+        $canKick = function (bool $isHost, string $targetParticipantStatus): bool {
+            if (!$isHost) {
+                return false;
+            }
+            return $targetParticipantStatus === 'PENDING_DEPOSIT';
+        };
+
+        // Host kicking unpaid member => Allowed
+        $this->assertTrue($canKick(true, 'PENDING_DEPOSIT'));
+
+        // Host kicking deposited member => Forbidden
+        $this->assertFalse($canKick(true, 'DEPOSITED'));
+
+        // Non-host kicking unpaid member => Forbidden
+        $this->assertFalse($canKick(false, 'PENDING_DEPOSIT'));
+    }
 }
