@@ -86,6 +86,7 @@ class SessionPlayLifecycleTest extends TestCase
         $fixture = $this->createTestSession(2);
         $sessionId = $fixture['session_id'];
 
+        $_SESSION['user_id'] = 2;
         $req = new Request(
             method: 'POST',
             path: "/api/v1/sessions/{$sessionId}/start",
@@ -113,6 +114,7 @@ class SessionPlayLifecycleTest extends TestCase
         $sessionId = $fixture['session_id'];
 
         // Player (User 3) tries to start -> 403
+        $_SESSION['user_id'] = 3;
         $playerReq = new Request(
             method: 'POST',
             path: "/api/v1/sessions/{$sessionId}/start",
@@ -126,6 +128,7 @@ class SessionPlayLifecycleTest extends TestCase
         // Temporarily set User 4 as DM to test cross-DM IDOR
         $this->pdo->exec("UPDATE `users` SET `role_id` = (SELECT `id` FROM `roles` WHERE `code` = 'DM' LIMIT 1) WHERE `id` = 4");
 
+        $_SESSION['user_id'] = 4;
         $otherDmReq = new Request(
             method: 'POST',
             path: "/api/v1/sessions/{$sessionId}/start",
@@ -145,6 +148,7 @@ class SessionPlayLifecycleTest extends TestCase
         $fixture = $this->createTestSession(2);
         $sessionId = $fixture['session_id'];
 
+        $_SESSION['user_id'] = 1;
         $adminReq = new Request(
             method: 'POST',
             path: "/api/v1/sessions/{$sessionId}/start",
@@ -163,6 +167,7 @@ class SessionPlayLifecycleTest extends TestCase
         $fixture = $this->createTestSession(2);
         $sessionId = $fixture['session_id'];
 
+        $_SESSION['user_id'] = 2;
         $req = new Request(
             method: 'POST',
             path: "/api/v1/sessions/{$sessionId}/start",
@@ -187,6 +192,7 @@ class SessionPlayLifecycleTest extends TestCase
         $fixture = $this->createTestSession(2);
         $sessionId = $fixture['session_id'];
 
+        $_SESSION['user_id'] = 2;
         $completeReq = new Request(
             method: 'POST',
             path: "/api/v1/sessions/{$sessionId}/complete",
@@ -207,6 +213,7 @@ class SessionPlayLifecycleTest extends TestCase
         $roomId = $fixture['room_id'];
 
         // 1. Start session first
+        $_SESSION['user_id'] = 2;
         $startReq = new Request(
             method: 'POST',
             path: "/api/v1/sessions/{$sessionId}/start",
@@ -248,6 +255,7 @@ class SessionPlayLifecycleTest extends TestCase
 
     public function testNonExistentSessionReturns404(): void
     {
+        $_SESSION['user_id'] = 1;
         $req = new Request(
             method: 'POST',
             path: '/api/v1/sessions/999999/start',

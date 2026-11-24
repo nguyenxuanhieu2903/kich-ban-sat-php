@@ -19,7 +19,7 @@ class AdminUserApiTest extends TestCase
         $basePath = dirname(__DIR__, 2);
         Config::load($basePath);
         $this->app = new Application($basePath);
-        $_SESSION = [];
+        $_SESSION = ['user_id' => 1];
 
         $routesFile = $basePath . '/routes/api.php';
         $router = $this->app->getRouter();
@@ -29,11 +29,13 @@ class AdminUserApiTest extends TestCase
     public function testNonAdminCannotListUsers(): void
     {
         // 1. Unauthenticated request
+        $_SESSION = [];
         $req1 = new Request('GET', '/api/v1/admin/users');
         $res1 = $this->app->dispatch($req1);
         $this->assertSame(401, $res1->getStatusCode());
 
         // 2. Authenticated as PLAYER (User 3)
+        $_SESSION['user_id'] = 3;
         $req2 = new Request(
             method: 'GET',
             path: '/api/v1/admin/users',

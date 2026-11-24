@@ -34,20 +34,16 @@ class AuthMiddleware implements MiddlewareInterface
     public static function authenticate(Request $request, array $allowedRoles = []): array|Response
     {
         if (session_status() === PHP_SESSION_NONE && !headers_sent()) {
+            $preSession = $_SESSION ?? [];
             @session_start();
+            if (!empty($preSession) && empty($_SESSION)) {
+                $_SESSION = $preSession;
+            }
         }
 
         $userId = null;
         if (!empty($_SESSION['user_id'])) {
             $userId = (int) $_SESSION['user_id'];
-        }
-
-        // Support Bearer token header in API/Testing environment (e.g. "Bearer {user_id}")
-        if ($userId === null) {
-            $authHeader = $request->getHeader('authorization');
-            if ($authHeader !== null && preg_match('/Bearer\s+(\d+)/i', $authHeader, $matches)) {
-                $userId = (int) $matches[1];
-            }
         }
 
         if ($userId === null || $userId <= 0) {

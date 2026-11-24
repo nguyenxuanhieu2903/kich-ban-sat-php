@@ -22,7 +22,10 @@ class AdminRoomCancelRefundApiTest extends TestCase
         $basePath = dirname(__DIR__, 2);
         Config::load($basePath);
         $this->app = new Application($basePath);
-        $_SESSION = [];
+        if (session_status() === PHP_SESSION_NONE) {
+            @session_start();
+        }
+        $_SESSION = ['user_id' => 1];
 
         $pdo = DatabaseConnection::getInstance();
         $this->paymentRepo = new PaymentRepository($pdo);
@@ -34,6 +37,7 @@ class AdminRoomCancelRefundApiTest extends TestCase
 
     public function testNonAdminCannotCancelRoom(): void
     {
+        $_SESSION['user_id'] = 3;
         $req = new Request('POST', '/api/v1/admin/rooms/1/cancel', [], ['reason' => 'Bận đột xuất'], ['Authorization' => 'Bearer 3']);
         $res = $this->app->dispatch($req);
         $this->assertSame(403, $res->getStatusCode());

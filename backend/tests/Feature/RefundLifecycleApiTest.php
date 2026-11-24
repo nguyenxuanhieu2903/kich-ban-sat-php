@@ -24,7 +24,7 @@ class RefundLifecycleApiTest extends TestCase
         $basePath = dirname(__DIR__, 2);
         Config::load($basePath);
         $this->app = new Application($basePath);
-        $_SESSION = [];
+        $_SESSION = ['user_id' => 3];
 
         $this->pdo = DatabaseConnection::getInstance();
         $this->jobService = new BackgroundJobService($this->pdo);
@@ -237,8 +237,10 @@ class RefundLifecycleApiTest extends TestCase
         $roomId = $this->createTestRoom(3, 'FORMING');
 
         // User 4 attempts to cancel
+        $_SESSION['user_id'] = 4;
         $req = new Request('POST', "/api/v1/rooms/{$roomId}/cancel", [], ['reason' => 'Phá đám'], ['Authorization' => 'Bearer 4']);
         $res = $this->app->dispatch($req);
+        $_SESSION['user_id'] = 3;
 
         $this->assertSame(403, $res->getStatusCode());
     }
@@ -280,8 +282,10 @@ class RefundLifecycleApiTest extends TestCase
         $this->assertSame('LEAVE_REQUESTED', $pStmt->fetchColumn());
 
         // New player (User 4) joins to take over slot
+        $_SESSION['user_id'] = 4;
         $joinReq = new Request('POST', "/api/v1/rooms/{$roomId}/join", [], [], ['Authorization' => 'Bearer 4']);
         $joinRes = $this->app->dispatch($joinReq);
+        $_SESSION['user_id'] = 3;
         $this->assertSame(200, $joinRes->getStatusCode());
         $joinData = json_decode($joinRes->getContent(), true);
         $this->assertTrue($joinData['data']['is_replacement']);
@@ -313,8 +317,10 @@ class RefundLifecycleApiTest extends TestCase
         $this->assertSame(200, $this->app->dispatch($leaveReq)->getStatusCode());
 
         // New player joins
+        $_SESSION['user_id'] = 4;
         $joinReq = new Request('POST', "/api/v1/rooms/{$roomId}/join", [], [], ['Authorization' => 'Bearer 4']);
         $this->assertSame(200, $this->app->dispatch($joinReq)->getStatusCode());
+        $_SESSION['user_id'] = 3;
 
         // Old player is LEFT, but NO refund is created
         $refStmt = $this->pdo->query("SELECT COUNT(*) FROM `refunds` WHERE `player_payment_id` = {$oldPart['pay_id']}");
@@ -335,6 +341,7 @@ class RefundLifecycleApiTest extends TestCase
         $refundId = (int) $this->pdo->lastInsertId();
 
         // Admin approves
+        $_SESSION['user_id'] = 1;
         $req = new Request('POST', "/api/v1/admin/refunds/{$refundId}/approve", [], [], ['Authorization' => 'Bearer 1']);
         $res = $this->app->dispatch($req);
 
@@ -369,6 +376,7 @@ class RefundLifecycleApiTest extends TestCase
         $refundId = (int) $this->pdo->lastInsertId();
 
         // First approval
+        $_SESSION['user_id'] = 1;
         $req1 = new Request('POST', "/api/v1/admin/refunds/{$refundId}/approve", [], [], ['Authorization' => 'Bearer 1']);
         $this->assertSame(200, $this->app->dispatch($req1)->getStatusCode());
 
@@ -391,6 +399,7 @@ class RefundLifecycleApiTest extends TestCase
         $refundId = (int) $this->pdo->lastInsertId();
 
         // Admin rejects with valid reason
+        $_SESSION['user_id'] = 1;
         $req = new Request('POST', "/api/v1/admin/refunds/{$refundId}/reject", [], ['reason' => 'Không đủ điều kiện theo chính sách'], ['Authorization' => 'Bearer 1']);
         $res = $this->app->dispatch($req);
 
@@ -404,6 +413,7 @@ class RefundLifecycleApiTest extends TestCase
 
     public function testAdminRejectFailsWithShortOrEmptyReason(): void
     {
+        $_SESSION['user_id'] = 1;
         $roomId = $this->createTestRoom(1, 'FORMING');
         $part = $this->addParticipant($roomId, 3, 'DEPOSITED', 50000, 'PAID');
 
@@ -428,6 +438,7 @@ class RefundLifecycleApiTest extends TestCase
         $refundId = (int) $this->pdo->lastInsertId();
 
         // Regular player (User 3) tries to approve
+        $_SESSION['user_id'] = 3;
         $appReq = new Request('POST', "/api/v1/admin/refunds/{$refundId}/approve", [], [], ['Authorization' => 'Bearer 3']);
         $this->assertSame(403, $this->app->dispatch($appReq)->getStatusCode());
 
@@ -515,6 +526,7 @@ class RefundLifecycleApiTest extends TestCase
         $partUnpaid = $this->addParticipant($roomId, 4, 'PENDING_DEPOSIT', 0, 'PENDING');
 
         // Admin cancels room
+        $_SESSION['user_id'] = 1;
         $cancelReq = new Request('POST', "/api/v1/admin/rooms/{$roomId}/cancel", [], ['reason' => 'Hủy do sự cố địa điểm'], ['Authorization' => 'Bearer 1']);
         $cancelRes = $this->app->dispatch($cancelReq);
 

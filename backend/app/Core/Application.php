@@ -43,6 +43,14 @@ class Application
     public function dispatch(Request $request): Response
     {
         try {
+            if (session_status() === PHP_SESSION_NONE && !headers_sent()) {
+                $preSession = $_SESSION ?? [];
+                @session_start();
+                if (!empty($preSession) && empty($_SESSION)) {
+                    $_SESSION = $preSession;
+                }
+            }
+
             return $this->runPipeline($request);
         } catch (Throwable $e) {
             return ExceptionHandler::handle($e, $request);

@@ -136,4 +136,315 @@ class SecurityMiddlewareTest extends TestCase
         $this->assertSame(1, (int) $res['id']);
         $this->assertSame('ADMIN', strtoupper((string) $res['role_code']));
     }
+
+    /**
+     * SEC-01 Test 1: Forged Bearer ID 1 cannot authenticate as Admin.
+     */
+    public function testForgedBearerAdminIdCannotAuthenticateAsAdmin(): void
+    {
+        $_SESSION = [];
+
+        $request = new Request(
+            method: 'GET',
+            path: '/api/v1/admin/users',
+            queryParams: [],
+            bodyParams: [],
+            headers: [
+                'Authorization' => 'Bearer 1',
+            ]
+        );
+
+        $response = $this->app->dispatch($request);
+        $this->assertSame(401, $response->getStatusCode());
+
+        $data = json_decode($response->getContent(), true);
+        $this->assertFalse($data['success']);
+        $this->assertSame('UNAUTHORIZED', $data['error']['code']);
+    }
+
+    /**
+     * SEC-01 Test 2: Forged Bearer ID 2 cannot authenticate as Player/DM.
+     */
+    public function testForgedBearerPlayerIdCannotAuthenticateAsPlayer(): void
+    {
+        $_SESSION = [];
+
+        $request = new Request(
+            method: 'GET',
+            path: '/api/v1/auth/me',
+            queryParams: [],
+            bodyParams: [],
+            headers: [
+                'Authorization' => 'Bearer 2',
+            ]
+        );
+
+        $response = $this->app->dispatch($request);
+        $this->assertSame(401, $response->getStatusCode());
+
+        $data = json_decode($response->getContent(), true);
+        $this->assertFalse($data['success']);
+        $this->assertSame('UNAUTHORIZED', $data['error']['code']);
+    }
+
+    /**
+     * SEC-01 Test 3: Arbitrary Bearer IDs are rejected.
+     */
+    public function testArbitraryBearerIdsAreRejected(): void
+    {
+        $_SESSION = [];
+
+        $arbitraryIds = [999999, 88888, 12345, 0, -1];
+        foreach ($arbitraryIds as $id) {
+            $request = new Request(
+                method: 'GET',
+                path: '/api/v1/auth/me',
+                queryParams: [],
+                bodyParams: [],
+                headers: [
+                    'Authorization' => "Bearer {$id}",
+                ]
+            );
+
+            $response = $this->app->dispatch($request);
+            $this->assertSame(401, $response->getStatusCode(), "Bearer {$id} must be rejected with 401");
+
+            $data = json_decode($response->getContent(), true);
+            $this->assertFalse($data['success']);
+            $this->assertSame('UNAUTHORIZED', $data['error']['code']);
+        }
+    }
+
+    /**
+     * SEC-01 Test 4: Malformed Authorization headers are rejected or ignored safely.
+     */
+    public function testMalformedAuthorizationHeadersAreRejectedOrIgnoredSafely(): void
+    {
+        $_SESSION = [];
+
+        $malformedHeaders = [
+            'Bearer',
+            'Bearer   ',
+            'Bearer abc',
+            'Bearer 1; DROP TABLE users;',
+            'Basic YWRtaW46cGFzc3dvcmQ=',
+            'Token 12345',
+            'InvalidFormat',
+        ];
+
+        // Without session: must be rejected with 401 safely
+        foreach ($malformedHeaders as $headerVal) {
+            $request = new Request(
+                method: 'GET',
+                path: '/api/v1/auth/me',
+                queryParams: [],
+                bodyParams: [],
+                headers: [
+                    'Authorization' => $headerVal,
+                ]
+            );
+
+            $response = $this->app->dispatch($request);
+            $this->assertSame(401, $response->getStatusCode(), "Malformed header '{$headerVal}' must return 401 without session");
+
+            $data = json_decode($response->getContent(), true);
+            $this->assertFalse($data['success']);
+            $this->assertSame('UNAUTHORIZED', $data['error']['code']);
+        }
+
+        // With valid session (User 3 = Player): malformed header must be ignored safely without crash
+        $_SESSION['user_id'] = 3;
+        foreach ($malformedHeaders as $headerVal) {
+            $request = new Request(
+                method: 'GET',
+                path: '/api/v1/auth/me',
+                queryParams: [],
+                bodyParams: [],
+                headers: [
+                    'Authorization' => $headerVal,
+                ]
+            );
+
+            $response = $this->app->dispatch($request);
+            $this->assertSame(200, $response->getStatusCode(), "Valid session must remain authenticated despite malformed header '{$headerVal}'");
+
+            $data = json_decode($response->getContent(), true);
+            $this->assertTrue($data['success']);
+            $this->assertSame(3, (int) $data['data']['user']['id']);
+        }
+    }
+
+    /**
+     * SEC-01 Test 5: Missing Session is rejected on protected endpoints.
+     */
+    public function testMissingSessionIsRejectedOnProtectedEndpoints(): void
+    {
+        $_SESSION = [];
+
+        $protectedRoutes = [
+            ['GET', '/api/v1/auth/me'],
+            ['POST', '/api/v1/rooms', ['game_id' => 1, 'title' => 'Test Room']],
+            ['GET', '/api/v1/admin/users'],
+            ['GET', '/api/v1/dm/assignments'],
+            ['GET', '/api/v1/notifications'],
+        ];
+
+        foreach ($protectedRoutes as $route) {
+            [$method, $path] = $route;
+            $body = $route[2] ?? [];
+
+            $request = new Request($method, $path, [], $body);
+            $response = $this->app->dispatch($request);
+
+            $this->assertSame(401, $response->getStatusCode(), "Missing session on {$method} {$path} must return 401");
+            $data = json_decode($response->getContent(), true);
+            $this->assertFalse($data['success']);
+            $this->assertSame('UNAUTHORIZED', $data['error']['code']);
+        }
+    }
+
+    /**
+     * SEC-01 Test 6: Valid Session remains authenticated and prevents User ID spoofing.
+     */
+    public function testValidSessionRemainsAuthenticatedAndPreventsUserIdSpoofing(): void
+    {
+        // User 3 is PLAYER
+        $_SESSION['user_id'] = 3;
+
+        // Player tries to spoof Admin by injecting "Bearer 1"
+        $request = new Request(
+            method: 'GET',
+            path: '/api/v1/auth/me',
+            queryParams: [],
+            bodyParams: [],
+            headers: [
+                'Authorization' => 'Bearer 1',
+            ]
+        );
+
+        $response = $this->app->dispatch($request);
+        $this->assertSame(200, $response->getStatusCode());
+
+        $data = json_decode($response->getContent(), true);
+        $this->assertTrue($data['success']);
+        // Authenticated user MUST be User 3 from session, NOT User 1 from header!
+        $this->assertSame(3, (int) $data['data']['user']['id']);
+        $this->assertSame('PLAYER', strtoupper((string) $data['data']['user']['role_code']));
+
+        // Player sending "Bearer 1" to Admin-only route must still get 403 FORBIDDEN
+        $adminRequest = new Request(
+            method: 'GET',
+            path: '/api/v1/admin/users',
+            queryParams: [],
+            bodyParams: [],
+            headers: [
+                'Authorization' => 'Bearer 1',
+            ]
+        );
+
+        $adminResponse = $this->app->dispatch($adminRequest);
+        $this->assertSame(403, $adminResponse->getStatusCode(), 'Player cannot escalate privileges via spoofed Bearer header');
+    }
+
+    /**
+     * SEC-01 Test 7: Logout invalidates the Session.
+     */
+    public function testLogoutInvalidatesSession(): void
+    {
+        $_SESSION['user_id'] = 3;
+
+        $logoutReq = new Request('POST', '/api/v1/auth/logout');
+        $logoutRes = $this->app->dispatch($logoutReq);
+
+        $this->assertSame(200, $logoutRes->getStatusCode());
+        $this->assertArrayNotHasKey('user_id', $_SESSION);
+
+        // Subsequent access to protected route must be rejected
+        $meReq = new Request('GET', '/api/v1/auth/me');
+        $meRes = $this->app->dispatch($meReq);
+        $this->assertSame(401, $meRes->getStatusCode());
+    }
+
+    /**
+     * SEC-01 Test 8: Public endpoints remain accessible to Guests.
+     */
+    public function testPublicEndpointsRemainAccessibleToGuests(): void
+    {
+        $_SESSION = [];
+
+        $publicRoutes = [
+            ['GET', '/api/v1/health'],
+            ['GET', '/api/v1/games'],
+            ['GET', '/api/v1/promotions'],
+            ['GET', '/api/v1/auth/csrf-token'],
+        ];
+
+        foreach ($publicRoutes as [$method, $path]) {
+            $request = new Request($method, $path);
+            $response = $this->app->dispatch($request);
+
+            $this->assertSame(200, $response->getStatusCode(), "Guest must be able to access {$method} {$path}");
+            $data = json_decode($response->getContent(), true);
+            $this->assertTrue($data['success']);
+        }
+    }
+
+    /**
+     * SEC-01 Test 9: Player cannot access Admin-only APIs.
+     */
+    public function testPlayerCannotAccessAdminOnlyApis(): void
+    {
+        // User 3 is PLAYER
+        $_SESSION['user_id'] = 3;
+
+        $adminRoutes = [
+            ['GET', '/api/v1/admin/users'],
+            ['POST', '/api/v1/admin/rooms/1/cancel', ['reason' => 'Test reason']],
+            ['GET', '/api/v1/admin/refunds'],
+        ];
+
+        foreach ($adminRoutes as $route) {
+            [$method, $path] = $route;
+            $body = $route[2] ?? [];
+
+            $request = new Request($method, $path, [], $body);
+            $response = $this->app->dispatch($request);
+
+            $this->assertSame(403, $response->getStatusCode(), "Player must be forbidden on {$method} {$path}");
+            $data = json_decode($response->getContent(), true);
+            $this->assertFalse($data['success']);
+            $this->assertSame('FORBIDDEN', $data['error']['code']);
+        }
+    }
+
+    /**
+     * SEC-01 Test 10: Authentication behavior is consistent across relevant protected endpoints.
+     */
+    public function testAuthenticationBehaviorIsConsistentAcrossRelevantProtectedEndpoints(): void
+    {
+        $_SESSION = [];
+
+        $endpoints = [
+            ['GET', '/api/v1/auth/me'],
+            ['POST', '/api/v1/rooms', ['game_id' => 1, 'title' => 'Room']],
+            ['GET', '/api/v1/admin/users'],
+            ['GET', '/api/v1/dm/assignments'],
+            ['GET', '/api/v1/notifications'],
+        ];
+
+        foreach ($endpoints as $ep) {
+            [$method, $path] = $ep;
+            $body = $ep[2] ?? [];
+
+            // Unauthenticated with forged Bearer 1
+            $request = new Request($method, $path, [], $body, ['Authorization' => 'Bearer 1']);
+            $response = $this->app->dispatch($request);
+
+            $this->assertSame(401, $response->getStatusCode(), "Endpoint {$method} {$path} must consistently return 401");
+            $data = json_decode($response->getContent(), true);
+            $this->assertFalse($data['success']);
+            $this->assertSame('UNAUTHORIZED', $data['error']['code']);
+            $this->assertArrayHasKey('message', $data);
+        }
+    }
 }

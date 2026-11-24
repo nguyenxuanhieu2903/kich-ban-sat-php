@@ -63,6 +63,7 @@ class GameRoomApiTest extends TestCase
 
     public function testCanCreateRoomWhenLoggedIn(): void
     {
+        $_SESSION['user_id'] = 1;
         $request = new Request(
             method: 'POST',
             path: '/api/rooms',
@@ -107,6 +108,7 @@ class GameRoomApiTest extends TestCase
     public function testCanJoinAndLeaveRoom(): void
     {
         // 1. User 4 (Trần Minh Anh) join Room 1
+        $_SESSION['user_id'] = 4;
         $joinReq = new Request(
             method: 'POST',
             path: '/api/rooms/1/join',
@@ -160,6 +162,7 @@ class GameRoomApiTest extends TestCase
         $pdo = \App\Infrastructure\Database\DatabaseConnection::getInstance();
 
         // 1. Tạo phòng mới với User 3
+        $_SESSION['user_id'] = 3;
         $createReq = new Request(
             method: 'POST',
             path: '/api/v1/rooms',
@@ -178,6 +181,7 @@ class GameRoomApiTest extends TestCase
         $roomId = (int) $createData['data']['room']['id'];
 
         // 2. User 4 join vào phòng
+        $_SESSION['user_id'] = 4;
         $join4 = new Request('POST', "/api/v1/rooms/{$roomId}/join", [], [], ['Authorization' => 'Bearer 4']);
         $res4 = $this->app->dispatch($join4);
         $this->assertSame(200, $res4->getStatusCode());
@@ -186,6 +190,7 @@ class GameRoomApiTest extends TestCase
         $pdo->exec("UPDATE `game_rooms` SET `status` = 'CONFIRMED' WHERE `id` = {$roomId}");
 
         // 4. User 4 xin rút phòng -> Mở Replacement Window (OPEN)
+        $_SESSION['user_id'] = 4;
         $leave4 = new Request('POST', "/api/v1/rooms/{$roomId}/leave", [], [], ['Authorization' => 'Bearer 4']);
         $leaveRes4 = $this->app->dispatch($leave4);
         $this->assertSame(200, $leaveRes4->getStatusCode());
@@ -194,6 +199,7 @@ class GameRoomApiTest extends TestCase
         $this->assertSame('OPEN', $leaveData4['data']['replacement_status']);
 
         // 5. User 1 (Admin) tham gia thế chỗ slot của User 4
+        $_SESSION['user_id'] = 1;
         $takeoverReq = new Request('POST', "/api/v1/rooms/{$roomId}/join", [], [], ['Authorization' => 'Bearer 1']);
         $takeoverRes = $this->app->dispatch($takeoverReq);
         $this->assertSame(200, $takeoverRes->getStatusCode());
@@ -222,6 +228,7 @@ class GameRoomApiTest extends TestCase
         $pdo = \App\Infrastructure\Database\DatabaseConnection::getInstance();
 
         // 1. User 3 tạo phòng với min_players = 2, max_players = 2
+        $_SESSION['user_id'] = 3;
         $createReq = new Request(
             method: 'POST',
             path: '/api/v1/rooms',
@@ -241,11 +248,13 @@ class GameRoomApiTest extends TestCase
         $roomId = (int) json_decode($createRes->getContent(), true)['data']['room']['id'];
 
         // 2. User 4 tham gia slot thứ 2 (slot cuối)
+        $_SESSION['user_id'] = 4;
         $join4 = new Request('POST', "/api/v1/rooms/{$roomId}/join", [], [], ['Authorization' => 'Bearer 4']);
         $res4 = $this->app->dispatch($join4);
         $this->assertSame(200, $res4->getStatusCode());
 
         // 3. User 1 (Admin) cố tham gia khi phòng đã đầy (2/2) -> Báo lỗi ROOM_FULL 400
+        $_SESSION['user_id'] = 1;
         $join1 = new Request('POST', "/api/v1/rooms/{$roomId}/join", [], [], ['Authorization' => 'Bearer 1']);
         $res1 = $this->app->dispatch($join1);
         $this->assertSame(400, $res1->getStatusCode());
@@ -269,6 +278,7 @@ class GameRoomApiTest extends TestCase
         $pdo = \App\Infrastructure\Database\DatabaseConnection::getInstance();
 
         // 1. User 3 tạo phòng
+        $_SESSION['user_id'] = 3;
         $createReq = new Request('POST', '/api/v1/rooms', [], [
             'game_id' => 1,
             'title' => 'Phòng test Scheduled Room Rejection',
@@ -281,6 +291,7 @@ class GameRoomApiTest extends TestCase
         $pdo->exec("UPDATE `game_rooms` SET `status` = 'SCHEDULED' WHERE `id` = {$roomId}");
 
         // 3. User 4 cố tham gia phòng đã SCHEDULED -> Báo lỗi ROOM_NOT_FORMING 400
+        $_SESSION['user_id'] = 4;
         $joinReq = new Request('POST', "/api/v1/rooms/{$roomId}/join", [], [], ['Authorization' => 'Bearer 4']);
         $joinRes = $this->app->dispatch($joinReq);
         $this->assertSame(400, $joinRes->getStatusCode());
@@ -290,6 +301,7 @@ class GameRoomApiTest extends TestCase
 
     public function testCreatorActiveRoomLimitCannotExceedThree(): void
     {
+        $_SESSION['user_id'] = 3;
         $pdo = \App\Infrastructure\Database\DatabaseConnection::getInstance();
         // Hủy các phòng cũ của User 3
         $pdo->exec("UPDATE `game_rooms` SET `status` = 'CANCELLED' WHERE `creator_id` = 3 AND `status` = 'FORMING'");
@@ -317,6 +329,7 @@ class GameRoomApiTest extends TestCase
 
     public function testFormationTimeoutDefaultsToFourHours(): void
     {
+        $_SESSION['user_id'] = 3;
         $pdo = \App\Infrastructure\Database\DatabaseConnection::getInstance();
 
         $createReq = new Request('POST', '/api/v1/rooms', [], [
@@ -344,6 +357,7 @@ class GameRoomApiTest extends TestCase
         $pdo = \App\Infrastructure\Database\DatabaseConnection::getInstance();
 
         // 1. Tạo phòng với User 3
+        $_SESSION['user_id'] = 3;
         $createReq = new Request('POST', '/api/v1/rooms', [], [
             'game_id' => 1,
             'title' => 'Phòng test Leave Within 30 Mins',
@@ -353,6 +367,7 @@ class GameRoomApiTest extends TestCase
         $roomId = (int) json_decode($createRes->getContent(), true)['data']['room']['id'];
 
         // 2. User 4 tham gia
+        $_SESSION['user_id'] = 4;
         $join4 = new Request('POST', "/api/v1/rooms/{$roomId}/join", [], [], ['Authorization' => 'Bearer 4']);
         $this->assertSame(200, $this->app->dispatch($join4)->getStatusCode());
 
@@ -371,6 +386,7 @@ class GameRoomApiTest extends TestCase
                     VALUES ({$roomId}, {$propId}, {$dmAssignId}, 1, 1, '{$sessionStart}', '{$sessionEnd}', 'SCHEDULED', NOW(), NOW())");
 
         // 4. User 4 xin rút phòng -> Bị từ chối vì cách giờ chơi < 30 phút
+        $_SESSION['user_id'] = 4;
         $leaveReq = new Request('POST', "/api/v1/rooms/{$roomId}/leave", [], [], ['Authorization' => 'Bearer 4']);
         $leaveRes = $this->app->dispatch($leaveReq);
         $this->assertSame(400, $leaveRes->getStatusCode());
@@ -383,6 +399,7 @@ class GameRoomApiTest extends TestCase
         $pdo = \App\Infrastructure\Database\DatabaseConnection::getInstance();
 
         // 1. Tạo phòng với User 3
+        $_SESSION['user_id'] = 3;
         $createReq = new Request('POST', '/api/v1/rooms', [], [
             'game_id' => 1,
             'title' => 'Phòng test Replacement Deadline Capped By Session',
@@ -392,6 +409,7 @@ class GameRoomApiTest extends TestCase
         $roomId = (int) json_decode($createRes->getContent(), true)['data']['room']['id'];
 
         // 2. User 4 tham gia
+        $_SESSION['user_id'] = 4;
         $join4 = new Request('POST', "/api/v1/rooms/{$roomId}/join", [], [], ['Authorization' => 'Bearer 4']);
         $this->assertSame(200, $this->app->dispatch($join4)->getStatusCode());
 
@@ -410,6 +428,7 @@ class GameRoomApiTest extends TestCase
                     VALUES ({$roomId}, {$propId}, {$dmAssignId}, 1, 1, '{$sessionStart}', '{$sessionEnd}', 'SCHEDULED', NOW(), NOW())");
 
         // 4. User 4 xin rút phòng -> Thành công, deadline capped ở sessionStart
+        $_SESSION['user_id'] = 4;
         $leaveReq = new Request('POST', "/api/v1/rooms/{$roomId}/leave", [], [], ['Authorization' => 'Bearer 4']);
         $leaveRes = $this->app->dispatch($leaveReq);
         $this->assertSame(200, $leaveRes->getStatusCode());

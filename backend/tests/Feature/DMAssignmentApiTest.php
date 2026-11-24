@@ -49,6 +49,7 @@ class DMAssignmentApiTest extends TestCase
     public function testPlayerCannotAccessDMAssignments(): void
     {
         // User 3 is PLAYER
+        $_SESSION['user_id'] = 3;
         $request = new Request(
             method: 'GET',
             path: '/api/v1/dm/assignments',
@@ -70,6 +71,7 @@ class DMAssignmentApiTest extends TestCase
     public function testDMCanListTheirAssignments(): void
     {
         // User 2 is DM (Host Hoàng Nam)
+        $_SESSION['user_id'] = 2;
         $request = new Request(
             method: 'GET',
             path: '/api/v1/dm/assignments',
@@ -99,6 +101,7 @@ class DMAssignmentApiTest extends TestCase
         $pdo = DatabaseConnection::getInstance();
         $pdo->exec("UPDATE `users` SET `role_id` = (SELECT `id` FROM `roles` WHERE `code` = 'DM' LIMIT 1) WHERE `id` = 4");
 
+        $_SESSION['user_id'] = 4;
         $idorReq = new Request(
             method: 'POST',
             path: "/api/v1/dm/assignments/{$assignmentId}/accept",
@@ -115,6 +118,7 @@ class DMAssignmentApiTest extends TestCase
         $this->assertSame('FORBIDDEN', $idorData['error']['code']);
 
         // 3. Đúng DM được phân công (User 2) accept
+        $_SESSION['user_id'] = 2;
         $acceptReq = new Request(
             method: 'POST',
             path: "/api/v1/dm/assignments/{$assignmentId}/accept",
@@ -145,6 +149,7 @@ class DMAssignmentApiTest extends TestCase
         $assignmentId = $this->dmRepo->assignToRoom($roomId, 2, 'Phân công ca tối', 1);
 
         // 2. Từ chối nhưng thiếu lý do -> 422
+        $_SESSION['user_id'] = 2;
         $emptyReasonReq = new Request(
             method: 'POST',
             path: "/api/v1/dm/assignments/{$assignmentId}/reject",
@@ -187,6 +192,7 @@ class DMAssignmentApiTest extends TestCase
         $roomId = (int) $pdo->lastInsertId();
 
         // 1. Player (User 3) cố tình phân công DM -> 403
+        $_SESSION['user_id'] = 3;
         $forbiddenReq = new Request(
             method: 'POST',
             path: "/api/v1/admin/rooms/{$roomId}/assign-dm",
@@ -203,6 +209,7 @@ class DMAssignmentApiTest extends TestCase
         $this->assertSame(403, $forbiddenRes->getStatusCode());
 
         // 2. Admin (User 1) phân công DM 2 -> 201
+        $_SESSION['user_id'] = 1;
         $adminReq = new Request(
             method: 'POST',
             path: "/api/v1/admin/rooms/{$roomId}/assign-dm",
@@ -231,6 +238,7 @@ class DMAssignmentApiTest extends TestCase
 
     public function testAdminCannotAssignInvalidDMOrToInvalidRoom(): void
     {
+        $_SESSION['user_id'] = 1;
         // 1. Phân công cho phòng không tồn tại -> 404
         $notFoundReq = new Request(
             method: 'POST',
@@ -267,6 +275,7 @@ class DMAssignmentApiTest extends TestCase
         $this->assertSame('PENDING', $status1);
 
         // 2. Admin phân công lại qua API
+        $_SESSION['user_id'] = 1;
         $reassignReq = new Request(
             method: 'POST',
             path: "/api/v1/admin/rooms/{$roomId}/assign-dm",
@@ -310,6 +319,7 @@ class DMAssignmentApiTest extends TestCase
         $sessId = (int) $pdo->lastInsertId();
 
         // DM 2 từ chối ca với lý do
+        $_SESSION['user_id'] = 2;
         $rejectReq = new Request(
             method: 'POST',
             path: "/api/v1/dm/assignments/{$assignId}/reject",
@@ -337,6 +347,7 @@ class DMAssignmentApiTest extends TestCase
         $this->assertGreaterThan(0, (int) $notiStmt->fetchColumn());
 
         // Admin thực hiện phân công lại DM qua endpoint reassignSession
+        $_SESSION['user_id'] = 1;
         $reassignReq = new Request(
             method: 'POST',
             path: "/api/v1/admin/sessions/{$roomId}/reassign-dm",
@@ -355,6 +366,7 @@ class DMAssignmentApiTest extends TestCase
         $newAssignId = (int) $reassignData['data']['assignment']['id'];
 
         // DM mới accept -> Session được kết nối lại với assignment mới
+        $_SESSION['user_id'] = 2;
         $acceptReq = new Request(
             method: 'POST',
             path: "/api/v1/dm/assignments/{$newAssignId}/accept",
@@ -402,6 +414,7 @@ class DMAssignmentApiTest extends TestCase
         $assign2Id = $this->dmRepo->assignToRoom($room2Id, 2, 'Ca trùng lịch', 1);
 
         // 3. DM 2 cố tình Accept ca trùng lịch -> 400 DM_SCHEDULE_CONFLICT
+        $_SESSION['user_id'] = 2;
         $acceptConflictReq = new Request(
             method: 'POST',
             path: "/api/v1/dm/assignments/{$assign2Id}/accept",
@@ -428,6 +441,7 @@ class DMAssignmentApiTest extends TestCase
         $assignId = $this->dmRepo->assignToRoom($roomId, 2, 'Phân công trước khi hủy', 1);
 
         // Admin hủy phòng
+        $_SESSION['user_id'] = 1;
         $cancelReq = new Request(
             method: 'POST',
             path: "/api/v1/admin/rooms/{$roomId}/cancel",

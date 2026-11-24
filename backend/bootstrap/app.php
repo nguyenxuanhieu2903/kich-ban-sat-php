@@ -13,6 +13,11 @@ if (file_exists($autoloader)) {
 // Initialize environment configuration
 App\Infrastructure\Config\Config::load($basePath);
 
+// Ensure session is started for application lifecycle
+if (session_status() === PHP_SESSION_NONE && !headers_sent()) {
+    @session_start();
+}
+
 // Instantiate application
 $app = new App\Core\Application($basePath);
 

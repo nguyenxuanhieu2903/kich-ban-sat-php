@@ -45,6 +45,7 @@ class SchedulingApiTest extends TestCase
     public function testCanProposeAndVoteSchedule(): void
     {
         // 1. Tạo phòng mới với User 3 (Nguyễn Xuân Hiếu)
+        $_SESSION['user_id'] = 3;
         $createReq = new Request(
             method: 'POST',
             path: '/api/rooms',
@@ -63,6 +64,7 @@ class SchedulingApiTest extends TestCase
         $roomId = (int) $createData['data']['room']['id'];
 
         // 2. User 4 (Trần Minh Anh) tham gia phòng
+        $_SESSION['user_id'] = 4;
         $joinReq = new Request(
             method: 'POST',
             path: "/api/rooms/{$roomId}/join",
@@ -79,6 +81,7 @@ class SchedulingApiTest extends TestCase
         $start = date('Y-m-d H:i:s', strtotime('+2 days 18:00:00'));
         $end = date('Y-m-d H:i:s', strtotime('+2 days 22:00:00'));
 
+        $_SESSION['user_id'] = 3;
         $propReq = new Request(
             method: 'POST',
             path: "/api/rooms/{$roomId}/proposals",
@@ -105,6 +108,7 @@ class SchedulingApiTest extends TestCase
         $this->assertCount(1, $showData['data']['proposal']['votes']); // User 3 tự động vote ACCEPTED
 
         // 5. User 4 vote ACCEPTED -> Đủ 2/2 phiếu -> Tự động chốt Session!
+        $_SESSION['user_id'] = 4;
         $voteReq = new Request(
             method: 'POST',
             path: "/api/proposals/{$proposalId}/vote",
@@ -129,6 +133,7 @@ class SchedulingApiTest extends TestCase
         $this->assertSame('SCHEDULED', $roomStatus);
 
         // 7. DEF-01: Ngăn người ngoài tiếp tục Join GameRoom đã chốt lịch
+        $_SESSION['user_id'] = 1;
         $joinAfterScheduled = new Request(
             method: 'POST',
             path: "/api/rooms/{$roomId}/join",
@@ -151,6 +156,7 @@ class SchedulingApiTest extends TestCase
     public function testDEF25ScheduleConfirmationWithPendingDMAssignmentCreatesSessionAndKeepsDMPending(): void
     {
         // 1. Tạo phòng mới với User 3
+        $_SESSION['user_id'] = 3;
         $createReq = new Request(
             method: 'POST',
             path: '/api/v1/rooms',
@@ -168,11 +174,13 @@ class SchedulingApiTest extends TestCase
         $roomId = (int) json_decode($createRes->getContent(), true)['data']['room']['id'];
 
         // 2. User 4 tham gia phòng
+        $_SESSION['user_id'] = 4;
         $joinReq = new Request('POST', "/api/v1/rooms/{$roomId}/join", [], [], ['Authorization' => 'Bearer 4']);
         $joinRes = $this->app->dispatch($joinReq);
         $this->assertSame(200, $joinRes->getStatusCode());
 
         // 3. Admin (User 1) phân công DM 2 -> assignment ở trạng thái PENDING
+        $_SESSION['user_id'] = 1;
         $assignReq = new Request(
             method: 'POST',
             path: "/api/v1/admin/rooms/{$roomId}/assign-dm",
@@ -187,6 +195,7 @@ class SchedulingApiTest extends TestCase
         // 4. User 3 tạo đề xuất lịch
         $start = date('Y-m-d H:i:s', strtotime('+3 days 14:00:00'));
         $end = date('Y-m-d H:i:s', strtotime('+3 days 18:00:00'));
+        $_SESSION['user_id'] = 3;
         $propReq = new Request('POST', "/api/v1/rooms/{$roomId}/proposals", [], [
             'proposed_start_at' => $start,
             'proposed_end_at' => $end,
@@ -196,6 +205,7 @@ class SchedulingApiTest extends TestCase
         $propId = (int) json_decode($propRes->getContent(), true)['data']['proposal_id'];
 
         // 5. User 4 vote ACCEPTED -> 100% đồng ý
+        $_SESSION['user_id'] = 4;
         $voteReq = new Request('POST', "/api/v1/proposals/{$propId}/vote", [], ['response' => 'ACCEPTED'], ['Authorization' => 'Bearer 4']);
         $voteRes = $this->app->dispatch($voteReq);
         $this->assertSame(200, $voteRes->getStatusCode());

@@ -26,7 +26,7 @@ class PaymentApiTest extends TestCase
         $basePath = dirname(__DIR__, 2);
         Config::load($basePath);
         $this->app = new Application($basePath);
-        $_SESSION = [];
+        $_SESSION = ['user_id' => 3];
 
         $this->pdo = DatabaseConnection::getInstance();
         $this->paymentRepo = new PaymentRepository($this->pdo);
@@ -54,8 +54,10 @@ class PaymentApiTest extends TestCase
         $roomId = (int) json_decode($createRes->getContent(), true)['data']['room']['id'];
 
         // 2. User 4 join phòng
+        $_SESSION['user_id'] = 4;
         $join4 = new Request('POST', "/api/v1/rooms/{$roomId}/join", [], [], ['Authorization' => 'Bearer 4']);
         $res4 = $this->app->dispatch($join4);
+        $_SESSION['user_id'] = 3;
         $this->assertSame(200, $res4->getStatusCode());
 
         // 3. Kiểm tra DB: Hoàn toàn KHÔNG có hóa đơn nào được tạo trong player_payments
@@ -86,8 +88,10 @@ class PaymentApiTest extends TestCase
         $createRes = $this->app->dispatch($createReq);
         $roomId = (int) json_decode($createRes->getContent(), true)['data']['room']['id'];
 
+        $_SESSION['user_id'] = 4;
         $join4 = new Request('POST', "/api/v1/rooms/{$roomId}/join", [], [], ['Authorization' => 'Bearer 4']);
         $this->app->dispatch($join4);
+        $_SESSION['user_id'] = 3;
 
         // 2. User 3 tạo đề xuất lịch -> Chuyển sang giai đoạn biểu quyết lịch
         $start = date('Y-m-d H:i:s', strtotime('+2 days 18:00:00'));
@@ -142,8 +146,10 @@ class PaymentApiTest extends TestCase
         ], ['Authorization' => 'Bearer 3']);
         $roomId = (int) json_decode($this->app->dispatch($createReq)->getContent(), true)['data']['room']['id'];
 
+        $_SESSION['user_id'] = 4;
         $join4 = new Request('POST', "/api/v1/rooms/{$roomId}/join", [], [], ['Authorization' => 'Bearer 4']);
         $this->app->dispatch($join4);
+        $_SESSION['user_id'] = 3;
 
         // 2. Đề xuất lịch lần 1
         $start1 = date('Y-m-d H:i:s', strtotime('+2 days 18:00:00'));
@@ -247,8 +253,10 @@ class PaymentApiTest extends TestCase
         )->fetchColumn();
 
         // 2. User 4 (không phải chủ sở hữu) cố tình thanh toán hóa đơn của User 3 -> 403 Forbidden
+        $_SESSION['user_id'] = 4;
         $idorReq = new Request('POST', "/api/v1/payments/{$payIdUser3}/deposit", [], [], ['Authorization' => 'Bearer 4']);
         $idorRes = $this->app->dispatch($idorReq);
+        $_SESSION['user_id'] = 3;
         $this->assertSame(403, $idorRes->getStatusCode());
         $idorData = json_decode($idorRes->getContent(), true);
         $this->assertSame('FORBIDDEN', $idorData['error']['code']);
@@ -463,8 +471,10 @@ class PaymentApiTest extends TestCase
         ], ['Authorization' => 'Bearer 3']);
         $roomId = (int) json_decode($this->app->dispatch($createReq)->getContent(), true)['data']['room']['id'];
 
+        $_SESSION['user_id'] = 4;
         $join4 = new Request('POST', "/api/v1/rooms/{$roomId}/join", [], [], ['Authorization' => 'Bearer 4']);
         $this->app->dispatch($join4);
+        $_SESSION['user_id'] = 3;
 
         // 2. Mở proposal và thanh toán cọc cho User 4
         $propReq = new Request('POST', "/api/v1/rooms/{$roomId}/proposals", [], [
@@ -478,6 +488,7 @@ class PaymentApiTest extends TestCase
              INNER JOIN `room_participants` rp ON rp.`id` = pp.`room_participant_id`
              WHERE rp.`game_room_id` = {$roomId} AND rp.`user_id` = 4"
         )->fetchColumn();
+        $_SESSION['user_id'] = 4;
         $this->app->dispatch(new Request('POST', "/api/v1/payments/{$payIdUser4}/deposit", [], [], ['Authorization' => 'Bearer 4']));
 
         // Chuyển phòng sang CONFIRMED và User 4 xin rút phòng
@@ -486,6 +497,7 @@ class PaymentApiTest extends TestCase
         $this->app->dispatch($leave4);
 
         // 3. User 1 (Admin/người chơi khác) nhận thay thế slot
+        $_SESSION['user_id'] = 1;
         $takeover = new Request('POST', "/api/v1/rooms/{$roomId}/join", [], [], ['Authorization' => 'Bearer 1']);
         $resTakeover = $this->app->dispatch($takeover);
         $this->assertSame(200, $resTakeover->getStatusCode());

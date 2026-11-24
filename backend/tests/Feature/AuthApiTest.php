@@ -132,7 +132,7 @@ class AuthApiTest extends TestCase
         $this->assertFalse($data['success']);
     }
 
-    public function testCanGetProfileViaBearerHeader(): void
+    public function testCannotGetProfileViaBearerHeaderWhenSessionIsMissing(): void
     {
         // Register a dedicated user
         $email = 'bearer_user_' . uniqid() . '@test.vn';
@@ -150,7 +150,7 @@ class AuthApiTest extends TestCase
         $regData = json_decode($regResponse->getContent(), true);
         $userId = $regData['data']['user']['id'];
 
-        // Clear session
+        // Clear session: client-supplied Bearer User ID must NOT authenticate
         $_SESSION = [];
 
         $request = new Request(
@@ -164,11 +164,45 @@ class AuthApiTest extends TestCase
         );
 
         $response = $this->app->dispatch($request);
+        $this->assertSame(401, $response->getStatusCode());
+
+        $data = json_decode($response->getContent(), true);
+        $this->assertFalse($data['success']);
+        $this->assertSame('UNAUTHORIZED', $data['error']['code']);
+    }
+
+    public function testCanGetProfileViaSession(): void
+    {
+        // Register a dedicated user
+        $email = 'session_user_' . uniqid() . '@test.vn';
+        $regRequest = new Request(
+            method: 'POST',
+            path: '/api/auth/register',
+            queryParams: [],
+            bodyParams: [
+                'full_name' => 'Session User',
+                'email' => $email,
+                'password' => 'pass123456',
+            ]
+        );
+        $regResponse = $this->app->dispatch($regRequest);
+        $regData = json_decode($regResponse->getContent(), true);
+        $userId = $regData['data']['user']['id'];
+
+        // Set valid server-side session
+        $_SESSION['user_id'] = $userId;
+
+        $request = new Request(
+            method: 'GET',
+            path: '/api/auth/me'
+        );
+
+        $response = $this->app->dispatch($request);
         $this->assertSame(200, $response->getStatusCode());
 
         $data = json_decode($response->getContent(), true);
         $this->assertTrue($data['success']);
-        $this->assertSame('Bearer User', $data['data']['user']['full_name']);
+        $this->assertSame('Session User', $data['data']['user']['full_name']);
         $this->assertSame($email, $data['data']['user']['email']);
     }
 

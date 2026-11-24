@@ -22,7 +22,10 @@ class NotificationApiTest extends TestCase
         $basePath = dirname(__DIR__, 2);
         Config::load($basePath);
         $this->app = new Application($basePath);
-        $_SESSION = [];
+        if (session_status() === PHP_SESSION_NONE) {
+            @session_start();
+        }
+        $_SESSION = ['user_id' => 3];
 
         $pdo = DatabaseConnection::getInstance();
         $this->notiRepo = new NotificationRepository($pdo);
