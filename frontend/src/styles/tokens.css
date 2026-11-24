@@ -1,0 +1,30 @@
+/* Design tokens — đồng bộ bảng màu Dark Luxury đã kiểm chứng. */
+:root {
+  --bg-primary: #0D0D0D;
+  --bg-surface: #181614;
+  --bg-elevated: #23201D;
+  --bg-paper: #F5F2EB;
+  --bg-paper-dark: #E6E0D2;
+
+  --color-crimson: #992B2B;
+  --color-crimson-hover: #B53333;
+  --color-gold: #D4AF37;
+  --color-gold-light: #E6C65C;
+
+  --text-light: #F5F2EB;
+  --text-muted: #9E9589;
+  --text-ink: #1A1816;
+
+  --status-open: #2E7D32;
+  --status-hold: #D97706;
+  --status-locked: #992B2B;
+
+  --font-serif: 'Playfair Display', Georgia, serif;
+  --font-sans: 'Be Vietnam Pro', 'Inter', system-ui, -apple-system, sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --shadow-ticket: 0 10px 30px rgba(0, 0, 0, 0.65);
+  --transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}

@@ -1,0 +1,139 @@
+.create-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.05fr) minmax(0, 0.95fr);
+  gap: 22px;
+  align-items: start;
+}
+
+.create-panel {
+  min-width: 0;
+  border-radius: var(--kbs-radius);
+  box-shadow: var(--kbs-shadow);
+}
+
+.create-panel--form {
+  background: var(--kbs-paper);
+  color: var(--kbs-ink);
+  padding: 24px;
+}
+
+.create-panel--preview {
+  background: var(--kbs-panel);
+  padding: 22px 18px;
+  border: 1px solid #2c2c28;
+}
+
+.create-badge {
+  display: inline-block;
+  margin: 0 0 10px;
+  padding: 4px 8px;
+  background: var(--kbs-crimson);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  border-radius: 3px;
+}
+
+.create-panel h2 {
+  margin: 0 0 16px;
+  font-family: var(--kbs-font-serif);
+  font-size: 1.35rem;
+}
+
+.create-form {
+  display: grid;
+  gap: 14px;
+}
+
+.create-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.create-game-info {
+  padding: 12px 14px;
+  background: #f3f0e7;
+  border: 1px solid #e6e0d4;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  color: #3e3932;
+}
+
+.create-game-info strong {
+  color: var(--kbs-ink);
+}
+
+.create-eligibility {
+  padding: 10px 12px;
+  border-radius: 8px;
+  font-size: 0.88rem;
+  border: 1px solid #e6e0d4;
+  background: #f3f0e7;
+}
+
+.create-eligibility.is-ok {
+  border-color: rgba(46, 125, 50, 0.35);
+}
+
+.create-eligibility.is-bad {
+  border-color: rgba(153, 43, 43, 0.45);
+  color: #8d2d2d;
+}
+
+.create-preview-title {
+  margin: 0 0 6px;
+  font-family: var(--kbs-font-serif);
+  font-size: 1.4rem;
+  color: var(--kbs-gold);
+}
+
+.create-preview-meta {
+  color: var(--kbs-muted);
+  font-size: 0.9rem;
+  display: grid;
+  gap: 6px;
+  margin-bottom: 16px;
+}
+
+.create-price {
+  border-top: 1px dashed rgba(212, 175, 55, 0.35);
+  padding-top: 12px;
+}
+
+.create-price h3 {
+  margin: 0 0 10px;
+  font-family: var(--kbs-font-serif);
+  font-size: 1.1rem;
+  color: var(--kbs-cream);
+}
+
+.create-price-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 7px 0;
+  font-size: 0.92rem;
+  color: var(--kbs-muted);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.create-price-row strong {
+  color: var(--kbs-cream);
+}
+
+.create-price-row.is-total strong {
+  color: var(--kbs-gold);
+}
+
+@media (max-width: 900px) {
+  .create-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .create-row {
+    grid-template-columns: 1fr;
+  }
+}
