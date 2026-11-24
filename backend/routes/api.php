@@ -77,24 +77,37 @@ $registerApiRoutes = function (string $prefix) use ($router): void {
     // DOMAIN 3: GAMEROOM MANAGEMENT & PRICING SNAPSHOT API
     // =============================================================
     $router->get($prefix . '/rooms', [GameRoomController::class, 'index']);
+    $router->get($prefix . '/game-rooms', [GameRoomController::class, 'index']);
     $router->post($prefix . '/rooms', [GameRoomController::class, 'create']);
+    $router->post($prefix . '/game-rooms', [GameRoomController::class, 'create']);
     $router->get($prefix . '/rooms/{id}', [GameRoomController::class, 'show']);
+    $router->get($prefix . '/game-rooms/{id}', [GameRoomController::class, 'show']);
     $router->post($prefix . '/rooms/{id}/join', [GameRoomController::class, 'join']);
+    $router->post($prefix . '/game-rooms/{id}/join', [GameRoomController::class, 'join']);
     $router->post($prefix . '/rooms/{id}/leave', [GameRoomController::class, 'leave']);
+    $router->post($prefix . '/game-rooms/{id}/leave', [GameRoomController::class, 'leave']);
     $router->post($prefix . '/rooms/{id}/cancel', [GameRoomController::class, 'cancel']);
+    $router->post($prefix . '/game-rooms/{id}/cancel', [GameRoomController::class, 'cancel']);
 
     // Pricing calculation & snapshot
     $router->post($prefix . '/rooms/{id}/calculate-price', [PricingController::class, 'calculate']);
+    $router->post($prefix . '/game-rooms/{id}/calculate-price', [PricingController::class, 'calculate']);
     $router->get($prefix . '/rooms/{id}/price-snapshot', [PricingController::class, 'snapshot']);
+    $router->get($prefix . '/game-rooms/{id}/price-snapshot', [PricingController::class, 'snapshot']);
 
-    // Admin GameRoom Cancel with 24-hour Cutoff
+    // Admin GameRoom Management & Cancellation with 24-hour Cutoff
+    $router->get($prefix . '/admin/rooms', [GameRoomController::class, 'index']);
+    $router->get($prefix . '/admin/game-rooms', [GameRoomController::class, 'index']);
     $router->post($prefix . '/admin/rooms/{id}/cancel', [AdminGameRoomController::class, 'cancel']);
+    $router->post($prefix . '/admin/game-rooms/{id}/cancel', [AdminGameRoomController::class, 'cancel']);
+    $router->post($prefix . '/admin/game-rooms/{id}/assign-dm', [DMAssignmentController::class, 'assign']);
 
     // =============================================================
     // DOMAIN 4 & 5: SCHEDULING, VOTING & VENUES API
     // =============================================================
     $router->get($prefix . '/venues', [SchedulingController::class, 'venues']);
     $router->post($prefix . '/rooms/{id}/proposals', [SchedulingController::class, 'propose']);
+    $router->post($prefix . '/game-rooms/{id}/proposals', [SchedulingController::class, 'propose']);
     $router->get($prefix . '/proposals/{id}', [SchedulingController::class, 'showProposal']);
     $router->post($prefix . '/proposals/{id}/vote', [SchedulingController::class, 'vote']);
 

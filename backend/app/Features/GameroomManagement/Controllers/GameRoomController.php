@@ -46,12 +46,13 @@ class GameRoomController
         $sql = 'SELECT gr.`id`, gr.`game_id`, gr.`creator_id`, gr.`title`, gr.`description`,
                        gr.`min_players`, gr.`max_players`, gr.`status`, gr.`formation_deadline_at`,
                        gr.`replacement_status`, gr.`replacement_deadline_at`,
-                       g.`name` AS `game_name`, g.`image_url` AS `game_image_url`, g.`duration_minutes`,
-                       u.`full_name` AS `creator_name`,
+                       g.`name` AS `game_name`, g.`name` AS `game_title`, g.`image_url` AS `game_image_url`, g.`duration_minutes`,
+                       u.`full_name` AS `creator_name`, u.`full_name` AS `host_name`,
                        (SELECT COUNT(*) FROM `room_participants` rp
                         WHERE rp.`game_room_id` = gr.`id`
                           AND rp.`status` IN (\'PENDING_DEPOSIT\', \'DEPOSITED\', \'LEAVE_REQUESTED\')
-                       ) AS `current_players`
+                       ) AS `current_players`,
+                       (SELECT s.`start_at` FROM `sessions` s WHERE s.`game_room_id` = gr.`id` LIMIT 1) AS `session_start_at`
                 FROM `game_rooms` gr
                 INNER JOIN `games` g ON g.`id` = gr.`game_id`
                 INNER JOIN `users` u ON u.`id` = gr.`creator_id`

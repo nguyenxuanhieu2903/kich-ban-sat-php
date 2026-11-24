@@ -79,3 +79,11 @@ test('Phase C: Public Venues API returns active branches and physical rooms', as
   assert.ok(Array.isArray(v.rooms), 'Venue has rooms array');
   assert.ok(v.rooms.length >= 1, 'Venue has at least 1 physical room');
 });
+
+test('Phase C: Public Game-Rooms API alias (/api/v1/game-rooms) is reachable and returns 200', async () => {
+  const res = await fetch(`${BASE_URL}/api/v1/game-rooms`);
+  assert.equal(res.status, 200, 'GET /api/v1/game-rooms returns 200 OK');
+  const data = await res.json();
+  assert.equal(data.success, true);
+  assert.ok(Array.isArray(data.data.rooms), 'Returns rooms array');
+});

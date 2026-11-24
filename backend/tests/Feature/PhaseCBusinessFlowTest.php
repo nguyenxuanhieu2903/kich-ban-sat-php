@@ -242,4 +242,33 @@ class PhaseCBusinessFlowTest extends TestCase
         $delVenueReq = new Request('DELETE', "/api/v1/admin/venues/{$venueId}");
         $this->assertSame(200, $this->app->dispatch($delVenueReq)->getStatusCode());
     }
+
+    public function testGameRoomsEndpointAliasesSupported(): void
+    {
+        // 1. GET /api/v1/rooms
+        $res1 = $this->app->dispatch(new Request('GET', '/api/v1/rooms'));
+        $this->assertSame(200, $res1->getStatusCode());
+        $data1 = json_decode($res1->getContent(), true);
+        $this->assertTrue($data1['success']);
+        $this->assertArrayHasKey('rooms', $data1['data']);
+
+        // 2. GET /api/v1/game-rooms (Alias)
+        $res2 = $this->app->dispatch(new Request('GET', '/api/v1/game-rooms'));
+        $this->assertSame(200, $res2->getStatusCode());
+        $data2 = json_decode($res2->getContent(), true);
+        $this->assertTrue($data2['success']);
+        $this->assertArrayHasKey('rooms', $data2['data']);
+
+        // 3. GET /api/v1/admin/game-rooms (Alias)
+        $_SESSION = ['user_id' => 1, 'role' => 'ADMIN'];
+        $res3 = $this->app->dispatch(new Request('GET', '/api/v1/admin/game-rooms'));
+        $this->assertSame(200, $res3->getStatusCode());
+        $data3 = json_decode($res3->getContent(), true);
+        $this->assertTrue($data3['success']);
+        $this->assertArrayHasKey('rooms', $data3['data']);
+
+        // 4. GET /api/v1/admin/rooms (Alias)
+        $res4 = $this->app->dispatch(new Request('GET', '/api/v1/admin/rooms'));
+        $this->assertSame(200, $res4->getStatusCode());
+    }
 }

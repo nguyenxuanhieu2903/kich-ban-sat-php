@@ -295,8 +295,8 @@ export class AdminView {
     container.innerHTML = `<div style="text-align: center; padding: 30px; color: var(--color-text-muted);">Đang tải danh sách phòng...</div>`;
 
     try {
-      const res = await api.get('/game-rooms');
-      this.rooms = res.data || [];
+      const res = await api.get('/game-rooms?status=ALL');
+      this.rooms = res?.data?.rooms || (Array.isArray(res?.data) ? res.data : []);
 
       container.innerHTML = `
         <div class="card" style="padding: 0; overflow: hidden;">
@@ -317,7 +317,13 @@ export class AdminView {
                 </tr>
               </thead>
               <tbody>
-                ${this.rooms.map(r => `
+                ${this.rooms.length === 0 ? `
+                  <tr>
+                    <td colspan="6" style="text-align: center; padding: 30px; color: var(--color-text-muted);">
+                      Hiện chưa có phòng chơi nào.
+                    </td>
+                  </tr>
+                ` : this.rooms.map(r => `
                   <tr style="border-bottom: 1px solid var(--color-border);">
                     <td style="padding: 12px 16px; font-weight: 700; color: var(--color-primary);">${escapeHtml(r.room_code || '#' + r.id)}</td>
                     <td style="padding: 12px 16px; font-weight: 600;">${escapeHtml(r.game_title || 'Kịch bản')}</td>
