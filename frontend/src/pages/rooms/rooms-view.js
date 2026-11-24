@@ -90,8 +90,8 @@ export class RoomsView {
                   Host: <strong>${room.creator_name}</strong>
                 </div>
                 <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1px solid var(--color-border); padding-top: 14px;">
-                  <span style="font-size: 0.85rem; font-weight: 600; color: ${room.current_players >= room.max_players ? '#ef4444' : '#10b981'};">
-                     ${room.current_players} / ${room.max_players} người
+                  <span style="font-size: 0.85rem; font-weight: 600; color: ${room.current_players >= (room.total_players || room.max_players) ? '#ef4444' : '#10b981'};">
+                     ${Math.min(room.current_players || 1, room.total_players || room.max_players || 8)} / ${room.total_players || room.max_players || 8} người
                   </span>
                   <button class="btn btn-secondary btn-view-room" data-id="${room.id}" style="padding: 6px 14px; font-size: 0.85rem;">
                     Vào phòng &rarr;
@@ -133,7 +133,8 @@ export class RoomsView {
     const room = this.selectedRoom;
     const currentUser = authState.user;
     const isHost = currentUser && Number(currentUser.id) === Number(room.creator_id);
-    const participants = room.participants || [];
+    const participants = (room.participants || []).filter(p => p.status !== 'LEFT');
+    const effectiveMax = Number(room.total_players || room.max_players || 8);
     const myParticipant = currentUser ? participants.find(p => Number(p.user_id) === Number(currentUser.id)) : null;
     const isJoined = myParticipant && ['PENDING_DEPOSIT', 'DEPOSITED', 'LEAVE_REQUESTED'].includes(myParticipant.status);
     const isReplacementOpen = room.replacement_status === 'OPEN';
@@ -183,7 +184,7 @@ export class RoomsView {
           <div class="card" style="padding: 20px;">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
               <h3 style="font-size: 1.15rem; font-weight: 700; margin: 0;">
-                 Thành viên tham gia (${participants.length} / ${room.max_players})
+                 Thành viên tham gia (${Math.min(participants.length, effectiveMax)} / ${effectiveMax})
               </h3>
               <span style="font-size: 0.85rem; color: #10b981; font-weight: 600;">
                 Cọc cố định: 50.000đ / người

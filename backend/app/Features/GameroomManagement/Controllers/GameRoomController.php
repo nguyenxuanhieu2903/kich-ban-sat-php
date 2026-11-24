@@ -408,16 +408,23 @@ class GameRoomController
         }
 
         // TRƯỜNG HỢP 2: Vào phòng FORMING bình thường
-        if (count($activeParticipants) >= (int) $room['max_players']) {
-            return Response::fail('Phòng chơi đã đủ số lượng thành viên tối đa (' . $room['max_players'] . ' người)', 'ROOM_FULL', 400);
+        $effectiveMax = !empty($room['total_players']) && (int) $room['total_players'] > 0
+            ? (int) $room['total_players']
+            : (int) $room['max_players'];
+
+        if (count($activeParticipants) >= $effectiveMax) {
+            return Response::fail('Phòng chơi đã đủ số lượng thành viên tối đa (' . $effectiveMax . ' người)', 'ROOM_FULL', 400);
         }
 
         $this->pdo->beginTransaction();
         try {
-            $lockStmt = $this->pdo->prepare('SELECT `id`, `max_players` FROM `game_rooms` WHERE `id` = :id FOR UPDATE');
+            $lockStmt = $this->pdo->prepare('SELECT `id`, `max_players`, `total_players` FROM `game_rooms` WHERE `id` = :id FOR UPDATE');
             $lockStmt->bindValue(':id', $roomId, PDO::PARAM_INT);
             $lockStmt->execute();
-            $maxPlayers = (int) ($lockStmt->fetchColumn(1) ?: $room['max_players']);
+            $roomRow = $lockStmt->fetch(PDO::FETCH_ASSOC);
+            $effectiveMax = !empty($roomRow['total_players']) && (int) $roomRow['total_players'] > 0
+                ? (int) $roomRow['total_players']
+                : (int) ($roomRow['max_players'] ?? $room['max_players']);
 
             $cntStmt = $this->pdo->prepare(
                 'SELECT COUNT(*) FROM `room_participants`
@@ -427,9 +434,9 @@ class GameRoomController
             $cntStmt->execute();
             $currCount = (int) $cntStmt->fetchColumn();
 
-            if ($currCount >= $maxPlayers) {
+            if ($currCount >= $effectiveMax) {
                 $this->pdo->rollBack();
-                return Response::fail('Phòng chơi đã đủ số lượng thành viên tối đa (' . $maxPlayers . ' người)', 'ROOM_FULL', 400);
+                return Response::fail('Phòng chơi đã đủ số lượng thành viên tối đa (' . $effectiveMax . ' người)', 'ROOM_FULL', 400);
             }
 
             $participantId = $this->roomRepo->addParticipant($roomId, $userId);

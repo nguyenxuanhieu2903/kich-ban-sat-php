@@ -399,7 +399,7 @@
               <strong>${r.title || 'Phòng Chơi Nhập Vai'}</strong>
               <div style="font-size: 0.8rem; color: var(--text-muted);">${r.game_name || 'Đêm Đoạt Mệnh Tại Trang Viên'}</div>
             </td>
-            <td>${r.current_players || 1}/${r.max_players || 8} Slot</td>
+            <td>${Math.min(r.current_players || 1, r.total_players || r.max_players || 8)}/${r.total_players || r.max_players || 8} Slot</td>
             <td><span class="stamp-badge ${r.status === 'FORMING' || r.status === 'DEPOSITING' ? 'open' : ''}">${r.status}</span></td>
             <td>
               <div style="display: flex; gap: 6px; flex-wrap: wrap;">

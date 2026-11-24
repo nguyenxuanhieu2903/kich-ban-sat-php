@@ -271,7 +271,7 @@
 
     window.voteProposal = async function(propId, decision) {
       try {
-        const json = await apiClient.post(`/proposals/${propId}/vote`, { decision });
+        const json = await apiClient.post(`/proposals/${propId}/vote`, { response: decision, decision: decision, vote: decision });
         alert(json.message || `Đã biểu quyết ${decision} thành công!`);
         loadRoomDetail();
       } catch (err) {
@@ -280,7 +280,7 @@
           window.location.href = './auth.html';
           return;
         }
-        alert(err.message || `Đã biểu quyết ${decision}!`);
+        alert(err.message || `Đã ghi nhận biểu quyết!`);
         loadRoomDetail();
       }
     };
@@ -339,15 +339,17 @@
           document.getElementById('roomDesc').textContent = r.description || 'Tìm thám tử cùng phá án, thân thiện, không toxic!';
           document.getElementById('roomStatusBadge').textContent = r.status || 'FORMING';
 
-          const max = r.total_players || r.max_players || 8;
-          const participants = r.participants || [];
-          document.getElementById('slotCount').textContent = participants.length;
+          const max = Number(r.total_players || r.max_players || 8);
+          const activeParticipants = (r.participants || []).filter(p => p.status !== 'LEFT');
+          const currentCount = Number(r.current_players || activeParticipants.length);
+          document.getElementById('slotCount').textContent = Math.min(currentCount, max);
           document.getElementById('maxSlots').textContent = max;
 
           // Check if current user has joined
-          const myParticipant = participants.find(p => Number(p.user_id) === Number(currentUserId));
+          const myParticipant = activeParticipants.find(p => Number(p.user_id) === Number(currentUserId));
           const isHost = Number(r.creator_id) === Number(currentUserId);
           const isPrivate = r.booking_type === 'PRIVATE';
+          const isReplacementOpen = r.replacement_status === 'OPEN';
 
           if (myParticipant) {
             btnJoinRoom.style.display = 'none';
@@ -368,12 +370,17 @@
               btnRefundRequest.style.display = 'none';
             }
           } else {
-            btnJoinRoom.style.display = 'inline-block';
             btnPayDeposit.style.display = 'none';
             btnRefundRequest.style.display = 'none';
+            if (r.status === 'FORMING' || isReplacementOpen) {
+              btnJoinRoom.style.display = 'inline-block';
+              btnJoinRoom.textContent = isReplacementOpen ? 'Vào thế chỗ (Takeover)' : '+ Tham gia phòng';
+            } else {
+              btnJoinRoom.style.display = 'none';
+            }
           }
 
-          let slotsHtml = participants.map((p, idx) => `
+          let slotsHtml = activeParticipants.map((p, idx) => `
             <div class="slot-card">
               <img src="https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(p.full_name || 'Player' + p.user_id)}" alt="${p.full_name || 'Thành viên'}" />
               <div>
@@ -383,7 +390,7 @@
             </div>
           `).join('');
 
-          for (let i = participants.length; i < max; i++) {
+          for (let i = activeParticipants.length; i < max; i++) {
             slotsHtml += `
               <div class="slot-card empty">
                 <div style="width: 44px; height: 44px; border-radius: 50%; border: 1px dashed var(--color-gold); display: flex; align-items: center; justify-content: center; color: var(--color-gold);">+</div>
@@ -425,11 +432,18 @@
                 }
               } else {
                 if (p.status === 'PROPOSED') {
-                  actionHtml = `
-                    <span style="font-size: 0.85rem; color: var(--color-gold); background: rgba(201,162,94,0.1); padding: 5px 12px; border-radius: 4px; border: 1px solid rgba(201,162,94,0.3);">
-                      Chờ Admin / DM Phê Duyệt
-                    </span>
-                  `;
+                  if (myParticipant) {
+                    actionHtml = `
+                      <button type="button" class="btn btn-primary" style="font-size: 0.85rem; padding: 6px 12px;" onclick="voteProposal(${p.id}, 'ACCEPTED')">Đồng Ý (Vote YES)</button>
+                      <button type="button" class="btn btn-outline" style="font-size: 0.85rem; padding: 6px 12px; border-color: #ef4444; color: #ef4444;" onclick="voteProposal(${p.id}, 'REJECTED')">Từ Chối (Vote NO)</button>
+                    `;
+                  } else {
+                    actionHtml = `
+                      <span style="font-size: 0.85rem; color: var(--color-gold); background: rgba(201,162,94,0.1); padding: 5px 12px; border-radius: 4px; border: 1px solid rgba(201,162,94,0.3);">
+                        Chờ Biểu Quyết
+                      </span>
+                    `;
+                  }
                 } else if (p.status === 'CONFIRMED') {
                   actionHtml = `
                     <span style="font-size: 0.85rem; color: #4ade80; background: rgba(74,222,128,0.1); padding: 5px 12px; border-radius: 4px; border: 1px solid rgba(74,222,128,0.3);">

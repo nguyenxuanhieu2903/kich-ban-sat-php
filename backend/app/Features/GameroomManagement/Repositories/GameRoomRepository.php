@@ -180,18 +180,21 @@ class GameRoomRepository extends BaseRepository
     /**
      * Get participants for a game room.
      *
+     * @param int $gameRoomId
+     * @param bool $onlyActive Chỉ lấy thành viên đang hoạt động (không lấy người đã LEFT)
      * @return list<array<string, mixed>>
      */
-    public function getParticipants(int $gameRoomId): array
+    public function getParticipants(int $gameRoomId, bool $onlyActive = true): array
     {
-        return $this->executeQuery(function () use ($gameRoomId): array {
+        return $this->executeQuery(function () use ($gameRoomId, $onlyActive): array {
+            $statusFilter = $onlyActive ? " AND rp.`status` IN ('PENDING_DEPOSIT', 'DEPOSITED', 'LEAVE_REQUESTED')" : "";
             $stmt = $this->pdo->prepare(
                 'SELECT rp.`id`, rp.`game_room_id`, rp.`user_id`, rp.`status`,
                         rp.`joined_at`, rp.`deposit_deadline_at`, rp.`deposited_at`, rp.`left_at`,
                         u.`full_name` AS `user_name`, u.`full_name`, u.`email` AS `user_email`
                  FROM `room_participants` rp
                  INNER JOIN `users` u ON u.`id` = rp.`user_id`
-                 WHERE rp.`game_room_id` = :game_room_id
+                 WHERE rp.`game_room_id` = :game_room_id' . $statusFilter . '
                  ORDER BY rp.`joined_at` ASC'
             );
             $stmt->bindValue(':game_room_id', $gameRoomId, PDO::PARAM_INT);

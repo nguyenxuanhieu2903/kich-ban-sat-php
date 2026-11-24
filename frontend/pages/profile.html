@@ -197,7 +197,7 @@
 
           let sessionInfo = r.session_start_at 
             ? `Lịch chơi: ${r.session_start_at.replace('.000', '')} • ${r.venue_name || 'Chi nhánh Quận 1'}`
-            : `Trạng thái: ${r.room_status} (${r.current_players}/${r.max_players} slot)`;
+            : `Trạng thái: ${r.room_status} (${Math.min(r.current_players || 1, r.total_players || r.max_players || 8)}/${r.total_players || r.max_players || 8} slot)`;
 
           return `
             <div style="padding: 14px; border: 1px solid rgba(201,162,94,0.3); border-radius: 6px; background: rgba(0,0,0,0.15);">

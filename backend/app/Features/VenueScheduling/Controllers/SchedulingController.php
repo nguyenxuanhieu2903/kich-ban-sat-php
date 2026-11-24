@@ -242,7 +242,14 @@ class SchedulingController
 
         $proposalId = (int) $id;
         $body = $request->getBodyParams();
-        $responseVote = strtoupper(trim((string) ($body['response'] ?? 'ACCEPTED')));
+        $rawVote = $body['response'] ?? $body['decision'] ?? $body['vote'] ?? 'ACCEPTED';
+        $responseVote = strtoupper(trim((string) $rawVote));
+        if ($responseVote === 'YES' || $responseVote === 'ACCEPT') {
+            $responseVote = 'ACCEPTED';
+        }
+        if ($responseVote === 'NO' || $responseVote === 'REJECT') {
+            $responseVote = 'REJECTED';
+        }
 
         if (!in_array($responseVote, ['ACCEPTED', 'REJECTED'], true)) {
             return Response::fail('Lựa chọn biểu quyết không hợp lệ (phải là ACCEPTED hoặc REJECTED)', 'VALIDATION_ERROR', 422);

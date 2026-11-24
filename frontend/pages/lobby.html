@@ -63,7 +63,7 @@
                   <span class="stamp-badge ${r.status === 'FORMING' ? 'open' : ''}">${r.status}</span>
                   ${r.booking_type === 'PRIVATE' ? '<span class="stamp-badge" style="border-color: #b8860b; color: #ffd700;">NHÓM BẠN</span>' : '<span class="stamp-badge" style="border-color: #2e7d32; color: #81c784;">CÔNG KHAI</span>'}
                 </div>
-                <span style="font-weight: 700; color: #2e7d32;">${r.current_players || 1}/${r.total_players || r.max_players || 8} Slot</span>
+                <span style="font-weight: 700; color: #2e7d32;">${Math.min(r.current_players || 1, r.total_players || r.max_players || 8)}/${r.total_players || r.max_players || 8} Slot</span>
               </div>
               <h3 style="margin-bottom: 8px; font-family: var(--font-serif);">${r.title || 'Phòng Án Mạng Nhập Vai'}</h3>
               <p style="font-size: 0.9rem; color: var(--text-muted); margin-bottom: 8px;">${r.game_name || 'Đêm Đoạt Mệnh Tại Trang Viên'}</p>
