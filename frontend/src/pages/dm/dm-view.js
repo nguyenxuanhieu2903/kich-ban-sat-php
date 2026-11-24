@@ -1,6 +1,7 @@
 import { api } from '../../api/api-client.js';
 import { authState } from '../../api/auth-state.js';
 import { toast } from '../../utils/toast.js';
+import { escapeHtml } from '../../utils/sanitize.js';
 
 export class DmView {
   constructor(container, onOpenAuthModal = () => {}) {
@@ -35,7 +36,7 @@ export class DmView {
           <div style="font-size: 3rem; margin-bottom: 16px;">⚠️</div>
           <h2 style="font-size: 1.5rem; font-weight: 700; margin-bottom: 8px; color: var(--color-warning);">Yêu cầu quyền Quản Trò (DM)</h2>
           <p style="color: var(--color-text-muted); margin-bottom: 16px;">
-            Tài khoản hiện tại của bạn (<strong>${user.name}</strong>) có vai trò <strong>${user.role}</strong>. Cổng này chỉ dành riêng cho Quản Trò hoặc Quản Trị Viên.
+            Tài khoản hiện tại của bạn (<strong>${escapeHtml(user.name)}</strong>) có vai trò <strong>${escapeHtml(user.role)}</strong>. Cổng này chỉ dành riêng cho Quản Trò hoặc Quản Trị Viên.
           </p>
           <p style="color: var(--color-text-muted); font-size: 0.9rem; margin-bottom: 24px;">
             💡 <em>Mẹo Demo: Dùng "Chuyển nhanh tài khoản" trong bảng Đăng nhập để vào bằng tài khoản DM Hoàng Nam.</em>
@@ -181,7 +182,7 @@ export class DmView {
     } catch (err) {
       listEl.innerHTML = `
         <div class="card" style="text-align: center; padding: 30px; color: var(--color-error); border-color: var(--color-error);">
-          <p>Lỗi khi tải danh sách phân công: ${err.message}</p>
+          <p>Lỗi khi tải danh sách phân công: ${escapeHtml(err.message)}</p>
           <button id="btn-retry-dm" class="btn btn-primary" style="margin-top: 10px;">Thử lại</button>
         </div>
       `;
@@ -199,11 +200,11 @@ export class DmView {
     } else if (a.status === 'REJECTED') {
       statusBadge = `<span class="badge" style="background: var(--color-error-bg); color: var(--color-error); border: 1px solid var(--color-error);">Đã từ chối (REJECTED)</span>`;
     } else {
-      statusBadge = `<span class="badge">${a.status}</span>`;
+      statusBadge = `<span class="badge">${escapeHtml(a.status)}</span>`;
     }
 
-    const sessionStart = a.session_start_at ? new Date(a.session_start_at).toLocaleString('vi-VN') : 'Chưa xếp giờ';
-    const sessionEnd = a.session_end_at ? new Date(a.session_end_at).toLocaleString('vi-VN') : 'Chưa xếp giờ';
+    const sessionStart = a.session_start_at ? escapeHtml(new Date(a.session_start_at).toLocaleString('vi-VN')) : 'Chưa xếp giờ';
+    const sessionEnd = a.session_end_at ? escapeHtml(new Date(a.session_end_at).toLocaleString('vi-VN')) : 'Chưa xếp giờ';
 
     return `
       <div class="card" style="border-left: 4px solid ${a.status === 'PENDING' ? 'var(--color-warning)' : (a.status === 'ACCEPTED' ? 'var(--color-success)' : 'var(--color-border)')};">
@@ -211,12 +212,12 @@ export class DmView {
           <div>
             <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 6px;">
               <h3 style="margin: 0; font-size: 1.2rem; font-weight: 700;">
-                🎭 ${a.game_title || 'Kịch bản sát'}
+                🎭 ${escapeHtml(a.game_title || 'Kịch bản sát')}
               </h3>
               ${statusBadge}
             </div>
             <div style="font-size: 0.85rem; color: var(--color-text-muted);">
-              Mã phòng: <strong style="color: var(--color-text-main);">${a.game_room_code || 'ROOM-#' + a.game_room_id}</strong> &bull; Phân công lúc: ${new Date(a.assigned_at || a.created_at).toLocaleString('vi-VN')}
+              Mã phòng: <strong style="color: var(--color-text-main);">${escapeHtml(a.game_room_code || 'ROOM-#' + a.game_room_id)}</strong> &bull; Phân công lúc: ${escapeHtml(new Date(a.assigned_at || a.created_at).toLocaleString('vi-VN'))}
             </div>
           </div>
 
@@ -248,14 +249,14 @@ export class DmView {
           <div>
             <div style="font-size: 0.75rem; color: var(--color-text-muted); text-transform: uppercase; font-weight: 600;">Địa điểm & Phòng</div>
             <div style="font-size: 0.95rem; font-weight: 600; color: var(--color-text-main); margin-top: 2px;">
-              📍 ${a.venue_name || 'Chi nhánh trung tâm'} — Phòng ${a.room_name || 'Phòng Diễn'}
+              📍 ${escapeHtml(a.venue_name || 'Chi nhánh trung tâm')} — Phòng ${escapeHtml(a.room_name || 'Phòng Diễn')}
             </div>
           </div>
         </div>
 
         ${a.rejection_reason ? `
           <div style="margin-top: 12px; padding: 10px; background: var(--color-error-bg); border-radius: var(--radius-sm); font-size: 0.85rem; color: var(--color-error);">
-            <strong>Lý do từ chối:</strong> ${a.rejection_reason}
+            <strong>Lý do từ chối:</strong> ${escapeHtml(a.rejection_reason)}
           </div>
         ` : ''}
       </div>

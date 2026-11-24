@@ -48,10 +48,15 @@ class ToastManager {
 
     toast.innerHTML = `
       <div style="display: flex; align-items: flex-start; justify-content: space-between; gap: 8px;">
-        <div>${message}</div>
+        <div class="toast-content"></div>
         <button style="background: none; border: none; color: #94a3b8; cursor: pointer; font-size: 1.1rem; line-height: 1;">&times;</button>
       </div>
     `;
+
+    const contentEl = toast.querySelector('.toast-content');
+    if (contentEl) {
+      contentEl.textContent = message;
+    }
 
     toast.querySelector('button').onclick = () => this.dismiss(toast);
 

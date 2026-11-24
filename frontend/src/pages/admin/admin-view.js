@@ -1,6 +1,7 @@
 import { api } from '../../api/api-client.js';
 import { authState } from '../../api/auth-state.js';
 import { toast } from '../../utils/toast.js';
+import { escapeHtml } from '../../utils/sanitize.js';
 
 export class AdminView {
   constructor(container, onOpenAuthModal = () => {}) {
@@ -38,7 +39,7 @@ export class AdminView {
           <div style="font-size: 3rem; margin-bottom: 16px;">⛔</div>
           <h2 style="font-size: 1.5rem; font-weight: 700; margin-bottom: 8px; color: var(--color-error);">Không Đủ Quyền Truy Cập (403 Forbidden)</h2>
           <p style="color: var(--color-text-muted); margin-bottom: 16px;">
-            Tài khoản hiện tại của bạn (<strong>${user.name}</strong>) có vai trò <strong>${user.role}</strong>. Chỉ có <strong>ADMIN</strong> mới có quyền quản trị người dùng, hủy phòng và xét duyệt hoàn tiền.
+            Tài khoản hiện tại của bạn (<strong>${escapeHtml(user.name)}</strong>) có vai trò <strong>${escapeHtml(user.role)}</strong>. Chỉ có <strong>ADMIN</strong> mới có quyền quản trị người dùng, hủy phòng và xét duyệt hoàn tiền.
           </p>
           <button id="btn-admin-switch" class="btn btn-primary" style="padding: 10px 24px;">
             Chuyển sang tài khoản Admin (1-click)
@@ -213,7 +214,7 @@ export class AdminView {
         }
       });
     } catch (err) {
-      container.innerHTML = `<div class="card" style="color: var(--color-error); padding: 20px;">Lỗi: ${err.message}</div>`;
+      container.innerHTML = `<div class="card" style="color: var(--color-error); padding: 20px;">Lỗi: ${escapeHtml(err.message)}</div>`;
     }
   }
 
@@ -221,13 +222,13 @@ export class AdminView {
     const isCurrentUser = authState.getUser()?.id === u.id;
     return `
       <tr style="border-bottom: 1px solid var(--color-border);">
-        <td style="padding: 12px 16px; color: var(--color-text-muted); font-mono;">#${u.id}</td>
+        <td style="padding: 12px 16px; color: var(--color-text-muted); font-mono;">#${escapeHtml(u.id)}</td>
         <td style="padding: 12px 16px; font-weight: 600;">
-          ${u.name} ${isCurrentUser ? '<span class="badge" style="background: var(--color-primary); color: white; font-size: 0.7rem;">Bạn</span>' : ''}
+          ${escapeHtml(u.name)} ${isCurrentUser ? '<span class="badge" style="background: var(--color-primary); color: white; font-size: 0.7rem;">Bạn</span>' : ''}
         </td>
-        <td style="padding: 12px 16px; color: var(--color-text-muted);">${u.email}</td>
+        <td style="padding: 12px 16px; color: var(--color-text-muted);">${escapeHtml(u.email)}</td>
         <td style="padding: 12px 16px;">
-          <select id="select-role-${u.id}" class="form-input" style="padding: 4px 8px; font-size: 0.8rem;" ${isCurrentUser ? 'disabled title="Không thể tự đổi quyền của bản thân"' : ''}>
+          <select id="select-role-${escapeHtml(u.id)}" class="form-input" style="padding: 4px 8px; font-size: 0.8rem;" ${isCurrentUser ? 'disabled title="Không thể tự đổi quyền của bản thân"' : ''}>
             <option value="PLAYER" ${u.role === 'PLAYER' ? 'selected' : ''}>PLAYER</option>
             <option value="DM" ${u.role === 'DM' ? 'selected' : ''}>DM (Quản trò)</option>
             <option value="ADMIN" ${u.role === 'ADMIN' ? 'selected' : ''}>ADMIN (Quản trị)</option>
@@ -239,7 +240,7 @@ export class AdminView {
             `<span class="badge" style="background: var(--color-error-bg); color: var(--color-error);">Bị khóa</span>`}
         </td>
         <td style="padding: 12px 16px; text-align: right;">
-          <button id="btn-toggle-active-${u.id}" class="btn" style="padding: 4px 10px; font-size: 0.8rem; background: ${u.is_active ? 'var(--color-error-bg)' : 'var(--color-success-bg)'}; color: ${u.is_active ? 'var(--color-error)' : 'var(--color-success)'}; border: 1px solid ${u.is_active ? 'var(--color-error)' : 'var(--color-success)'};" ${isCurrentUser ? 'disabled title="Không thể tự khóa tài khoản của chính mình"' : ''}>
+          <button id="btn-toggle-active-${escapeHtml(u.id)}" class="btn" style="padding: 4px 10px; font-size: 0.8rem; background: ${u.is_active ? 'var(--color-error-bg)' : 'var(--color-success-bg)'}; color: ${u.is_active ? 'var(--color-error)' : 'var(--color-success)'}; border: 1px solid ${u.is_active ? 'var(--color-error)' : 'var(--color-success)'};" ${isCurrentUser ? 'disabled title="Không thể tự khóa tài khoản của chính mình"' : ''}>
             ${u.is_active ? 'Khóa tài khoản' : 'Mở khóa'}
           </button>
         </td>
@@ -300,12 +301,12 @@ export class AdminView {
               <tbody>
                 ${this.rooms.map(r => `
                   <tr style="border-bottom: 1px solid var(--color-border);">
-                    <td style="padding: 12px 16px; font-weight: 700; color: var(--color-primary);">${r.room_code || '#' + r.id}</td>
-                    <td style="padding: 12px 16px; font-weight: 600;">${r.game_title || 'Kịch bản'}</td>
-                    <td style="padding: 12px 16px; color: var(--color-text-muted);">${r.host_name || 'N/A'}</td>
-                    <td style="padding: 12px 16px;"><span class="badge">${r.status}</span></td>
+                    <td style="padding: 12px 16px; font-weight: 700; color: var(--color-primary);">${escapeHtml(r.room_code || '#' + r.id)}</td>
+                    <td style="padding: 12px 16px; font-weight: 600;">${escapeHtml(r.game_title || 'Kịch bản')}</td>
+                    <td style="padding: 12px 16px; color: var(--color-text-muted);">${escapeHtml(r.host_name || 'N/A')}</td>
+                    <td style="padding: 12px 16px;"><span class="badge">${escapeHtml(r.status)}</span></td>
                     <td style="padding: 12px 16px; font-size: 0.85rem; color: var(--color-text-muted);">
-                      ${r.session_start_at ? new Date(r.session_start_at).toLocaleString('vi-VN') : 'Chưa chốt'}
+                      ${r.session_start_at ? escapeHtml(new Date(r.session_start_at).toLocaleString('vi-VN')) : 'Chưa chốt'}
                     </td>
                     <td style="padding: 12px 16px; text-align: right;">
                       ${r.status !== 'CANCELLED' && r.status !== 'FINISHED' ? `
@@ -339,7 +340,7 @@ export class AdminView {
         }
       });
     } catch (err) {
-      container.innerHTML = `<div class="card" style="color: var(--color-error); padding: 20px;">Lỗi: ${err.message}</div>`;
+      container.innerHTML = `<div class="card" style="color: var(--color-error); padding: 20px;">Lỗi: ${escapeHtml(err.message)}</div>`;
     }
   }
 
@@ -463,16 +464,16 @@ export class AdminView {
               <tbody>
                 ${this.refunds.map(r => `
                   <tr style="border-bottom: 1px solid var(--color-border);">
-                    <td style="padding: 12px 16px; font-mono; color: var(--color-primary);">#REF-${r.id}</td>
-                    <td style="padding: 12px 16px; font-weight: 600;">${r.user_name || 'Người chơi #' + (r.user_id || '')}</td>
+                    <td style="padding: 12px 16px; font-mono; color: var(--color-primary);">#REF-${escapeHtml(r.id)}</td>
+                    <td style="padding: 12px 16px; font-weight: 600;">${escapeHtml(r.user_name || 'Người chơi #' + (r.user_id || ''))}</td>
                     <td style="padding: 12px 16px; font-weight: 700; color: var(--color-warning);">${Number(r.amount || 50000).toLocaleString('vi-VN')} đ</td>
                     <td style="padding: 12px 16px;">
                       <span class="badge" style="background: ${r.status === 'APPROVED' ? 'var(--color-success-bg)' : (r.status === 'REJECTED' ? 'var(--color-error-bg)' : 'rgba(245, 158, 11, 0.2)')}; color: ${r.status === 'APPROVED' ? 'var(--color-success)' : (r.status === 'REJECTED' ? 'var(--color-error)' : 'var(--color-warning)')};">
-                        ${r.status}
+                        ${escapeHtml(r.status)}
                       </span>
                     </td>
                     <td style="padding: 12px 16px; font-size: 0.85rem; color: var(--color-text-muted); max-width: 200px;">
-                      ${r.reason || 'N/A'}
+                      ${escapeHtml(r.reason || 'N/A')}
                     </td>
                     <td style="padding: 12px 16px; text-align: right;">
                       ${r.status === 'PENDING' ? `
@@ -504,7 +505,7 @@ export class AdminView {
         }
       });
     } catch (err) {
-      container.innerHTML = `<div class="card" style="color: var(--color-error); padding: 20px;">Lỗi: ${err.message}</div>`;
+      container.innerHTML = `<div class="card" style="color: var(--color-error); padding: 20px;">Lỗi: ${escapeHtml(err.message)}</div>`;
     }
   }
 

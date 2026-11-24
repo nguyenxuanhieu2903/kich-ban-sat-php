@@ -340,7 +340,7 @@
             <div>
               <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
                 <span class="badge badge-green">Đang tuyển (Forming)</span>
-                <span style="font-family: var(--font-mono); color: var(--gold); font-size: 0.82rem;">#${r.id}</span>
+                <span style="font-family: var(--font-mono); color: var(--gold); font-size: 0.82rem;">#${escapeHtml(r.id)}</span>
               </div>
               <h3 style="font-family: var(--font-display); font-size: 1.25rem; margin: 4px 0 6px;">${escapeHtml(r.title)}</h3>
               <p class="text-gold" style="font-size: 0.88rem; margin: 0 0 4px 0;">🎭 ${escapeHtml(r.game_name || 'Kịch bản trinh thám')}</p>
@@ -356,7 +356,7 @@
               <div class="progress-track" style="height: 6px; background: rgba(255,255,255,0.1); border-radius: 3px; overflow: hidden; margin-bottom: 12px;">
                 <div class="progress-fill" style="width: ${pct}%; height: 100%; background: linear-gradient(90deg, var(--gold), var(--crimson));"></div>
               </div>
-              <button class="btn btn-gold btn-sm" data-join-room="${r.id}" style="width: 100%;">
+              <button class="btn btn-gold btn-sm" data-join-room="${escapeHtml(r.id)}" style="width: 100%;">
                 Vào Phòng / Giữ Chỗ 50k
               </button>
             </div>

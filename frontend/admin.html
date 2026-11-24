@@ -440,12 +440,12 @@
                     <td>
                       <select class="form-control" style="padding: 6px; font-size: 0.82rem; min-width: 140px;" data-assign-pr="${r.id}">
                         <option value="">-- Phòng 01-05 --</option>
-                        ${localPhysical.map(p => `<option value="${p.id}" ${r.physical_room === p.id ? 'selected' : ''}>${p.name}</option>`).join('')}
+                        ${localPhysical.map(p => `<option value="${p.id}" ${r.physical_room === p.id ? 'selected' : ''}>${escapeHtml(p.name)}</option>`).join('')}
                       </select>
                     </td>
                     <td>
                       <span class="badge ${r.status === 'COMPLETED' ? 'badge-dark' : r.status === 'CANCELLED' ? 'badge-18' : 'badge-green'}">
-                        ${r.status}
+                        ${escapeHtml(r.status)}
                       </span>
                     </td>
                     <td>
@@ -538,7 +538,7 @@
                           ${isEligible ? '✓ Hợp lệ (&ge; 24h)' : '✗ Quá hạn (&lt; 24h)'}
                         </span>
                       </td>
-                      <td><strong>${rf.status}</strong></td>
+                      <td><strong>${escapeHtml(rf.status)}</strong></td>
                       <td style="display: flex; gap: 6px;">
                         ${rf.status === 'PENDING' ? `
                           <button class="btn btn-gold btn-sm" data-rf-approve="${rf.id}">Duyệt hoàn</button>
@@ -752,7 +752,7 @@
                     <td class="text-muted">${escapeHtml(u.email || '—')}</td>
                     <td>
                       <span class="badge ${u.role === 'ADMIN' ? 'badge-18' : u.role === 'DM' ? 'badge-gold' : 'badge-green'}">
-                        ${u.role}
+                        ${escapeHtml(u.role)}
                       </span>
                     </td>
                     <td>

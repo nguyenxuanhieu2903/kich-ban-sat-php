@@ -1,6 +1,7 @@
 import { api } from '../../api/api-client.js';
 import { authState } from '../../api/auth-state.js';
 import { toast } from '../../utils/toast.js';
+import { escapeHtml } from '../../utils/sanitize.js';
 
 export class NotificationsView {
   constructor(container) {
@@ -89,7 +90,7 @@ export class NotificationsView {
       });
     } catch (err) {
       listEl.innerHTML = `
-        <div class="card" style="color: var(--color-error); padding: 20px;">Lỗi: ${err.message}</div>
+        <div class="card" style="color: var(--color-error); padding: 20px;">Lỗi: ${escapeHtml(err.message)}</div>
       `;
     }
   }
@@ -101,15 +102,15 @@ export class NotificationsView {
         <div style="flex: 1;">
           <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
             <h4 style="margin: 0; font-size: 0.95rem; font-weight: 600; color: ${isUnread ? 'var(--color-text-main)' : 'var(--color-text-muted)'};">
-              ${n.title || 'Thông báo hệ thống'}
+              ${escapeHtml(n.title || 'Thông báo hệ thống')}
             </h4>
             ${isUnread ? `<span class="badge" style="background: var(--color-primary); color: white; font-size: 0.65rem;">Mới</span>` : ''}
           </div>
           <p style="margin: 0 0 6px 0; font-size: 0.85rem; color: var(--color-text-main); line-height: 1.4;">
-            ${n.content || ''}
+            ${escapeHtml(n.content || '')}
           </p>
           <span style="font-size: 0.75rem; color: var(--color-text-muted);">
-            🕒 ${new Date(n.created_at).toLocaleString('vi-VN')}
+            🕒 ${escapeHtml(new Date(n.created_at).toLocaleString('vi-VN'))}
           </span>
         </div>
         ${isUnread ? `

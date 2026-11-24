@@ -419,9 +419,9 @@ export class RoomsView {
         <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 12px;">
           <div>
             <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 6px;">
-              <h2 style="font-size: 1.6rem; font-weight: 700; margin: 0;">${room.title}</h2>
+              <h2 style="font-size: 1.6rem; font-weight: 700; margin: 0;">${escapeHtml(room.title)}</h2>
               <span class="badge" style="background: rgba(59, 130, 246, 0.2); color: #60a5fa; border: 1px solid #3b82f6;">
-                ${room.status}
+                ${escapeHtml(room.status)}
               </span>
               ${isReplacementOpen ? `
                 <span class="badge" style="background: rgba(239, 68, 68, 0.2); color: #ef4444; border: 1px solid #ef4444;">
@@ -430,7 +430,7 @@ export class RoomsView {
               ` : ''}
             </div>
             <p style="color: var(--color-text-muted); margin: 0; font-size: 0.9rem;">
-              Kịch bản: <strong style="color: #38bdf8;">${room.game?.name || 'Kịch bản sát'}</strong> (${room.game?.duration_minutes || 240} phút) | Host: <strong>${room.creator_name || 'Host'}</strong>
+              Kịch bản: <strong style="color: #38bdf8;">${escapeHtml(room.game?.name || 'Kịch bản sát')}</strong> (${Number(room.game?.duration_minutes) || 240} phút) | Host: <strong>${escapeHtml(room.creator_name || 'Host')}</strong>
             </p>
           </div>
 
@@ -471,14 +471,14 @@ export class RoomsView {
                       <span style="font-weight: 600; color: #94a3b8; width: 24px;">#${index + 1}</span>
                       <div>
                         <div style="font-weight: 600; color: ${isMe ? '#38bdf8' : '#f8fafc'};">
-                          ${p.name || p.user_name || 'Người chơi'} ${isMe ? '(Bạn)' : ''}
+                          ${escapeHtml(p.name || p.user_name || 'Người chơi')} ${isMe ? '(Bạn)' : ''}
                         </div>
-                        <div style="font-size: 0.75rem; color: #94a3b8;">${p.email || ''}</div>
+                        <div style="font-size: 0.75rem; color: #94a3b8;">${escapeHtml(p.email || '')}</div>
                       </div>
                     </div>
                     <div>
                       <span class="badge" style="font-size: 0.75rem; background: ${p.status === 'DEPOSITED' ? 'rgba(16, 185, 129, 0.2)' : p.status === 'LEAVE_REQUESTED' ? 'rgba(245, 158, 11, 0.2)' : 'rgba(59, 130, 246, 0.2)'}; color: ${p.status === 'DEPOSITED' ? '#10b981' : p.status === 'LEAVE_REQUESTED' ? '#f59e0b' : '#60a5fa'};">
-                        ${p.status}
+                        ${escapeHtml(p.status)}
                       </span>
                     </div>
                   </div>
@@ -638,13 +638,13 @@ export class RoomsView {
       <div style="background: rgba(255, 255, 255, 0.02); border: 1px solid var(--color-border); border-radius: 8px; padding: 16px;">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
           <div>
-            <span style="font-size: 0.8rem; color: #94a3b8;">Đề xuất bởi: ${activeProposal.proposer_name || 'Thành viên'}</span>
+            <span style="font-size: 0.8rem; color: #94a3b8;">Đề xuất bởi: ${escapeHtml(activeProposal.proposer_name || 'Thành viên')}</span>
             <div style="font-size: 1.1rem; font-weight: 700; color: #f8fafc; margin-top: 4px;">
-              ⏰ ${activeProposal.proposed_start_at} &rarr; ${activeProposal.proposed_end_at}
+              ⏰ ${escapeHtml(activeProposal.proposed_start_at)} &rarr; ${escapeHtml(activeProposal.proposed_end_at)}
             </div>
           </div>
           <span class="badge" style="background: ${isConfirmed ? 'rgba(16, 185, 129, 0.2)' : 'rgba(59, 130, 246, 0.2)'}; color: ${isConfirmed ? '#10b981' : '#60a5fa'};">
-            ${activeProposal.status}
+            ${escapeHtml(activeProposal.status)}
           </span>
         </div>
 

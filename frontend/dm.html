@@ -95,7 +95,7 @@
     import { authState } from './src/api/auth-state.js';
     import { api } from './src/api/api-client.js';
     import { toast } from './src/utils/toast.js';
-    import { escapeHtml } from './src/utils/sanitize.js';
+    import { escapeHtml, sanitizeUrl } from './src/utils/sanitize.js';
     import { initSharedChrome } from './src/utils/shared-header.js';
     import { AuthModal } from './src/pages/auth/auth-modal.js';
     import { PHYSICAL_ROOMS } from './src/data/scripts.data.js';
@@ -388,7 +388,7 @@
                 <tr>
                   <td style="font-family: var(--font-mono); color: var(--gold);">Ghế #${idx + 1}</td>
                   <td><strong>${escapeHtml(p.name)}</strong></td>
-                  <td><a href="tel:${p.phone}" class="text-gold" style="text-decoration: underline;">${p.phone}</a></td>
+                  <td><a href="${sanitizeUrl('tel:' + p.phone)}" class="text-gold" style="text-decoration: underline;">${escapeHtml(p.phone)}</a></td>
                   <td>
                     <span class="badge ${p.paid ? 'badge-green' : 'badge-18'}">
                       ${p.paid ? 'Đã cọc 50k' : 'Chưa cọc'}

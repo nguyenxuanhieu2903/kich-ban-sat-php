@@ -21,7 +21,7 @@ export function escapeHtml(str) {
 
 /**
  * Validate and sanitize URL to prevent javascript: or data: injection.
- * Only allows http://, https://, or relative / URLs.
+ * Only allows http://, https://, or relative / URLs (not protocol-relative //).
  *
  * @param {string|null|undefined} url
  * @returns {string}
@@ -29,7 +29,10 @@ export function escapeHtml(str) {
 export function sanitizeUrl(url) {
   if (!url || typeof url !== 'string') return '';
   const trimmed = url.trim();
-  if (/^(https?:\/\/|\/|\.\/)/i.test(trimmed)) {
+  // Disallow control characters
+  if (/[\x00-\x1f\x7f-\x9f]/u.test(trimmed)) return '';
+  // Whitelist: http://, https://, single slash relative (/ not //), ./, tel:, mailto:
+  if (/^(https?:\/\/|\/(?!\/)|\.\/|tel:|mailto:)/i.test(trimmed)) {
     return escapeHtml(trimmed);
   }
   return '';
