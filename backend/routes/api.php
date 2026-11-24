@@ -17,10 +17,14 @@ use App\Features\VenueScheduling\Controllers\SessionController;
 use App\Features\VenueScheduling\Controllers\AdminVenueController;
 use App\Features\PaymentRefund\Controllers\PaymentController;
 use App\Features\PaymentRefund\Controllers\AdminRefundController;
+use App\Features\PaymentRefund\Controllers\AdminPaymentController;
+use App\Features\PaymentRefund\Controllers\AdminDashboardController;
 use App\Features\Notification\Controllers\NotificationController;
 use App\Features\Pricing\Controllers\PricingController;
 use App\Features\Promotion\Controllers\PromotionController;
 use App\Features\Promotion\Controllers\AdminPromotionController;
+use App\Features\GameCatalog\Controllers\AdminGameConfigurationController;
+use App\Features\Admin\Controllers\AdminSystemController;
 
 /** @var Router $router */
 
@@ -68,6 +72,11 @@ $registerApiRoutes = function (string $prefix) use ($router): void {
     $router->post($prefix . '/admin/games/{id}/prices', [AdminGameController::class, 'addPrice']);
     $router->patch($prefix . '/admin/prices/{id}', [AdminGameController::class, 'updatePrice']);
     $router->delete($prefix . '/admin/prices/{id}', [AdminGameController::class, 'deletePrice']);
+
+    // Admin Game Configurations CRUD (Gói 3)
+    $router->get($prefix . '/admin/games/{id}/configurations', [AdminGameConfigurationController::class, 'index']);
+    $router->post($prefix . '/admin/games/{id}/configurations', [AdminGameConfigurationController::class, 'create']);
+    $router->patch($prefix . '/admin/game-configurations/{id}', [AdminGameConfigurationController::class, 'update']);
 
     // Admin Promotion CRUD
     $router->get($prefix . '/admin/promotions', [AdminPromotionController::class, 'index']);
@@ -151,6 +160,15 @@ $registerApiRoutes = function (string $prefix) use ($router): void {
     $router->get($prefix . '/admin/refunds', [AdminRefundController::class, 'index']);
     $router->post($prefix . '/admin/refunds/{id}/approve', [AdminRefundController::class, 'approve']);
     $router->post($prefix . '/admin/refunds/{id}/reject', [AdminRefundController::class, 'reject']);
+
+    // Admin Dashboard Overview & Payments
+    $router->get($prefix . '/admin/dashboard', [AdminDashboardController::class, 'index']);
+    $router->get($prefix . '/admin/payments', [AdminPaymentController::class, 'index']);
+    $router->get($prefix . '/admin/payments/{id}', [AdminPaymentController::class, 'show']);
+
+    // Admin System Health & Audit Logs (Gói 3)
+    $router->get($prefix . '/admin/audit-logs', [AdminSystemController::class, 'auditLogs']);
+    $router->get($prefix . '/admin/system/health', [AdminSystemController::class, 'health']);
 
     // =============================================================
     // DOMAIN 8: NOTIFICATION API

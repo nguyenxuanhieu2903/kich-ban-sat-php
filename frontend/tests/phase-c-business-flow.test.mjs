@@ -130,3 +130,70 @@ test('Gói 1: DM View collects session notes and incident report on complete', (
   const dmHtml = fs.readFileSync(path.resolve('frontend/dm.html'), 'utf-8');
   assert.ok(dmHtml.includes('session_notes'), 'DM HTML passes session notes');
 });
+
+test('Gói 2: Admin HTML and AdminView wire Dashboard Overview API (/admin/dashboard)', () => {
+  const adminHtml = fs.readFileSync(path.resolve('frontend/admin.html'), 'utf-8');
+  assert.ok(adminHtml.includes("api.get('/admin/dashboard')"), 'Admin HTML fetches real metrics from /admin/dashboard');
+  assert.ok(adminHtml.includes('revenue_month'), 'Renders revenue month');
+  assert.ok(adminHtml.includes('revenue_chart_7d'), 'Renders 7-day revenue chart');
+
+  const adminViewJs = fs.readFileSync(path.resolve('frontend/src/pages/admin/admin-view.js'), 'utf-8');
+  assert.ok(adminViewJs.includes("api.get('/admin/dashboard')"), 'AdminView fetches metrics from /admin/dashboard');
+  assert.ok(adminViewJs.includes('renderOverviewTab'), 'Implements renderOverviewTab method');
+  assert.ok(adminViewJs.includes('tab-btn-overview'), 'Has Overview tab button');
+});
+
+test('Gói 2: Admin HTML and AdminView wire Payments and Ledger API (/admin/payments)', () => {
+  const adminHtml = fs.readFileSync(path.resolve('frontend/admin.html'), 'utf-8');
+  assert.ok(adminHtml.includes("data-atab=\"payments\""), 'Admin HTML contains Tab 7 Payments button');
+  assert.ok(adminHtml.includes('/admin/payments'), 'Admin HTML queries /admin/payments');
+  assert.ok(adminHtml.includes("data-view-payment"), 'Admin HTML supports viewing payment details');
+
+  const adminViewJs = fs.readFileSync(path.resolve('frontend/src/pages/admin/admin-view.js'), 'utf-8');
+  assert.ok(adminViewJs.includes('tab-btn-payments'), 'AdminView contains Payments tab button');
+  assert.ok(adminViewJs.includes('renderPaymentsTab'), 'AdminView implements renderPaymentsTab method');
+  assert.ok(adminViewJs.includes('/admin/payments'), 'AdminView queries /admin/payments');
+  assert.ok(adminViewJs.includes('data-view-payment'), 'AdminView supports viewing payment details');
+});
+
+test('Gói 2: Admin Dashboard and Payments endpoints reject unauthenticated access', async () => {
+  const dashRes = await fetch(`${BASE_URL}/api/v1/admin/dashboard`);
+  assert.ok([401, 403].includes(dashRes.status), 'Dashboard rejects unauthenticated with 401 or 403');
+
+  const payRes = await fetch(`${BASE_URL}/api/v1/admin/payments`);
+  assert.ok([401, 403].includes(payRes.status), 'Payments rejects unauthenticated with 401 or 403');
+});
+
+test('Gói 3: Admin HTML and AdminView wire Game Configurations API (/admin/games/:id/configurations)', () => {
+  const adminHtml = fs.readFileSync(path.resolve('frontend/admin.html'), 'utf-8');
+  assert.ok(adminHtml.includes('data-config-game'), 'Admin HTML contains button to configure game characters');
+  assert.ok(adminHtml.includes('/configurations'), 'Admin HTML queries /configurations endpoint');
+
+  const adminViewJs = fs.readFileSync(path.resolve('frontend/src/pages/admin/admin-view.js'), 'utf-8');
+  assert.ok(adminViewJs.includes('data-config-game'), 'AdminView contains button to configure game characters');
+  assert.ok(adminViewJs.includes('/configurations'), 'AdminView queries /configurations endpoint');
+});
+
+test('Gói 3: Admin HTML and AdminView wire Audit Log & System Health API (/admin/audit-logs and /admin/system/health)', () => {
+  const adminHtml = fs.readFileSync(path.resolve('frontend/admin.html'), 'utf-8');
+  assert.ok(adminHtml.includes("data-atab=\"audit\""), 'Admin HTML contains Tab 8 Audit button');
+  assert.ok(adminHtml.includes('/admin/system/health'), 'Admin HTML fetches system health');
+  assert.ok(adminHtml.includes('/admin/audit-logs'), 'Admin HTML queries audit logs');
+
+  const adminViewJs = fs.readFileSync(path.resolve('frontend/src/pages/admin/admin-view.js'), 'utf-8');
+  assert.ok(adminViewJs.includes('tab-btn-audit'), 'AdminView contains Audit tab button');
+  assert.ok(adminViewJs.includes('renderAuditTab'), 'AdminView implements renderAuditTab method');
+  assert.ok(adminViewJs.includes('/admin/system/health'), 'AdminView fetches system health');
+  assert.ok(adminViewJs.includes('/admin/audit-logs'), 'AdminView queries audit logs');
+});
+
+test('Gói 3: Audit Logs, Health, and Configurations endpoints reject unauthenticated access', async () => {
+  const healthRes = await fetch(`${BASE_URL}/api/v1/admin/system/health`);
+  assert.ok([401, 403].includes(healthRes.status), 'System health rejects unauthenticated with 401 or 403');
+
+  const auditRes = await fetch(`${BASE_URL}/api/v1/admin/audit-logs`);
+  assert.ok([401, 403].includes(auditRes.status), 'Audit logs rejects unauthenticated with 401 or 403');
+
+  const configRes = await fetch(`${BASE_URL}/api/v1/admin/games/1/configurations`);
+  assert.ok([401, 403].includes(configRes.status), 'Game configurations rejects unauthenticated with 401 or 403');
+});

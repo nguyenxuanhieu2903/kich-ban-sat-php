@@ -96,6 +96,12 @@
         <button class="admin-nav-btn" data-atab="users">
           <span>👥</span> 6. Người dùng, DM & HSSV
         </button>
+        <button class="admin-nav-btn" data-atab="payments">
+          <span>💳</span> 7. Sổ cái & Giao dịch
+        </button>
+        <button class="admin-nav-btn" data-atab="audit">
+          <span>📜</span> 8. Nhật ký & Hệ thống
+        </button>
       </aside>
 
       <!-- Admin Main Area -->
@@ -286,13 +292,32 @@
          TAB 1: TỔNG QUAN VẬN HÀNH (OVERVIEW)
          ========================================================================= */
       if (activeTab === 'overview') {
-        let pendingRefundsCount = 1;
+        let stats = {
+          overview: {
+            revenue_month: 0,
+            revenue_last_month: 0,
+            revenue_growth_pct: 0,
+            sessions_today: 0,
+            pending_refunds: 0,
+            pending_students: 0,
+            active_rooms: 0,
+            occupancy_rate: 0
+          },
+          revenue_chart_7d: [],
+          rooms_by_status: {}
+        };
         try {
-          const rfRes = await api.get('/admin/refunds');
-          if (rfRes?.data?.refunds) {
-            pendingRefundsCount = rfRes.data.refunds.filter(r => r.status === 'PENDING').length;
+          const dashRes = await api.get('/admin/dashboard');
+          if (dashRes?.data) {
+            stats = dashRes.data;
           }
-        } catch {}
+        } catch (e) {
+          console.warn('Dashboard fetch fallback', e);
+        }
+
+        const ov = stats.overview || {};
+        const chart = stats.revenue_chart_7d || [];
+        const formatMoney = (val) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(val || 0);
 
         root.innerHTML = `
           <h1 class="page-title" style="margin-bottom: 20px; font-family: var(--font-display);">Tổng Quan Vận Hành Hệ Thống</h1>
@@ -300,22 +325,32 @@
           <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 16px; margin-bottom: 28px;">
             <div style="background: var(--bg-surface); border: 1px solid var(--gold-border); padding: 20px; border-radius: 8px;">
               <div class="text-muted" style="font-size: 0.82rem;">Doanh thu tháng này</div>
-              <div style="font-family: var(--font-display); font-size: 1.75rem; color: var(--gold); font-weight: 800;">148.650.000đ</div>
-              <small style="color: #5CD68D;">↑ 18.4% so với tháng trước</small>
+              <div style="font-family: var(--font-display); font-size: 1.75rem; color: var(--gold); font-weight: 800;">
+                ${formatMoney(ov.revenue_month)}
+              </div>
+              <small style="color: ${ov.revenue_growth_pct >= 0 ? '#5CD68D' : 'var(--crimson-bright)'};">
+                ${ov.revenue_growth_pct >= 0 ? '↑' : '↓'} ${Math.abs(ov.revenue_growth_pct)}% so với tháng trước
+              </small>
             </div>
             <div style="background: var(--bg-surface); border: 1px solid rgba(255,255,255,0.1); padding: 20px; border-radius: 8px;">
               <div class="text-muted" style="font-size: 0.82rem;">Ca chơi hoạt động hôm nay</div>
-              <div style="font-family: var(--font-display); font-size: 1.75rem; font-weight: 800; color: var(--text-primary);">6 ca trực</div>
-              <small style="color: var(--text-dim);">Tỷ lệ lấp đầy: 87%</small>
+              <div style="font-family: var(--font-display); font-size: 1.75rem; font-weight: 800; color: var(--text-primary);">
+                ${ov.sessions_today || 0} ca trực
+              </div>
+              <small style="color: var(--text-dim);">Tỷ lệ lấp đầy: ${ov.occupancy_rate || 0}%</small>
             </div>
             <div style="background: var(--bg-surface); border: 1px solid rgba(255,255,255,0.1); padding: 20px; border-radius: 8px;">
               <div class="text-muted" style="font-size: 0.82rem;">Hoàn cọc chờ duyệt</div>
-              <div style="font-family: var(--font-display); font-size: 1.75rem; color: var(--crimson-bright); font-weight: 800;">${pendingRefundsCount} yêu cầu</div>
+              <div style="font-family: var(--font-display); font-size: 1.75rem; color: var(--crimson-bright); font-weight: 800;">
+                ${ov.pending_refunds || 0} yêu cầu
+              </div>
               <small style="color: var(--gold);">Áp dụng Quy tắc 24 giờ</small>
             </div>
             <div style="background: var(--bg-surface); border: 1px solid rgba(255,255,255,0.1); padding: 20px; border-radius: 8px;">
               <div class="text-muted" style="font-size: 0.82rem;">Thẻ HSSV chờ xác minh</div>
-              <div style="font-family: var(--font-display); font-size: 1.75rem; color: #5CD68D; font-weight: 800;">2 thẻ mới</div>
+              <div style="font-family: var(--font-display); font-size: 1.75rem; color: #5CD68D; font-weight: 800;">
+                ${ov.pending_students || 0} thẻ mới
+              </div>
               <small style="color: var(--text-dim);">Ưu đãi giảm 20.000đ</small>
             </div>
           </div>
@@ -324,63 +359,45 @@
             <div style="background: var(--bg-surface); border: 1px solid rgba(255,255,255,0.1); padding: 22px; border-radius: 8px;">
               <h3 style="color: var(--gold); margin-bottom: 16px; font-family: var(--font-display);">Biểu đồ doanh thu 7 ngày gần nhất</h3>
               <div style="display: flex; align-items: flex-end; justify-content: space-between; gap: 10px; height: 180px; padding-top: 20px;">
-                <div style="flex: 1; display: flex; flex-direction: column; align-items: center; gap: 6px; height: 100%; justify-content: flex-end;">
-                  <span style="font-size: 0.7rem; color: var(--text-dim);">3.5tr</span>
-                  <div style="width: 100%; height: 39%; background: linear-gradient(180deg, var(--gold), var(--crimson)); border-radius: 4px 4px 0 0;"></div>
-                  <strong style="font-size: 0.8rem;">T2</strong>
-                </div>
-                <div style="flex: 1; display: flex; flex-direction: column; align-items: center; gap: 6px; height: 100%; justify-content: flex-end;">
-                  <span style="font-size: 0.7rem; color: var(--gold); font-weight: bold;">4.8tr</span>
-                  <div style="width: 100%; height: 54%; background: linear-gradient(180deg, var(--gold), var(--crimson)); border-radius: 4px 4px 0 0;"></div>
-                  <strong style="font-size: 0.8rem; color: var(--gold);">T3*</strong>
-                </div>
-                <div style="flex: 1; display: flex; flex-direction: column; align-items: center; gap: 6px; height: 100%; justify-content: flex-end;">
-                  <span style="font-size: 0.7rem; color: var(--text-dim);">3.2tr</span>
-                  <div style="width: 100%; height: 36%; background: linear-gradient(180deg, var(--gold), var(--crimson)); border-radius: 4px 4px 0 0;"></div>
-                  <strong style="font-size: 0.8rem;">T4</strong>
-                </div>
-                <div style="flex: 1; display: flex; flex-direction: column; align-items: center; gap: 6px; height: 100%; justify-content: flex-end;">
-                  <span style="font-size: 0.7rem; color: var(--text-dim);">3.9tr</span>
-                  <div style="width: 100%; height: 44%; background: linear-gradient(180deg, var(--gold), var(--crimson)); border-radius: 4px 4px 0 0;"></div>
-                  <strong style="font-size: 0.8rem;">T5</strong>
-                </div>
-                <div style="flex: 1; display: flex; flex-direction: column; align-items: center; gap: 6px; height: 100%; justify-content: flex-end;">
-                  <span style="font-size: 0.7rem; color: var(--text-dim);">6.2tr</span>
-                  <div style="width: 100%; height: 69%; background: linear-gradient(180deg, var(--gold), var(--crimson)); border-radius: 4px 4px 0 0;"></div>
-                  <strong style="font-size: 0.8rem;">T6</strong>
-                </div>
-                <div style="flex: 1; display: flex; flex-direction: column; align-items: center; gap: 6px; height: 100%; justify-content: flex-end;">
-                  <span style="font-size: 0.7rem; color: var(--gold); font-weight: bold;">8.9tr</span>
-                  <div style="width: 100%; height: 100%; background: linear-gradient(180deg, var(--gold), var(--crimson)); border-radius: 4px 4px 0 0;"></div>
-                  <strong style="font-size: 0.8rem;">T7</strong>
-                </div>
-                <div style="flex: 1; display: flex; flex-direction: column; align-items: center; gap: 6px; height: 100%; justify-content: flex-end;">
-                  <span style="font-size: 0.7rem; color: var(--gold); font-weight: bold;">8.4tr</span>
-                  <div style="width: 100%; height: 94%; background: linear-gradient(180deg, var(--gold), var(--crimson)); border-radius: 4px 4px 0 0;"></div>
-                  <strong style="font-size: 0.8rem;">CN</strong>
-                </div>
+                ${chart.map(c => `
+                  <div style="flex: 1; display: flex; flex-direction: column; align-items: center; gap: 6px; height: 100%; justify-content: flex-end;">
+                    <span style="font-size: 0.7rem; color: ${c.revenue > 0 ? 'var(--gold)' : 'var(--text-dim)'}; font-weight: ${c.revenue > 0 ? 'bold' : 'normal'};">${escapeHtml(c.revenue_formatted || '0đ')}</span>
+                    <div style="width: 100%; height: ${Math.max(8, c.height_pct || 0)}%; background: linear-gradient(180deg, var(--gold), var(--crimson)); border-radius: 4px 4px 0 0;" title="${c.date}: ${c.revenue_formatted}"></div>
+                    <strong style="font-size: 0.8rem; color: ${c.revenue > 0 ? 'var(--gold)' : 'inherit'};">${escapeHtml(c.day_of_week)}</strong>
+                  </div>
+                `).join('')}
               </div>
             </div>
 
             <div style="background: var(--bg-surface); border: 1px solid rgba(255,255,255,0.1); padding: 22px; border-radius: 8px;">
-              <h3 style="color: var(--gold); margin-bottom: 14px; font-family: var(--font-display);">Top kịch bản đặt nhiều nhất</h3>
-              <table class="data-table" style="width: 100%;">
-                <thead><tr><th>Kịch bản</th><th>Số lượt đặt</th><th>Độ khó</th></tr></thead>
-                <tbody>
-                  <tr><td><strong>Yandere: Lời Thề Máu</strong> (18+)</td><td><strong class="text-gold">148 ca</strong></td><td><span class="badge badge-18">Khó</span></td></tr>
-                  <tr><td><strong>Căn Phòng Số 7</strong></td><td><strong class="text-gold">164 ca</strong></td><td><span class="badge badge-green">Dễ</span></td></tr>
-                  <tr><td><strong>Gương: Phản Chiếu Tội Ác</strong></td><td><strong class="text-gold">132 ca</strong></td><td><span class="badge badge-dark">Trung bình</span></td></tr>
-                  <tr><td><strong>Sinh Tử: Chuyến Tàu Cuối</strong></td><td><strong class="text-gold">119 ca</strong></td><td><span class="badge badge-18">Khó</span></td></tr>
-                </tbody>
-              </table>
+              <h3 style="color: var(--gold); margin-bottom: 14px; font-family: var(--font-display);">Tình trạng các phòng chơi</h3>
+              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 16px;">
+                <div style="background: rgba(15,23,42,0.6); padding: 12px; border-radius: 6px; border-left: 3px solid #5CD68D;">
+                  <div style="font-size: 0.8rem; color: var(--text-dim);">Đang gom người (FORMING)</div>
+                  <strong style="font-size: 1.3rem; color: #5CD68D;">${stats.rooms_by_status?.FORMING || 0} phòng</strong>
+                </div>
+                <div style="background: rgba(15,23,42,0.6); padding: 12px; border-radius: 6px; border-left: 3px solid var(--gold);">
+                  <div style="font-size: 0.8rem; color: var(--text-dim);">Đang biểu quyết (VOTING)</div>
+                  <strong style="font-size: 1.3rem; color: var(--gold);">${(stats.rooms_by_status?.SCHEDULING || 0) + (stats.rooms_by_status?.VOTING || 0)} phòng</strong>
+                </div>
+                <div style="background: rgba(15,23,42,0.6); padding: 12px; border-radius: 6px; border-left: 3px solid #38bdf8;">
+                  <div style="font-size: 0.8rem; color: var(--text-dim);">Chờ đặt cọc (DEPOSITING)</div>
+                  <strong style="font-size: 1.3rem; color: #38bdf8;">${stats.rooms_by_status?.DEPOSITING || 0} phòng</strong>
+                </div>
+                <div style="background: rgba(15,23,42,0.6); padding: 12px; border-radius: 6px; border-left: 3px solid #a855f7;">
+                  <div style="font-size: 0.8rem; color: var(--text-dim);">Đã chốt & phân DM (CONFIRMED)</div>
+                  <strong style="font-size: 1.3rem; color: #a855f7;">${stats.rooms_by_status?.CONFIRMED || 0} phòng</strong>
+                </div>
+              </div>
             </div>
           </div>
 
           <div style="background: var(--bg-surface); border: 1px solid var(--crimson); padding: 22px; border-radius: 8px;">
             <h3 style="color: var(--crimson-bright); margin-bottom: 10px; font-family: var(--font-display);">🚨 Việc cần xử lý gấp hôm nay</h3>
             <p class="text-muted" style="font-size: 0.9rem; line-height: 1.6; margin: 0;">
-              • Có <strong>1 phòng chơi</strong> sắp diễn ra trong 4 giờ tới chưa có Quản trò (DM) nhận ca.<br />
-              • Có <strong>${pendingRefundsCount} yêu cầu hoàn cọc</strong> cần đối chiếu mốc thời gian 24 giờ để duyệt trả lại tiền cho khách.
+              • Có <strong>${ov.pending_refunds || 0} yêu cầu hoàn cọc</strong> cần đối chiếu mốc thời gian 24 giờ để duyệt trả lại tiền cho khách.<br />
+              • Có <strong>${ov.pending_students || 0} yêu cầu xác thực thẻ HSSV</strong> đang chờ xem xét và cấp ưu đãi -20.000đ.<br />
+              • Có <strong>${ov.active_rooms || 0} phòng chơi</strong> đang hoạt động gom người và biểu quyết lịch tổ chức.
             </p>
           </div>
         `;
@@ -638,10 +655,15 @@
                       <td>${escapeHtml(s.duration_minutes || 240)} phút</td>
                       <td class="text-gold font-bold">${Number(price).toLocaleString('vi-VN')}đ</td>
                       <td>
-                        <label class="switch">
-                          <input type="checkbox" data-scr-toggle="${s.id}" data-current="${isActive ? 'ACTIVE' : 'INACTIVE'}" ${isActive ? 'checked' : ''} />
-                          <span class="slider"></span>
-                        </label>
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                          <label class="switch">
+                            <input type="checkbox" data-scr-toggle="${s.id}" data-current="${isActive ? 'ACTIVE' : 'INACTIVE'}" ${isActive ? 'checked' : ''} />
+                            <span class="slider"></span>
+                          </label>
+                          <button class="btn btn-ghost btn-sm" data-config-game="${s.id}" style="padding: 2px 8px; font-size: 0.75rem;" title="Quản lý nhân vật & đạo cụ">
+                            🎭 Cấu hình
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   `;
@@ -684,6 +706,42 @@
             } catch (err) {
               toast.error(err.message || 'Lỗi cập nhật trạng thái');
               chk.checked = !chk.checked;
+            }
+          });
+        });
+
+        root.querySelectorAll('[data-config-game]').forEach(btn => {
+          btn.addEventListener('click', async () => {
+            const gid = btn.dataset.configGame;
+            try {
+              const res = await api.get(`/admin/games/${gid}/configurations`);
+              const configs = res?.data?.configurations || [];
+              const gameName = res?.data?.game?.name || 'Kịch bản';
+              let msg = `CẤU HÌNH NHÂN VẬT - ${gameName.toUpperCase()} (#${gid})\n\n`;
+              if (configs.length === 0) {
+                msg += 'Chưa có cấu hình nhân vật nào được lưu.\n';
+              } else {
+                configs.forEach(c => {
+                  const charList = Array.isArray(c.configuration?.characters) ? c.configuration.characters.map(ch => ch.name || ch.title).join(', ') : (c.configuration ? JSON.stringify(c.configuration).substring(0, 80) : '—');
+                  msg += `• Phiên bản v${c.version} [${c.is_active ? 'ACTIVE' : 'INACTIVE'}]: ${charList}\n`;
+                });
+              }
+              msg += '\nBạn có muốn thêm cấu hình phiên bản mới với danh sách nhân vật mẫu không?';
+              if (confirm(msg)) {
+                const charNames = prompt('Nhập danh sách tên nhân vật (cách nhau bởi dấu phẩy):', 'Thám tử Mori, Bác sĩ Watson, Nữ quý tộc, Quản gia');
+                if (charNames) {
+                  const characters = charNames.split(',').map((n, idx) => ({ id: idx + 1, name: n.trim(), gender: idx % 2 === 0 ? 'M' : 'F', role: 'Player Character' }));
+                  await api.post(`/admin/games/${gid}/configurations`, {
+                    configuration: { characters, props: ['Bức thư mật', 'Chìa khóa bạc'] },
+                    description: `Cấu hình ${characters.length} nhân vật chuẩn`,
+                    is_active: 1
+                  });
+                  toast.success(`Đã thêm cấu hình mới cho kịch bản "${gameName}"!`);
+                  renderAdminTab(currentTab);
+                }
+              }
+            } catch (err) {
+              toast.error(err.message || 'Lỗi truy vấn cấu hình kịch bản');
             }
           });
         });
@@ -907,6 +965,385 @@
             }
           });
         });
+      }
+
+      /* =========================================================================
+         TAB 7: SỔ CÁI & GIAO DỊCH THANH TOÁN (PAYMENTS)
+         ========================================================================= */
+      if (activeTab === 'payments') {
+        let paymentData = {
+          payments: [],
+          pagination: { page: 1, per_page: 20, total: 0, total_pages: 1 },
+          meta: { total_paid_amount: 0, total_pending_amount: 0 }
+        };
+
+        const loadPayments = async (params = {}) => {
+          try {
+            const query = new URLSearchParams(params).toString();
+            const res = await api.get(`/admin/payments${query ? '?' + query : ''}`);
+            return res?.data || paymentData;
+          } catch (err) {
+            console.error(err);
+            return paymentData;
+          }
+        };
+
+        const formatMoney = (val) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(val || 0);
+
+        paymentData = await loadPayments();
+        const payments = paymentData.payments || [];
+        const meta = paymentData.meta || {};
+
+        function renderPaymentRows(list) {
+          if (!list || list.length === 0) {
+            return `<tr><td colspan="9" style="text-align: center; padding: 30px;" class="text-muted">Không tìm thấy giao dịch nào phù hợp.</td></tr>`;
+          }
+          return list.map(p => {
+            const statusBadge = p.status === 'PAID' ? 'badge-green' : p.status === 'PENDING' ? 'badge-gold' : p.status === 'REFUNDED' ? 'badge-dark' : 'badge-18';
+            return `
+              <tr>
+                <td>#${p.id}</td>
+                <td>
+                  <strong>${escapeHtml(p.user_name || 'Người chơi')}</strong><br />
+                  <small class="text-muted">${escapeHtml(p.user_email || p.user_phone || '—')}</small>
+                </td>
+                <td>
+                  <strong>${escapeHtml(p.game_name || 'Kịch bản')}</strong><br />
+                  <small class="text-muted">${escapeHtml(p.room_title || 'Phòng #' + (p.game_room_id || ''))}</small>
+                </td>
+                <td>
+                  <span class="badge ${p.payment_type === 'DEPOSIT' ? 'badge-gold' : 'badge-green'}" style="font-size: 0.75rem;">
+                    ${escapeHtml(p.payment_type || 'DEPOSIT')}
+                  </span>
+                </td>
+                <td style="font-family: var(--font-mono); font-weight: 700;">${formatMoney(p.amount)}</td>
+                <td style="font-family: var(--font-mono); color: #5CD68D; font-weight: 700;">${formatMoney(p.paid_amount)}</td>
+                <td>
+                  <span class="badge ${statusBadge}">
+                    ${escapeHtml(p.status)}
+                  </span>
+                </td>
+                <td class="text-muted" style="font-size: 0.82rem;">${escapeHtml(p.created_at || '—')}</td>
+                <td>
+                  <button class="btn btn-ghost btn-sm" data-view-payment="${p.id}" style="padding: 4px 8px; font-size: 0.8rem;">
+                    Chi tiết
+                  </button>
+                </td>
+              </tr>
+            `;
+          }).join('');
+        }
+
+        root.innerHTML = `
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 10px;">
+            <div>
+              <h1 class="page-title" style="margin-bottom: 4px; font-family: var(--font-display);">Sổ Cái & Giao Dịch Thanh Toán</h1>
+              <p class="text-muted" style="margin: 0;">Tra cứu toàn bộ hóa đơn tiền cọc và tất toán từ người chơi</p>
+            </div>
+          </div>
+
+          <!-- KPI Cards -->
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; margin-bottom: 24px;">
+            <div style="background: var(--bg-surface); border: 1px solid var(--gold-border); padding: 18px; border-radius: 8px;">
+              <div class="text-muted" style="font-size: 0.82rem;">Tổng tiền thực thu (PAID)</div>
+              <div style="font-family: var(--font-display); font-size: 1.6rem; color: var(--gold); font-weight: 800;">
+                ${formatMoney(meta.total_paid_amount)}
+              </div>
+              <small style="color: #5CD68D;">Tiền đã vào tài khoản</small>
+            </div>
+            <div style="background: var(--bg-surface); border: 1px solid rgba(255,255,255,0.1); padding: 18px; border-radius: 8px;">
+              <div class="text-muted" style="font-size: 0.82rem;">Đang chờ thanh toán (PENDING)</div>
+              <div style="font-family: var(--font-display); font-size: 1.6rem; color: var(--crimson-bright); font-weight: 800;">
+                ${formatMoney(meta.total_pending_amount)}
+              </div>
+              <small style="color: var(--text-dim);">Chờ người chơi cọc/tất toán</small>
+            </div>
+            <div style="background: var(--bg-surface); border: 1px solid rgba(255,255,255,0.1); padding: 18px; border-radius: 8px;">
+              <div class="text-muted" style="font-size: 0.82rem;">Tổng số hóa đơn giao dịch</div>
+              <div style="font-family: var(--font-display); font-size: 1.6rem; color: var(--text-primary); font-weight: 800;">
+                ${paymentData.pagination?.total || payments.length} hóa đơn
+              </div>
+              <small style="color: var(--gold);">Đồng bộ theo thời gian thực</small>
+            </div>
+          </div>
+
+          <!-- Bộ lọc thanh toán -->
+          <div class="card" style="padding: 16px; margin-bottom: 20px; background: var(--bg-surface); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px;">
+            <div style="display: flex; gap: 12px; flex-wrap: wrap; align-items: center;">
+              <input type="text" id="admin-payment-search" class="form-control" placeholder="Tìm người chơi, email, điện thoại, phòng..." style="flex: 1; min-width: 240px; padding: 8px 12px;" />
+              <select id="admin-payment-status" class="form-control" style="width: auto; padding: 8px 12px;">
+                <option value="ALL">-- Tất cả trạng thái --</option>
+                <option value="PAID">Đã thanh toán (PAID)</option>
+                <option value="PENDING">Chờ thanh toán (PENDING)</option>
+                <option value="PARTIALLY_PAID">Cọc một phần (PARTIALLY_PAID)</option>
+                <option value="REFUNDED">Đã hoàn tiền (REFUNDED)</option>
+                <option value="FAILED">Thất bại / Hủy (FAILED)</option>
+              </select>
+              <select id="admin-payment-type" class="form-control" style="width: auto; padding: 8px 12px;">
+                <option value="ALL">-- Loại thanh toán --</option>
+                <option value="DEPOSIT">Đặt cọc (DEPOSIT)</option>
+                <option value="REMAINING">Tất toán còn lại (REMAINING)</option>
+                <option value="FULL">Toàn phần (FULL)</option>
+              </select>
+              <button id="btn-filter-payments" class="btn btn-gold btn-sm">Lọc</button>
+            </div>
+          </div>
+
+          <!-- Bảng Sổ Cái Giao Dịch -->
+          <div class="table-wrap" style="background: var(--bg-surface); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; overflow-x: auto;">
+            <table class="data-table" style="width: 100%;">
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>Người chơi</th>
+                  <th>Phòng / Kịch bản</th>
+                  <th>Loại</th>
+                  <th>Số tiền</th>
+                  <th>Đã trả</th>
+                  <th>Trạng thái</th>
+                  <th>Thời gian</th>
+                  <th>Thao tác</th>
+                </tr>
+              </thead>
+              <tbody id="admin-payments-tbody">
+                ${renderPaymentRows(payments)}
+              </tbody>
+            </table>
+          </div>
+        `;
+
+        const attachPaymentEvents = () => {
+          root.querySelectorAll('[data-view-payment]').forEach(btn => {
+            btn.onclick = async () => {
+              const pid = btn.dataset.viewPayment;
+              try {
+                const res = await api.get(`/admin/payments/${pid}`);
+                const p = res?.data?.payment;
+                if (!p) return;
+                const txs = p.transactions || [];
+                const rfs = p.refunds || [];
+                alert(`CHI TIẾT HÓA ĐƠN #${p.id}\n` +
+                      `Người chơi: ${p.user_name || 'N/A'} (${p.user_email || 'N/A'})\n` +
+                      `Kịch bản: ${p.game_name || 'N/A'} - ${p.room_title || 'N/A'}\n` +
+                      `Loại: ${p.payment_type} | Trạng thái: ${p.status}\n` +
+                      `Cần thanh toán: ${formatMoney(p.amount)} | Đã trả: ${formatMoney(p.paid_amount)}\n\n` +
+                      `LỊCH SỬ GIAO DỊCH (${txs.length}):\n` +
+                      (txs.length ? txs.map(t => `- [${t.gateway}] Mã GD: ${t.transaction_ref || 'N/A'}, Số tiền: ${formatMoney(t.amount)}, TT: ${t.status}`).join('\n') : 'Chưa có giao dịch gateway') +
+                      `\n\nYÊU CẦU HOÀN TIỀN (${rfs.length}):\n` +
+                      (rfs.length ? rfs.map(r => `- Hoàn ${formatMoney(r.amount)}, Lý do: ${r.reason}, TT: ${r.status}`).join('\n') : 'Không có')
+                );
+              } catch (err) {
+                toast.error(err.message || 'Lỗi tải chi tiết giao dịch');
+              }
+            };
+          });
+        };
+
+        document.getElementById('btn-filter-payments')?.addEventListener('click', async () => {
+          const search = document.getElementById('admin-payment-search').value.trim();
+          const status = document.getElementById('admin-payment-status').value;
+          const paymentType = document.getElementById('admin-payment-type').value;
+          const params = {};
+          if (search) params.search = search;
+          if (status !== 'ALL') params.status = status;
+          if (paymentType !== 'ALL') params.payment_type = paymentType;
+          const res = await loadPayments(params);
+          const tbody = document.getElementById('admin-payments-tbody');
+          if (tbody) {
+            tbody.innerHTML = renderPaymentRows(res.payments || []);
+            attachPaymentEvents();
+          }
+        });
+        attachPaymentEvents();
+      }
+
+      /* =========================================================================
+         TAB 8: NHẬT KÝ THAO TÁC & SỨC KHỎE HỆ THỐNG (AUDIT & HEALTH)
+         ========================================================================= */
+      if (activeTab === 'audit') {
+        let healthData = { status: 'HEALTHY', database: {}, runtime: {}, storage: {} };
+        let auditData = { logs: [], pagination: { total: 0 } };
+
+        try {
+          const hRes = await api.get('/admin/system/health');
+          healthData = hRes?.data || healthData;
+        } catch (e) {
+          console.warn(e);
+        }
+
+        const loadLogs = async (params = {}) => {
+          try {
+            const query = new URLSearchParams(params).toString();
+            const res = await api.get(`/admin/audit-logs${query ? '?' + query : ''}`);
+            return res?.data || { logs: [], pagination: {} };
+          } catch (e) {
+            console.error(e);
+            return { logs: [], pagination: {} };
+          }
+        };
+
+        auditData = await loadLogs();
+        const logs = auditData.logs || [];
+        const db = healthData.database || {};
+        const rt = healthData.runtime || {};
+        const st = healthData.storage || {};
+
+        function renderLogRows(list) {
+          if (!list || list.length === 0) {
+            return `<tr><td colspan="7" style="text-align: center; padding: 30px;" class="text-muted">Chưa có nhật ký thao tác nào được ghi nhận.</td></tr>`;
+          }
+          return list.map(l => {
+            const isCritical = (l.action || '').includes('CANCEL') || (l.action || '').includes('DELETE') || (l.action || '').includes('ROLE');
+            const badgeClass = isCritical ? 'badge-18' : 'badge-gold';
+            return `
+              <tr>
+                <td>#${l.id}</td>
+                <td style="font-size: 0.82rem; color: var(--text-dim);">${escapeHtml(l.created_at || '—')}</td>
+                <td>
+                  <strong>${escapeHtml(l.user_name || 'Hệ thống (CLI/Admin)')}</strong><br />
+                  <small class="text-muted">${escapeHtml(l.user_email || '—')}</small>
+                </td>
+                <td>
+                  <span class="badge ${badgeClass}" style="font-size: 0.75rem;">
+                    ${escapeHtml(l.action)}
+                  </span>
+                </td>
+                <td>
+                  <strong>${escapeHtml(l.entity_type)}</strong>
+                  ${l.entity_id ? `<span style="color: var(--gold); font-size: 0.8rem;">#${escapeHtml(l.entity_id)}</span>` : ''}
+                </td>
+                <td style="font-family: var(--font-mono); font-size: 0.8rem; color: var(--text-dim);">${escapeHtml(l.ip_address || '—')}</td>
+                <td>
+                  <button class="btn btn-ghost btn-sm" data-view-log="${l.id}" style="padding: 3px 8px; font-size: 0.78rem;">
+                    Xem chi tiết
+                  </button>
+                </td>
+              </tr>
+            `;
+          }).join('');
+        }
+
+        root.innerHTML = `
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 10px;">
+            <div>
+              <h1 class="page-title" style="margin-bottom: 4px; font-family: var(--font-display);">Nhật Ký Thao Tác &amp; Sức Khỏe Máy Chủ</h1>
+              <p class="text-muted" style="margin: 0;">Theo dõi các thao tác quản trị nhạy cảm (Audit Logs) và kiểm tra sức khỏe hạ tầng</p>
+            </div>
+            <span class="badge badge-green" style="font-size: 0.9rem; padding: 6px 14px;">
+              ● ${escapeHtml(healthData.status || 'HEALTHY')}
+            </span>
+          </div>
+
+          <!-- Hạ tầng & System Health KPI -->
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; margin-bottom: 24px;">
+            <div style="background: var(--bg-surface); border: 1px solid var(--gold-border); padding: 18px; border-radius: 8px;">
+              <div class="text-muted" style="font-size: 0.82rem;">Cơ sở dữ liệu (Database)</div>
+              <div style="font-family: var(--font-display); font-size: 1.35rem; color: var(--gold); font-weight: 700;">
+                ${escapeHtml(db.engine || 'MySQL')} ${escapeHtml(db.version ? db.version.substring(0, 8) : '')}
+              </div>
+              <small style="color: #5CD68D;">● Trạng thái: ${escapeHtml(db.status || 'OK')} (${db.tables_count || 0} bảng)</small>
+            </div>
+
+            <div style="background: var(--bg-surface); border: 1px solid rgba(255,255,255,0.1); padding: 18px; border-radius: 8px;">
+              <div class="text-muted" style="font-size: 0.82rem;">Runtime &amp; Bộ nhớ PHP</div>
+              <div style="font-family: var(--font-display); font-size: 1.35rem; color: var(--text-primary); font-weight: 700;">
+                PHP ${escapeHtml(rt.php_version || '8.4')} (${escapeHtml(rt.os || 'Windows')})
+              </div>
+              <small style="color: var(--text-dim);">RAM sử dụng: <strong>${rt.memory_usage_mb || 0} MB</strong></small>
+            </div>
+
+            <div style="background: var(--bg-surface); border: 1px solid rgba(255,255,255,0.1); padding: 18px; border-radius: 8px;">
+              <div class="text-muted" style="font-size: 0.82rem;">Dung lượng đĩa trống</div>
+              <div style="font-family: var(--font-display); font-size: 1.35rem; color: #5CD68D; font-weight: 700;">
+                ${st.disk_free_gb || 0} GB trống
+              </div>
+              <small style="color: var(--text-dim);">Tổng: ${st.disk_total_gb || 0} GB (${st.disk_used_pct || 0}% used)</small>
+            </div>
+
+            <div style="background: var(--bg-surface); border: 1px solid rgba(255,255,255,0.1); padding: 18px; border-radius: 8px;">
+              <div class="text-muted" style="font-size: 0.82rem;">Tệp tin Log &amp; Rate Limit</div>
+              <div style="font-family: var(--font-display); font-size: 1.35rem; color: var(--gold); font-weight: 700;">
+                ${st.log_files_count || 0} log files
+              </div>
+              <small style="color: #5CD68D;">● Ghi đĩa: ${st.storage_writable ? 'Khả dụng' : 'Khóa'}</small>
+            </div>
+          </div>
+
+          <!-- Bộ lọc Audit Log -->
+          <div class="card" style="padding: 16px; margin-bottom: 20px; background: var(--bg-surface); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px;">
+            <div style="display: flex; gap: 12px; flex-wrap: wrap; align-items: center;">
+              <input type="text" id="admin-audit-search" class="form-control" placeholder="Tìm theo người thực hiện, hành động, IP..." style="flex: 1; min-width: 240px; padding: 8px 12px;" />
+              <select id="admin-audit-action" class="form-control" style="width: auto; padding: 8px 12px;">
+                <option value="ALL">-- Tất cả hành động --</option>
+                <option value="USER_ROLE_CHANGED">Đổi vai trò người dùng (USER_ROLE_CHANGED)</option>
+                <option value="REFUND_APPROVED">Duyệt hoàn tiền (REFUND_APPROVED)</option>
+                <option value="REFUND_REJECTED">Từ chối hoàn tiền (REFUND_REJECTED)</option>
+                <option value="GAME_ROOM_CANCELLED_EMERGENCY">Hủy phòng khẩn cấp (GAME_ROOM_CANCELLED_EMERGENCY)</option>
+                <option value="GAME_CONFIGURATION_CREATED">Thêm cấu hình nhân vật (GAME_CONFIGURATION_CREATED)</option>
+                <option value="GAME_CONFIGURATION_UPDATED">Cập nhật cấu hình nhân vật (GAME_CONFIGURATION_UPDATED)</option>
+              </select>
+              <button id="btn-filter-audit" class="btn btn-gold btn-sm">Lọc</button>
+            </div>
+          </div>
+
+          <!-- Bảng Audit Logs -->
+          <div class="table-wrap" style="background: var(--bg-surface); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; overflow-x: auto;">
+            <table class="data-table" style="width: 100%;">
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>Thời gian</th>
+                  <th>Người thực hiện</th>
+                  <th>Hành động</th>
+                  <th>Đối tượng tác động</th>
+                  <th>Địa chỉ IP</th>
+                  <th>Chi tiết</th>
+                </tr>
+              </thead>
+              <tbody id="admin-audit-tbody">
+                ${renderLogRows(logs)}
+              </tbody>
+            </table>
+          </div>
+        `;
+
+        const attachLogEvents = () => {
+          root.querySelectorAll('[data-view-log]').forEach(btn => {
+            btn.onclick = () => {
+              const lid = Number(btn.dataset.viewLog);
+              const l = (auditData.logs || []).find(item => item.id == lid);
+              if (!l) return;
+              alert(
+                `CHI TIẾT NHẬT KÝ THAO TÁC #${l.id}\n` +
+                `Thời gian: ${l.created_at}\n` +
+                `Người thực hiện: ${l.user_name || 'Hệ thống'} (${l.user_email || 'N/A'})\n` +
+                `Hành động: ${l.action}\n` +
+                `Đối tượng: ${l.entity_type} #${l.entity_id || 'N/A'}\n` +
+                `IP: ${l.ip_address} | User Agent: ${l.user_agent || 'N/A'}\n\n` +
+                `GIÁ TRỊ CŨ (Old Values):\n` +
+                JSON.stringify(l.old_values || {}, null, 2) + '\n\n' +
+                `GIÁ TRỊ MỚI (New Values):\n` +
+                JSON.stringify(l.new_values || {}, null, 2)
+              );
+            };
+          });
+        };
+
+        document.getElementById('btn-filter-audit')?.addEventListener('click', async () => {
+          const search = document.getElementById('admin-audit-search').value.trim();
+          const action = document.getElementById('admin-audit-action').value;
+          const params = {};
+          if (search) params.search = search;
+          if (action !== 'ALL') params.action = action;
+          auditData = await loadLogs(params);
+          const tbody = document.getElementById('admin-audit-tbody');
+          if (tbody) {
+            tbody.innerHTML = renderLogRows(auditData.logs || []);
+            attachLogEvents();
+          }
+        });
+
+        attachLogEvents();
       }
     }
 
