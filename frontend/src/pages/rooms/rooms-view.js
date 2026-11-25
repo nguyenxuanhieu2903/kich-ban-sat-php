@@ -45,9 +45,6 @@ export class RoomsView {
         <button class="tab-btn ${this.currentTab === 'FORMING' ? 'active' : ''}" data-tab="FORMING">
           Đang ghép (Forming)
         </button>
-        <button class="tab-btn ${this.currentTab === 'REPLACEMENT' ? 'active' : ''}" data-tab="REPLACEMENT">
-          🔥 Cần thế chỗ
-        </button>
         <button class="tab-btn ${this.currentTab === 'SCHEDULED' ? 'active' : ''}" data-tab="SCHEDULED">
           Đã chốt lịch (Scheduled)
         </button>
@@ -138,74 +135,8 @@ export class RoomsView {
       const res = await api.get('/rooms?status=ALL');
       const apiRooms = res?.data?.rooms || [];
 
-      // Các phòng mẫu sống động mô phỏng đúng quy chuẩn V16
-      const curatedFallbacks = [
-        {
-          id: '104',
-          title: 'Nhóm Thám Tử Đêm',
-          game_name: 'Yandere: Lời Thề Máu',
-          creator_name: 'Trần Gia Bảo',
-          current_players: 6,
-          max_players: 8,
-          status: 'FORMING',
-          replacement_status: 'NONE',
-          date: '2026-11-24',
-          timeSlot: '19:00',
-          minsLeft: 15
-        },
-        {
-          id: '107',
-          title: 'Cần 2 bạn phá án nhanh',
-          game_name: 'Gương: Phản Chiếu Tội Ác',
-          creator_name: 'Nguyễn Minh Khôi',
-          current_players: 5,
-          max_players: 7,
-          status: 'FORMING',
-          replacement_status: 'NONE',
-          date: '2026-11-23',
-          timeSlot: '14:00',
-          minsLeft: 15
-        },
-        {
-          id: '112',
-          title: 'Hội cổ trang cung đình',
-          game_name: 'Căn Phòng Số 7',
-          creator_name: 'Đào Mỹ Duyên',
-          current_players: 3,
-          max_players: 6,
-          status: 'FORMING',
-          replacement_status: 'NONE',
-          date: '2026-11-26',
-          timeSlot: '16:00',
-          minsLeft: 15
-        },
-        {
-          id: '109',
-          title: 'Sinh Tử: Chuyến Tàu Cuối',
-          game_name: 'Sinh Tử: Chuyến Tàu Cuối',
-          creator_name: 'Lê Hoàng Phúc',
-          current_players: 7,
-          max_players: 8,
-          status: 'SCHEDULED',
-          replacement_status: 'NONE',
-          date: '2026-11-25',
-          timeSlot: '20:00',
-          minsLeft: 0
-        },
-        {
-          id: '118',
-          title: 'Tìm 1 bạn thế chỗ gấp',
-          game_name: 'Vũ Hội Mặt Nạ Đỏ',
-          creator_name: 'Hoàng Yến',
-          current_players: 7,
-          max_players: 8,
-          status: 'SCHEDULED',
-          replacement_status: 'OPEN',
-          date: '2026-11-24',
-          timeSlot: '18:30',
-          minsLeft: 45
-        }
-      ];
+      // Sử dụng 100% phòng thật từ MySQL (không chèn phòng giả)
+      const curatedFallbacks = [];
 
       // Chuẩn hóa danh sách phòng từ DB
       const normalizedDbRooms = apiRooms.map(r => {

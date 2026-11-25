@@ -1053,11 +1053,11 @@ export class AdminView {
           </div>
 
           <div class="admin-kpi-card" style="border-top: 3px solid #10B981;">
-            <div style="font-size: 0.82rem; color: var(--portal-text-muted, #9CA3AF);">Thẻ HSSV chờ duyệt</div>
+            <div style="font-size: 0.82rem; color: var(--portal-text-muted, #9CA3AF);">Ca đã hoàn thành</div>
             <div class="admin-kpi-val" style="color: #34D399;">
-              ${ov.pending_students || 0} thẻ mới
+              ${stats.rooms_by_status?.COMPLETED || 0} ca
             </div>
-            <small style="color: var(--portal-text-muted, #9CA3AF);">Ưu đãi giảm 20.000đ/vé</small>
+            <small style="color: var(--portal-text-muted, #9CA3AF);">Tổng hợp 7 ngày gần nhất</small>
           </div>
         </div>
 
@@ -1068,15 +1068,24 @@ export class AdminView {
               Biểu Đồ Doanh Thu 7 Ngày Gần Nhất
             </h3>
             <div style="display: flex; align-items: flex-end; justify-content: space-between; gap: 8px; height: 180px; padding-top: 20px;">
-              ${chart.map(c => `
-                <div style="flex: 1; display: flex; flex-direction: column; align-items: center; gap: 6px; height: 100%; justify-content: flex-end;">
-                  <span style="font-size: 0.72rem; color: ${c.revenue > 0 ? '#818CF8' : 'var(--portal-text-muted, #9CA3AF)'}; font-weight: ${c.revenue > 0 ? 'bold' : 'normal'};">
-                    ${escapeHtml(c.revenue_formatted || '0đ')}
-                  </span>
-                  <div style="width: 100%; height: ${Math.max(8, c.height_pct || 0)}%; background: linear-gradient(180deg, #6366F1, #4338CA); border-radius: 4px 4px 0 0;" title="${c.date}: ${c.revenue_formatted}"></div>
-                  <strong style="font-size: 0.8rem; color: ${c.revenue > 0 ? '#C7D2FE' : 'inherit'};">${escapeHtml(c.day_of_week)}</strong>
-                </div>
-              `).join('')}
+              ${(() => {
+                const maxAmt = Math.max(1, ...chart.map(item => Number(item.amount ?? item.revenue ?? 0)));
+                return chart.map(c => {
+                  const amt = Number(c.amount ?? c.revenue ?? 0);
+                  const pct = amt > 0 ? Math.max(14, Math.round((amt / maxAmt) * 100)) : 6;
+                  const labelText = amt >= 1000000 ? `${(amt / 1000000).toFixed(1)}tr` : amt > 0 ? `${Math.round(amt / 1000)}k` : '0đ';
+                  const dayLabel = c.label || c.day_of_week || (c.date ? c.date.slice(5) : '');
+                  return `
+                    <div style="flex: 1; display: flex; flex-direction: column; align-items: center; gap: 6px; height: 100%; justify-content: flex-end;">
+                      <span style="font-size: 0.72rem; color: ${amt > 0 ? '#A5B4FC' : 'var(--portal-text-muted, #9CA3AF)'}; font-weight: ${amt > 0 ? '700' : '400'};">
+                        ${escapeHtml(labelText)}
+                      </span>
+                      <div style="width: 100%; height: ${pct}%; background: ${amt > 0 ? 'linear-gradient(180deg, #818CF8, #4F46E5)' : 'rgba(99,102,241,0.2)'}; border-radius: 4px 4px 0 0;" title="${escapeHtml(c.date || '')}: ${amt.toLocaleString('vi-VN')}đ"></div>
+                      <strong style="font-size: 0.8rem; color: ${c.is_today ? '#FBBF24' : (amt > 0 ? '#C7D2FE' : 'var(--portal-text-muted, #9CA3AF)')};">${escapeHtml(dayLabel)}</strong>
+                    </div>
+                  `;
+                }).join('');
+              })()}
             </div>
           </div>
 
@@ -1086,21 +1095,21 @@ export class AdminView {
               Tình Trạng Các Phòng Chơi
             </h3>
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
-              <div style="background: rgba(17,24,39,0.7); padding: 12px; border-radius: 6px; border-left: 3px solid #10B981; border: 1px solid rgba(255,255,255,0.06); border-left-width: 3px;">
-                <div style="font-size: 0.8rem; color: var(--portal-text-muted, #9CA3AF);">Đang gom người (FORMING)</div>
+              <div style="background: rgba(17,24,39,0.7); padding: 12px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.06); border-left: 3px solid #10B981;">
+                <div style="font-size: 0.8rem; color: var(--portal-text-muted, #9CA3AF);">Đang ghép (FORMING)</div>
                 <strong style="font-size: 1.3rem; color: #34D399;">${stats.rooms_by_status?.FORMING || 0} phòng</strong>
               </div>
-              <div style="background: rgba(17,24,39,0.7); padding: 12px; border-radius: 6px; border-left: 3px solid #F59E0B; border: 1px solid rgba(255,255,255,0.06); border-left-width: 3px;">
-                <div style="font-size: 0.8rem; color: var(--portal-text-muted, #9CA3AF);">Biểu quyết lịch (VOTING)</div>
-                <strong style="font-size: 1.3rem; color: #FBBF24;">${(stats.rooms_by_status?.SCHEDULING || 0) + (stats.rooms_by_status?.VOTING || 0)} phòng</strong>
+              <div style="background: rgba(17,24,39,0.7); padding: 12px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.06); border-left: 3px solid #3B82F6;">
+                <div style="font-size: 0.8rem; color: var(--portal-text-muted, #9CA3AF);">Đã chốt lịch (SCHEDULED)</div>
+                <strong style="font-size: 1.3rem; color: #60A5FA;">${stats.rooms_by_status?.SCHEDULED || 0} phòng</strong>
               </div>
-              <div style="background: rgba(17,24,39,0.7); padding: 12px; border-radius: 6px; border-left: 3px solid #3B82F6; border: 1px solid rgba(255,255,255,0.06); border-left-width: 3px;">
-                <div style="font-size: 0.8rem; color: var(--portal-text-muted, #9CA3AF);">Chờ đặt cọc (DEPOSITING)</div>
-                <strong style="font-size: 1.3rem; color: #60A5FA;">${stats.rooms_by_status?.DEPOSITING || 0} phòng</strong>
+              <div style="background: rgba(17,24,39,0.7); padding: 12px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.06); border-left: 3px solid #8B5CF6;">
+                <div style="font-size: 0.8rem; color: var(--portal-text-muted, #9CA3AF);">Đã hoàn thành (COMPLETED)</div>
+                <strong style="font-size: 1.3rem; color: #A78BFA;">${stats.rooms_by_status?.COMPLETED || 0} phòng</strong>
               </div>
-              <div style="background: rgba(17,24,39,0.7); padding: 12px; border-radius: 6px; border-left: 3px solid #8B5CF6; border: 1px solid rgba(255,255,255,0.06); border-left-width: 3px;">
-                <div style="font-size: 0.8rem; color: var(--portal-text-muted, #9CA3AF);">Đã chốt &amp; phân DM (CONFIRMED)</div>
-                <strong style="font-size: 1.3rem; color: #A78BFA;">${stats.rooms_by_status?.CONFIRMED || 0} phòng</strong>
+              <div style="background: rgba(17,24,39,0.7); padding: 12px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.06); border-left: 3px solid #EF4444;">
+                <div style="font-size: 0.8rem; color: var(--portal-text-muted, #9CA3AF);">Đã hủy (CANCELLED)</div>
+                <strong style="font-size: 1.3rem; color: #F87171;">${stats.rooms_by_status?.CANCELLED || 0} phòng</strong>
               </div>
             </div>
           </div>
@@ -1110,8 +1119,7 @@ export class AdminView {
           <h4 style="margin: 0 0 8px 0; color: #F87171; font-size: 1.1rem;">🚨 Việc Cần Xử Lý Gấp Hôm Nay</h4>
           <p style="margin: 0; font-size: 0.9rem; line-height: 1.6; color: var(--portal-text-muted, #9CA3AF);">
             • Có <strong>${ov.pending_refunds || 0} yêu cầu hoàn cọc</strong> cần đối chiếu mốc thời gian 24 giờ để duyệt trả lại tiền cho khách.<br />
-            • Có <strong>${ov.pending_students || 0} yêu cầu xác thực thẻ HSSV</strong> đang chờ xem xét và cấp ưu đãi -20.000đ.<br />
-            • Có <strong>${ov.active_rooms || 0} phòng chơi</strong> đang hoạt động gom người và biểu quyết lịch tổ chức.
+            • Có <strong>${ov.active_rooms || 0} phòng chơi</strong> đang hoạt động ghép nhóm và chốt lịch tổ chức.
           </p>
         </div>
       `;

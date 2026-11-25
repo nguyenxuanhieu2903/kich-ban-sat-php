@@ -185,8 +185,8 @@ $sessIns = $pdo->prepare(
      VALUES (:rid, :pid, :did, 1, :prid, :st, :et, :status, :notes)'
 );
 $payIns = $pdo->prepare(
-    'INSERT INTO `player_payments` (`room_participant_id`, `payment_type`, `amount`, `status`, `paid_at`, `created_at`)
-     VALUES (:rpid, :type, :amt, :status, :paid_at, :created)'
+    'INSERT INTO `player_payments` (`room_participant_id`, `payment_type`, `amount`, `paid_amount`, `status`, `paid_at`, `created_at`)
+     VALUES (:rpid, :type, :amt, :amt, :status, :paid_at, :created)'
 );
 
 $now = date('Y-m-d H:i:s.000');
