@@ -520,4 +520,75 @@ a {
   .main-nav.open { display: flex; }
   .mobile-menu-btn { display: inline-block; }
   .footer-grid { grid-template-columns: 1fr; }
+}/* =========================================================
+   ĐỔI CÁC NÚT SÁNG TOÀN WEB SANG ĐỎ RƯỢU VANG 
+   ========================================================= */
+.btn-gold,
+.btn-primary {
+  background-color: #8B1E1E !important;
+  border: 1.5px solid #8B1E1E !important;
+  color: #F6F2E4 !important;
+}
+
+.btn-gold:hover,
+.btn-primary:hover {
+  background-color: #6B1414 !important;
+  border-color: #6B1414 !important;
+  color: #FFFFFF !important;
+}
+
+.btn-ghost {
+  border-color: rgba(212, 175, 55, 0.35);
+}
+
+.btn-ghost:hover {
+  border-color: #8B1E1E !important;
+  background-color: rgba(139, 30, 30, 0.18) !important;
+  color: #F6F2E4 !important;
+}
+/* =========================================================
+   ĐỔI MENU ACTIVE, HOVER & NÚT ĐĂNG KÝ TOÀN WEB SANG ĐỎ RƯỢU VANG
+   ========================================================= */
+/* Nút Đăng ký và các nút sáng chính (.btn-gold) */
+.btn-gold,
+.btn-primary,
+header .btn-gold,
+.site-header .btn-gold {
+  background-color: #8B1E1E !important;
+  border: 1.5px solid #8B1E1E !important;
+  color: #F3EFE0 !important;
+}
+
+.btn-gold:hover,
+.btn-gold:active,
+.btn-primary:hover,
+header .btn-gold:hover {
+  background-color: #681414 !important;
+  border-color: #681414 !important;
+  color: #FFFFFF !important;
+}
+
+/* Mục menu đang đứng (vd: Kho kịch bản) & hiệu ứng hover/click menu */
+header a.active,
+.site-header a.active,
+.nav-link.active,
+nav a.active,
+header a:hover,
+.site-header a:hover,
+.nav-link:hover,
+nav a:hover {
+  color: #C93B3B !important;
+}
+
+header a.active::after,
+.nav-link.active::after {
+  background-color: #8B1E1E !important;
+}
+
+/* Nút "← Quay lại kho kịch bản" và các nút viền khi hover/click */
+.btn-ghost:hover,
+.btn-ghost:active {
+  border-color: #8B1E1E !important;
+  background-color: rgba(139, 30, 30, 0.22) !important;
+  color: #F3EFE0 !important;
 }

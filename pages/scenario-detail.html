@@ -7,6 +7,307 @@
   <link rel="stylesheet" href="../src/styles/tokens.css" />
   <link rel="stylesheet" href="../src/styles/components.css" />
   <link rel="stylesheet" href="../src/styles/home.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,600;0,700;1,500&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet" />
+  <style>
+    /* =========================================================
+       1. KHUNG THÔNG TIN TRÊN: GIỮ VIỀN BO GÓC NGOÀI, CHỈ RĂNG CƯA BÊN PHẢI ẢNH
+       ========================================================= */
+    .detail-hero-grid {
+      position: relative;
+      background: #F3EFE0 !important;
+      color: #1F1C18 !important;
+      border: 1.5px solid #8B1E1E !important;
+      border-radius: 12px !important;
+      padding: 0 !important;
+      overflow: hidden !important;
+      display: grid !important;
+      grid-template-columns: 310px 1fr;
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.65) !important;
+    }
+
+    /* Cột trái: Ảnh poster (xóa sạch viền & bóng đổ cũ gây đường sọc dọc) */
+    .detail-poster-box {
+      position: relative;
+      height: 100%;
+      min-height: 430px;
+      background: transparent !important;
+      border: none !important;
+      box-shadow: none !important;
+      border-radius: 0 !important;
+      padding: 0 !important;
+      margin: 0 !important;
+    }
+
+    .detail-poster-box img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+      border: none !important;
+      box-shadow: none !important;
+      border-radius: 0 !important;
+      /* Chỉ cắt răng cưa lẹm vào mép bên phải của hình ảnh */
+      -webkit-mask-image: radial-gradient(circle at 100% 11px, transparent 6px, #000 6.5px);
+      -webkit-mask-size: 100% 22px;
+      -webkit-mask-repeat: repeat-y;
+      mask-image: radial-gradient(circle at 100% 11px, transparent 6px, #000 6.5px);
+      mask-size: 100% 22px;
+      mask-repeat: repeat-y;
+    }
+
+    .detail-poster-box::after {
+      display: none !important;
+    }
+
+    /* Cột phải: Nội dung vé giấy kem */
+    .detail-info-box {
+      position: relative;
+      padding: 28px 36px !important;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+
+    .detail-info-box::before {
+      content: 'KBS ARCHIVE ———————————————————————————————— 2026';
+      display: block;
+      font-family: 'Space Mono', monospace;
+      font-size: 0.68rem;
+      letter-spacing: 0.08em;
+      color: #5C5449;
+      margin-bottom: 10px;
+      white-space: nowrap;
+      overflow: hidden;
+    }
+
+    .detail-hero-grid .section-kicker {
+      font-family: 'Space Mono', monospace;
+      color: #8B1E1E !important;
+      font-size: 0.74rem;
+      letter-spacing: 0.14em;
+    }
+
+    .detail-title {
+      font-family: 'Cormorant Garamond', serif !important;
+      font-size: 2.35rem !important;
+      font-weight: 700 !important;
+      color: #1F1C18 !important;
+      margin: 2px 0 14px !important;
+      line-height: 1.1;
+    }
+
+    .detail-subtitle {
+      font-size: 1.15rem;
+      font-style: italic;
+      color: #8B1E1E !important;
+    }
+
+    /* Danh sách thông số nối đường chấm ngang 2 bên */
+    .detail-meta-list {
+      list-style: none !important;
+      padding: 0 !important;
+      margin: 0 0 18px !important;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .detail-meta-list li {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      font-family: 'Space Mono', monospace;
+      font-size: 0.84rem;
+      color: #1F1C18 !important;
+      border-bottom: 1px dotted #8A7E6D;
+      padding-bottom: 4px;
+    }
+
+    .detail-meta-list li strong {
+      color: #5C5449 !important;
+      font-weight: 700;
+      text-transform: uppercase;
+      font-size: 0.76rem;
+    }
+
+    /* Khung giá vé */
+    .detail-price-box {
+      background: #E8DFC5 !important;
+      border: 1px dashed #8B1E1E !important;
+      border-radius: 4px !important;
+      padding: 12px 16px !important;
+      margin-bottom: 18px !important;
+    }
+
+    .detail-price-title {
+      font-family: 'Space Mono', monospace;
+      font-size: 0.78rem;
+      text-transform: uppercase;
+      color: #8B1E1E !important;
+      font-weight: 700;
+      margin-bottom: 6px;
+    }
+
+    .detail-price-box ul {
+      margin: 0;
+      padding-left: 18px;
+    }
+
+    .detail-price-box li,
+    .detail-price-box strong {
+      color: #1F1C18 !important;
+      font-size: 0.88rem;
+    }
+
+    /* Nút bấm đồng bộ màu Đỏ rượu vang */
+    .detail-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+
+    .detail-actions .btn-gold {
+      background: #8B1E1E !important;
+      border: 1.5px solid #8B1E1E !important;
+      color: #F3EFE0 !important;
+      font-family: 'Space Mono', monospace;
+      font-size: 0.8rem;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+
+    .detail-actions .btn-gold:hover {
+      background: #681414 !important;
+      border-color: #681414 !important;
+      color: #FFFFFF !important;
+    }
+
+    .detail-actions .btn-ghost {
+      border: 1.5px solid #8B1E1E !important;
+      color: #8B1E1E !important;
+      background: transparent !important;
+      font-family: 'Space Mono', monospace;
+      font-size: 0.8rem;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+
+    .detail-actions .btn-ghost:hover {
+      background: #8B1E1E !important;
+      color: #F3EFE0 !important;
+    }
+
+    .poster-badge {
+      background: #8B1E1E !important;
+      color: #F3EFE0 !important;
+      font-family: 'Space Mono', monospace;
+    }
+
+    /* =========================================================
+       2. KHUNG NỘI DUNG DƯỚI: CUỐNG VÉ MÀU ĐỎ RƯỢU VANG
+       ========================================================= */
+    .detail-synopsis-box {
+      position: relative;
+      margin-top: 24px !important;
+      background: #8B1E1E !important;
+      color: #F3EFE0 !important;
+      border: none !important;
+      border-top: 3px dotted #080808 !important;
+      border-radius: 0 !important;
+      padding: 32px 42px 46px !important;
+      box-shadow: 0 22px 50px rgba(0, 0, 0, 0.75) !important;
+      -webkit-mask-image: radial-gradient(circle at 16px 100%, transparent 8px, #000 8.5px);
+      -webkit-mask-size: 32px 100%;
+      -webkit-mask-repeat: repeat-x;
+      mask-image: radial-gradient(circle at 16px 100%, transparent 8px, #000 8.5px);
+      mask-size: 32px 100%;
+      mask-repeat: repeat-x;
+    }
+
+    /* Hai vết khuyết tròn xé vé hai bên hông trên */
+    .detail-synopsis-box::before,
+    .detail-synopsis-box::after {
+      content: '';
+      position: absolute;
+      top: -15px;
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      background: #080808;
+      z-index: 5;
+    }
+    .detail-synopsis-box::before { left: -14px; }
+    .detail-synopsis-box::after { right: -14px; }
+
+    /* Tiêu đề ● NỘI DUNG: */
+    .detail-synopsis-heading {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-family: 'Space Mono', monospace !important;
+      font-size: 1.05rem !important;
+      font-weight: 700 !important;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: #F3EFE0 !important;
+      margin: 0 0 18px !important;
+    }
+
+    .detail-synopsis-heading::before {
+      content: '';
+      width: 13px;
+      height: 13px;
+      border-radius: 50%;
+      background: #1F1C18;
+      display: inline-block;
+      flex-shrink: 0;
+    }
+
+    .detail-synopsis-text {
+      display: block !important;
+    }
+
+    .detail-synopsis-text p {
+      font-family: 'Space Mono', monospace;
+      font-size: 0.88rem;
+      line-height: 1.75;
+      color: #F3EFE0 !important;
+      margin: 0 0 14px !important;
+      text-indent: 0 !important;
+    }
+
+    .detail-synopsis-text p:last-child {
+      margin-bottom: 0 !important;
+    }
+
+    @media (max-width: 820px) {
+      .detail-hero-grid {
+        grid-template-columns: 1fr !important;
+      }
+      .detail-poster-box {
+        min-height: 360px;
+      }
+      .detail-poster-box img {
+        -webkit-mask-image: none;
+        mask-image: none;
+      }
+      .detail-info-box {
+        padding: 24px 20px !important;
+      }
+      .detail-synopsis-box {
+        padding: 28px 22px 42px !important;
+      }
+    }
+    /* Ngôi sao độ khó màu vàng nổi bật trên nền giấy kem */
+    .difficulty-stars {
+      color: #D49B1A !important;
+      text-shadow: 0 1px 0 rgba(31, 28, 24, 0.25);
+      letter-spacing: 2px;
+      font-size: 1rem;
+    }
+  </style>
 </head>
 <body>
   <div id="app-header"></div>

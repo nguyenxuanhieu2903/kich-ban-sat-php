@@ -44,6 +44,13 @@ if (!script) {
       ? `${script.players.total || 6} người`
       : (script.players || '6 người'));
 
+  // Tô vàng riêng các ký tự ngôi sao ★
+  const rawDifficulty = script.difficulty || '★★★ (Trung bình)';
+  const formattedDifficulty = rawDifficulty.replace(
+    /(★+)/g,
+    '<span class="difficulty-stars">$1</span>'
+  );
+
   // Lấy nội dung cốt truyện
   const storyText = script.synopsis || script.description || script.summary || 'Nội dung vụ án đang được cập nhật...';
 
@@ -69,7 +76,7 @@ if (!script) {
 
         <ul class="detail-meta-list">
           <li><strong>Thể loại:</strong> ${script.genre || 'Trinh thám, Tâm lý'}</li>
-          <li><strong>Độ khó:</strong> ${script.difficulty || '★★★ (Trung bình)'}</li>
+          <li><strong>Độ khó:</strong> <span>${formattedDifficulty}</span></li>
           <li><strong>Số lượng:</strong> ${playersDisplay}</li>
           <li><strong>Thời gian:</strong> ${script.duration || '~ 3 tiếng'}</li>
         </ul>
