@@ -1,0 +1,54 @@
+/* Player Portal — Dark Luxury tokens. Không ghi đè file variables.css của Foundation. */
+
+:root {
+  --kbs-bg: #0d0d0d;
+  --kbs-bg-raised: #181614;
+  --kbs-bg-elevated: #23201d;
+  --kbs-paper: #f5f2eb;
+  --kbs-paper-soft: #f3f0e7;
+  --kbs-ink: #1a1816;
+  --kbs-cream: #f5f2eb;
+  --kbs-muted: #9e9589;
+  --kbs-muted-dark: #6d675f;
+  --kbs-crimson: #992b2b;
+  --kbs-crimson-hover: #b53333;
+  --kbs-gold: #d4af37;
+  --kbs-gold-light: #e6c65c;
+  --kbs-panel: #171713;
+  --kbs-card: #20201d;
+  --kbs-line: rgba(212, 175, 55, 0.28);
+  --kbs-line-soft: rgba(245, 242, 235, 0.1);
+  --kbs-open: #2e7d32;
+  --kbs-hold: #d97706;
+  --kbs-font-serif: "Playfair Display", Georgia, serif;
+  --kbs-font-sans: "Be Vietnam Pro", Inter, system-ui, sans-serif;
+  --kbs-radius: 10px;
+  --kbs-radius-sm: 6px;
+  --kbs-shadow: 0 16px 40px rgba(0, 0, 0, 0.35);
+  --kbs-transition: 0.2s ease;
+  --kbs-focus: 0 0 0 3px rgba(212, 175, 55, 0.28);
+}
+
+.kbs-portal {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--kbs-bg);
+  color: var(--kbs-cream);
+  font-family: var(--kbs-font-sans);
+}
+
+.kbs-portal a {
+  color: inherit;
+}
+
+.kbs-sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  border: 0;
+}

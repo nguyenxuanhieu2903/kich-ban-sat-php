@@ -3,294 +3,50 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Kho Tàng 42 Hồ Sơ Án Mạng — Kịch Bản Sát V16</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&family=Playfair+Display:ital,wght@0,600;0,700;1,600&display=swap" rel="stylesheet" />
+  <title>Kho Kịch Bản | Kịch Bản Sát</title>
+  <link rel="stylesheet" href="../src/styles/tokens.css" />
   <link rel="stylesheet" href="../src/styles/components.css" />
   <link rel="stylesheet" href="../src/styles/home.css" />
 </head>
 <body>
-  <header class="site-header">
-    <div class="container header-inner">
-      <a href="../index.html" class="brand-logo">
-        <img src="../src/assets/images/logo.png" alt="Logo Kịch Bản Sát" />
-        <span>KỊCH BẢN SÁT</span>
-      </a>
-      <nav class="nav-links" aria-label="Điều hướng chính">
-        <a href="../index.html">Trang chủ</a>
-        <a href="./scenarios.html" class="active">Kho 42 Kịch Bản</a>
-        <a href="./lobby.html">Sảnh Ghép Phòng</a>
-        <a href="./info.html">Bảng Giá & Nội Quy</a>
-        <a href="./dm-portal.html" id="headerDmLink" style="display: none;">Cổng Quản Trò</a>
-        <a href="./admin-portal.html" id="headerAdminLink" style="display: none;">Cổng Quản Trị</a>
-      </nav>
-      <div class="home-header-actions">
-        <a href="./auth.html" id="headerAccountLink" class="btn btn-outline">Tài Khoản</a>
-        <a href="./create-room.html" class="btn btn-primary">Mở Phòng Ngay</a>
-      </div>
-    </div>
-  </header>
+  <div id="app-header"></div>
 
-  <main class="container" style="padding-bottom: 64px;">
-    <!-- 1. Editorial Noir Header -->
-    <div class="catalog-header-noir">
-      <span class="catalog-eyebrow">THƯ VIỆN KỊCH BẢN THƯỢNG HẠNG V16</span>
-      <h1 class="catalog-header-title">Kho Tàng 42 Hồ Sơ Án Mạng</h1>
-      <p class="catalog-header-lead">
-        Tuyển tập 42 kịch bản Jubensha nguyên bản với đầy đủ bối cảnh, mức độ khó, phân loại độ tuổi 18+ và bảng giá động theo khung giờ Ngày / Tối.
-      </p>
-    </div>
-
-    <!-- 2. Interactive Noir Filter Toolbar -->
-    <div class="catalog-filter-noir">
-      <div class="catalog-search-row">
-        <div class="search-input-group">
-          <input
-            type="text"
-            id="searchInput"
-            class="noir-search-input"
-            placeholder="Tìm kiếm tên hồ sơ án mạng, mã KBS-01 hoặc từ khóa thể loại... (nhấn / để tìm nhanh)"
-          />
-        </div>
+  <main class="container" style="padding: 48px 20px 24px;">
+    <div class="section-head">
+      <div>
+        <div class="section-kicker">THƯ VIỆN HỒ SƠ VỤ ÁN</div>
+        <h1 class="section-title">Kho Kịch Bản Nhập Vai</h1>
       </div>
 
-      <div class="filter-pills-row" id="genreFilters">
-        <span class="filter-pill-label">Thể loại:</span>
-        <button type="button" class="filter-pill-btn active" data-genre="">Tất cả</button>
-        <button type="button" class="filter-pill-btn" data-genre="Trinh thám">Trinh thám</button>
-        <button type="button" class="filter-pill-btn" data-genre="Kinh dị">Kinh dị</button>
-        <button type="button" class="filter-pill-btn" data-genre="Hardcore">Hardcore</button>
-        <button type="button" class="filter-pill-btn" data-genre="Cổ trang">Cổ trang</button>
-        <button type="button" class="filter-pill-btn" data-genre="Cảm xúc">Cảm xúc</button>
-        <button type="button" class="filter-pill-btn" data-genre="Hài hước">Hài hước</button>
-        <button type="button" class="filter-pill-btn" data-genre="Tâm lý">Tâm lý</button>
-      </div>
-
-      <div class="filter-pills-row" id="playerAndAgeFilters">
-        <span class="filter-pill-label">Số người:</span>
-        <button type="button" class="filter-pill-btn active" data-players="">Tất cả</button>
-        <button type="button" class="filter-pill-btn" data-players="5">5 người</button>
-        <button type="button" class="filter-pill-btn" data-players="6">6 người</button>
-        <button type="button" class="filter-pill-btn" data-players="7">7 người</button>
-        <button type="button" class="filter-pill-btn" data-players="8">8 người</button>
-        <button type="button" class="filter-pill-btn btn-pill-18" id="btnToggle18Only" style="margin-left: 8px;">Chỉ xem 18+</button>
+      <div class="script-search-box">
+        <span class="search-icon">🔍</span>
+        <input type="text" id="catalog-search-input" placeholder="Tìm tên kịch bản..." />
+        <button type="button" id="catalog-search-clear" style="display:none;">✕</button>
       </div>
     </div>
 
-    <!-- 3. Result Counter -->
-    <div class="catalog-stats-bar">
-      <span id="catalogCounter">Đang giải mã thư viện 42 hồ sơ án mạng...</span>
-      <span id="catalogFilterHint" style="font-family: var(--font-mono); color: var(--color-gold);"></span>
-    </div>
-
-    <!-- 4. Editorial Noir Folio Grid -->
-    <div class="catalog-editorial-grid" id="scenariosGrid">
-      <p style="text-align: center; grid-column: 1 / -1; padding: 48px 0; color: var(--text-muted);">
-        Đang đồng bộ danh mục 42 hồ sơ kịch bản từ CSDL...
-      </p>
-    </div>
+    <div class="filter-pills" id="catalog-genre-filters"></div>
+    <div class="scripts-grid" id="catalog-scripts-grid"></div>
   </main>
 
   <!-- Modal xác nhận 18+ -->
-  <div class="home-modal-backdrop" id="catalogAgeModal" hidden>
-    <div class="ticket-card home-modal-box">
-      <span class="stamp-badge">CẢNH BÁO GIỚI HẠN ĐỘ TUỔI 18+</span>
-      <h3 id="catalogAgeTitle">Xác Nhận Độ Tuổi Tham Gia</h3>
-      <p>
-        Hồ sơ kịch bản này chứa tình tiết kinh dị tâm lý nặng hoặc yếu tố ám ảnh, chỉ dành cho người chơi từ đủ <strong>18 tuổi trở lên</strong> (xuất trình CCCD khi nhận kịch bản tại quán).
+  <div class="modal-backdrop" id="age-modal">
+    <div class="paper-ticket" style="max-width: 440px; padding: 28px; text-align: center;">
+      <span class="badge badge-18" style="margin-bottom: 12px;">CẢNH BÁO NỘI DUNG 18+</span>
+      <h3 style="font-family: var(--font-display); font-size: 1.5rem; margin-bottom: 10px;">
+        Hồ Sơ Giới Hạn Độ Tuổi
+      </h3>
+      <p style="font-size: 0.94rem; color: var(--ink-muted); margin-bottom: 20px;">
+        Kịch bản <strong id="age-script-name"></strong> có yếu tố kinh dị, tâm lý nặng hoặc bạo lực. Bạn xác nhận đã đủ 18 tuổi?
       </p>
-      <hr class="ticket-divider" />
-      <div class="home-modal-actions">
-        <button type="button" class="btn btn-outline" id="catalogAgeCancel">Quay lại</button>
-        <button type="button" class="btn btn-primary" id="catalogAgeConfirm">Tôi đủ 18 tuổi — Tiếp tục</button>
+      <div style="display: flex; gap: 12px; justify-content: center;">
+        <button type="button" class="btn btn-ghost" id="age-cancel-btn">Quay lại</button>
+        <button type="button" class="btn btn-gold" id="age-confirm-btn">Tôi đã đủ 18 tuổi</button>
       </div>
     </div>
   </div>
 
-  <script type="module">
-    import { apiClient } from '../src/api/api-client.js';
-    import { SCENARIOS } from '../src/data/scripts.data.js';
-    import { normalizeScenario, renderGameFolioCardHtml } from '../src/utils/poster-svg.js';
-
-    let allScenarios = [];
-    let selectedGenre = '';
-    let selectedPlayers = '';
-    let is18Only = false;
-    let searchQuery = '';
-    let pendingAdultUrl = '';
-
-    const scenariosGrid = document.getElementById('scenariosGrid');
-    const searchInput = document.getElementById('searchInput');
-    const genreFilters = document.getElementById('genreFilters');
-    const playerAndAgeFilters = document.getElementById('playerAndAgeFilters');
-    const btnToggle18Only = document.getElementById('btnToggle18Only');
-    const catalogCounter = document.getElementById('catalogCounter');
-    const catalogFilterHint = document.getElementById('catalogFilterHint');
-    const ageModal = document.getElementById('catalogAgeModal');
-    const ageModalTitle = document.getElementById('catalogAgeTitle');
-
-    function renderGrid() {
-      const list = allScenarios.filter((raw) => {
-        const g = normalizeScenario(raw);
-        if (searchQuery) {
-          const q = searchQuery.toLowerCase();
-          const hay = `${g.title} ${g.code} ${g.dossierCode} ${g.genre} ${g.subtitle} ${g.tagline} ${g.description}`.toLowerCase();
-          if (!hay.includes(q)) return false;
-        }
-        if (selectedGenre) {
-          const gStr = `${g.genre} ${g.subtitle} ${g.description}`.toLowerCase();
-          if (!gStr.includes(selectedGenre.toLowerCase())) return false;
-        }
-        if (selectedPlayers) {
-          const p = Number(selectedPlayers);
-          if (g.minPlayers > p || g.maxPlayers < p) return false;
-        }
-        if (is18Only && !g.is18Plus) {
-          return false;
-        }
-        return true;
-      });
-
-      if (catalogCounter) {
-        catalogCounter.innerHTML = `Hiển thị <strong>${list.length}</strong> / ${allScenarios.length} hồ sơ án mạng`;
-      }
-      if (catalogFilterHint) {
-        const hints = [];
-        if (selectedGenre) hints.push(`Thể loại: ${selectedGenre}`);
-        if (selectedPlayers) hints.push(`Bàn ${selectedPlayers} người`);
-        if (is18Only) hints.push('Đang lọc án 18+');
-        catalogFilterHint.textContent = hints.join(' | ');
-      }
-
-      if (list.length === 0) {
-        scenariosGrid.innerHTML = `
-          <div class="ticket-card" style="grid-column: 1 / -1; text-align: center; padding: 48px 20px;">
-            <p style="color: var(--text-muted); font-size: 1.05rem; margin-bottom: 16px;">Không tìm thấy hồ sơ nào khớp với bộ lọc điều tra hiện tại.</p>
-            <button type="button" class="btn btn-outline" id="btnResetCatalogFilters">Đặt lại toàn bộ bộ lọc</button>
-          </div>
-        `;
-        document.getElementById('btnResetCatalogFilters')?.addEventListener('click', () => {
-          selectedGenre = '';
-          selectedPlayers = '';
-          is18Only = false;
-          searchQuery = '';
-          searchInput.value = '';
-          genreFilters.querySelectorAll('.filter-pill-btn').forEach((b, idx) => b.classList.toggle('active', idx === 0));
-          playerAndAgeFilters.querySelectorAll('button[data-players]').forEach((b, idx) => b.classList.toggle('active', idx === 0));
-          btnToggle18Only.classList.remove('active');
-          renderGrid();
-        });
-        return;
-      }
-
-      scenariosGrid.innerHTML = list
-        .map((item) => renderGameFolioCardHtml(item, { detailBase: './scenario-detail.html', createBase: './create-room.html' }))
-        .join('');
-    }
-
-    genreFilters.addEventListener('click', (e) => {
-      const btn = e.target.closest('button[data-genre]');
-      if (!btn) return;
-      selectedGenre = btn.dataset.genre || '';
-      genreFilters.querySelectorAll('button[data-genre]').forEach((b) => b.classList.toggle('active', b === btn));
-      renderGrid();
-    });
-
-    playerAndAgeFilters.addEventListener('click', (e) => {
-      const pBtn = e.target.closest('button[data-players]');
-      if (pBtn) {
-        selectedPlayers = pBtn.dataset.players || '';
-        playerAndAgeFilters.querySelectorAll('button[data-players]').forEach((b) => b.classList.toggle('active', b === pBtn));
-        renderGrid();
-        return;
-      }
-      if (e.target.closest('#btnToggle18Only')) {
-        is18Only = !is18Only;
-        btnToggle18Only.classList.toggle('active', is18Only);
-        renderGrid();
-      }
-    });
-
-    searchInput.addEventListener('input', (e) => {
-      searchQuery = e.target.value.trim();
-      renderGrid();
-    });
-
-    scenariosGrid.addEventListener('click', (e) => {
-      const link = e.target.closest('a.scenario-nav-link');
-      if (!link) return;
-      if (link.dataset.adult === 'true' && ageModal) {
-        e.preventDefault();
-        pendingAdultUrl = link.getAttribute('href') || '';
-        if (ageModalTitle) {
-          ageModalTitle.textContent = `Xác Nhận Độ Tuổi 18+ — "${link.dataset.title || ''}"`;
-        }
-        ageModal.hidden = false;
-      }
-    });
-
-    document.getElementById('catalogAgeCancel')?.addEventListener('click', () => {
-      ageModal.hidden = true;
-      pendingAdultUrl = '';
-    });
-
-    document.getElementById('catalogAgeConfirm')?.addEventListener('click', () => {
-      ageModal.hidden = true;
-      if (pendingAdultUrl) window.location.href = pendingAdultUrl;
-    });
-
-    window.addEventListener('keydown', (e) => {
-      if (e.key === '/' && document.activeElement !== searchInput) {
-        e.preventDefault();
-        searchInput.focus();
-      } else if (e.key === 'Escape') {
-        if (ageModal && !ageModal.hidden) {
-          ageModal.hidden = true;
-          return;
-        }
-        if (document.activeElement === searchInput) {
-          searchInput.value = '';
-          searchQuery = '';
-          searchInput.blur();
-          renderGrid();
-        }
-      }
-    });
-
-    apiClient.get('/auth/me')
-      .then((me) => {
-        if (me.success && me.data?.user) {
-          const u = me.data.user;
-          const role = String(u.role_code || u.role || 'PLAYER').toUpperCase();
-          const acc = document.getElementById('headerAccountLink');
-          if (acc) {
-            acc.textContent = u.full_name || 'Hồ Sơ';
-            acc.href = './profile.html';
-          }
-          if (role === 'DM' || role === 'ADMIN') {
-            document.getElementById('headerDmLink').style.display = 'inline-block';
-          }
-          if (role === 'ADMIN') {
-            document.getElementById('headerAdminLink').style.display = 'inline-block';
-          }
-        }
-      })
-      .catch(() => {});
-
-    apiClient.get('/games?limit=100')
-      .then((json) => {
-        if (json.success && Array.isArray(json.data?.games) && json.data.games.length > 0) {
-          allScenarios = json.data.games;
-        } else {
-          allScenarios = SCENARIOS;
-        }
-        renderGrid();
-      })
-      .catch(() => {
-        allScenarios = SCENARIOS;
-        renderGrid();
-      });
-  </script>
+  <div id="app-footer"></div>
+  <script type="module" src="../src/pages-js/catalog.page.js"></script>
 </body>
 </html>

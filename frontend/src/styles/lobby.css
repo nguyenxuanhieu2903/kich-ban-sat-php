@@ -1,0 +1,94 @@
+.lobby-toolbar {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) repeat(2, minmax(0, 0.8fr)) auto;
+  gap: 12px;
+  margin-bottom: 22px;
+  align-items: end;
+}
+
+.lobby-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 18px;
+}
+
+.lobby-card {
+  background: var(--kbs-card);
+  border: 1px solid #2a2a26;
+  border-radius: var(--kbs-radius);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+  box-shadow: var(--kbs-shadow);
+  transition: border-color var(--kbs-transition), transform var(--kbs-transition);
+}
+
+.lobby-card:hover {
+  border-color: rgba(212, 175, 55, 0.55);
+  transform: translateY(-2px);
+}
+
+.lobby-card-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+
+.lobby-code {
+  font-family: var(--kbs-font-serif);
+  color: var(--kbs-gold);
+  font-weight: 700;
+}
+
+.lobby-title {
+  margin: 0;
+  font-family: var(--kbs-font-serif);
+  font-size: 1.2rem;
+  line-height: 1.3;
+}
+
+.lobby-meta {
+  margin: 0;
+  color: var(--kbs-muted);
+  font-size: 0.85rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+}
+
+.lobby-slots {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 0.85rem;
+  color: var(--kbs-cream);
+}
+
+.lobby-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: auto;
+}
+
+.lobby-actions .kbs-btn {
+  flex: 1;
+}
+
+@media (max-width: 900px) {
+  .lobby-toolbar {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  .lobby-toolbar {
+    grid-template-columns: 1fr;
+  }
+
+  .lobby-actions {
+    flex-direction: column;
+  }
+}
