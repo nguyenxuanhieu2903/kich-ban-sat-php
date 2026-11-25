@@ -231,60 +231,110 @@ export class GamesView {
   }
 
   async openGameDetail(game) {
-    const dialog = document.getElementById('game-detail-modal');
-    const body = document.getElementById('game-detail-body');
-    if (!dialog || !body) return;
+    let dayPrice = `${Number(game.price || 159000).toLocaleString('vi-VN')}đ`;
+    let nightPrice = `${Number((game.price || 159000) + 40000).toLocaleString('vi-VN')}đ`;
 
-    let priceRowsHtml = `<li>Giá tiêu chuẩn: <strong>${Number(game.price).toLocaleString('vi-VN')}đ / người</strong></li>`;
     try {
       const res = await api.get(`/games/${game.apiId}/prices`);
       const prices = res?.data?.prices || [];
-      if (prices.length > 0) {
-        priceRowsHtml = prices.map(p => `
-          <li>${escapeHtml(p.time_slot || p.label || 'Khung giờ')}: <strong>${Number(p.price || game.price).toLocaleString('vi-VN')}đ</strong></li>
-        `).join('');
+      if (prices.length >= 2) {
+        dayPrice = `${Number(prices[0].price || game.price).toLocaleString('vi-VN')}đ`;
+        nightPrice = `${Number(prices[1].price || game.price).toLocaleString('vi-VN')}đ`;
+      } else if (prices.length === 1) {
+        dayPrice = `${Number(prices[0].price || game.price).toLocaleString('vi-VN')}đ`;
       }
     } catch {
       // fallback to base price
     }
 
-    body.innerHTML = `
-      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:16px;">
-        <div>
-          <span class="badge badge-gold">${escapeHtml(game.genre)}</span>
-          ${game.is18Plus ? '<span class="badge badge-18" style="margin-left:6px;">18+</span>' : ''}
-          <h2 style="font-family:var(--font-display);margin:8px 0 0;color:#f8fafc;">${escapeHtml(game.title)}</h2>
+    const rawDifficulty = game.difficulty || '★★★ (Trung bình)';
+    const formattedDifficulty = escapeHtml(rawDifficulty).replace(
+      /(★+)/g,
+      '<span class="difficulty-stars">$1</span>'
+    );
+    const playersDisplay = `${game.minPlayers}–${game.maxPlayers} người`;
+    const durationDisplay = `~ ${Math.round((game.duration / 60) * 10) / 10} tiếng`;
+    const fallbackUrl = `https://placehold.co/400x600/181512/d4af37?text=${encodeURIComponent(game.title)}`;
+    const storyParagraphs = (game.description || 'Nội dung vụ án đang được cập nhật...')
+      .split('\n')
+      .filter(line => line.trim())
+      .map(p => `<p>${escapeHtml(p)}</p>`)
+      .join('');
+
+    this.container.innerHTML = `
+      <div class="container" style="padding: 32px 20px 60px;">
+        <div style="margin-bottom: 20px;">
+          <button type="button" id="btn-back-to-catalog" class="btn btn-ghost btn-sm">
+            &larr; Quay lại Kho Kịch Bản
+          </button>
         </div>
-        <button id="btn-close-game-detail" class="btn btn-ghost btn-sm" style="padding:4px 10px;">✕</button>
-      </div>
-      <div style="display:grid;grid-template-columns:150px 1fr;gap:18px;align-items:start;margin-bottom:18px;">
-        <img src="${escapeHtml(game.poster)}" alt="${escapeHtml(game.title)}" style="width:100%;border-radius:8px;aspect-ratio:2/3;object-fit:cover;" />
-        <div>
-          <p style="color:#CBD5E1;font-size:0.9rem;line-height:1.55;margin:0 0 12px;">${escapeHtml(game.description)}</p>
-          <div style="font-family:var(--font-mono);font-size:0.84rem;color:#D4AF37;margin-bottom:10px;">
-            👥 ${game.minPlayers}–${game.maxPlayers} người &bull; ⏱️ ${Math.round(game.duration / 60 * 10) / 10} giờ
+
+        <!-- PHẦN TRÊN: POSTER RĂNG CƯA TRÁI + VÉ GIẤY KEM PHẢI -->
+        <div class="detail-hero-grid">
+          <div class="detail-poster-box">
+            <img
+              src="${escapeHtml(game.poster)}"
+              alt="${escapeHtml(game.title)}"
+              onerror="this.onerror=null;this.src='${fallbackUrl}'"
+            />
+            ${game.isBestSeller ? '<span class="poster-badge">BEST SELLER</span>' : ''}
+            ${game.is18Plus ? '<span class="poster-tag">18+</span>' : ''}
           </div>
-          <div style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:8px;padding:10px 14px;">
-            <div style="font-size:0.8rem;color:#94A3B8;margin-bottom:6px;text-transform:uppercase;">Bảng giá &amp; Cọc 50.000đ</div>
-            <ul style="list-style:none;padding:0;margin:0;display:grid;gap:4px;font-size:0.88rem;color:#f8fafc;">
-              ${priceRowsHtml}
-            </ul>
+
+          <div class="detail-info-box">
+            <div>
+              <div class="section-kicker">KỊCH BẢN SUY LUẬN PHÁ ÁN</div>
+              <h1 class="detail-title">
+                ${escapeHtml(game.title)}
+                ${game.isBestSeller ? '<span class="detail-subtitle">(Best Seller)</span>' : ''}
+              </h1>
+
+              <ul class="detail-meta-list">
+                <li><strong>Thể loại:</strong> <span>${escapeHtml(game.genre || 'Trinh thám, Tâm lý')}</span></li>
+                <li><strong>Độ khó:</strong> <span>${formattedDifficulty}</span></li>
+                <li><strong>Số lượng:</strong> <span>${escapeHtml(playersDisplay)}</span></li>
+                <li><strong>Thời gian:</strong> <span>${escapeHtml(durationDisplay)}</span></li>
+              </ul>
+
+              <div class="detail-price-box">
+                <div class="detail-price-title">Giá vé tham gia:</div>
+                <ul>
+                  <li>Khung giờ 9h00 – 19h59: <strong>${escapeHtml(dayPrice)} / 1 người</strong></li>
+                  <li>Khung giờ từ 20h00: <strong>${escapeHtml(nightPrice)} / 1 người</strong></li>
+                </ul>
+              </div>
+            </div>
+
+            <div class="detail-actions">
+              <button type="button" id="btn-create-room-from-detail" class="btn btn-gold">Tạo phòng chơi kịch bản này</button>
+              <a href="#rooms" id="btn-view-rooms-from-detail" class="btn btn-ghost" style="text-decoration: none;">Xem phòng đang tuyển</a>
+            </div>
           </div>
         </div>
-      </div>
-      <div style="display:flex;gap:10px;justify-content:flex-end;">
-        <button id="btn-cancel-game-detail" class="btn btn-ghost btn-sm">Đóng</button>
-        <button id="btn-create-room-from-game" class="btn btn-gold btn-sm">Tạo phòng kịch bản này &rarr;</button>
+
+        <!-- PHẦN DƯỚI: NỘI DUNG CỐT TRUYỆN -->
+        <div class="detail-synopsis-box">
+          <h2 class="detail-synopsis-heading">NỘI DUNG:</h2>
+          <div class="detail-synopsis-text">
+            ${storyParagraphs}
+          </div>
+        </div>
       </div>
     `;
 
-    body.querySelector('#btn-close-game-detail')?.addEventListener('click', () => dialog.close());
-    body.querySelector('#btn-cancel-game-detail')?.addEventListener('click', () => dialog.close());
-    body.querySelector('#btn-create-room-from-game')?.addEventListener('click', () => {
-      dialog.close();
-      this.onSelectGame({ id: game.apiId, name: game.title, min_players: game.minPlayers, max_players: game.maxPlayers });
+    document.getElementById('btn-back-to-catalog')?.addEventListener('click', () => {
+      this.render();
     });
 
-    dialog.showModal();
+    document.getElementById('btn-create-room-from-detail')?.addEventListener('click', () => {
+      this.onSelectGame({
+        id: game.apiId,
+        name: game.title,
+        min_players: game.minPlayers,
+        max_players: game.maxPlayers
+      });
+    });
+
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 }
