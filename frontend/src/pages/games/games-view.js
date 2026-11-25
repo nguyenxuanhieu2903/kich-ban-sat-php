@@ -106,56 +106,47 @@ export class GamesView {
     });
   }
 
-  resolvePoster(sc, index) {
+  resolvePoster(sc) {
     const posterFile = (sc.poster || '').split('/').pop();
-    if (posterFile && /\.(png|jpg|jpeg|webp)$/i.test(posterFile)) {
-      return `./src/assets/images/${posterFile}`;
-    }
-    const num = String((index % 42) + 1).padStart(3, '0');
-    return `./assets/images/covers/game_${num}.jpg`;
+    return posterFile ? `./src/assets/images/${posterFile}` : '';
   }
 
   async fetchGames() {
+    let defaultApiId = 1;
     let apiGames = [];
     try {
       const res = await api.get('/games');
       apiGames = res?.data?.games || [];
+      if (apiGames.length > 0) defaultApiId = apiGames[0].id;
     } catch {
       apiGames = [];
     }
 
-    const mappedApi = apiGames.map((g, i) => ({
-      id: g.id,
-      apiId: g.id,
-      title: g.name || g.title,
-      genre: g.category || g.genre || 'Trinh thám',
-      minPlayers: g.min_players || 5,
-      maxPlayers: g.max_players || 8,
-      duration: g.duration_minutes || 240,
-      price: Number(g.price_per_person || 189000),
-      is18Plus: Boolean(g.is_18_plus || (g.age_limit && g.age_limit >= 18)),
-      description: g.description || 'Kịch bản nhập vai phá án có Quản trò (DM) dẫn dắt.',
-      poster: this.resolvePoster(g, i)
-    }));
+    // Chỉ lấy đúng 42 kịch bản chuẩn có hình & nội dung từ scripts.data.js (feat/foundation-guest)
+    this.games = (ALL_SCRIPTS || [])
+      .filter(s => Boolean(s.poster))
+      .map((s) => {
+        const matchedApi = apiGames.find(g => normalizeText(g.name || g.title) === normalizeText(s.title));
+        return {
+          id: s.id,
+          apiId: matchedApi ? matchedApi.id : defaultApiId,
+          title: s.title,
+          genre: s.genre,
+          difficulty: s.difficulty,
+          minPlayers: s.playersMin || 5,
+          maxPlayers: s.playersMax || 8,
+          playersText: s.playersText || `${s.playersMin || 5}–${s.playersMax || 8} người`,
+          duration: s.duration || `${s.durationHours || 3.5} tiếng`,
+          price: Number(s.priceDay ?? s.price ?? 159000),
+          priceDay: Number(s.priceDay ?? s.price ?? 159000),
+          priceNight: Number(s.priceNight ?? ((s.price || 159000) + 40000)),
+          isBestSeller: Boolean(s.isBestSeller),
+          is18Plus: Boolean(s.is18Plus),
+          description: s.synopsis || s.summary || '',
+          poster: this.resolvePoster(s)
+        };
+      });
 
-    const seenTitles = new Set(mappedApi.map(g => normalizeText(g.title)));
-    const extraScripts = (ALL_SCRIPTS || [])
-      .filter(s => !seenTitles.has(normalizeText(s.title || s.name)))
-      .map((s, idx) => ({
-        id: s.id || `script-${idx + 1}`,
-        apiId: mappedApi[0]?.id || 1,
-        title: s.title || s.name,
-        genre: s.genre || 'Trinh thám',
-        minPlayers: s.minPlayers || 5,
-        maxPlayers: s.maxPlayers || 8,
-        duration: s.duration || 240,
-        price: Number(s.price || 189000),
-        is18Plus: Boolean(s.is18Plus || s.is18),
-        description: s.summary || s.description || 'Kịch bản nhập vai phá án đặc sắc.',
-        poster: this.resolvePoster(s, mappedApi.length + idx)
-      }));
-
-    this.games = [...mappedApi, ...extraScripts];
     this.renderFilters();
     this.renderCatalog();
   }
@@ -231,29 +222,16 @@ export class GamesView {
   }
 
   async openGameDetail(game) {
-    let dayPrice = `${Number(game.price || 159000).toLocaleString('vi-VN')}đ`;
-    let nightPrice = `${Number((game.price || 159000) + 40000).toLocaleString('vi-VN')}đ`;
-
-    try {
-      const res = await api.get(`/games/${game.apiId}/prices`);
-      const prices = res?.data?.prices || [];
-      if (prices.length >= 2) {
-        dayPrice = `${Number(prices[0].price || game.price).toLocaleString('vi-VN')}đ`;
-        nightPrice = `${Number(prices[1].price || game.price).toLocaleString('vi-VN')}đ`;
-      } else if (prices.length === 1) {
-        dayPrice = `${Number(prices[0].price || game.price).toLocaleString('vi-VN')}đ`;
-      }
-    } catch {
-      // fallback to base price
-    }
+    const dayPrice = `${Number(game.priceDay || game.price || 159000).toLocaleString('vi-VN')}đ`;
+    const nightPrice = `${Number(game.priceNight || (game.price || 159000) + 40000).toLocaleString('vi-VN')}đ`;
 
     const rawDifficulty = game.difficulty || '★★★ (Trung bình)';
     const formattedDifficulty = escapeHtml(rawDifficulty).replace(
       /(★+)/g,
       '<span class="difficulty-stars">$1</span>'
     );
-    const playersDisplay = `${game.minPlayers}–${game.maxPlayers} người`;
-    const durationDisplay = `~ ${Math.round((game.duration / 60) * 10) / 10} tiếng`;
+    const playersDisplay = game.playersText || `${game.minPlayers}–${game.maxPlayers} người`;
+    const durationDisplay = game.duration || '~ 3 tiếng';
     const fallbackUrl = `https://placehold.co/400x600/181512/d4af37?text=${encodeURIComponent(game.title)}`;
     const storyParagraphs = (game.description || 'Nội dung vụ án đang được cập nhật...')
       .split('\n')
