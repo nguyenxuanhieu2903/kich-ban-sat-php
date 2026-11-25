@@ -163,55 +163,113 @@ $pdo->exec("
     (2, 'HSSV_20000', 'Ưu đãi học sinh sinh viên (Kiểm tra thẻ tại quán)', 'STUDENT', 'FIXED', 20000, '2026-01-01 00:00:00.000', '2035-12-31 23:59:59.999', JSON_OBJECT('weekdays', JSON_ARRAY(1, 2, 3, 4), 'valid_from', '09:00:00', 'valid_until', '19:00:00', 'discount_per_eligible_person', 20000, 'requires_student_verification', TRUE, 'stackable', FALSE), 1)
 ");
 
-// 7. Seed Clean Sample Rooms (3 FORMING + 1 SCHEDULED, NO REPLACEMENT)
-// User IDs: 1-2 Admin, 3-6 DM, 7..56 Players (7 = Người chơi 01)
-$pdo->exec("
-    INSERT INTO `game_rooms` (`id`, `game_id`, `game_configuration_id`, `creator_id`, `title`, `description`, `min_players`, `max_players`, `status`, `formation_deadline_at`, `created_at`, `updated_at`) VALUES
-    (1, 1, 1, 7, 'Ghép nhóm phá án 2/12 tối Thứ 6', 'Tuyển thêm bạn cùng gu trinh thám kinh dị, không toxic!', 7, 7, 'FORMING', DATE_ADD(NOW(), INTERVAL 4 HOUR), NOW(3), NOW(3)),
-    (2, 2, 2, 8, 'Đội Điểm Danh cuối tuần — Bình Thạnh', 'Cần thêm 3 thám tử chơi ca chiều Thứ 7.', 6, 6, 'FORMING', DATE_ADD(NOW(), INTERVAL 4 HOUR), NOW(3), NOW(3)),
-    (3, 3, 3, 9, 'Phá án Yandere — Kèo vui vẻ', 'Ưu tiên bạn đã từng chơi Jubensha, cọc 50k giữ ghế.', 6, 8, 'FORMING', DATE_ADD(NOW(), INTERVAL 4 HOUR), NOW(3), NOW(3)),
-    (4, 4, 4, 7, 'Ca đã chốt — Martinez Tại Kinh Kỳ Quán', 'Phòng đã đủ người và chốt lịch cùng DM Nguyễn Phạm Y Huỳnh.', 6, 6, 'SCHEDULED', DATE_ADD(NOW(), INTERVAL 2 DAY), NOW(3), NOW(3))
-");
+// 7. Seed Clean Sample Rooms: 4 FORMING + 4 SCHEDULED + 3 COMPLETED + 2 Refunds PENDING (NO REPLACEMENT)
+// User IDs: 1-2 Admin, 3-6 DM (3=Huỳnh, 4=Châu, 5=Thư, 6=Như), 7..56 Players (7 = Người chơi 01)
+$roomIns = $pdo->prepare(
+    'INSERT INTO `game_rooms` (`id`, `game_id`, `game_configuration_id`, `creator_id`, `title`, `description`, `min_players`, `max_players`, `status`, `formation_deadline_at`, `created_at`, `updated_at`)
+     VALUES (:id, :gid, :cid, :creator, :title, :desc, :min_p, :max_p, :status, :deadline, :created, :created)'
+);
+$partIns = $pdo->prepare(
+    'INSERT INTO `room_participants` (`game_room_id`, `user_id`, `status`, `joined_at`) VALUES (:rid, :uid, :status, :joined)'
+);
+$propIns = $pdo->prepare(
+    'INSERT INTO `schedule_proposals` (`game_room_id`, `proposed_by`, `proposed_start_at`, `proposed_end_at`, `expires_at`, `status`)
+     VALUES (:rid, :uid, :st, :et, :exp, \'CONFIRMED\')'
+);
+$dmIns = $pdo->prepare(
+    'INSERT INTO `dm_assignments` (`game_room_id`, `dm_user_id`, `assigned_by`, `status`, `responded_at`)
+     VALUES (:rid, :dm_id, 1, :status, :resp)'
+);
+$sessIns = $pdo->prepare(
+    'INSERT INTO `sessions` (`game_room_id`, `schedule_proposal_id`, `dm_assignment_id`, `venue_id`, `physical_room_id`, `start_at`, `end_at`, `status`, `session_notes`)
+     VALUES (:rid, :pid, :did, 1, :prid, :st, :et, :status, :notes)'
+);
+$payIns = $pdo->prepare(
+    'INSERT INTO `player_payments` (`room_participant_id`, `payment_type`, `amount`, `status`, `paid_at`, `created_at`)
+     VALUES (:rpid, :type, :amt, :status, :paid_at, :created)'
+);
 
-// Participants
-$pdo->exec("
-    INSERT INTO `room_participants` (`id`, `game_room_id`, `user_id`, `status`, `joined_at`) VALUES
-    (1, 1, 7, 'PENDING_DEPOSIT', NOW(3)),
-    (2, 1, 8, 'DEPOSITED', NOW(3)),
-    (3, 2, 8, 'PENDING_DEPOSIT', NOW(3)),
-    (4, 3, 9, 'PENDING_DEPOSIT', NOW(3)),
-    (5, 4, 7, 'DEPOSITED', NOW(3)),
-    (6, 4, 10, 'DEPOSITED', NOW(3))
-");
+$now = date('Y-m-d H:i:s.000');
 
-// Proposal + DM Assignment + Session for Room 4
-$pdo->exec("
-    INSERT INTO `schedule_proposals` (`id`, `game_room_id`, `proposed_by`, `proposed_start_at`, `proposed_end_at`, `expires_at`, `status`)
-    VALUES (1, 4, 7, DATE_ADD(NOW(), INTERVAL 2 DAY), DATE_ADD(DATE_ADD(NOW(), INTERVAL 2 DAY), INTERVAL 4 HOUR), DATE_ADD(NOW(), INTERVAL 1 DAY), 'CONFIRMED')
-");
-$pdo->exec("
-    INSERT INTO `dm_assignments` (`id`, `game_room_id`, `dm_user_id`, `assigned_by`, `status`, `responded_at`)
-    VALUES (1, 4, 3, 1, 'ACCEPTED', NOW(3))
-");
-$pdo->exec("
-    INSERT INTO `sessions` (`id`, `game_room_id`, `schedule_proposal_id`, `dm_assignment_id`, `venue_id`, `physical_room_id`, `start_at`, `end_at`, `status`)
-    VALUES (1, 4, 1, 1, 1, 1, DATE_ADD(NOW(), INTERVAL 2 DAY), DATE_ADD(DATE_ADD(NOW(), INTERVAL 2 DAY), INTERVAL 4 HOUR), 'SCHEDULED')
-");
+// A. 4 FORMING Rooms (IDs 1..4)
+$formingSpecs = [
+    [1, 1, 7, 'Ghép nhóm phá án 2/12 tối Thứ 6', 'Tuyển thêm bạn cùng gu trinh thám kinh dị, không toxic!', 7, 7, [7, 8, 9]],
+    [2, 2, 10, 'Đội Điểm Danh cuối tuần — Bình Thạnh', 'Cần thêm 3 thám tử chơi ca chiều Thứ 7.', 6, 6, [10, 11, 12]],
+    [3, 3, 13, 'Phá án Yandere — Kèo vui vẻ', 'Ưu tiên bạn đã từng chơi Jubensha, cọc 50k giữ ghế.', 6, 8, [13, 14]],
+    [4, 5, 15, 'Hội Suy Luận — Kịch Bản Cổ Trang', 'Cần thêm 3 bạn thích thể loại cổ trang tâm lý.', 6, 7, [15, 16, 17, 18]],
+];
+$refundPaymentIds = [];
+foreach ($formingSpecs as [$rid, $gid, $creator, $title, $desc, $minP, $maxP, $members]) {
+    $deadline = date('Y-m-d H:i:s.000', strtotime('+4 hours'));
+    $roomIns->execute([':id' => $rid, ':gid' => $gid, ':cid' => $gid, ':creator' => $creator, ':title' => $title, ':desc' => $desc, ':min_p' => $minP, ':max_p' => $maxP, ':status' => 'FORMING', ':deadline' => $deadline, ':created' => $now]);
+    foreach ($members as $idx => $uid) {
+        $pStatus = ($idx === 0) ? 'DEPOSITED' : 'PENDING_DEPOSIT';
+        $partIns->execute([':rid' => $rid, ':uid' => $uid, ':status' => $pStatus, ':joined' => $now]);
+        $rpid = (int)$pdo->lastInsertId();
+        if ($pStatus === 'DEPOSITED') {
+            $payIns->execute([':rpid' => $rpid, ':type' => 'DEPOSIT', ':amt' => 50000, ':status' => 'PAID', ':paid_at' => $now, ':created' => $now]);
+            if (count($refundPaymentIds) < 2) {
+                $refundPaymentIds[] = (int)$pdo->lastInsertId();
+            }
+        }
+    }
+}
 
-// 3 PAID Deposit Payments + 1 PENDING Refund for Admin Demo
-$pdo->exec("
-    INSERT INTO `player_payments` (`id`, `room_participant_id`, `payment_type`, `amount`, `status`, `paid_at`) VALUES
-    (1, 5, 'DEPOSIT', 50000, 'PAID', NOW(3)),
-    (2, 6, 'DEPOSIT', 50000, 'PAID', NOW(3)),
-    (3, 2, 'DEPOSIT', 50000, 'PAID', NOW(3))
-");
-$pdo->exec("
-    INSERT INTO `refunds` (`id`, `player_payment_id`, `amount`, `reason`, `status`)
-    VALUES (1, 3, 50000, 'Bận việc đột xuất, báo hủy trước 24 giờ theo chính sách.', 'PENDING')
-");
+// B. 4 SCHEDULED Rooms (IDs 5..8) — 1 per DM (3=Huỳnh ACCEPTED, 4=Châu ACCEPTED, 5=Thư PENDING, 6=Như PENDING)
+$scheduledSpecs = [
+    [5, 6, 19, 'Ca tối Thứ 7 — Martinez Kinh Kỳ Quán', 3, 'ACCEPTED', 1, '+1 day 19:00', [19, 20, 21, 22, 23, 24]],
+    [6, 7, 25, 'Ca chiều Chủ Nhật — Biệt Thự Bí Ẩn', 4, 'ACCEPTED', 2, '+2 days 14:00', [25, 26, 27, 28, 29, 30]],
+    [7, 8, 31, 'Ca tối Thứ 2 — Án Mạng Nửa Đêm', 5, 'PENDING', 3, '+3 days 20:00', [31, 32, 33, 34, 35, 36]],
+    [8, 9, 37, 'Ca chiều Thứ 4 — Mật Thất Cổ Điển', 6, 'PENDING', 4, '+4 days 15:00', [37, 38, 39, 40, 41, 42]],
+];
+foreach ($scheduledSpecs as [$rid, $gid, $creator, $title, $dmId, $dmStatus, $prid, $timeStr, $members]) {
+    $st = date('Y-m-d H:i:s.000', strtotime($timeStr));
+    $et = date('Y-m-d H:i:s.000', strtotime($timeStr . ' +4 hours'));
+    $exp = date('Y-m-d H:i:s.000', strtotime('+12 hours'));
+    $roomIns->execute([':id' => $rid, ':gid' => $gid, ':cid' => $gid, ':creator' => $creator, ':title' => $title, ':desc' => 'Phòng đã đủ người và chốt lịch chính thức.', ':min_p' => 6, ':max_p' => 6, ':status' => 'SCHEDULED', ':deadline' => $st, ':created' => $now]);
+    foreach ($members as $uid) {
+        $partIns->execute([':rid' => $rid, ':uid' => $uid, ':status' => 'DEPOSITED', ':joined' => $now]);
+        $rpid = (int)$pdo->lastInsertId();
+        $payIns->execute([':rpid' => $rpid, ':type' => 'DEPOSIT', ':amt' => 50000, ':status' => 'PAID', ':paid_at' => $now, ':created' => $now]);
+    }
+    $propIns->execute([':rid' => $rid, ':uid' => $creator, ':st' => $st, ':et' => $et, ':exp' => $exp]);
+    $pid = (int)$pdo->lastInsertId();
+    $dmIns->execute([':rid' => $rid, ':dm_id' => $dmId, ':status' => $dmStatus, ':resp' => $dmStatus === 'ACCEPTED' ? $now : null]);
+    $did = (int)$pdo->lastInsertId();
+    $sessIns->execute([':rid' => $rid, ':pid' => $pid, ':did' => $did, ':prid' => $prid, ':st' => $st, ':et' => $et, ':status' => 'SCHEDULED', ':notes' => null]);
+}
+
+// C. 3 COMPLETED Rooms (IDs 9..11) — within last 7 days for Admin Revenue Chart
+$completedSpecs = [
+    [9, 10, 43, 'Ca hoàn thành #01 — Phá án thành công', 3, 1, '-1 day 19:00', [43, 44, 45, 46, 47, 48], 'Nhóm tìm ra đúng hung thủ ở phút cuối, không có sự cố.'],
+    [10, 11, 49, 'Ca hoàn thành #02 — Tối Thứ 5', 4, 2, '-3 days 20:00', [49, 50, 51, 52, 53, 54], 'Buổi chơi diễn ra suôn sẻ, khách đánh giá 5 sao.'],
+    [11, 12, 7, 'Ca hoàn thành #03 — Chiều Chủ Nhật', 5, 5, '-5 days 14:00', [7, 8, 9, 55, 56, 10], 'Hoàn thành đúng tiến độ, đạo cụ đầy đủ.'],
+];
+foreach ($completedSpecs as [$rid, $gid, $creator, $title, $dmId, $prid, $timeStr, $members, $notes]) {
+    $st = date('Y-m-d H:i:s.000', strtotime($timeStr));
+    $et = date('Y-m-d H:i:s.000', strtotime($timeStr . ' +4 hours'));
+    $roomIns->execute([':id' => $rid, ':gid' => $gid, ':cid' => $gid, ':creator' => $creator, ':title' => $title, ':desc' => 'Buổi chơi đã hoàn thành.', ':min_p' => 6, ':max_p' => 6, ':status' => 'COMPLETED', ':deadline' => $st, ':created' => $st]);
+    foreach ($members as $uid) {
+        $partIns->execute([':rid' => $rid, ':uid' => $uid, ':status' => 'DEPOSITED', ':joined' => $st]);
+        $rpid = (int)$pdo->lastInsertId();
+        $payIns->execute([':rpid' => $rpid, ':type' => 'DEPOSIT', ':amt' => 50000, ':status' => 'PAID', ':paid_at' => $st, ':created' => $st]);
+        $payIns->execute([':rpid' => $rpid, ':type' => 'REMAINING', ':amt' => 149000, ':status' => 'PAID', ':paid_at' => $et, ':created' => $et]);
+    }
+    $propIns->execute([':rid' => $rid, ':uid' => $creator, ':st' => $st, ':et' => $et, ':exp' => $st]);
+    $pid = (int)$pdo->lastInsertId();
+    $dmIns->execute([':rid' => $rid, ':dm_id' => $dmId, ':status' => 'ACCEPTED', ':resp' => $st]);
+    $did = (int)$pdo->lastInsertId();
+    $sessIns->execute([':rid' => $rid, ':pid' => $pid, ':did' => $did, ':prid' => $prid, ':st' => $st, ':et' => $et, ':status' => 'COMPLETED', ':notes' => $notes]);
+}
+
+// D. 2 PENDING Refunds for Admin Approve / Reject Demo
+$refIns = $pdo->prepare('INSERT INTO `refunds` (`player_payment_id`, `amount`, `reason`, `status`) VALUES (:pid, 50000, :reason, \'PENDING\')');
+$refIns->execute([':pid' => $refundPaymentIds[0], ':reason' => 'Bận việc đột xuất, báo hủy trước 24 giờ theo chính sách.']);
+$refIns->execute([':pid' => $refundPaymentIds[1], ':reason' => 'Xin đổi sang tuần sau nên hủy ghế phòng hiện tại.']);
 
 echo "[SUCCESS] MasterV16Seeder completed cleanly!\n";
 echo "Users: " . $pdo->query('SELECT COUNT(*) FROM users')->fetchColumn() . " (2 Admin, 4 DM, 50 Player)\n";
 echo "Games: " . $pdo->query('SELECT COUNT(*) FROM games')->fetchColumn() . " | Prices: " . $pdo->query('SELECT COUNT(*) FROM game_prices')->fetchColumn() . "\n";
 echo "Venues: " . $pdo->query('SELECT COUNT(*) FROM venues')->fetchColumn() . " | Physical Rooms: " . $pdo->query('SELECT COUNT(*) FROM physical_rooms')->fetchColumn() . "\n";
-echo "Promotions: " . $pdo->query('SELECT COUNT(*) FROM promotions')->fetchColumn() . " | Sample Rooms: " . $pdo->query('SELECT COUNT(*) FROM game_rooms')->fetchColumn() . "\n";
+echo "Rooms: " . $pdo->query('SELECT COUNT(*) FROM game_rooms')->fetchColumn() . " (4 FORMING, 4 SCHEDULED, 3 COMPLETED)\n";
+echo "Payments: " . $pdo->query('SELECT COUNT(*) FROM player_payments')->fetchColumn() . " | Pending Refunds: " . $pdo->query('SELECT COUNT(*) FROM refunds WHERE status="PENDING"')->fetchColumn() . "\n";
