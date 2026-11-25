@@ -24,9 +24,9 @@ export const getRoleConfigs = () => {
       badgeBg: 'rgba(59, 130, 246, 0.15)',
       badgeBorder: 'rgba(59, 130, 246, 0.4)',
       description: 'Khám phá kịch bản trinh thám, đặt lịch và ghép phòng cùng đồng đội.',
-      demoEmail: isDev ? 'player.hieu@kichbansat.vn' : null,
-      demoPassword: isDev ? 'password123' : null,
-      demoLabel: isDev ? 'Player Hiếu (player.hieu@kichbansat.vn)' : null
+      demoEmail: isDev ? 'nguoichoi01@gmail.com' : null,
+      demoPassword: isDev ? 'pass123456#' : null,
+      demoLabel: isDev ? 'Người chơi 01 (nguoichoi01@gmail.com)' : null
     },
     DM: {
       code: 'DM',
@@ -38,9 +38,9 @@ export const getRoleConfigs = () => {
       badgeBg: 'rgba(245, 158, 11, 0.15)',
       badgeBorder: 'rgba(245, 158, 11, 0.4)',
       description: 'Dẫn dắt các ca chơi, điều phối đạo cụ và nhận phân công từ Admin.',
-      demoEmail: isDev ? 'dm.nam@kichbansat.vn' : null,
-      demoPassword: isDev ? 'password123' : null,
-      demoLabel: isDev ? 'Host Hoàng Nam (dm.nam@kichbansat.vn)' : null
+      demoEmail: isDev ? 'nguyenphamyhuynh@gmail.com' : null,
+      demoPassword: isDev ? 'pass123456@' : null,
+      demoLabel: isDev ? 'DM Nguyễn Phạm Y Huỳnh (nguyenphamyhuynh@gmail.com)' : null
     },
     ADMIN: {
       code: 'ADMIN',
@@ -52,9 +52,9 @@ export const getRoleConfigs = () => {
       badgeBg: 'rgba(239, 68, 68, 0.15)',
       badgeBorder: 'rgba(239, 68, 68, 0.4)',
       description: 'Điều hành toàn diện hệ thống, phân công DM, duyệt hủy và hoàn cọc.',
-      demoEmail: isDev ? 'admin@kichbansat.vn' : null,
-      demoPassword: isDev ? 'password123' : null,
-      demoLabel: isDev ? 'Admin Hệ Thống (admin@kichbansat.vn)' : null
+      demoEmail: isDev ? 'nguyenxuanhieu@gmail.com' : null,
+      demoPassword: isDev ? 'pass123456!' : null,
+      demoLabel: isDev ? 'Admin Nguyễn Xuân Hiếu (nguyenxuanhieu@gmail.com)' : null
     }
   };
 };
