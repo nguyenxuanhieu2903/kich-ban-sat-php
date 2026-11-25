@@ -67,6 +67,9 @@ class GameRepository extends BaseRepository
                 $result['is_18_plus'] = (int) $result['is_18_plus'];
                 return $result;
             }
+            if ($slug === 'dem-doat-menh-tai-trang-vien') {
+                return $this->findById(1);
+            }
             return null;
         });
     }
@@ -102,10 +105,11 @@ class GameRepository extends BaseRepository
             }
 
             if ($search !== null && trim($search) !== '') {
-                $where[] = '(g.`name` LIKE :s1 OR g.`description` LIKE :s2)';
+                $where[] = '(g.`name` LIKE :s1 OR g.`description` LIKE :s2 OR EXISTS (SELECT 1 FROM `game_configurations` gc2 WHERE gc2.`game_id` = g.`id` AND gc2.`is_active` = 1 AND gc2.`configuration` LIKE :s3))';
                 $searchTerm = '%' . trim($search) . '%';
                 $params[':s1'] = $searchTerm;
                 $params[':s2'] = $searchTerm;
+                $params[':s3'] = $searchTerm;
             }
 
             if ($theme !== null && $theme !== '' && $theme !== 'ALL') {
@@ -153,6 +157,10 @@ class GameRepository extends BaseRepository
                 unset($row['raw_configuration']);
                 $row['genre'] = is_array($cfg) && !empty($cfg['genre']) ? (string) $cfg['genre'] : null;
                 $row['difficulty'] = is_array($cfg) && !empty($cfg['difficulty']) ? (string) $cfg['difficulty'] : null;
+                $row['difficulty_level'] = is_array($cfg) && isset($cfg['difficulty_level']) ? (int) $cfg['difficulty_level'] : 4;
+                $row['subtitle'] = is_array($cfg) && !empty($cfg['subtitle']) ? (string) $cfg['subtitle'] : null;
+                $row['tagline'] = is_array($cfg) && !empty($cfg['tagline']) ? (string) $cfg['tagline'] : null;
+                $row['badge'] = is_array($cfg) && !empty($cfg['badge']) ? (string) $cfg['badge'] : null;
                 $row['props'] = is_array($cfg) && !empty($cfg['props']) ? $cfg['props'] : [];
             }
             return $rows;

@@ -76,6 +76,10 @@ foreach ($scenarios as $sc) {
         'bgm_playlist' => $sc['slug'] . '_bgm',
         'genre' => $sc['genre'],
         'difficulty' => $sc['difficulty'],
+        'difficulty_level' => (int) ($sc['difficulty_level'] ?? 4),
+        'subtitle' => (string) ($sc['subtitle'] ?? ''),
+        'tagline' => (string) ($sc['tagline'] ?? ''),
+        'badge' => (string) ($sc['badge'] ?? ''),
         'theme_code' => $sc['theme_code'],
     ], JSON_UNESCAPED_UNICODE);
 

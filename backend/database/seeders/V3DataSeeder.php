@@ -101,6 +101,10 @@ class V3DataSeeder extends AbstractSeed
                 'bgm_playlist' => $sc['slug'] . '_bgm',
                 'genre' => $sc['genre'],
                 'difficulty' => $sc['difficulty'],
+                'difficulty_level' => (int) ($sc['difficulty_level'] ?? 4),
+                'subtitle' => (string) ($sc['subtitle'] ?? ''),
+                'tagline' => (string) ($sc['tagline'] ?? ''),
+                'badge' => (string) ($sc['badge'] ?? ''),
                 'theme_code' => $sc['theme_code'],
             ], JSON_UNESCAPED_UNICODE);
             $cfgStmt->execute([
@@ -131,7 +135,7 @@ class V3DataSeeder extends AbstractSeed
         $this->execute("
             INSERT INTO `game_rooms` (`id`, `game_id`, `game_configuration_id`, `creator_id`, `title`, `description`, `min_players`, `max_players`, `status`, `formation_deadline_at`)
             VALUES
-                (1, 1, 1, 3, 'Tuyển thám tử phá án Đêm Đoạt Mệnh tối Thứ 7', 'Tìm thêm 4 bạn cùng sở thích suy luận, không toxic, chơi hết mình!', 6, 8, 'FORMING', DATE_ADD(NOW(), INTERVAL 3 DAY))
+                (1, 1, 1, 3, 'Hội Thám Tử Cuối Tuần - Cô Gái Bên Cửa Sổ', 'Tìm thêm đồng đội cùng sở thích suy luận logic, không khí thân thiện!', 6, 8, 'FORMING', DATE_ADD(NOW(), INTERVAL 3 DAY))
             ON DUPLICATE KEY UPDATE `title` = VALUES(`title`);
 
             INSERT INTO `room_participants` (`id`, `game_room_id`, `user_id`, `status`, `joined_at`)

@@ -1,6 +1,7 @@
 import { api } from '../../api/api-client.js';
 import { toast } from '../../utils/toast.js';
-import { escapeHtml, sanitizeUrl } from '../../utils/sanitize.js';
+import { escapeHtml } from '../../utils/sanitize.js';
+import { formatVnd, generateGamePosterSvg, normalizeScenario } from '../../utils/poster-svg.js';
 
 export class GamesView {
   constructor(container, onSelectGameToCreateRoom = () => {}) {
@@ -60,37 +61,36 @@ export class GamesView {
         return;
       }
 
-      grid.innerHTML = this.games.map(game => {
-        const codeStr = 'HS-' + String(game.id).padStart(2, '0');
-        const themeCode = escapeHtml(String(game.theme_code || 'DETECTIVE'));
-        const is18 = Number(game.is_18_plus) === 1;
+      grid.className = 'catalog-editorial-grid';
+      grid.removeAttribute('style');
+      grid.innerHTML = this.games.map(raw => {
+        const g = normalizeScenario(raw);
+        const posterSvg = generateGamePosterSvg(g, { width: 360, height: 240 });
+        const playerRange = g.minPlayers === g.maxPlayers ? `${g.minPlayers}` : `${g.minPlayers}-${g.maxPlayers}`;
         return `
-        <div class="card" style="display: flex; flex-direction: column; overflow: hidden; height: 100%;">
-          <div style="padding: 18px; background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-bottom: 1px dashed rgba(201, 162, 94, 0.35); display: flex; justify-content: space-between; align-items: center;">
-            <span style="font-family: monospace; font-size: 0.8rem; color: #c9a25e; font-weight: 700;">HỒ SƠ #${escapeHtml(codeStr)} • ${themeCode}</span>
-            <span style="background: rgba(15, 23, 42, 0.85); font-size: 0.75rem; padding: 4px 8px; border-radius: 4px; border: 1px solid rgba(255, 255, 255, 0.15);">
-              ${is18 ? '18+ • ' : ''}${Number(game.duration_minutes) || 240} phút
-            </span>
-          </div>
-          <div style="padding: 18px; display: flex; flex-direction: column; flex-grow: 1;">
-            <h3 style="font-size: 1.15rem; font-weight: 700; margin: 0 0 8px 0; color: #f8fafc;">${escapeHtml(game.name)}</h3>
-            <p style="color: var(--color-text-muted); font-size: 0.85rem; line-height: 1.5; margin: 0 0 16px 0; flex-grow: 1; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;">
-              ${escapeHtml(game.description || 'Kịch bản nhập vai trinh thám ly kỳ với cốt truyện hấp dẫn và bất ngờ.')}
-            </p>
-            <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.85rem; color: #94a3b8; border-top: 1px solid var(--color-border); padding-top: 12px; margin-bottom: 14px;">
-              <span>${Number(game.min_players)} - ${Number(game.max_players)} người chơi</span>
-              <span style="color: #10b981; font-weight: 600;">Cọc: 50.000đ/người</span>
+        <article class="game-folio-item">
+          <div class="game-folio-poster">${posterSvg}</div>
+          <div class="game-folio-body">
+            <div class="game-tags-row">
+              <span class="game-genre-tag">${escapeHtml(g.genre)}</span>
+              ${g.is18Plus ? '<span class="game-18-badge">18+</span>' : `<span class="game-diff-tag">Độ khó ${g.difficultyLevel}/5</span>`}
             </div>
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
-              <button class="btn btn-secondary btn-prices" data-id="${Number(game.id)}" style="font-size: 0.85rem; padding: 8px;">
-                Xem giá
-              </button>
-              <button class="btn btn-primary btn-create-room" data-id="${Number(game.id)}" style="font-size: 0.85rem; padding: 8px;">
-                Tạo phòng
-              </button>
+            <h3 class="game-folio-title">${escapeHtml(g.title)}</h3>
+            <p class="game-folio-tagline">${escapeHtml(g.tagline || g.description)}</p>
+            <div class="game-folio-meta">
+              <span>${playerRange} thám tử</span>
+              <span>${g.durationMinutes} phút</span>
+            </div>
+            <div class="game-folio-price">
+              <span>Ngày: <strong>${formatVnd(g.priceDay)}</strong></span>
+              <span>Tối: <strong class="highlight-gold">${formatVnd(g.priceNight)}</strong></span>
+            </div>
+            <div class="game-folio-actions">
+              <button class="btn btn-outline btn-prices" data-id="${g.id}">Bảng giá</button>
+              <button class="btn btn-primary btn-create-room" data-id="${g.id}">Mở phòng</button>
             </div>
           </div>
-        </div>
+        </article>
       `;
       }).join('');
 

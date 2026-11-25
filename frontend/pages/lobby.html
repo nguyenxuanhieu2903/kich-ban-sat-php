@@ -208,8 +208,9 @@
     }
 
     window.joinRoom = async function(roomId) {
+      const targetRoom = loadedRooms.find(r => Number(r.id) === Number(roomId));
       try {
-        const json = await apiClient.post(`/rooms/${roomId}/join`);
+        const json = await apiClient.post(`/rooms/${roomId}/join`, { check_replay: true });
         if (json.success) {
           alert(json.message || 'Tham gia phòng thành công!');
           window.location.href = `./room-detail.html?id=${roomId}`;
@@ -224,6 +225,25 @@
         }
         if (err.code === 'ALREADY_JOINED') {
           window.location.href = `./room-detail.html?id=${roomId}`;
+          return;
+        }
+        if (err.code === 'ALREADY_COMPLETED_SCENARIO') {
+          if (targetRoom?.booking_type === 'PRIVATE') {
+            if (confirm('Bạn đã hoàn thành kịch bản này trước đây. Bạn có cam kết giữ bí mật cốt truyện và tiếp tục vào phòng Nhóm Bạn Riêng không?')) {
+              try {
+                const retry = await apiClient.post(`/rooms/${roomId}/join`, { allow_replay: true });
+                if (retry.success) {
+                  window.location.href = `./room-detail.html?id=${roomId}`;
+                  return;
+                }
+              } catch (e2) {
+                alert(e2.message || 'Không thể tham gia phòng.');
+                return;
+              }
+            }
+          } else {
+            alert('Bạn đã hoàn thành kịch bản này trước đây. Để chống lộ cốt truyện (Anti-Spoiler) cho người lạ trong phòng Ghép Công Khai, vui lòng chọn kịch bản khác hoặc mở phòng Nhóm Bạn Riêng.');
+          }
           return;
         }
         alert(err.message || 'Không thể tham gia phòng chơi này.');

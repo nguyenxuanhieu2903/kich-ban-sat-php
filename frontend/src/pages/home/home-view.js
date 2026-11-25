@@ -1,7 +1,8 @@
 import { api } from '../../api/api-client.js';
 import { authState } from '../../api/auth-state.js';
 import { toast } from '../../utils/toast.js';
-import { escapeHtml, sanitizeUrl } from '../../utils/sanitize.js';
+import { escapeHtml } from '../../utils/sanitize.js';
+import { formatVnd, generateGamePosterSvg, normalizeScenario } from '../../utils/poster-svg.js';
 
 export class HomeView {
   /**
@@ -390,59 +391,38 @@ export class HomeView {
       return;
     }
 
-    // Success State: Render Game Cards
+    // Success State: Render Unified Noir Folio Game Cards
     container.innerHTML = `
-      <div class="home-games-grid">
-        ${this.games.map(game => {
-          const minPriceText = game.min_price ? `${Number(game.min_price).toLocaleString()}đ` : '180.000đ';
-          const maxPriceText = game.max_price ? `${Number(game.max_price).toLocaleString()}đ` : '250.000đ';
-          const priceDisplay = game.min_price === game.max_price
-            ? minPriceText
-            : `${minPriceText} - ${maxPriceText}`;
-
-          const codeStr = 'HS-' + String(game.id).padStart(2, '0');
-          const themeCode = escapeHtml(String(game.theme_code || 'DETECTIVE'));
+      <div class="catalog-editorial-grid">
+        ${this.games.map(raw => {
+          const g = normalizeScenario(raw);
+          const posterSvg = generateGamePosterSvg(g, { width: 360, height: 240 });
+          const playerRange = g.minPlayers === g.maxPlayers ? `${g.minPlayers}` : `${g.minPlayers}-${g.maxPlayers}`;
 
           return `
-            <div class="game-card">
-              <div class="game-card-img-wrap" style="height: 110px; display: flex; align-items: center; justify-content: space-between; padding: 0 18px; background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-bottom: 1px dashed rgba(201,162,94,0.35);">
-                <span style="font-family: monospace; font-size: 0.82rem; color: #c9a25e; font-weight: 700;">HỒ SƠ #${escapeHtml(codeStr)} • ${themeCode}</span>
-                <span class="game-card-badge duration" style="position: static;">${Number(game.duration_minutes) || 240} phút</span>
-              </div>
-
-              <div class="game-card-body">
-                <h3 class="game-card-title">${escapeHtml(game.name)}</h3>
-                <p class="game-card-desc">
-                  ${escapeHtml(game.description || 'Kịch bản nhập vai trinh thám đặc sắc với cốt truyện ly kỳ, dẫn dắt các thám tử đi từ bất ngờ này đến bất ngờ khác.')}
-                </p>
-
-                <div class="game-card-meta">
-                  <span>${Number(game.min_players)} - ${Number(game.max_players)} người chơi</span>
-                  <span>Chi nhánh TP.HCM</span>
+            <article class="game-folio-item">
+              <div class="game-folio-poster">${posterSvg}</div>
+              <div class="game-folio-body">
+                <div class="game-tags-row">
+                  <span class="game-genre-tag">${escapeHtml(g.genre)}</span>
+                  ${g.is18Plus ? '<span class="game-18-badge">18+</span>' : `<span class="game-diff-tag">Độ khó ${g.difficultyLevel}/5</span>`}
                 </div>
-
-                <div class="game-card-price-row">
-                  <div>
-                    <span style="color: var(--color-text-muted); font-size: 0.75rem; display: block;">GIÁ VÉ / NGƯỜI</span>
-                    <span class="game-price-val">${priceDisplay}</span>
-                  </div>
-                  <div style="text-align: right;">
-                    <span class="badge" style="background: rgba(16, 185, 129, 0.15); color: #34d399; font-size: 0.75rem;">
-                      Cọc: 50.000đ
-                    </span>
-                  </div>
+                <h3 class="game-folio-title">${escapeHtml(g.title)}</h3>
+                <p class="game-folio-tagline">${escapeHtml(g.tagline || g.description)}</p>
+                <div class="game-folio-meta">
+                  <span>${playerRange} thám tử</span>
+                  <span>${g.durationMinutes} phút</span>
                 </div>
-
-                <div class="game-card-actions">
-                  <button class="btn btn-view-prices" data-id="${Number(game.id)}" style="font-size: 0.85rem; padding: 8px; background: rgba(30, 41, 59, 0.8); border: 1px solid var(--color-border); color: #94a3b8;">
-                     Bảng giá
-                  </button>
-                  <button class="btn btn-primary btn-join-room" data-id="${Number(game.id)}" style="font-size: 0.85rem; padding: 8px;">
-                     Ghép phòng
-                  </button>
+                <div class="game-folio-price">
+                  <span>Ngày: <strong>${formatVnd(g.priceDay)}</strong></span>
+                  <span>Tối: <strong class="highlight-gold">${formatVnd(g.priceNight)}</strong></span>
+                </div>
+                <div class="game-folio-actions">
+                  <button class="btn btn-outline btn-view-prices" data-id="${g.id}">Bảng giá</button>
+                  <button class="btn btn-primary btn-join-room" data-id="${g.id}">Ghép phòng</button>
                 </div>
               </div>
-            </div>
+            </article>
           `;
         }).join('')}
       </div>
@@ -558,7 +538,7 @@ export class HomeView {
           return `
             <div class="promo-card">
               <span class="promo-card-tag">
-                <span>⭐</span> ${promo.promotion_type === 'STUDENT' ? 'Ưu Đãi Học Đường' : 'Ưu Đãi Trong Tuần'}
+                ${promo.promotion_type === 'STUDENT' ? 'Ưu Đãi Học Đường' : 'Ưu Đãi Trong Tuần'}
               </span>
 
               <div class="promo-card-value">${escapeHtml(discountDisplay)}</div>

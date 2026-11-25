@@ -140,8 +140,8 @@
             <input type="date" id="propDate" class="form-control" style="width: 100%; padding: 8px; background: var(--bg-surface); color: white;" required />
           </div>
           <div>
-            <label style="display: block; font-size: 0.85rem; margin-bottom: 4px;">Giờ bắt đầu *</label>
-            <input type="time" id="propTime" class="form-control" value="14:00" style="width: 100%; padding: 8px; background: var(--bg-surface); color: white;" required />
+            <label style="display: block; font-size: 0.85rem; margin-bottom: 4px;">Giờ bắt đầu (09:00 - 19:30) *</label>
+            <input type="time" id="propTime" class="form-control" value="14:00" min="09:00" max="19:30" style="width: 100%; padding: 8px; background: var(--bg-surface); color: white;" required />
           </div>
           <div>
             <label style="display: block; font-size: 0.85rem; margin-bottom: 4px;">Giờ kết thúc (Tự tính theo kịch bản) *</label>
@@ -320,6 +320,10 @@
         alert('Vui lòng chọn ngày và giờ bắt đầu!');
         return;
       }
+      if (startTime < '09:00' || startTime > '19:30') {
+        alert('Giờ bắt đầu ca chơi phải nằm trong khung giờ mở cửa nhận ca từ 09:00 đến 19:30 (quán đóng cửa lúc 23:30).');
+        return;
+      }
 
       const startAt = `${date} ${startTime}:00`;
       const calc = computeEndDateTime(date, startTime, currentGameDuration);
@@ -349,9 +353,9 @@
     });
 
     btnJoinRoom.addEventListener('click', async () => {
-      try {
-        const payload = {};
-        if (inviteTokenFromUrl) {
+      async function attemptJoin(extraPayload = {}) {
+        const payload = { check_replay: true, ...extraPayload };
+        if (inviteTokenFromUrl && !payload.invite_token) {
           payload.invite_token = inviteTokenFromUrl;
         }
         const json = await apiClient.post(`/rooms/${roomId}/join`, payload);
@@ -361,10 +365,43 @@
         } else {
           alert(json.message || 'Không thể tham gia phòng');
         }
+      }
+
+      try {
+        await attemptJoin();
       } catch (err) {
         if (err.status === 401) {
           alert('Vui lòng đăng nhập để tham gia phòng!');
           window.location.href = './auth.html';
+          return;
+        }
+        if (err.code === 'PRIVATE_ROOM_CLOSED') {
+          const code = prompt('Phòng Nhóm Bạn Riêng yêu cầu mã mời từ Chủ phòng. Vui lòng nhập mã mời:');
+          if (code && code.trim()) {
+            try {
+              await attemptJoin({ invite_token: code.trim() });
+              return;
+            } catch (e2) {
+              alert('Không thể tham gia phòng: ' + (e2.message || 'Mã mời không hợp lệ'));
+              return;
+            }
+          }
+          return;
+        }
+        if (err.code === 'ALREADY_COMPLETED_SCENARIO') {
+          if (currentRoomData?.booking_type === 'PRIVATE') {
+            if (confirm('CẢNH BÁO CHỐNG LỘ CỐT TRUYỆN: Bạn đã từng hoàn thành kịch bản này. Vì đây là phòng Nhóm Bạn Riêng, bạn có cam kết giữ bí mật cốt truyện và tiếp tục tham gia cùng bạn bè không?')) {
+              try {
+                await attemptJoin({ allow_replay: true });
+                return;
+              } catch (e2) {
+                alert('Không thể tham gia phòng: ' + (e2.message || 'Lỗi máy chủ'));
+                return;
+              }
+            }
+          } else {
+            alert('Bạn đã hoàn thành kịch bản này trước đây. Để chống lộ cốt truyện (Anti-Spoiler) cho người lạ trong phòng Ghép Công Khai, vui lòng chọn kịch bản khác hoặc mở phòng Nhóm Bạn Riêng.');
+          }
           return;
         }
         alert('Không thể tham gia phòng: ' + (err.message || 'Lỗi máy chủ'));
@@ -559,9 +596,10 @@
           let slotsHtml = activeParticipants.map(p => {
             const pIsHost = Number(p.user_id) === Number(r.creator_id);
             const pName = p.full_name || p.user_name || ('Thành viên #' + p.user_id);
+            const initials = String(pName).trim().split(/\s+/).slice(-2).map(w => w[0] || '').join('').toUpperCase() || 'TV';
             return `
               <div class="slot-card">
-                <img src="https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(pName)}" alt="${escapeHtml(pName)}" />
+                <div class="member-monogram" aria-hidden="true">${escapeHtml(initials)}</div>
                 <div>
                   <strong>${escapeHtml(pName)}</strong>
                   <p style="font-size: 0.8rem; color: var(--color-gold);">${pIsHost ? 'Chủ Phòng (Host)' : 'Thành viên'} • ${escapeHtml(p.status || 'PENDING')}</p>

@@ -105,10 +105,12 @@ try {
     $pdo->exec("
         INSERT INTO `game_rooms` (`id`, `game_id`, `game_configuration_id`, `creator_id`, `title`, `description`, `min_players`, `max_players`, `status`, `booking_type`, `target_venue_id`, `total_players`, `confirmed_players`, `required_players`, `guest_slots`, `formation_deadline_at`, `created_at`, `updated_at`)
         VALUES
-            (1, 1, 1, 3, 'Hội Thám Tử Cuối Tuần - Đêm Đoạt Mệnh', 'Tuyển đồng đội thích suy luận logic, ưu tiên người chơi mới hoặc đã chơi 1-2 kịch bản.', 6, 8, 'FORMING', 'PUBLIC', 1, 6, 2, 6, 0, DATE_ADD(NOW(), INTERVAL 5 DAY), NOW(), NOW()),
-            (2, 3, 3, 3, 'Nhóm Bạn Riêng - Chuyến Tàu Tuyết Tối Thứ 7', 'Phòng kín dành riêng cho nhóm bạn đại học, mời thành viên qua liên kết có mã mời.', 6, 8, 'FORMING', 'PRIVATE', 2, 6, 1, 6, 0, DATE_ADD(NOW(), INTERVAL 4 DAY), NOW(), NOW()),
-            (3, 2, 2, 3, 'Ca Chơi Chốt Lịch - Biệt Thự Huyết Tộc', 'Phiên chơi đã chốt lịch tại Quận 1 và có Quản trò Hoàng Nam tiếp nhận.', 5, 7, 'SCHEDULED', 'PUBLIC', 1, 6, 2, 5, 0, DATE_ADD(NOW(), INTERVAL 3 DAY), NOW(), NOW())
+            (1, 1, 1, 3, 'Hội Thám Tử Cuối Tuần - Cô Gái Bên Cửa Sổ', 'Tuyển đồng đội thích suy luận logic, ưu tiên người chơi mới hoặc đã chơi 1-2 kịch bản.', 6, 8, 'FORMING', 'PUBLIC', 1, 6, 2, 6, 0, DATE_ADD(NOW(), INTERVAL 5 DAY), NOW(), NOW()),
+            (2, 9, 9, 3, 'Nhóm Bạn Riêng - Tuyết Hương Liên Hoàn Án Tối Thứ 7', 'Phòng kín dành riêng cho nhóm bạn đại học, mời thành viên qua liên kết có mã mời.', 6, 8, 'FORMING', 'PRIVATE', 2, 6, 1, 6, 0, DATE_ADD(NOW(), INTERVAL 4 DAY), NOW(), NOW()),
+            (3, 2, 2, 3, 'Ca Chơi Chốt Lịch - Kịch Bản Gương', 'Phiên chơi đã chốt lịch tại Quận 1 và có Quản trò Hoàng Nam tiếp nhận.', 5, 7, 'SCHEDULED', 'PUBLIC', 1, 6, 2, 5, 0, DATE_ADD(NOW(), INTERVAL 3 DAY), NOW(), NOW())
         ON DUPLICATE KEY UPDATE
+            `game_id` = VALUES(`game_id`),
+            `game_configuration_id` = VALUES(`game_configuration_id`),
             `title` = VALUES(`title`),
             `status` = VALUES(`status`),
             `booking_type` = VALUES(`booking_type`),

@@ -1,7 +1,8 @@
 // src/pages-js/home.page.js
 import { SCENARIOS } from '../data/scripts.data.js';
 import { apiClient } from '../api/api-client.js';
-import { escapeHtml, sanitizeUrl } from '../utils/sanitize.js';
+import { escapeHtml } from '../utils/sanitize.js';
+import { normalizeScenario, renderGameFolioCardHtml } from '../utils/poster-svg.js';
 
 const gridEl = document.getElementById('featuredScenariosGrid');
 const filterBarEl = document.getElementById('homeGenreFilters');
@@ -17,55 +18,8 @@ const notifBadge = document.getElementById('notifBadge');
 let pendingTargetUrl = '';
 let homeScenarios = [];
 
-function formatPrice(vnd) {
-  return Number(vnd || 220000).toLocaleString('vi-VN') + 'đ';
-}
-
 function inferScenarioMeta(game) {
-  const name = String(game.name || '');
-  const desc = String(game.description || '');
-  const text = (name + ' ' + desc).toLowerCase();
-
-  let genre = game.genre || 'Suy luận phá án';
-  let difficulty = game.difficulty || 'Trung bình';
-  const is18Plus = Number(game.is_18_plus) === 1 || name.includes('18+');
-  const themeCode = String(game.theme_code || 'DETECTIVE').toUpperCase();
-
-  if (!game.genre) {
-    if (text.includes('ma cà rồng') || text.includes('huyết tộc') || text.includes('hắc miêu') || text.includes('đẫm máu') || text.includes('kinh dị') || text.includes('số 13')) {
-      genre = 'Kinh dị tâm linh';
-      difficulty = 'Khó';
-    } else if (text.includes('học đường') || text.includes('hài hước') || text.includes('trộm đề')) {
-      genre = 'Cơ chế, hài hước';
-      difficulty = 'Dễ';
-    } else if (text.includes('không gian') || text.includes('viễn tưởng') || text.includes('pháp thuật')) {
-      genre = 'Giả tưởng, siêu nhiên';
-      difficulty = 'Khó';
-    } else if (text.includes('giao hưởng') || text.includes('gatsby') || text.includes('dạ hội')) {
-      genre = 'Tình cảm, tâm lý xã hội';
-      difficulty = 'Trung bình';
-    }
-  }
-
-  const minP = Number(game.min_players || 6);
-  const maxP = Number(game.max_players || 8);
-  const male = Math.ceil(minP / 2);
-  const female = Math.max(1, minP - male);
-  const mins = Number(game.duration_minutes || 240);
-  const hrs = (mins / 60).toFixed(1).replace('.0', '');
-
-  return {
-    id: game.id,
-    title: name,
-    genre,
-    difficulty,
-    theme_code: themeCode,
-    duration: `${hrs} tiếng (${mins}p)`,
-    price: Number(game.min_price || 180000),
-    is18Plus,
-    players: { total: minP === maxP ? `${minP}` : `${minP}-${maxP}`, male, female },
-    summary: desc
-  };
+  return normalizeScenario(game);
 }
 
 function renderScenarios(genreFilter = 'ALL') {
@@ -74,83 +28,24 @@ function renderScenarios(genreFilter = 'ALL') {
   const list =
     genreFilter === 'ALL'
       ? source
-      : source.filter((item) => String(item.genre || '').toLowerCase().includes(genreFilter.toLowerCase()));
+      : source.filter((item) => {
+          const g = normalizeScenario(item);
+          return `${g.genre} ${g.subtitle} ${g.description}`.toLowerCase().includes(genreFilter.toLowerCase());
+        });
 
   if (list.length === 0) {
-    gridEl.innerHTML = '<p style="text-align: center; grid-column: 1/-1; color: var(--text-muted); padding: 32px 0;">Không có kịch bản nào thuộc thể loại này.</p>';
+    gridEl.innerHTML = '<p style="text-align: center; grid-column: 1/-1; color: var(--text-muted); padding: 32px 0;">Không có hồ sơ kịch bản nào thuộc thể loại này.</p>';
     return;
   }
 
   gridEl.innerHTML = list
     .slice(0, 6)
-    .map((item) => {
-      const codeStr = 'HS-' + String(item.id).padStart(2, '0');
-      const safeTitle = escapeHtml(item.title);
-      const safeGenre = escapeHtml(item.genre);
-      const safeDiff = escapeHtml(item.difficulty);
-      const safeTheme = escapeHtml(item.theme_code || 'DETECTIVE');
-      const safeDuration = escapeHtml(item.duration);
-      const safeSummary = escapeHtml(item.summary);
-      return `
-      <div class="home-flip-card">
-        <div class="home-flip-inner">
-          <div class="home-flip-front">
-            <div class="dossier-cover">
-              <div style="display: flex; justify-content: space-between; align-items: center; gap: 8px;">
-                <span class="dossier-code">HỒ SƠ #${escapeHtml(codeStr)} • ${safeTheme}</span>
-                ${item.is18Plus ? '<span class="stamp-badge">18+</span>' : `<span class="stamp-badge open">${safeDiff}</span>`}
-              </div>
-              <div>
-                <div class="dossier-cover-title">${safeTitle}</div>
-                <p class="dossier-summary-excerpt">${safeSummary}</p>
-              </div>
-              <div style="font-size: 0.78rem; color: var(--color-gold); opacity: 0.9;">
-                [BÌA HỒ SƠ LƯU TRỮ CHÍNH THỨC]
-              </div>
-            </div>
-            <div class="home-flip-front-info">
-              <div class="home-card-tags">
-                <span>${safeGenre}</span>
-                <span>${safeDuration}</span>
-              </div>
-              <div class="home-card-tags" style="margin-top: 8px;">
-                <span>${escapeHtml(String(item.players.total))} người (${item.players.male}N/${item.players.female}N)</span>
-                <strong>Từ ${formatPrice(item.price)}</strong>
-              </div>
-            </div>
-          </div>
-
-          <div class="home-flip-back">
-            <div>
-              <span class="stamp-badge ${item.is18Plus ? '' : 'open'}">
-                ${item.is18Plus ? 'GIỚI HẠN 18+' : safeDiff}
-              </span>
-              <h3>${safeTitle}</h3>
-              <p style="font-size: 0.9rem; margin-bottom: 12px;">${safeSummary}</p>
-              <hr class="ticket-divider" />
-              <ul class="home-spec-list">
-                <li><strong>Mã hồ sơ:</strong> #${escapeHtml(codeStr)} (${safeTheme})</li>
-                <li><strong>Thời lượng:</strong> ${safeDuration}</li>
-                <li><strong>Đội hình:</strong> ${escapeHtml(String(item.players.total))} người (${item.players.male} Nam - ${item.players.female} Nữ)</li>
-                <li><strong>Giá vé từ:</strong> ${formatPrice(item.price)} (Cọc 50.000đ)</li>
-              </ul>
-            </div>
-
-            <button
-              type="button"
-              class="btn btn-primary"
-              data-id="${escapeHtml(String(item.id))}"
-              data-title="${safeTitle}"
-              data-adult="${item.is18Plus ? 'true' : 'false'}"
-              style="width: 100%;"
-            >
-              Xem Chi Tiết & Đặt Phòng
-            </button>
-          </div>
-        </div>
-      </div>
-    `;
-    })
+    .map((item) =>
+      renderGameFolioCardHtml(item, {
+        detailBase: './pages/scenario-detail.html',
+        createBase: './pages/create-room.html'
+      })
+    )
     .join('');
 }
 
@@ -160,30 +55,25 @@ if (filterBarEl) {
     const btn = e.target.closest('button[data-genre]');
     if (!btn) return;
 
-    filterBarEl.querySelectorAll('button').forEach((b) => {
-      b.classList.remove('btn-gold', 'active');
-      b.classList.add('btn-outline');
+    filterBarEl.querySelectorAll('button[data-genre]').forEach((b) => {
+      b.classList.toggle('active', b === btn);
     });
-    btn.classList.remove('btn-outline');
-    btn.classList.add('btn-gold', 'active');
 
     renderScenarios(btn.dataset.genre);
   });
 }
 
-// Kiểm tra nhãn 18+ trước khi chuyển trang chi tiết
+// Kiểm tra nhãn 18+ trước khi chuyển trang chi tiết / mở phòng
 if (gridEl) {
   gridEl.addEventListener('click', (e) => {
-    const btn = e.target.closest('button[data-id]');
-    if (!btn) return;
+    const link = e.target.closest('a.scenario-nav-link');
+    if (!link) return;
 
-    const targetUrl = `./pages/scenario-detail.html?id=${encodeURIComponent(btn.dataset.id)}`;
-    if (btn.dataset.adult === 'true' && ageModalEl) {
-      pendingTargetUrl = targetUrl;
-      if (ageTitleEl) ageTitleEl.textContent = `Xác Nhận Độ Tuổi — "${btn.dataset.title}"`;
+    if (link.dataset.adult === 'true' && ageModalEl) {
+      e.preventDefault();
+      pendingTargetUrl = link.getAttribute('href') || `./pages/scenario-detail.html?id=${encodeURIComponent(link.dataset.id || '1')}`;
+      if (ageTitleEl) ageTitleEl.textContent = `Xác Nhận Độ Tuổi 18+ — "${link.dataset.title || ''}"`;
       ageModalEl.hidden = false;
-    } else {
-      window.location.href = targetUrl;
     }
   });
 }

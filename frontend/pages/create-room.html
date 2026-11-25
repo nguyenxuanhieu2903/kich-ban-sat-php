@@ -67,7 +67,7 @@
         <div class="form-group">
           <label for="gameSelect">1. Chọn Kịch Bản Án Mạng *</label>
           <select id="gameSelect" class="form-control" required>
-            <option value="1">Đêm Đoạt Mệnh Tại Trang Viên (6 - 8 người, 240 phút)</option>
+            <option value="1">#KBS-01 — Cô Gái Bên Cửa Sổ (6 - 8 người, 240 phút)</option>
           </select>
         </div>
 
@@ -208,7 +208,7 @@
         if (res.success && Array.isArray(res.data?.games) && res.data.games.length > 0) {
           gamesCatalog = res.data.games;
           gameSelect.innerHTML = gamesCatalog.map(g => {
-            const code = 'HS-' + String(g.id).padStart(2, '0');
+            const code = 'KBS-' + String(g.id).padStart(2, '0');
             const tag18 = Number(g.is_18_plus) === 1 ? ' [18+]' : '';
             return `
               <option value="${Number(g.id)}">#${escapeHtml(code)} — ${escapeHtml(g.name)}${tag18} (${Number(g.min_players)} - ${Number(g.max_players)} người, ${Number(g.duration_minutes || 240)} phút)</option>
