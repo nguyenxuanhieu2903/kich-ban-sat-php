@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Kho Kịch Bản | Kịch Bản Sát</title>
+  <link rel="stylesheet" href="../src/styles/tokens.css" />
+  <link rel="stylesheet" href="../src/styles/components.css" />
+  <link rel="stylesheet" href="../src/styles/home.css" />
+</head>
+<body>
+  <div id="app-header"></div>
+
+  <main class="container" style="padding: 48px 20px 24px;">
+    <div class="section-head">
+      <div>
+        <div class="section-kicker">THƯ VIỆN HỒ SƠ VỤ ÁN</div>
+        <h1 class="section-title">Kho Kịch Bản Nhập Vai</h1>
+      </div>
+
+      <div class="script-search-box">
+        <span class="search-icon">🔍</span>
+        <input type="text" id="catalog-search-input" placeholder="Tìm tên kịch bản..." />
+        <button type="button" id="catalog-search-clear" style="display:none;">✕</button>
+      </div>
+    </div>
+
+    <div class="filter-pills" id="catalog-genre-filters"></div>
+    <div class="scripts-grid" id="catalog-scripts-grid"></div>
+  </main>
+
+  <!-- Modal xác nhận 18+ -->
+  <div class="modal-backdrop" id="age-modal">
+    <div class="paper-ticket" style="max-width: 440px; padding: 28px; text-align: center;">
+      <span class="badge badge-18" style="margin-bottom: 12px;">CẢNH BÁO NỘI DUNG 18+</span>
+      <h3 style="font-family: var(--font-display); font-size: 1.5rem; margin-bottom: 10px;">
+        Hồ Sơ Giới Hạn Độ Tuổi
+      </h3>
+      <p style="font-size: 0.94rem; color: var(--ink-muted); margin-bottom: 20px;">
+        Kịch bản <strong id="age-script-name"></strong> có yếu tố kinh dị, tâm lý nặng hoặc bạo lực. Bạn xác nhận đã đủ 18 tuổi?
+      </p>
+      <div style="display: flex; gap: 12px; justify-content: center;">
+        <button type="button" class="btn btn-ghost" id="age-cancel-btn">Quay lại</button>
+        <button type="button" class="btn btn-gold" id="age-confirm-btn">Tôi đã đủ 18 tuổi</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="app-footer"></div>
+  <script type="module" src="../src/pages-js/catalog.page.js"></script>
+</body>
+</html>

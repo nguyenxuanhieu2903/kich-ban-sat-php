@@ -14,7 +14,7 @@ const FORMAT_VND = ScriptData.FORMAT_VND || formatVND;
 initChrome('home');
 
 /* =========================================================
-1. HIỆU ỨNG SCROLLYTELLING PARALLAX 3 PHÂN CẢNH
+1. HIỆU ỨNG SCROLLYTELLING PARALLAX 3 PHÂN CẢNH (3D CỔNG SẮT)
    ========================================================= */
 function initScrollyParallax() {
   const stage = document.getElementById('scrolly-stage');
@@ -44,21 +44,28 @@ function initScrollyParallax() {
 
     if (progressBar) progressBar.style.width = `${(p * 100).toFixed(1)}%`;
 
-    // --- PHÂN CẢNH 1 (0.00 -> 0.35): Mở cổng sắt & phóng to dinh thự ---
+    // --- PHÂN CẢNH 1 (0.00 -> 0.35): Mở cánh cổng sắt xoay 3D & tiến vào dinh thự ---
     const p1 = seg(p, 0.0, 0.35);
     const p1Fade = 1 - seg(p, 0.28, 0.40);
-    if (gateLeft) gateLeft.style.transform = `translateX(${-p1 * 62}%) scale(${1 + p1 * 0.25})`;
-    if (gateRight) gateRight.style.transform = `translateX(${p1 * 62}%) scale(${1 + p1 * 0.25})`;
+    const gateAngle = p1 * 82; // Cánh cổng xoay mở 3D vào trong tới 82 độ
+    const gateShift = p1 * 32;
+
+    if (gateLeft) {
+      gateLeft.style.transform = `perspective(1400px) rotateY(${gateAngle}deg) translateX(${-gateShift}%)`;
+    }
+    if (gateRight) {
+      gateRight.style.transform = `perspective(1400px) rotateY(${-gateAngle}deg) translateX(${gateShift}%)`;
+    }
     if (s1Mansion) {
-      s1Mansion.style.transform = `scale(${1 + p1 * 0.45}) translateY(${p1 * 40}px)`;
+      s1Mansion.style.transform = `scale(${1 + p1 * 0.52}) translateY(${p1 * 45}px)`;
       s1Mansion.style.opacity = p1Fade;
     }
     if (s1Sky) s1Sky.style.opacity = p1Fade;
     if (s1Gates) s1Gates.style.opacity = p1Fade;
     if (s1Content) {
-      s1Content.style.opacity = 1 - seg(p, 0.18, 0.32);
-      s1Content.style.transform = `translateY(${-p1 * 60}px)`;
-      s1Content.style.pointerEvents = p > 0.3 ? 'none' : 'auto';
+      s1Content.style.opacity = 1 - seg(p, 0.16, 0.30);
+      s1Content.style.transform = `translateY(${-p1 * 65}px) scale(${1 + p1 * 0.08})`;
+      s1Content.style.pointerEvents = p > 0.28 ? 'none' : 'auto';
     }
 
     // --- PHÂN CẢNH 2 (0.34 -> 0.72): Bàn tròn nghi phạm & ánh nến ---
@@ -224,8 +231,8 @@ function renderFeaturedScripts() {
          data-18="${Boolean(sc.is18Plus)}">
         <div class="poster-thumb" style="background:${sc.coverGrad || '#181512'};">
           ${imgSrc
-            ? `<img src="${imgSrc}" alt="${title}" loading="lazy" onerror="this.src='https://placehold.co/400x600/181512/d4af37?text=${encodeURIComponent(title)}'" />`
-            : `<img src="https://placehold.co/400x600/181512/d4af37?text=${encodeURIComponent(title)}" alt="${title}" loading="lazy" />`
+            ? `<img src="${imgSrc}" alt="${title}" loading="lazy" onerror="this.src='https://placehold.co/400x600/181512/D64545?text=${encodeURIComponent(title)}'" />`
+            : `<img src="https://placehold.co/400x600/181512/D64545?text=${encodeURIComponent(title)}" alt="${title}" loading="lazy" />`
           }
           ${sc.is18Plus ? '<span class="poster-tag">18+</span>' : ''}
         </div>

@@ -37,59 +37,179 @@
   transition: opacity 0.15s linear;
 }
 
-/* --- PHÂN CẢNH 1: CỔNG DINH THỰ & MÀN SƯƠNG --- */
+/* --- PHÂN CẢNH 1: CỔNG DINH THỰ 3D & ĐÈN CỬA SỔ NHẤP NHÁY --- */
 .s1-sky {
-  background: radial-gradient(circle at 50% 26%, #451010 0%, #1A0808 45%, #090707 85%);
+  background: radial-gradient(circle at 50% 24%, #521212 0%, #1E0808 42%, #070505 85%);
 }
 
 .blood-moon {
   position: absolute;
-  top: 12%;
+  top: 10%;
   left: 50%;
   transform: translateX(-50%);
-  width: 210px;
-  height: 210px;
+  width: 220px;
+  height: 220px;
   border-radius: 50%;
-  background: radial-gradient(circle, #C93838 0%, #992B2B 65%, rgba(153, 43, 43, 0) 100%);
-  box-shadow: 0 0 90px rgba(153, 43, 43, 0.75);
+  background: radial-gradient(circle, #E04848 0%, #A82828 60%, rgba(168, 40, 40, 0) 100%);
+  box-shadow: 0 0 110px rgba(201, 56, 56, 0.8), inset 0 0 30px rgba(0, 0, 0, 0.35);
+  animation: moonPulse 6s ease-in-out infinite alternate;
+}
+
+@keyframes moonPulse {
+  0% { transform: translateX(-50%) scale(0.98); opacity: 0.9; }
+  100% { transform: translateX(-50%) scale(1.03); opacity: 1; }
+}
+
+/* Sương mù trôi nhẹ tạo chiều sâu 3D giữa trăng, dinh thự và hàng rào */
+.s1-sky::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse at 25% 75%, rgba(139, 30, 30, 0.16) 0%, transparent 55%),
+    radial-gradient(ellipse at 75% 80%, rgba(243, 239, 224, 0.06) 0%, transparent 50%);
+  animation: mistDrift 10s ease-in-out infinite alternate;
+}
+
+@keyframes mistDrift {
+  0% { transform: translateX(-2%) scale(1); }
+  100% { transform: translateX(2%) scale(1.05); }
 }
 
 .s1-mansion {
   display: flex;
   align-items: flex-end;
   justify-content: center;
+  transform-style: preserve-3d;
 }
 
 .mansion-svg {
-  width: min(920px, 95vw);
+  width: min(940px, 96vw);
   height: auto;
-  margin-bottom: 8vh;
-  filter: drop-shadow(0 12px 30px rgba(0, 0, 0, 0.9));
+  margin-bottom: 6vh;
+  filter: drop-shadow(0 18px 40px rgba(0, 0, 0, 0.95));
 }
 
+/* Hiệu ứng ánh đèn trong các ô cửa sổ ngôi nhà nhấp nháy lập lòe */
+.mansion-svg rect[fill*="#"],
+.mansion-svg polygon[fill*="#"],
+.mansion-window {
+  animation: windowFlicker 4.2s infinite ease-in-out;
+  filter: drop-shadow(0 0 10px rgba(255, 195, 75, 0.75));
+}
+
+.mansion-svg rect:nth-of-type(2n),
+.mansion-window:nth-child(2n) {
+  animation-duration: 3.1s;
+  animation-delay: 0.7s;
+}
+
+.mansion-svg rect:nth-of-type(3n),
+.mansion-window:nth-child(3n) {
+  animation-duration: 5.3s;
+  animation-delay: 1.4s;
+}
+
+@keyframes windowFlicker {
+  0%, 100% { opacity: 0.95; filter: drop-shadow(0 0 14px rgba(255, 200, 80, 0.85)); }
+  18% { opacity: 0.82; }
+  20% { opacity: 0.25; filter: drop-shadow(0 0 2px rgba(255, 180, 60, 0.2)); }
+  22% { opacity: 0.92; }
+  54% { opacity: 0.75; }
+  56% { opacity: 0.15; filter: none; }
+  58% { opacity: 0.88; }
+  60% { opacity: 0.35; }
+  62% { opacity: 1; filter: drop-shadow(0 0 18px rgba(255, 210, 95, 0.95)); }
+}
+
+/* Không gian 3D cho hai cánh cổng hàng rào sắt */
 .s1-gates {
   display: flex;
   justify-content: space-between;
   align-items: flex-end;
+  perspective: 1400px;
+  transform-style: preserve-3d;
 }
 
 .iron-gate {
+  position: relative;
   width: 50%;
   height: 92vh;
-  background-image: repeating-linear-gradient(
-    90deg,
-    #070707 0px,
-    #070707 10px,
-    transparent 10px,
-    transparent 44px
-  );
-  border-top: 8px solid #070707;
-  box-shadow: inset 0 0 80px rgba(0, 0, 0, 0.9);
+  /* Tạo khối trụ tròn 3D cho từng thanh song sắt (bắt ánh trăng đỏ ở cạnh, tối ở lõi) */
+  background-image:
+    /* Thanh ngang giằng cổng trên & dưới */
+    linear-gradient(180deg,
+      transparent 12%,
+      #141212 12%, #2B2424 13.2%, #090808 14.5%,
+      transparent 14.5%,
+      transparent 82%,
+      #141212 82%, #2B2424 83.2%, #090808 84.5%,
+      transparent 84.5%
+    ),
+    /* Các thanh song sắt dọc có khối trụ 3D bắt sáng */
+    repeating-linear-gradient(
+      90deg,
+      #090808 0px,
+      #2A2323 4px,
+      #4A3535 7px,
+      #161313 11px,
+      #050505 14px,
+      transparent 14px,
+      transparent 48px
+    );
+  border-top: 6px solid #2A2222;
+  box-shadow:
+    inset 0 12px 30px rgba(201, 56, 56, 0.14),
+    inset 0 -30px 60px rgba(0, 0, 0, 0.95),
+    0 20px 50px rgba(0, 0, 0, 0.85);
   will-change: transform;
+  backface-visibility: visible;
 }
 
-.iron-gate.left { transform-origin: left center; }
-.iron-gate.right { transform-origin: right center; }
+/* Đỉnh giáo nhọn dọc theo mép trên hàng rào sắt */
+.iron-gate::before {
+  content: '';
+  position: absolute;
+  top: -22px;
+  left: 0;
+  right: 0;
+  height: 22px;
+  background-image: repeating-linear-gradient(
+    90deg,
+    transparent 0px,
+    transparent 2px,
+    #362B2B 6px,
+    #141111 10px,
+    transparent 12px,
+    transparent 48px
+  );
+  clip-path: polygon(
+    0% 100%, 1.5% 0%, 3% 100%,
+    10% 100%, 11.5% 0%, 13% 100%,
+    20% 100%, 21.5% 0%, 23% 100%,
+    30% 100%, 31.5% 0%, 33% 100%,
+    40% 100%, 41.5% 0%, 43% 100%,
+    50% 100%, 51.5% 0%, 53% 100%,
+    60% 100%, 61.5% 0%, 63% 100%,
+    70% 100%, 71.5% 0%, 73% 100%,
+    80% 100%, 81.5% 0%, 83% 100%,
+    90% 100%, 91.5% 0%, 93% 100%,
+    100% 100%
+  );
+}
+
+/* Trụ cổng 3D dày ở hai mép ngoài và khe khóa ở chính giữa */
+.iron-gate.left {
+  transform-origin: left center;
+  border-left: 16px solid #1C1717;
+  border-right: 4px solid #382B2B;
+}
+
+.iron-gate.right {
+  transform-origin: right center;
+  border-right: 16px solid #1C1717;
+  border-left: 4px solid #382B2B;
+}
 
 .s1-content {
   position: relative;
@@ -98,13 +218,14 @@
   max-width: 720px;
   padding: 0 20px;
   pointer-events: auto;
+  transform: translateZ(60px);
 }
 
 .hero-kicker {
   display: inline-block;
   padding: 5px 14px;
-  border: 1px solid var(--gold-border);
-  background: rgba(13, 13, 13, 0.72);
+  border: 1px solid rgba(139, 30, 30, 0.7);
+  background: rgba(13, 13, 13, 0.82);
   color: var(--gold);
   font-size: 0.78rem;
   letter-spacing: 0.18em;
@@ -117,7 +238,7 @@
   font-weight: 800;
   line-height: 1.05;
   letter-spacing: 0.04em;
-  text-shadow: 0 8px 30px rgba(0, 0, 0, 0.9);
+  text-shadow: 0 10px 35px rgba(0, 0, 0, 0.95);
 }
 
 .hero-desc {

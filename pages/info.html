@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Bảng Giá & Nội Quy | Kịch Bản Sát</title>
+  <link rel="stylesheet" href="../src/styles/tokens.css" />
+  <link rel="stylesheet" href="../src/styles/components.css" />
+  <style>
+    .info-ticket {
+      background: #F3EFE0;
+      color: #1F1C18;
+      border-radius: 14px;
+      border: 1px solid #C8BFA8;
+      padding: 36px 40px;
+      box-shadow: 0 18px 45px rgba(0, 0, 0, 0.7);
+      margin-bottom: 32px;
+    }
+    .info-ticket h2 {
+      font-family: 'Cormorant Garamond', Georgia, serif;
+      font-size: 1.85rem;
+      color: #8B1E1E;
+      border-bottom: 2px dashed rgba(139, 30, 30, 0.35);
+      padding-bottom: 10px;
+      margin-bottom: 20px;
+    }
+    .price-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 20px;
+    }
+    .price-card {
+      background: #FAF7EE;
+      border: 1px solid #D5CCB8;
+      border-left: 4px solid #8B1E1E;
+      border-radius: 8px;
+      padding: 20px;
+    }
+    .price-amount {
+      font-size: 1.65rem;
+      font-weight: 800;
+      color: #8B1E1E;
+      margin: 8px 0;
+    }
+    .rules-list {
+      padding-left: 20px;
+      display: grid;
+      gap: 12px;
+      line-height: 1.7;
+    }
+    @media (max-width: 640px) {
+      .info-ticket { padding: 24px 20px; }
+    }
+  </style>
+</head>
+<body>
+  <div id="app-header"></div>
+
+  <main class="container" style="padding: 48px 20px 24px; max-width: 960px;">
+    <div style="text-align: center; margin-bottom: 36px;">
+      <div class="section-kicker" style="color: var(--gold); letter-spacing: 0.16em;">CẨM NANG THAM GIA</div>
+      <h1 style="font-family: var(--font-display); font-size: clamp(2rem, 4vw, 2.8rem); margin-top: 6px;">
+        Bảng Giá Vé &amp; Nội Quy Hiện Trường
+      </h1>
+    </div>
+
+    <!-- KHỐI BẢNG GIÁ VÉ -->
+    <section class="info-ticket">
+      <h2>I. Bảng Giá Vé Tham Gia (Theo Khung Giờ)</h2>
+      <div class="price-grid">
+        <div class="price-card">
+          <div style="font-weight: 700; text-transform: uppercase; font-size: 0.85rem;">Khung Giờ Ban Ngày (09:00 – 19:59)</div>
+          <div class="price-amount">159.000đ <span style="font-size: 0.9rem; font-weight: 400; color: #524B42;">/ người</span></div>
+          <p style="font-size: 0.92rem; color: #3D372F;">Bao gồm trọn bộ hồ sơ nhân vật, đạo cụ phá án, Quản Trò (DM) dẫn chuyện và 01 phần nước tự chọn.</p>
+        </div>
+        <div class="price-card">
+          <div style="font-weight: 700; text-transform: uppercase; font-size: 0.85rem;">Khung Giờ Buổi Tối (Từ 20:00)</div>
+          <div class="price-amount">199.000đ <span style="font-size: 0.9rem; font-weight: 400; color: #524B42;">/ người</span></div>
+          <p style="font-size: 0.92rem; color: #3D372F;">Trải nghiệm không gian ánh nến &amp; âm thanh tăng cường, kèm hồ sơ nhân vật, DM và 01 phần nước tự chọn.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- KHỐI NỘI QUY & CHÍNH SÁCH -->
+    <section class="info-ticket">
+      <h2>II. Nội Quy &amp; Chính Sách Giữ Ghế</h2>
+      <ol class="rules-list">
+        <li><strong>Thời gian giữ chỗ:</strong> Hệ thống giữ ghế trong vòng <strong>4 giờ</strong> kể từ lúc đặt chỗ. Vui lòng hoàn tất cọc hoặc xác nhận trước khi hết hạn để tránh tự động nhả ghế.</li>
+        <li><strong>Đúng giờ mở màn:</strong> Người chơi có mặt tại quán (36/52 Nguyễn Gia Trí, Bình Thạnh) trước giờ chơi <strong>15 phút</strong> để nhận kịch bản và hóa trang nhân vật.</li>
+        <li><strong>Bảo mật nội dung vụ án:</strong> Tuyệt đối không tiết lộ hung thủ, động cơ hay cốt truyện lên mạng xã hội sau khi chơi để giữ trọn trải nghiệm cho người chơi sau.</li>
+        <li><strong>Giới hạn độ tuổi:</strong> Các kịch bản gắn nhãn <strong>18+</strong> chỉ dành cho người chơi từ đủ 18 tuổi trở lên.</li>
+        <li><strong>Chính sách đổi lịch / hoàn cọc:</strong> Báo trước tối thiểu <strong>12 tiếng</strong> để được hỗ trợ dời lịch miễn phí 01 lần.</li>
+      </ol>
+
+      <div style="margin-top: 28px; display: flex; gap: 12px; flex-wrap: wrap;">
+        <a href="./scenarios.html" class="btn btn-gold">Xem Kho Kịch Bản</a>
+        <a href="../index.html#phong-dang-tuyen" class="btn btn-ghost" style="color: #8B1E1E; border-color: #8B1E1E;">Xem Phòng Đang Tuyển</a>
+      </div>
+    </section>
+  </main>
+
+  <div id="app-footer"></div>
+  <script type="module">
+    import { initChrome } from '../src/logic/layout.js';
+    initChrome('policies');
+  </script>
+</body>
+</html>
