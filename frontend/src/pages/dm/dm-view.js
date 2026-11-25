@@ -235,7 +235,7 @@ export class DmView {
     const sessionEnd = a.session_end_at ? escapeHtml(new Date(a.session_end_at).toLocaleString('vi-VN')) : 'Chưa xếp giờ';
 
     return `
-      <div class="card" style="border-left: 4px solid ${a.status === 'PENDING' ? 'var(--color-warning)' : (a.status === 'ACCEPTED' ? 'var(--color-success)' : 'var(--color-border)')};">
+      <div class="card dm-session-card" style="border-left: 4px solid ${a.status === 'PENDING' ? 'var(--color-warning)' : (a.status === 'ACCEPTED' ? 'var(--color-success)' : 'var(--color-border)')};">
         <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 12px; margin-bottom: 14px;">
           <div>
             <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 6px; flex-wrap: wrap;">

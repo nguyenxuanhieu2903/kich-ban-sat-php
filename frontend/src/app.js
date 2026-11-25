@@ -68,6 +68,7 @@ class App {
   }
 
   async init() {
+    this.renderUserNav();
     this.setupNavigation();
     this.setupAuthStateListener();
 
@@ -236,6 +237,19 @@ class App {
     }
     this.currentTab = hash;
     this.closeMobileDrawer();
+
+    if (typeof document !== 'undefined') {
+      document.body.classList.remove('theme-public', 'theme-player', 'theme-dm', 'theme-admin');
+      if (hash === 'rooms' || hash === 'player') {
+        document.body.classList.add('theme-player');
+      } else if (hash === 'dm') {
+        document.body.classList.add('theme-dm');
+      } else if (hash === 'admin') {
+        document.body.classList.add('theme-admin');
+      } else {
+        document.body.classList.add('theme-public');
+      }
+    }
 
     if (this.mountPoint) {
       if (hash === 'home') {

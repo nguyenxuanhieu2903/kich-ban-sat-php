@@ -251,9 +251,10 @@ class DMAssignmentApiTest extends TestCase
         $this->assertSame(404, $notFoundRes->getStatusCode());
 
         // 2. Phân công một người chơi không phải DM (User 3 là PLAYER) -> 422
+        $validRoomId = $this->createIsolatedRoom('Phòng test invalid DM');
         $invalidDmReq = new Request(
             method: 'POST',
-            path: '/api/v1/admin/rooms/1/assign-dm',
+            path: "/api/v1/admin/rooms/{$validRoomId}/assign-dm",
             queryParams: [],
             bodyParams: ['dm_user_id' => 3],
             headers: ['Authorization' => 'Bearer 1']

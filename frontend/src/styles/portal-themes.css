@@ -1,0 +1,432 @@
+/**
+ * ============================================================================
+ * KỊCH BẢN SÁT V16 - MULTI-PORTAL DESIGN SYSTEM & THEMATIC STYLES
+ * 4 Distinct Tailored Actor Environments:
+ * 1. .theme-public : Cinematic Mystery Manor (Landing Page)
+ * 2. .theme-player : Gaming Matchmaking Lounge (Player Dashboard)
+ * 3. .theme-dm     : Tactical Command Center (DM Dashboard)
+ * 4. .theme-admin  : Enterprise Operations Console (Admin Dashboard)
+ * ============================================================================
+ */
+
+/* ==========================================================================
+   1. THEME 1: PUBLIC LANDING PAGE (CINEMATIC MYSTERY MANOR)
+   ========================================================================== */
+:root,
+.theme-public {
+  --portal-bg: #0B0909;
+  --portal-surface: #141110;
+  --portal-surface-elevated: #1F1B18;
+  --portal-primary: #D4AF37;
+  --portal-primary-hover: #E5C358;
+  --portal-accent: #C43737;
+  --portal-accent-hover: #E04848;
+  --portal-border: rgba(212, 175, 55, 0.28);
+  --portal-border-subtle: rgba(255, 255, 255, 0.08);
+  --portal-text-main: #F5F2EB;
+  --portal-text-muted: #A8A29E;
+  --portal-badge-bg: rgba(212, 175, 55, 0.14);
+  --portal-badge-text: #F3D068;
+  --portal-badge-border: rgba(212, 175, 55, 0.4);
+}
+
+/* ==========================================================================
+   2. THEME 2: PLAYER PORTAL (GAMING MATCHMAKING LOUNGE)
+   ========================================================================== */
+.theme-player,
+body.is-player-portal {
+  --portal-bg: #0D1117;
+  --portal-surface: #161B22;
+  --portal-surface-elevated: #21262D;
+  --portal-primary: #3B82F6;
+  --portal-primary-hover: #60A5FA;
+  --portal-accent: #10B981;
+  --portal-accent-hover: #34D399;
+  --portal-border: rgba(59, 130, 246, 0.25);
+  --portal-border-subtle: rgba(255, 255, 255, 0.08);
+  --portal-text-main: #F0F6FC;
+  --portal-text-muted: #8B949E;
+  --portal-badge-bg: rgba(59, 130, 246, 0.15);
+  --portal-badge-text: #93C5FD;
+  --portal-badge-border: rgba(59, 130, 246, 0.35);
+  background-color: var(--portal-bg);
+  color: var(--portal-text-main);
+}
+
+/* Player Custom Components */
+.player-identity-card {
+  background: linear-gradient(135deg, rgba(22, 27, 34, 0.95) 0%, rgba(33, 38, 45, 0.85) 100%);
+  border: 1px solid var(--portal-border);
+  border-radius: 12px;
+  padding: 22px 28px;
+  margin-bottom: 24px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 16px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+}
+
+.player-avatar-circle {
+  width: 58px;
+  height: 58px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #3B82F6, #10B981);
+  color: #FFFFFF;
+  display: grid;
+  place-items: center;
+  font-family: var(--font-display, serif);
+  font-size: 1.6rem;
+  font-weight: 800;
+  box-shadow: 0 0 16px rgba(59, 130, 246, 0.4);
+}
+
+.player-tabs-bar {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 24px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  padding-bottom: 12px;
+  flex-wrap: wrap;
+}
+
+.player-tab-pill {
+  background: rgba(33, 38, 45, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #8B949E;
+  padding: 10px 18px;
+  border-radius: 9999px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  transition: all 0.2s ease;
+  text-decoration: none;
+}
+
+.player-tab-pill:hover {
+  background: rgba(59, 130, 246, 0.15);
+  border-color: rgba(59, 130, 246, 0.4);
+  color: #93C5FD;
+}
+
+.player-tab-pill.active {
+  background: #3B82F6;
+  border-color: #3B82F6;
+  color: #FFFFFF;
+  box-shadow: 0 0 14px rgba(59, 130, 246, 0.4);
+}
+
+.player-room-card {
+  background: var(--portal-surface);
+  border: 1px solid rgba(59, 130, 246, 0.2);
+  border-radius: 12px;
+  padding: 22px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.player-room-card:hover {
+  transform: translateY(-4px);
+  border-color: rgba(59, 130, 246, 0.5);
+  box-shadow: 0 12px 28px -6px rgba(0, 0, 0, 0.6);
+}
+
+.player-qr-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: rgba(16, 185, 129, 0.15);
+  border: 1px solid rgba(16, 185, 129, 0.4);
+  color: #34D399;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  font-family: var(--font-mono, monospace);
+}
+
+/* ==========================================================================
+   3. THEME 3: DM PORTAL (TACTICAL COMMAND CENTER)
+   ========================================================================== */
+.theme-dm,
+body.is-dm-portal {
+  --portal-bg: #121214;
+  --portal-surface: #1A1A1E;
+  --portal-surface-elevated: #24242A;
+  --portal-primary: #F59E0B;
+  --portal-primary-hover: #FBBF24;
+  --portal-accent: #10B981;
+  --portal-accent-hover: #34D399;
+  --portal-danger: #EF4444;
+  --portal-border: rgba(245, 158, 11, 0.26);
+  --portal-border-subtle: rgba(255, 255, 255, 0.08);
+  --portal-text-main: #F3F4F6;
+  --portal-text-muted: #9CA3AF;
+  --portal-badge-bg: rgba(245, 158, 11, 0.15);
+  --portal-badge-text: #FDE68A;
+  --portal-badge-border: rgba(245, 158, 11, 0.4);
+  background-color: var(--portal-bg);
+  color: var(--portal-text-main);
+}
+
+/* DM Custom Components */
+.dm-command-bar {
+  background: linear-gradient(135deg, #1A1A1E 0%, #24242A 100%);
+  border: 1px solid var(--portal-border);
+  border-radius: 12px;
+  padding: 22px 28px;
+  margin-bottom: 24px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 16px;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.5);
+}
+
+.dm-avail-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  background: rgba(245, 158, 11, 0.08);
+  border: 1px solid rgba(245, 158, 11, 0.3);
+  padding: 8px 18px;
+  border-radius: 9999px;
+  font-size: 0.88rem;
+  font-weight: 600;
+}
+
+.dm-tabs-row {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 20px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  padding-bottom: 12px;
+  flex-wrap: wrap;
+}
+
+.dm-tab-btn {
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #9CA3AF;
+  padding: 10px 18px;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  transition: all 0.2s ease;
+}
+
+.dm-tab-btn:hover {
+  background: rgba(245, 158, 11, 0.1);
+  color: #FBBF24;
+  border-color: rgba(245, 158, 11, 0.3);
+}
+
+.dm-tab-btn.active {
+  background: #F59E0B;
+  border-color: #F59E0B;
+  color: #121214;
+  font-weight: 700;
+  box-shadow: 0 0 16px rgba(245, 158, 11, 0.4);
+}
+
+.dm-session-card {
+  background: var(--portal-surface);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  padding: 20px 24px;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.dm-session-card:hover {
+  border-color: rgba(245, 158, 11, 0.4);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+}
+
+.dm-briefing-desk {
+  background: var(--portal-surface);
+  border: 1px solid var(--portal-border);
+  border-radius: 12px;
+  padding: 24px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+}
+
+/* ==========================================================================
+   4. THEME 4: ADMIN PORTAL (ENTERPRISE OPERATIONS CONSOLE)
+   ========================================================================== */
+.theme-admin,
+body.is-admin-portal {
+  --portal-bg: #0B0F19;
+  --portal-surface: #111827;
+  --portal-surface-elevated: #1F2937;
+  --portal-primary: #6366F1;
+  --portal-primary-hover: #818CF8;
+  --portal-accent: #10B981;
+  --portal-accent-hover: #34D399;
+  --portal-danger: #EF4444;
+  --portal-border: rgba(99, 102, 241, 0.24);
+  --portal-border-subtle: rgba(255, 255, 255, 0.07);
+  --portal-text-main: #F9FAFB;
+  --portal-text-muted: #9CA3AF;
+  --portal-badge-bg: rgba(99, 102, 241, 0.15);
+  --portal-badge-text: #C7D2FE;
+  --portal-badge-border: rgba(99, 102, 241, 0.35);
+  background-color: var(--portal-bg);
+  color: var(--portal-text-main);
+}
+
+/* Admin Custom Layout & Components */
+.admin-console-grid {
+  display: grid;
+  grid-template-columns: 260px 1fr;
+  gap: 28px;
+  min-height: calc(100vh - 160px);
+  padding: 24px 0 60px;
+}
+
+@media (max-width: 992px) {
+  .admin-console-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.admin-console-sidebar {
+  background: var(--portal-surface);
+  border: 1px solid var(--portal-border);
+  border-radius: 12px;
+  padding: 16px;
+  height: fit-content;
+  position: sticky;
+  top: 86px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.35);
+}
+
+.admin-sidebar-header {
+  padding: 10px 12px 16px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  margin-bottom: 12px;
+}
+
+.admin-menu-link {
+  width: 100%;
+  text-align: left;
+  padding: 11px 14px;
+  background: transparent;
+  border: 1px solid transparent;
+  color: #9CA3AF;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 0.88rem;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  transition: all 0.18s ease;
+  margin-bottom: 4px;
+}
+
+.admin-menu-link:hover {
+  background: rgba(99, 102, 241, 0.12);
+  color: #C7D2FE;
+  border-color: rgba(99, 102, 241, 0.25);
+}
+
+.admin-menu-link.active {
+  background: linear-gradient(135deg, #6366F1 0%, #4F46E5 100%);
+  color: #FFFFFF;
+  border-color: #6366F1;
+  font-weight: 700;
+  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.35);
+}
+
+.admin-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.admin-kpi-card {
+  background: var(--portal-surface);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  padding: 20px;
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+}
+
+.admin-kpi-val {
+  font-family: var(--font-display, serif);
+  font-size: 1.85rem;
+  font-weight: 800;
+  color: var(--portal-text-main);
+  margin: 6px 0 4px 0;
+}
+
+.admin-data-table-wrap {
+  background: var(--portal-surface);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.3);
+}
+
+.admin-data-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+  font-size: 0.88rem;
+}
+
+.admin-data-table th {
+  background: rgba(255, 255, 255, 0.03);
+  padding: 14px 18px;
+  font-weight: 600;
+  color: #9CA3AF;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  text-transform: uppercase;
+  font-size: 0.75rem;
+  letter-spacing: 0.05em;
+}
+
+.admin-data-table td {
+  padding: 14px 18px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  color: var(--portal-text-main);
+}
+
+.admin-data-table tr:hover td {
+  background: rgba(255, 255, 255, 0.02);
+}
+
+/* ==========================================================================
+   5. CROSS-PORTAL RESPONSIVE ADJUSTMENTS
+   ========================================================================== */
+@media (max-width: 768px) {
+  .player-identity-card,
+  .dm-command-bar {
+    padding: 16px 20px;
+  }
+  .player-tabs-bar,
+  .dm-tabs-row {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    padding-bottom: 8px;
+  }
+  .admin-data-table th,
+  .admin-data-table td {
+    padding: 10px 12px;
+    font-size: 0.8rem;
+  }
+}

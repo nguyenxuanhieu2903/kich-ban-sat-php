@@ -27,8 +27,8 @@ class RateLimitMiddleware implements MiddlewareInterface
         $this->defaultDecaySeconds = $defaultDecaySeconds;
         $this->storageDir = $storageDir ?? (dirname(__DIR__, 3) . '/storage/rate_limits');
         $this->routeLimits = $routeLimits ?: [
-            '/auth/login' => ['limit' => 15, 'decay' => 60],
-            '/auth/register' => ['limit' => 10, 'decay' => 60],
+            '/auth/login' => ['limit' => 60, 'decay' => 60],
+            '/auth/register' => ['limit' => 30, 'decay' => 60],
         ];
         $this->forceEnabled = $forceEnabled;
 

@@ -1023,90 +1023,90 @@ export class AdminView {
       const formatMoney = (val) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(val || 0);
 
       container.innerHTML = `
-        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 16px; margin-bottom: 24px;">
-          <div class="card" style="border: 1px solid var(--color-primary); padding: 18px;">
-            <div style="font-size: 0.82rem; color: var(--color-text-muted);">Doanh thu tháng này</div>
-            <div style="font-size: 1.65rem; color: var(--color-primary); font-weight: 800; margin: 4px 0;">
+        <div class="admin-kpi-grid">
+          <div class="admin-kpi-card" style="border-top: 3px solid #6366F1;">
+            <div style="font-size: 0.82rem; color: var(--portal-text-muted, #9CA3AF);">Doanh thu tháng này</div>
+            <div class="admin-kpi-val" style="color: #818CF8;">
               ${formatMoney(ov.revenue_month)}
             </div>
-            <small style="color: ${ov.revenue_growth_pct >= 0 ? 'var(--color-success)' : 'var(--color-error)'}; font-weight: 600;">
+            <small style="color: ${ov.revenue_growth_pct >= 0 ? '#10B981' : '#EF4444'}; font-weight: 600;">
               ${ov.revenue_growth_pct >= 0 ? '↑' : '↓'} ${Math.abs(ov.revenue_growth_pct || 0)}% so với tháng trước
             </small>
           </div>
 
-          <div class="card" style="padding: 18px;">
-            <div style="font-size: 0.82rem; color: var(--color-text-muted);">Ca chơi hôm nay</div>
-            <div style="font-size: 1.65rem; font-weight: 800; margin: 4px 0;">
+          <div class="admin-kpi-card" style="border-top: 3px solid #3B82F6;">
+            <div style="font-size: 0.82rem; color: var(--portal-text-muted, #9CA3AF);">Ca chơi hôm nay</div>
+            <div class="admin-kpi-val" style="color: #60A5FA;">
               ${ov.sessions_today || 0} ca trực
             </div>
-            <small style="color: var(--color-text-muted);">Tỷ lệ lấp đầy: <strong>${ov.occupancy_rate || 0}%</strong></small>
+            <small style="color: var(--portal-text-muted, #9CA3AF);">Tỷ lệ lấp đầy: <strong>${ov.occupancy_rate || 0}%</strong></small>
           </div>
 
-          <div class="card" style="padding: 18px;">
-            <div style="font-size: 0.82rem; color: var(--color-text-muted);">Hoàn cọc chờ duyệt</div>
-            <div style="font-size: 1.65rem; color: var(--color-error); font-weight: 800; margin: 4px 0;">
+          <div class="admin-kpi-card" style="border-top: 3px solid #EF4444;">
+            <div style="font-size: 0.82rem; color: var(--portal-text-muted, #9CA3AF);">Hoàn cọc chờ duyệt</div>
+            <div class="admin-kpi-val" style="color: #F87171;">
               ${ov.pending_refunds || 0} yêu cầu
             </div>
-            <small style="color: var(--color-primary);">Quy tắc vàng 24 giờ</small>
+            <small style="color: #FBBF24;">Quy tắc vàng 24 giờ</small>
           </div>
 
-          <div class="card" style="padding: 18px;">
-            <div style="font-size: 0.82rem; color: var(--color-text-muted);">Thẻ HSSV chờ duyệt</div>
-            <div style="font-size: 1.65rem; color: var(--color-success); font-weight: 800; margin: 4px 0;">
+          <div class="admin-kpi-card" style="border-top: 3px solid #10B981;">
+            <div style="font-size: 0.82rem; color: var(--portal-text-muted, #9CA3AF);">Thẻ HSSV chờ duyệt</div>
+            <div class="admin-kpi-val" style="color: #34D399;">
               ${ov.pending_students || 0} thẻ mới
             </div>
-            <small style="color: var(--color-text-muted);">Ưu đãi giảm 20.000đ/vé</small>
+            <small style="color: var(--portal-text-muted, #9CA3AF);">Ưu đãi giảm 20.000đ/vé</small>
           </div>
         </div>
 
         <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 20px; margin-bottom: 24px;">
           <!-- Biểu đồ 7 ngày -->
-          <div class="card" style="padding: 20px;">
-            <h3 style="margin: 0 0 16px 0; font-size: 1.1rem; color: var(--color-primary); font-weight: 600;">
+          <div class="admin-kpi-card" style="padding: 20px;">
+            <h3 style="margin: 0 0 16px 0; font-size: 1.1rem; color: #818CF8; font-weight: 600;">
               Biểu Đồ Doanh Thu 7 Ngày Gần Nhất
             </h3>
             <div style="display: flex; align-items: flex-end; justify-content: space-between; gap: 8px; height: 180px; padding-top: 20px;">
               ${chart.map(c => `
                 <div style="flex: 1; display: flex; flex-direction: column; align-items: center; gap: 6px; height: 100%; justify-content: flex-end;">
-                  <span style="font-size: 0.72rem; color: ${c.revenue > 0 ? 'var(--color-primary)' : 'var(--color-text-muted)'}; font-weight: ${c.revenue > 0 ? 'bold' : 'normal'};">
+                  <span style="font-size: 0.72rem; color: ${c.revenue > 0 ? '#818CF8' : 'var(--portal-text-muted, #9CA3AF)'}; font-weight: ${c.revenue > 0 ? 'bold' : 'normal'};">
                     ${escapeHtml(c.revenue_formatted || '0đ')}
                   </span>
-                  <div style="width: 100%; height: ${Math.max(8, c.height_pct || 0)}%; background: linear-gradient(180deg, var(--color-primary), #ef4444); border-radius: 4px 4px 0 0;" title="${c.date}: ${c.revenue_formatted}"></div>
-                  <strong style="font-size: 0.8rem; color: ${c.revenue > 0 ? 'var(--color-primary)' : 'inherit'};">${escapeHtml(c.day_of_week)}</strong>
+                  <div style="width: 100%; height: ${Math.max(8, c.height_pct || 0)}%; background: linear-gradient(180deg, #6366F1, #4338CA); border-radius: 4px 4px 0 0;" title="${c.date}: ${c.revenue_formatted}"></div>
+                  <strong style="font-size: 0.8rem; color: ${c.revenue > 0 ? '#C7D2FE' : 'inherit'};">${escapeHtml(c.day_of_week)}</strong>
                 </div>
               `).join('')}
             </div>
           </div>
 
           <!-- Tình trạng phòng chơi -->
-          <div class="card" style="padding: 20px;">
-            <h3 style="margin: 0 0 16px 0; font-size: 1.1rem; color: var(--color-primary); font-weight: 600;">
+          <div class="admin-kpi-card" style="padding: 20px;">
+            <h3 style="margin: 0 0 16px 0; font-size: 1.1rem; color: #818CF8; font-weight: 600;">
               Tình Trạng Các Phòng Chơi
             </h3>
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
-              <div style="background: rgba(15,23,42,0.4); padding: 12px; border-radius: 6px; border-left: 3px solid var(--color-success);">
-                <div style="font-size: 0.8rem; color: var(--color-text-muted);">Đang gom người (FORMING)</div>
-                <strong style="font-size: 1.3rem; color: var(--color-success);">${stats.rooms_by_status?.FORMING || 0} phòng</strong>
+              <div style="background: rgba(17,24,39,0.7); padding: 12px; border-radius: 6px; border-left: 3px solid #10B981; border: 1px solid rgba(255,255,255,0.06); border-left-width: 3px;">
+                <div style="font-size: 0.8rem; color: var(--portal-text-muted, #9CA3AF);">Đang gom người (FORMING)</div>
+                <strong style="font-size: 1.3rem; color: #34D399;">${stats.rooms_by_status?.FORMING || 0} phòng</strong>
               </div>
-              <div style="background: rgba(15,23,42,0.4); padding: 12px; border-radius: 6px; border-left: 3px solid var(--color-primary);">
-                <div style="font-size: 0.8rem; color: var(--color-text-muted);">Biểu quyết lịch (VOTING)</div>
-                <strong style="font-size: 1.3rem; color: var(--color-primary);">${(stats.rooms_by_status?.SCHEDULING || 0) + (stats.rooms_by_status?.VOTING || 0)} phòng</strong>
+              <div style="background: rgba(17,24,39,0.7); padding: 12px; border-radius: 6px; border-left: 3px solid #F59E0B; border: 1px solid rgba(255,255,255,0.06); border-left-width: 3px;">
+                <div style="font-size: 0.8rem; color: var(--portal-text-muted, #9CA3AF);">Biểu quyết lịch (VOTING)</div>
+                <strong style="font-size: 1.3rem; color: #FBBF24;">${(stats.rooms_by_status?.SCHEDULING || 0) + (stats.rooms_by_status?.VOTING || 0)} phòng</strong>
               </div>
-              <div style="background: rgba(15,23,42,0.4); padding: 12px; border-radius: 6px; border-left: 3px solid #38bdf8;">
-                <div style="font-size: 0.8rem; color: var(--color-text-muted);">Chờ đặt cọc (DEPOSITING)</div>
-                <strong style="font-size: 1.3rem; color: #38bdf8;">${stats.rooms_by_status?.DEPOSITING || 0} phòng</strong>
+              <div style="background: rgba(17,24,39,0.7); padding: 12px; border-radius: 6px; border-left: 3px solid #3B82F6; border: 1px solid rgba(255,255,255,0.06); border-left-width: 3px;">
+                <div style="font-size: 0.8rem; color: var(--portal-text-muted, #9CA3AF);">Chờ đặt cọc (DEPOSITING)</div>
+                <strong style="font-size: 1.3rem; color: #60A5FA;">${stats.rooms_by_status?.DEPOSITING || 0} phòng</strong>
               </div>
-              <div style="background: rgba(15,23,42,0.4); padding: 12px; border-radius: 6px; border-left: 3px solid #a855f7;">
-                <div style="font-size: 0.8rem; color: var(--color-text-muted);">Đã chốt & phân DM (CONFIRMED)</div>
-                <strong style="font-size: 1.3rem; color: #a855f7;">${stats.rooms_by_status?.CONFIRMED || 0} phòng</strong>
+              <div style="background: rgba(17,24,39,0.7); padding: 12px; border-radius: 6px; border-left: 3px solid #8B5CF6; border: 1px solid rgba(255,255,255,0.06); border-left-width: 3px;">
+                <div style="font-size: 0.8rem; color: var(--portal-text-muted, #9CA3AF);">Đã chốt &amp; phân DM (CONFIRMED)</div>
+                <strong style="font-size: 1.3rem; color: #A78BFA;">${stats.rooms_by_status?.CONFIRMED || 0} phòng</strong>
               </div>
             </div>
           </div>
         </div>
 
-        <div class="card" style="border: 1px solid var(--color-error); padding: 20px;">
-          <h4 style="margin: 0 0 8px 0; color: var(--color-error); font-size: 1.1rem;">🚨 Việc Cần Xử Lý Gấp Hôm Nay</h4>
-          <p style="margin: 0; font-size: 0.9rem; line-height: 1.6; color: var(--color-text-muted);">
+        <div class="admin-kpi-card" style="border: 1px solid rgba(239, 68, 68, 0.4); background: rgba(239, 68, 68, 0.04); padding: 20px;">
+          <h4 style="margin: 0 0 8px 0; color: #F87171; font-size: 1.1rem;">🚨 Việc Cần Xử Lý Gấp Hôm Nay</h4>
+          <p style="margin: 0; font-size: 0.9rem; line-height: 1.6; color: var(--portal-text-muted, #9CA3AF);">
             • Có <strong>${ov.pending_refunds || 0} yêu cầu hoàn cọc</strong> cần đối chiếu mốc thời gian 24 giờ để duyệt trả lại tiền cho khách.<br />
             • Có <strong>${ov.pending_students || 0} yêu cầu xác thực thẻ HSSV</strong> đang chờ xem xét và cấp ưu đãi -20.000đ.<br />
             • Có <strong>${ov.active_rooms || 0} phòng chơi</strong> đang hoạt động gom người và biểu quyết lịch tổ chức.

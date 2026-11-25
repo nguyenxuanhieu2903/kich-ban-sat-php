@@ -314,7 +314,7 @@ export class RoomsView {
       }
 
       return `
-        <article class="room-card" data-id="${r.id}" style="background: var(--bg-surface); border: 1px solid rgba(255,255,255,0.1); border-radius: var(--radius-md); padding: 22px; display: flex; flex-direction: column; justify-content: space-between; gap: 16px; transition: transform 0.2s, border-color 0.2s;">
+        <article class="room-card player-room-card" data-id="${r.id}" style="background: var(--portal-surface, var(--bg-surface)); border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; padding: 22px; display: flex; flex-direction: column; justify-content: space-between; gap: 16px; transition: transform 0.2s, border-color 0.2s, box-shadow 0.2s;">
           <div>
             <!-- Hàng trên: Badge trạng thái & Mã phòng -->
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">

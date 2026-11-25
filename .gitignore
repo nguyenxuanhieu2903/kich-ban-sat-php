@@ -28,3 +28,5 @@ desktop.ini
 # Temporary & Cache Files
 *.tmp
 *.cache
+backend/storage/rate_limits/*.json
+scratch/

@@ -11,8 +11,9 @@
   <link rel="stylesheet" href="./src/styles/components.css" />
   <link rel="stylesheet" href="./src/styles/home.css" />
   <link rel="stylesheet" href="./src/styles/pages.css" />
+  <link rel="stylesheet" href="./src/styles/portal-themes.css" />
 </head>
-<body>
+<body class="is-dm-portal theme-dm">
   <!-- Top Role Demo Bar -->
   <div id="role-demo-bar" class="role-demo-bar"></div>
 
@@ -22,18 +23,22 @@
   <!-- Main Container -->
   <main class="page-shell">
     <div class="container" style="padding: 24px 20px 60px;">
-      <!-- THANH TRẠNG THÁI ĐẦU TRANG DM -->
-      <div style="background: var(--bg-surface); border: 1px solid var(--gold-border); border-radius: 10px; padding: 20px 24px; margin-bottom: 24px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 14px;">
+      <!-- THANH TRẠNG THÁI ĐẦU TRANG DM (TACTICAL COMMAND CENTER) -->
+      <div class="dm-command-bar">
         <div>
-          <span class="badge badge-gold" style="font-size: 0.75rem;">QUẢN TRÒ (DM) PORTAL</span>
-          <h1 style="font-family: var(--font-display); font-size: 1.6rem; margin-top: 6px; margin-bottom: 2px;" id="dm-page-title">
+          <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
+            <span class="badge" style="background: rgba(245, 158, 11, 0.2); color: #fde68a; border: 1px solid rgba(245, 158, 11, 0.4); font-size: 0.75rem; font-weight: 700;">📜 DUNGEON MASTER CONSOLE</span>
+          </div>
+          <h1 style="font-family: var(--font-display); font-size: 1.65rem; margin: 4px 0 4px; color: #f3f4f6;" id="dm-page-title">
             Quản trò Hoàng Nam
           </h1>
-          <p class="text-muted" style="margin: 0; font-size: 0.88rem;">Chuyên môn: Trinh thám tâm lý nặng, án mạng biệt thự & kinh dị phòng kín</p>
+          <p style="margin: 0; font-size: 0.88rem; color: #9ca3af;">
+            Chuyên môn: Trinh thám tâm lý nặng, án mạng biệt thự &amp; kinh dị phòng kín &bull; 36/52 Nguyễn Gia Trí
+          </p>
         </div>
 
-        <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; background: rgba(212,175,55,0.06); padding: 8px 14px; border-radius: 999px; border: 1px solid rgba(212,175,55,0.2);">
-          <span id="dm-avail-label" style="font-weight: 600; color: #5CD68D; font-size: 0.9rem;">Sẵn sàng nhận ca mới</span>
+        <label class="dm-avail-pill" style="cursor: pointer;">
+          <span id="dm-avail-label" style="font-weight: 600; color: #10b981; font-size: 0.9rem;">Sẵn sàng nhận ca mới</span>
           <span class="switch">
             <input type="checkbox" id="dm-avail-switch" checked />
             <span class="slider"></span>
@@ -44,22 +49,28 @@
       <!-- MAIN CONTENT ROOT -->
       <div id="dm-main-content">
         <!-- 3 TABS CÔNG VIỆC -->
-        <div class="tabs-bar" style="margin-bottom: 20px;">
-          <button class="tab-btn active" data-dmtab="new">1. Yêu cầu dẫn ca mới</button>
-          <button class="tab-btn" data-dmtab="upcoming">2. Lịch dẫn sắp tới</button>
-          <button class="tab-btn" data-dmtab="history">3. Lịch sử đã hoàn thành</button>
+        <div class="dm-tabs-row">
+          <button class="tab-btn dm-tab-btn active" data-dmtab="new">
+            <span>⚡</span> 1. Yêu cầu dẫn ca mới
+          </button>
+          <button class="tab-btn dm-tab-btn" data-dmtab="upcoming">
+            <span>📅</span> 2. Lịch dẫn sắp tới
+          </button>
+          <button class="tab-btn dm-tab-btn" data-dmtab="history">
+            <span>📜</span> 3. Lịch sử đã hoàn thành
+          </button>
         </div>
 
         <!-- DANH SÁCH CA DẪN -->
         <div id="dm-assignments-container" style="display: grid; gap: 14px; margin-bottom: 32px;">
-          <div style="text-align: center; padding: 40px;" class="text-muted">Đang tải lịch trình Quản trò...</div>
+          <div style="text-align: center; padding: 40px; color: #9ca3af;">Đang tải lịch trình Quản trò...</div>
         </div>
 
         <!-- CHI TIẾT CA DẪN & BẢNG ĐIỂM DANH CHECK-IN MOBILE -->
-        <section id="session-detail-section" style="background: var(--bg-surface); border: 1px solid rgba(255,255,255,0.12); border-radius: 10px; padding: 24px;">
+        <section id="session-detail-section" class="dm-briefing-desk">
           <div id="session-detail-content">
-            <div style="text-align: center; padding: 20px;" class="text-muted">
-              Chọn một ca trực ở trên để mở bảng điểm danh Check-in tại quán.
+            <div style="text-align: center; padding: 24px; color: #9ca3af;">
+              Chọn một ca trực ở trên để mở bảng điểm danh Check-in tại quán và tóm tắt kịch bản.
             </div>
           </div>
         </section>
@@ -244,27 +255,27 @@
       }
 
       container.innerHTML = filtered.map(item => `
-        <div style="background: var(--bg-surface); border: 1px solid rgba(212,175,55,0.25); border-radius: 8px; padding: 18px 22px; display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap;">
+        <div class="dm-session-card" style="display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap;">
           <div>
-            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
-              <span class="badge ${item.status === 'ACCEPTED' ? 'badge-green' : item.status === 'REJECTED' ? 'badge-18' : 'badge-gold'}">
-                ${item.status === 'ACCEPTED' ? 'Đã nhận ca' : item.status === 'REJECTED' ? 'Đã từ chối' : 'Chờ bạn xác nhận'}
+            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">
+              <span class="badge" style="background: ${item.status === 'ACCEPTED' ? 'rgba(16,185,129,0.2)' : item.status === 'REJECTED' ? 'rgba(239,68,68,0.2)' : 'rgba(245,158,11,0.2)'}; color: ${item.status === 'ACCEPTED' ? '#34d399' : item.status === 'REJECTED' ? '#f87171' : '#fbbf24'}; border: 1px solid ${item.status === 'ACCEPTED' ? 'rgba(16,185,129,0.4)' : item.status === 'REJECTED' ? 'rgba(239,68,68,0.4)' : 'rgba(245,158,11,0.4)'};">
+                ${item.status === 'ACCEPTED' ? '✓ Đã nhận ca' : item.status === 'REJECTED' ? '✕ Đã từ chối' : '⚡ Chờ bạn xác nhận'}
               </span>
-              <strong class="text-gold" style="font-family: var(--font-mono);">#${item.game_room_id || item.room_id || item.id}</strong>
+              <strong style="color: #f59e0b; font-family: var(--font-mono);">#${item.game_room_id || item.room_id || item.id}</strong>
             </div>
-            <h3 style="font-family: var(--font-display); font-size: 1.25rem; margin: 4px 0;">${escapeHtml(item.game_title || item.game_name || 'Kịch bản trinh thám')}</h3>
-            <div class="text-muted" style="font-size: 0.86rem;">
+            <h3 style="font-family: var(--font-display); font-size: 1.3rem; margin: 4px 0; color: #f3f4f6;">${escapeHtml(item.game_title || item.game_name || 'Kịch bản trinh thám')}</h3>
+            <div style="font-size: 0.86rem; color: #9ca3af;">
               📅 ${escapeHtml(item.session_start_at ? new Date(item.session_start_at).toLocaleString('vi-VN') : (item.scheduled_at || 'Chưa xếp giờ'))} &bull; 🚪 ${escapeHtml(item.room_name || item.physical_room || 'Phòng Diễn')} (${escapeHtml(item.venue_name || 'Chi nhánh trung tâm')})
             </div>
           </div>
 
           <div style="display: flex; gap: 8px; flex-wrap: wrap;">
             ${(item.status === 'PENDING') ? `
-              <button class="btn btn-gold btn-sm" data-dm-accept="${item.id}">✓ Chấp nhận</button>
-              <button class="btn btn-ghost btn-sm" data-dm-reject="${item.id}">✕ Từ chối</button>
+              <button class="btn btn-sm" data-dm-accept="${item.id}" style="background: rgba(16,185,129,0.2); color: #34d399; border: 1px solid rgba(16,185,129,0.4); font-weight: 600;">✓ Chấp nhận</button>
+              <button class="btn btn-sm" data-dm-reject="${item.id}" style="background: rgba(239,68,68,0.2); color: #f87171; border: 1px solid rgba(239,68,68,0.4); font-weight: 600;">✕ Từ chối</button>
             ` : ''}
-            <button class="btn btn-crimson btn-sm" data-dm-inspect="${item.game_room_id || item.room_id || item.id}">
-              📋 Điểm danh Check-in
+            <button class="btn btn-sm" data-dm-inspect="${item.game_room_id || item.room_id || item.id}" style="background: #f59e0b; color: #121214; border: none; font-weight: 700;">
+              📋 Điểm danh &amp; Báo cáo
             </button>
           </div>
         </div>

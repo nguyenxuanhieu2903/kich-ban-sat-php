@@ -315,6 +315,89 @@ export class HomeView {
         </div>
       </section>
 
+      <!-- KHỐI 5: HỆ SINH THÁI 4 KHÔNG GIAN NỀN TẢNG CHUYÊN BIỆT -->
+      <section class="home-section" style="margin-top: 48px; margin-bottom: 50px;">
+        <div class="container">
+          <div class="section-head" style="margin-bottom: 24px;">
+            <div class="section-kicker" style="color: var(--gold); font-size: 0.8rem; letter-spacing: 0.1em; font-family: var(--font-mono);">KIẾN TRÚC ĐA KHU VỰC V16</div>
+            <h2 class="section-title" style="font-family: var(--font-display); font-size: 1.8rem; margin: 4px 0 0;">4 Không Gian Nền Tảng Chuyên Biệt</h2>
+            <p class="text-muted" style="margin-top: 6px; font-size: 0.92rem;">
+              Thiết kế độc lập với ngôn ngữ thị giác, bố cục và chức năng tối ưu riêng cho từng nhóm đối tượng
+            </p>
+          </div>
+
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 20px;">
+            <!-- Không Gian 1: Public Discovery -->
+            <div style="background: linear-gradient(135deg, rgba(20,18,18,0.9) 0%, rgba(11,9,9,0.95) 100%); border: 1px solid rgba(212,175,55,0.3); border-radius: 12px; padding: 24px; display: flex; flex-direction: column; justify-content: space-between;">
+              <div>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                  <span style="font-size: 1.8rem;">🏰</span>
+                  <span class="badge" style="background: rgba(212,175,55,0.15); color: var(--gold); border: 1px solid var(--gold-border);">Public Manor</span>
+                </div>
+                <h3 style="font-family: var(--font-display); font-size: 1.25rem; color: #F5F2EB; margin: 0 0 8px 0;">Trang Chủ Trải Nghiệm</h3>
+                <p style="font-size: 0.85rem; color: #A8A29E; line-height: 1.5; margin: 0 0 16px 0;">
+                  Khám phá kho 42 kịch bản Jubensha, tra cứu bảng giá theo khung giờ, định vị chi nhánh và gửi yêu cầu đăng ký/đặt lịch.
+                </p>
+              </div>
+              <a href="#games" class="btn btn-ghost btn-sm" style="width: fit-content; border-color: rgba(212,175,55,0.4); color: var(--gold);">
+                Khám phá kịch bản &rarr;
+              </a>
+            </div>
+
+            <!-- Không Gian 2: Player Gaming Lounge -->
+            <div style="background: linear-gradient(135deg, rgba(22,27,34,0.9) 0%, rgba(13,17,23,0.95) 100%); border: 1px solid rgba(59,130,246,0.3); border-radius: 12px; padding: 24px; display: flex; flex-direction: column; justify-content: space-between;">
+              <div>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                  <span style="font-size: 1.8rem;">🎲</span>
+                  <span class="badge" style="background: rgba(59,130,246,0.15); color: #60A5FA; border: 1px solid rgba(59,130,246,0.35);">Gaming Lounge</span>
+                </div>
+                <h3 style="font-family: var(--font-display); font-size: 1.25rem; color: #F8FAFC; margin: 0 0 8px 0;">Cổng Người Chơi (Player)</h3>
+                <p style="font-size: 0.85rem; color: #94A3B8; line-height: 1.5; margin: 0 0 16px 0;">
+                  Tạo phòng chơi, ghép slot gom người, tham gia phòng thế chỗ, thanh toán cọc 50k nhận QR Check-in và xác thực thẻ HSSV.
+                </p>
+              </div>
+              <a href="#rooms" class="btn btn-sm" style="width: fit-content; background: #3B82F6; color: white; border: none; font-weight: 600;">
+                Vào Sảnh Phòng Chơi &rarr;
+              </a>
+            </div>
+
+            <!-- Không Gian 3: DM Tactical Command -->
+            <div style="background: linear-gradient(135deg, rgba(26,26,30,0.9) 0%, rgba(18,18,20,0.95) 100%); border: 1px solid rgba(245,158,11,0.3); border-radius: 12px; padding: 24px; display: flex; flex-direction: column; justify-content: space-between;">
+              <div>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                  <span style="font-size: 1.8rem;">📜</span>
+                  <span class="badge" style="background: rgba(245,158,11,0.15); color: #FBBF24; border: 1px solid rgba(245,158,11,0.35);">Tactical Desk</span>
+                </div>
+                <h3 style="font-family: var(--font-display); font-size: 1.25rem; color: #F3F4F6; margin: 0 0 8px 0;">Cổng Quản Trò (DM)</h3>
+                <p style="font-size: 0.85rem; color: #9CA3AF; line-height: 1.5; margin: 0 0 16px 0;">
+                  Bàn trực điều phối ca chơi, chấp nhận/từ chối phân công, xem danh sách người chơi, bắt đầu/kết thúc ca và ghi nhận biên bản vụ án.
+                </p>
+              </div>
+              <a href="#dm" class="btn btn-sm" style="width: fit-content; background: #F59E0B; color: #121214; border: none; font-weight: 700;">
+                Cổng Quản Trò DM &rarr;
+              </a>
+            </div>
+
+            <!-- Không Gian 4: Admin Enterprise Console -->
+            <div style="background: linear-gradient(135deg, rgba(17,24,39,0.9) 0%, rgba(11,15,25,0.95) 100%); border: 1px solid rgba(99,102,241,0.3); border-radius: 12px; padding: 24px; display: flex; flex-direction: column; justify-content: space-between;">
+              <div>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                  <span style="font-size: 1.8rem;">🛡️</span>
+                  <span class="badge" style="background: rgba(99,102,241,0.15); color: #C7D2FE; border: 1px solid rgba(99,102,241,0.35);">Operations Console</span>
+                </div>
+                <h3 style="font-family: var(--font-display); font-size: 1.25rem; color: #F9FAFB; margin: 0 0 8px 0;">Cổng Quản Trị (Admin)</h3>
+                <p style="font-size: 0.85rem; color: #9CA3AF; line-height: 1.5; margin: 0 0 16px 0;">
+                  Trung tâm điều hành doanh thu, phân công DM, xét duyệt hoàn cọc 24h, quản lý tài khoản RBAC, thẻ HSSV và kiểm toán Audit Logs.
+                </p>
+              </div>
+              <a href="#admin" class="btn btn-sm" style="width: fit-content; background: #6366F1; color: white; border: none; font-weight: 600;">
+                Admin Console &rarr;
+              </a>
+            </div>
+          </div>
+        </div>
+      </section>
+
       <!-- POPUP XÁC NHẬN ĐỘ TUỔI 18+ -->
       <div class="modal-backdrop" id="age-modal">
         <div class="paper-ticket modal-box" style="padding: 28px; max-width: 480px; margin: auto;">
