@@ -206,6 +206,23 @@ function bindHeader() {
   onScroll();
   window.addEventListener('scroll', onScroll, { passive: true });
 
+  const links = [...(nav?.querySelectorAll('a[href^="#"]') || [])];
+  const sections = links
+    .map((link) => document.querySelector(link.getAttribute('href')))
+    .filter(Boolean);
+  const markActive = () => {
+    const y = window.scrollY + 110;
+    let current = sections[0];
+    sections.forEach((section) => {
+      if (section.offsetTop <= y) current = section;
+    });
+    links.forEach((link) => {
+      link.classList.toggle('is-active', current && link.getAttribute('href') === `#${current.id}`);
+    });
+  };
+  window.addEventListener('scroll', markActive, { passive: true });
+  markActive();
+
   menuBtn?.addEventListener('click', () => {
     const open = nav.classList.toggle('is-open');
     authHost?.classList.toggle('is-open', open);

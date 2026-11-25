@@ -27,6 +27,14 @@ export function refundEligible(sessionStart) {
   return hours > 24;
 }
 
+export function reminderBucket(ms) {
+  if (ms == null || ms <= 0) return null;
+  const minutes = ms / 60000;
+  if (minutes <= 30) return '30m';
+  if (minutes <= 60) return '1h';
+  return null;
+}
+
 export function sessionStartIso(playDate, playTime) {
   if (!playDate) return '';
   const time = /^(\d{2}):(\d{2})/.exec(String(playTime || '')) ? String(playTime).slice(0, 5) : '00:00';

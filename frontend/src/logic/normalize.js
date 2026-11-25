@@ -99,11 +99,12 @@ export function openSlots(room) {
 
 export function normalizeMember(raw) {
   if (!raw || typeof raw !== 'object') return null;
+  const participation = String(pick(raw, ['participation_status', 'join_status', 'member_status', 'status']) || '');
   return {
     id: String(pick(raw, ['id', 'user_id']) || ''),
     name: String(pick(raw, ['display_name', 'full_name', 'name']) || 'Người chơi'),
     avatarUrl: String(pick(raw, ['avatar_url', 'avatar']) || ''),
-    status: String(pick(raw, ['status', 'participation_status']) || ''),
+    status: participation,
     role: String(pick(raw, ['role']) || 'player'),
   };
 }
@@ -144,10 +145,15 @@ export function normalizeRoom(raw) {
     session: source.session || null,
     venue: source.venue || source.physical_room || null,
     proposals: source.schedule_proposals || source.proposals || [],
-    payment: source.payment || null,
-    leaveRequest: source.leave_request || null,
-    refund: source.refund || null,
+    payment: source.my_payment || source.own_payment || null,
+    leaveRequest: source.leave_request || source.my_leave_request || null,
+    refund: source.my_refund || source.refund || null,
     ticketCode: String(pick(source, ['ticket_code', 'booking_code', 'booking.ticket_code']) || ''),
+    name: String(pick(source, ['name', 'room_name', 'title']) || ''),
+    creatorId: String(pick(source, ['host_user_id', 'creator_id', 'owner_id']) || ''),
+    host: source.host || source.owner || members.find((member) => /host|owner|creator/i.test(member.role)) || null,
+    coverUrl: String(pick(source, ['cover_url', 'image_url', 'game.cover_url', 'game.image_url']) || ''),
+    price: asNumber(pick(source, ['price', 'ticket_price', 'game.price', 'game.price_day'])),
     raw: source,
   };
 }
@@ -179,6 +185,8 @@ export function normalizeBooking(raw) {
     playDate: String(pick(raw, ['play_date', 'session.play_date']) || room?.playDate || ''),
     playTime: String(pick(raw, ['play_time', 'session.play_time']) || room?.playTime || ''),
     status: String(pick(raw, ['status', 'participation_status']) || room?.status || ''),
+    paymentStatus: String(pick(raw, ['payment_status', 'payment.status', 'my_payment.status']) || ''),
+    playerName: String(pick(raw, ['player_name', 'full_name', 'user.full_name']) || ''),
     room,
     raw,
   };

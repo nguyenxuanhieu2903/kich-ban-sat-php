@@ -4,13 +4,13 @@ html:has(.landing-body) {
 }
 
 .landing-body {
-  --landing-bg: #0d0d0d;
-  --landing-bg-2: #151515;
-  --landing-card: #1c1b18;
-  --landing-cream: #f5f2eb;
+  --landing-bg: #0b0b0a;
+  --landing-bg-2: #141411;
+  --landing-card: #1b1a17;
+  --landing-cream: #f3efe6;
   --landing-gold: #d4af37;
-  --landing-wine: #992b2b;
-  --landing-muted: #aaa49a;
+  --landing-wine: #922f2f;
+  --landing-muted: #a8a296;
   background: var(--landing-bg);
   color: var(--landing-cream);
   overflow-x: clip;

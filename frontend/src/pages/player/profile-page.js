@@ -2,8 +2,9 @@ import { playerApi, logout } from '../../api/player-api.js';
 import { mountChrome } from '../../components/player-chrome.js';
 import { h } from '../../components/dom.js';
 import { renderState, toast, withBusy } from '../../components/player-ui.js';
-import { errorMessage, formatClock, formatDate, safeUrl, statusLabel } from '../../logic/format.js';
+import { errorMessage, formatClock, formatDate, safeUrl, statusLabel, statusStampClass } from '../../logic/format.js';
 import { extractList, normalizeBooking, normalizeProfile } from '../../logic/normalize.js';
+import { paymentLabel, startPaymentPoll } from '../../logic/payment.js';
 
 const TABS = [
   { id: 'upcoming', label: 'Sắp chơi', empty: 'Bạn chưa có phòng sắp chơi.' },
@@ -34,18 +35,29 @@ function setTab(id) {
 }
 
 function bookingCard(item) {
-  const href = item.roomId
-    ? `./room-detail.html?id=${encodeURIComponent(item.roomId)}`
+  const ticketHref = item.roomId
+    ? `./booking-status.html?room=${encodeURIComponent(item.roomId)}`
     : `./booking-status.html?ticket=${encodeURIComponent(item.ticketCode || item.roomCode)}`;
+  const roomHref = item.roomId
+    ? `./room-detail.html?id=${encodeURIComponent(item.roomId)}`
+    : ticketHref;
+  const pay = item.paymentStatus ? paymentLabel(item.paymentStatus) : '';
   return h('article', { class: 'profile-room' }, [
     h('div', {}, [
       h('p', { class: 'profile-room-line' }, [
         h('span', { class: 'profile-room-code' }, item.roomCode || 'Chưa có mã'),
       ]),
       h('h3', { class: 'profile-room-title' }, item.title),
-      h('p', { class: 'profile-room-meta' }, `${formatDate(item.playDate)} · ${formatClock(item.playTime)} · ${statusLabel(item.status)}`),
+      h('p', { class: 'profile-room-meta' }, [
+        `${formatDate(item.playDate)} · ${formatClock(item.playTime)} · `,
+        h('span', { class: statusStampClass(item.status) }, statusLabel(item.status)),
+      ]),
+      pay ? h('p', { class: 'profile-room-meta' }, `Thanh toán: ${pay}`) : null,
     ]),
-    h('a', { class: 'profile-room-link', href }, 'Chi tiết phòng'),
+    h('div', { class: 'player-actions' }, [
+      h('a', { class: 'profile-room-link', href: ticketHref }, 'Vé / thanh toán'),
+      h('a', { class: 'profile-room-link', href: roomHref }, 'Chi tiết phòng'),
+    ]),
   ]);
 }
 
@@ -74,8 +86,9 @@ function paintHistory() {
     body = h('div', { id: 'profile-booking-state' });
   } else if (!state.bookings.length) {
     body = h('div', { class: 'profile-empty' }, [
-      h('p', { class: 'profile-empty-title' }, 'Danh sách trống'),
+      h('p', { class: 'profile-empty-title' }, 'Bạn chưa có lượt đặt phòng nào.'),
       h('p', {}, tab.empty),
+      h('a', { class: 'btn btn-gold', href: './lobby.html' }, 'KHÁM PHÁ KỊCH BẢN'),
     ]);
   } else {
     body = h('div', {}, state.bookings.map(bookingCard));
@@ -102,9 +115,11 @@ function paintHistory() {
 
 function hssvLabel(status) {
   const key = String(status || 'missing').toLowerCase();
-  if (['approved', 'verified'].includes(key)) return 'Đã duyệt';
-  if (key === 'pending') return 'Đang chờ xét duyệt';
-  if (key === 'rejected') return 'Từ chối';
+  if (['approved', 'verified'].includes(key)) return 'Đã xác minh';
+  if (['submitted', 'sent'].includes(key)) return 'Đã gửi';
+  if (key === 'pending') return 'Đang chờ Admin duyệt';
+  if (['rejected', 'denied'].includes(key)) return 'Bị từ chối';
+  if (['resubmit', 'need_resubmit'].includes(key)) return 'Cần gửi lại';
   return 'Chưa gửi';
 }
 
@@ -393,22 +408,29 @@ function showBanner(message, tone = 'ok') {
   }, message));
 }
 
-async function loadBookings() {
-  state.bookingLoading = true;
-  state.bookingError = '';
-  paintHistory();
+async function loadBookings(silent = false) {
+  if (!silent) {
+    state.bookingLoading = true;
+    state.bookingError = '';
+    paintHistory();
+  }
   try {
     const payload = await playerApi.listMyBookings(state.tab);
     const { items } = extractList(payload, ['items', 'bookings', 'rooms', 'data']);
     state.bookings = items.map(normalizeBooking).filter((item) => item.roomCode || item.title);
+    state.bookingError = '';
   } catch (err) {
-    state.bookings = [];
-    state.bookingError = errorMessage(err);
+    if (!silent) {
+      state.bookings = [];
+      state.bookingError = errorMessage(err);
+    }
   } finally {
     state.bookingLoading = false;
     paintHistory();
   }
 }
+
+let stopBookingPoll = null;
 
 async function boot() {
   mountChrome('profile');
@@ -422,6 +444,23 @@ async function boot() {
   }
   paintProfile();
   loadBookings();
+  stopBookingPoll = startPaymentPoll(async () => {
+    const payload = await playerApi.listMyBookings(state.tab);
+    const { items } = extractList(payload, ['items', 'bookings', 'rooms', 'data']);
+    return items.map(normalizeBooking).filter((item) => item.roomCode || item.title);
+  }, (items) => {
+    state.bookings = items;
+    state.bookingLoading = false;
+    paintHistory();
+  }, 12000);
 }
+
+window.addEventListener('pagehide', () => {
+  if (stopBookingPoll) stopBookingPoll();
+});
+
+window.addEventListener('kbs:payment-changed', () => {
+  if (!state.guest) loadBookings(true);
+});
 
 boot();

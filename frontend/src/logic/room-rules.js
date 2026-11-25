@@ -18,7 +18,7 @@ export function isWithinOpeningHours(timeStr) {
   return minutes >= OPENING_MINUTES && minutes <= CLOSING_MINUTES;
 }
 
-export function validateCreateRoom({ game, playDate, playTime, notes, adultConfirmed }) {
+export function validateCreateRoom({ game, playDate, playTime, notes, adultConfirmed, desiredMembers }) {
   const errors = {};
   if (!game?.id) errors.game = 'Hãy chọn một kịch bản.';
 
@@ -43,6 +43,15 @@ export function validateCreateRoom({ game, playDate, playTime, notes, adultConfi
 
   if (String(notes || '').length > NOTE_LIMIT) {
     errors.notes = `Ghi chú tối đa ${NOTE_LIMIT} ký tự.`;
+  }
+
+  if (desiredMembers !== '' && desiredMembers != null) {
+    const count = Number(desiredMembers);
+    const min = Number(game?.minPlayers || game?.playerTotal || 2);
+    const max = Number(game?.maxPlayers || game?.playerTotal || 12);
+    if (!Number.isFinite(count) || count < min || count > max) {
+      errors.desiredMembers = `Số thành viên phải từ ${min} đến ${max}.`;
+    }
   }
 
   if (game?.is18Plus && !adultConfirmed) {

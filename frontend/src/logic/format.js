@@ -55,18 +55,31 @@ export function formatClock(value) {
 }
 
 const ROOM_STATUS = {
-  recruiting: 'Đang tuyển',
-  open: 'Đang tuyển',
-  holding: 'Giữ chỗ',
-  deposit_pending: 'Chờ cọc',
-  awaiting_deposit: 'Chờ cọc',
-  locked: 'Đã chốt',
-  confirmed: 'Đã xác nhận',
-  completed: 'Đã hoàn thành',
-  cancelled: 'Đã hủy',
-  canceled: 'Đã hủy',
-  closed: 'Đã đóng',
+  recruiting: 'Đang tuyển thành viên',
+  open: 'Đang tuyển thành viên',
   full: 'Đã đủ người',
+  scheduling: 'Đang xác nhận lịch',
+  schedule_pending: 'Đang xác nhận lịch',
+  confirmed: 'Đã xác nhận',
+  in_progress: 'Đang diễn ra',
+  playing: 'Đang diễn ra',
+  holding: 'Giữ chỗ',
+  deposit_pending: 'Chờ đặt cọc',
+  awaiting_deposit: 'Chờ đặt cọc',
+  not_open: 'Chưa mở thanh toán',
+  payment_not_open: 'Chưa mở thanh toán',
+  deposit_paid: 'Đã đặt cọc',
+  overdue: 'Quá hạn đặt cọc',
+  expired: 'Quá hạn đặt cọc',
+  fully_paid: 'Đã thanh toán đầy đủ',
+  refund_pending: 'Đang chờ xử lý hoàn tiền',
+  refunded: 'Đã hoàn tiền',
+  processing: 'Đang xử lý',
+  locked: 'Đã chốt',
+  completed: 'Đã hoàn thành',
+  cancelled: 'Đã hủy lượt tham gia',
+  canceled: 'Đã hủy lượt tham gia',
+  closed: 'Đã đóng',
 };
 
 export function statusLabel(status) {
@@ -77,8 +90,9 @@ export function statusLabel(status) {
 
 export function statusStampClass(status) {
   const key = String(status || '').toLowerCase();
-  if (['recruiting', 'open'].includes(key)) return 'stamp-badge open';
-  if (['holding', 'deposit_pending', 'awaiting_deposit'].includes(key)) return 'stamp-badge hold';
+  if (['recruiting', 'open', 'fully_paid', 'deposit_paid', 'refunded'].includes(key)) return 'stamp-badge open';
+  if (['holding', 'deposit_pending', 'awaiting_deposit', 'processing', 'refund_pending'].includes(key)) return 'stamp-badge hold';
+  if (['overdue', 'expired', 'cancelled', 'canceled'].includes(key)) return 'stamp-badge hold';
   return 'stamp-badge';
 }
 

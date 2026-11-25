@@ -172,6 +172,17 @@ export const playerApi = {
   payDeposit(id) {
     return send(apiClient.post(`/rooms/${encodeURIComponent(id)}/payments/deposit`, { provider: 'VNPAY' }, commandOptions()));
   },
+  payRemaining(id) {
+    return send(apiClient.post(`/rooms/${encodeURIComponent(id)}/payments/remaining`, { provider: 'VNPAY' }, commandOptions()));
+  },
+  getPayment(id) {
+    return send(apiClient.get(`/payments/${encodeURIComponent(id)}`, readOptions)).catch((error) => {
+      if (error instanceof ApiError && (error.status === 404 || error.status === 405)) {
+        return send(apiClient.get(`/rooms/${encodeURIComponent(id)}/payment`, readOptions));
+      }
+      throw error;
+    });
+  },
 };
 
 const SESSION_USER_KEY = 'kbs_player_user';
@@ -421,6 +432,10 @@ export async function getRoomPayments(roomId) {
 
 export async function payDeposit(roomId) {
   return playerApi.payDeposit(roomId);
+}
+
+export async function payRemaining(roomId) {
+  return playerApi.payRemaining(roomId);
 }
 
 export async function getBookingHistory() {

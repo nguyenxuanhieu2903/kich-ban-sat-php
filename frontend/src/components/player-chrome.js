@@ -1,5 +1,6 @@
 import { playerApi, getCachedUser, logout } from '../api/player-api.js';
 import { h } from './dom.js';
+import { initials } from '../logic/format.js';
 import { normalizeProfile } from '../logic/normalize.js';
 
 function portalHref(file) {
@@ -9,6 +10,7 @@ function portalHref(file) {
 }
 
 const NAV = [
+  { id: 'home', href: 'index.html', label: 'Trang chủ' },
   { id: 'lobby', href: 'lobby.html', label: 'Sảnh phòng' },
   { id: 'create', href: 'create-room.html', label: 'Tạo phòng' },
   { id: 'ticket', href: 'booking-status.html', label: 'Vé đặt phòng' },
@@ -18,7 +20,7 @@ const NAV = [
 function brand() {
   const logo = h('img', { src: portalHref('src/assets/images/logo.png'), alt: 'Logo Kịch Bản Sát' });
   logo.addEventListener('error', () => logo.remove());
-  return h('a', { class: 'brand-logo', href: portalHref('lobby.html') }, [logo, h('span', {}, 'KỊCH BẢN SÁT')]);
+  return h('a', { class: 'brand-logo', href: portalHref('index.html') }, [logo, h('span', {}, 'KỊCH BẢN SÁT')]);
 }
 
 function displayName(profile) {
@@ -50,37 +52,55 @@ export function mountChrome(active) {
     },
   }, 'Menu');
 
-  const authLink = h('a', {
-    class: 'btn btn-outline',
-    href: portalHref('profile.html'),
-    id: 'player-auth-link',
-  }, 'Đăng nhập');
-  const logoutBtn = h('button', {
-    class: 'btn btn-outline',
-    type: 'button',
-    id: 'player-logout',
-    hidden: true,
-  }, 'Đăng xuất');
-  logoutBtn.addEventListener('click', async () => {
-    try {
-      await logout();
-    } catch {
-      /* phiên máy chủ có thể đã hết */
-    }
-    window.location.href = portalHref('profile.html');
-  });
+  const authHost = h('div', { class: 'player-header-actions', id: 'player-auth-host' });
 
   function paintAuth(profile) {
     const name = displayName(profile);
-    if (name) {
-      authLink.textContent = name;
-      authLink.href = portalHref('profile.html');
-      logoutBtn.hidden = false;
-    } else {
-      authLink.textContent = 'Đăng nhập';
-      authLink.href = portalHref('profile.html');
-      logoutBtn.hidden = true;
+    if (!name) {
+      authHost.replaceChildren(
+        h('a', { class: 'btn btn-outline', href: portalHref('profile.html'), id: 'player-auth-link' }, 'Đăng nhập'),
+        h('a', { class: 'btn btn-gold', href: portalHref('create-room.html') }, 'Tạo phòng'),
+      );
+      return;
     }
+    const wrap = h('div', { class: 'landing-account' }, [
+      h('button', {
+        class: 'btn btn-outline landing-account-btn',
+        type: 'button',
+        'aria-haspopup': 'true',
+        'aria-expanded': 'false',
+        onClick: (event) => {
+          const open = wrap.classList.toggle('is-open');
+          event.currentTarget.setAttribute('aria-expanded', open ? 'true' : 'false');
+        },
+      }, [
+        h('span', { class: 'landing-avatar' }, initials(name)),
+        h('span', {}, name),
+      ]),
+      h('div', { class: 'landing-account-menu', role: 'menu' }, [
+        h('a', { href: portalHref('profile.html'), role: 'menuitem' }, 'Hồ sơ cá nhân'),
+        h('a', { href: portalHref('profile.html?tab=upcoming'), role: 'menuitem' }, 'Lịch sử đặt phòng'),
+        h('button', {
+          type: 'button',
+          role: 'menuitem',
+          onClick: async () => {
+            try {
+              await logout();
+            } catch {
+              /* phiên có thể đã hết */
+            }
+            window.location.href = portalHref('profile.html');
+          },
+        }, 'Đăng xuất'),
+      ]),
+    ]);
+    document.addEventListener('click', (event) => {
+      if (!wrap.contains(event.target)) wrap.classList.remove('is-open');
+    });
+    authHost.replaceChildren(
+      wrap,
+      h('a', { class: 'btn btn-gold', href: portalHref('create-room.html') }, 'Tạo phòng'),
+    );
   }
 
   paintAuth(getCachedUser());
@@ -90,11 +110,7 @@ export function mountChrome(active) {
       brand(),
       toggle,
       nav,
-      h('div', { class: 'player-header-actions' }, [
-        authLink,
-        logoutBtn,
-        h('a', { class: 'btn btn-primary', href: portalHref('create-room.html') }, 'Tạo phòng'),
-      ]),
+      authHost,
     ]),
   ]));
 

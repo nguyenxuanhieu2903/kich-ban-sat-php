@@ -157,6 +157,29 @@ a {
   border: 1px solid var(--color-gold);
 }
 
+.btn:disabled {
+  background: #3a3934;
+  color: #8c887e;
+  border-color: #3a3934;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.btn.is-loading {
+  pointer-events: none;
+  opacity: 0.8;
+}
+
+.btn-danger {
+  background-color: var(--color-crimson);
+  color: var(--text-light);
+  border: 1px solid var(--color-crimson);
+}
+
+.btn-danger:hover {
+  background-color: var(--color-crimson-hover);
+}
+
 .btn-outline:hover {
   background-color: rgba(201, 162, 94, 0.12);
 }
