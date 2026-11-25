@@ -1,0 +1,522 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Vé Thông Hành | Kịch Bản Sát</title>
+  <link rel="stylesheet" href="../src/styles/tokens.css" />
+  <link rel="stylesheet" href="../src/styles/components.css" />
+  <link rel="stylesheet" href="../src/styles/home.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,600;0,700;1,500&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet" />
+  <style>
+    .ticket-auth-stage {
+      min-height: calc(100vh - 160px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 44px 16px 80px;
+      background:
+        radial-gradient(circle at 20% 20%, rgba(212, 175, 55, 0.08), transparent 45%),
+        radial-gradient(circle at 80% 80%, rgba(130, 30, 30, 0.12), transparent 50%),
+        #09090b;
+    }
+
+    .ticket-spread {
+      display: grid;
+      grid-template-columns: 340px 410px;
+      gap: 28px;
+      align-items: stretch;
+      max-width: 100%;
+    }
+
+    /* KHUNG VÉ RĂNG CƯA CHUNG */
+    .vintage-ticket {
+      position: relative;
+      background: #eae4d7;
+      color: #1c1915;
+      box-shadow: 0 28px 65px rgba(0, 0, 0, 0.85);
+      display: flex;
+      flex-direction: column;
+      /* Tạo răng cưa mép trên và mép dưới giống ảnh mẫu */
+      -webkit-mask-image:
+        radial-gradient(circle at 14px 0, transparent 7px, #000 7.5px),
+        radial-gradient(circle at 14px 100%, transparent 7px, #000 7.5px);
+      -webkit-mask-size: 28px 51%;
+      -webkit-mask-position: top left, bottom left;
+      -webkit-mask-repeat: repeat-x;
+      mask-image:
+        radial-gradient(circle at 14px 0, transparent 7px, #000 7.5px),
+        radial-gradient(circle at 14px 100%, transparent 7px, #000 7.5px);
+      mask-size: 28px 51%;
+      mask-position: top left, bottom left;
+      mask-repeat: repeat-x;
+    }
+
+    /* ==================== MẶT TRÁI: BÌA VÉ ARTWORK ==================== */
+    .ticket-front {
+      background: #141619;
+      overflow: hidden;
+    }
+    .ticket-front-art {
+      position: relative;
+      flex: 1;
+      min-height: 410px;
+      background:
+        linear-gradient(to bottom, rgba(10, 12, 16, 0.55) 0%, rgba(10, 12, 16, 0.15) 45%, rgba(10, 12, 16, 0.88) 100%),
+        url('../src/assets/images/biadangnhap.png') center/cover no-repeat;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: 26px 22px 18px;
+      color: #f3eee3;
+    }
+    .ticket-front-top {
+      display: flex;
+      justify-content: space-between;
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 0.92rem;
+      letter-spacing: 0.04em;
+      color: rgba(243, 238, 227, 0.88);
+    }
+    .ticket-front-quote {
+      text-align: center;
+      font-family: 'Cormorant Garamond', serif;
+      font-style: italic;
+      font-size: 0.95rem;
+      color: rgba(243, 238, 227, 0.85);
+      text-shadow: 0 2px 8px rgba(0, 0, 0, 0.9);
+    }
+    .ticket-front-footer {
+      background: #eae4d7;
+      color: #1c1915;
+      padding: 18px 20px 26px;
+      text-align: center;
+      border-top: 1px solid #2c261f;
+    }
+    .ticket-front-title {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 2.05rem;
+      font-weight: 700;
+      line-height: 1.05;
+      letter-spacing: 0.03em;
+      margin: 0;
+      color: #181512;
+    }
+    .ticket-front-sub {
+      font-family: 'Space Mono', monospace;
+      font-size: 0.68rem;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: #5c5346;
+      margin-top: 6px;
+    }
+
+    /* ==================== MẶT PHẢI: CUỐNG VÉ FORM ĐĂNG NHẬP ==================== */
+    .ticket-back {
+      padding: 24px 20px 22px;
+      background-image: radial-gradient(rgba(44, 38, 31, 0.06) 1px, transparent 0);
+      background-size: 16px 16px;
+    }
+    .ticket-meta-bar {
+      display: flex;
+      justify-content: space-between;
+      font-family: 'Space Mono', monospace;
+      font-size: 0.7rem;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      color: #3a332a;
+      padding: 0 4px 8px;
+    }
+    .ticket-inner-box {
+      border: 1.5px solid #2c261f;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+    }
+    .ticket-box-header {
+      padding: 12px 16px 14px;
+      border-bottom: 1.5px solid #2c261f;
+      text-align: center;
+    }
+    .ticket-box-header-top {
+      display: flex;
+      justify-content: space-between;
+      font-family: 'Space Mono', monospace;
+      font-size: 0.65rem;
+      color: #6b6052;
+      margin-bottom: 4px;
+    }
+    .ticket-main-heading {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 1.85rem;
+      font-weight: 700;
+      margin: 0;
+      color: #181512;
+      line-height: 1.1;
+    }
+
+    /* TAB CHUYỂN ĐĂNG NHẬP / ĐĂNG KÝ KIỂU CON DẤU */
+    .ticket-tabs {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      border-bottom: 1.5px solid #2c261f;
+    }
+    .auth-tab {
+      background: transparent;
+      border: none;
+      padding: 9px 8px;
+      font-family: 'Space Mono', monospace;
+      font-size: 0.76rem;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: #6b6052;
+      cursor: pointer;
+      transition: 0.2s;
+    }
+    .auth-tab:first-child {
+      border-right: 1.5px solid #2c261f;
+    }
+    .auth-tab.active {
+      background: #231f1a;
+      color: #eae4d7;
+    }
+
+    /* THÂN FORM */
+    .ticket-body {
+      padding: 16px;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+    }
+    .auth-form {
+      display: none;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .auth-form.active {
+      display: flex;
+    }
+    .ticket-field {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .ticket-field label {
+      font-family: 'Space Mono', monospace;
+      font-size: 0.68rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: #4a4136;
+    }
+    .ticket-input-wrap {
+      position: relative;
+      display: flex;
+      align-items: center;
+    }
+    .ticket-field input {
+      width: 100%;
+      background: rgba(255, 255, 255, 0.55);
+      border: 1px solid #8a7f70;
+      border-radius: 2px;
+      padding: 8px 10px;
+      font-family: 'Space Mono', monospace;
+      font-size: 0.82rem;
+      color: #181512;
+      outline: none;
+      transition: 0.2s;
+    }
+    .ticket-field input:focus {
+      background: #fff;
+      border-color: #181512;
+      box-shadow: inset 0 0 0 1px #181512;
+    }
+    .toggle-pass {
+      position: absolute;
+      right: 8px;
+      background: none;
+      border: none;
+      font-family: 'Space Mono', monospace;
+      font-size: 0.68rem;
+      color: #5c5346;
+      cursor: pointer;
+      text-transform: uppercase;
+    }
+    .ticket-row-between {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 0.76rem;
+      color: #4a4136;
+    }
+    .auth-link {
+      background: none;
+      border: none;
+      color: #7a2323;
+      font-family: 'Space Mono', monospace;
+      font-size: 0.72rem;
+      font-weight: 700;
+      text-decoration: underline;
+      cursor: pointer;
+      padding: 0;
+    }
+    .ticket-submit {
+      margin-top: 4px;
+      background: #1c1915;
+      color: #eae4d7;
+      border: 1.5px solid #1c1915;
+      padding: 10px;
+      font-family: 'Space Mono', monospace;
+      font-size: 0.8rem;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      cursor: pointer;
+      transition: 0.2s;
+    }
+    .ticket-submit:hover {
+      background: #7a2323;
+      border-color: #7a2323;
+      color: #fff;
+    }
+    .auth-alert {
+      display: none;
+      padding: 8px 10px;
+      font-size: 0.78rem;
+      line-height: 1.4;
+      border: 1px solid;
+    }
+    .auth-alert.error {
+      display: block;
+      background: rgba(168, 32, 32, 0.1);
+      border-color: #a82020;
+      color: #8a1616;
+    }
+    .auth-alert.success {
+      display: block;
+      background: rgba(28, 94, 52, 0.12);
+      border-color: #1c5e34;
+      color: #144726;
+    }
+    .ticket-hint {
+      font-size: 0.78rem;
+      color: #4a4136;
+      line-height: 1.45;
+      margin: 0;
+    }
+
+    /* ĐƯỜNG XÉ VÉ & MÃ VẠCH DƯỚI CÙNG GIỐNG ẢNH MẪU */
+    .ticket-tear-line {
+      position: relative;
+      border-top: 1.5px dashed #2c261f;
+      margin: 4px 0 0;
+      padding: 12px 16px 14px;
+      text-align: center;
+    }
+    .ticket-tear-line::before,
+    .ticket-tear-line::after {
+      content: '';
+      position: absolute;
+      top: -11px;
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: #09090b;
+      border: 1.5px solid #2c261f;
+    }
+    .ticket-tear-line::before { left: -12px; }
+    .ticket-tear-line::after { right: -12px; }
+
+    .ticket-motto {
+      font-family: 'Cormorant Garamond', serif;
+      font-style: italic;
+      font-size: 0.84rem;
+      color: #3a332a;
+      margin-bottom: 8px;
+    }
+    .ticket-barcode {
+      height: 36px;
+      width: 86%;
+      margin: 0 auto;
+      background: repeating-linear-gradient(
+        to right,
+        #1c1915 0px, #1c1915 2px,
+        transparent 2px, transparent 5px,
+        #1c1915 5px, #1c1915 9px,
+        transparent 9px, transparent 11px,
+        #1c1915 11px, #1c1915 12px,
+        transparent 12px, transparent 16px
+      );
+      opacity: 0.88;
+    }
+
+    @media (max-width: 820px) {
+      .ticket-spread {
+        grid-template-columns: 1fr;
+        max-width: 410px;
+      }
+      .ticket-front {
+        display: none;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div id="app-header"></div>
+
+  <main class="ticket-auth-stage">
+    <div class="ticket-spread">
+      <!-- MẶT TRÁI: VÉ BÌA NGHỆ THUẬT -->
+      <aside class="vintage-ticket ticket-front">
+        <div class="ticket-front-art">
+          <div class="ticket-front-top">
+            <span>KBS Hồ Chí Minh</span>
+            <span>Mystery Archive</span>
+          </div>
+          <div class="ticket-front-quote">
+            “Khi cánh cửa khép lại, chân tướng mới bắt đầu.”
+          </div>
+        </div>
+        <div class="ticket-front-footer">
+          <h2 class="ticket-front-title">Kịch Bản Sát</h2>
+          <div class="ticket-front-sub">Hồ Sơ Điều Tra Viên • 42 Kỳ Án</div>
+        </div>
+      </aside>
+
+      <!-- MẶT PHẢI: CUỐNG VÉ ĐĂNG NHẬP / ĐĂNG KÝ / QUÊN MK -->
+      <section class="vintage-ticket ticket-back">
+        <div class="ticket-meta-bar">
+          <span>KBS ORIGINAL TICKET</span>
+          <span>NO. 2026</span>
+        </div>
+
+        <div class="ticket-inner-box">
+          <div class="ticket-box-header">
+            <div class="ticket-box-header-top">
+              <span>ADMISSION PASS</span>
+              <span>[VIP / MEMBER]</span>
+            </div>
+            <h1 class="ticket-main-heading" id="auth-title">Đăng nhập hệ thống</h1>
+          </div>
+
+          <div class="ticket-tabs" id="auth-tabs">
+            <button type="button" class="auth-tab active" data-tab="login">Đăng nhập</button>
+            <button type="button" class="auth-tab" data-tab="register">Đăng ký</button>
+          </div>
+
+          <div class="ticket-body">
+            <!-- 1. FORM ĐĂNG NHẬP -->
+            <form class="auth-form active" id="form-login" novalidate>
+              <div class="auth-alert" id="alert-login"></div>
+
+              <div class="ticket-field">
+                <label for="login-account">Tài khoản (SĐT hoặc Email)</label>
+                <input type="text" id="login-account" placeholder="0909.123.456 hoặc email" required />
+              </div>
+
+              <div class="ticket-field">
+                <label for="login-password">Mật mã truy cập</label>
+                <div class="ticket-input-wrap">
+                  <input type="password" id="login-password" placeholder="••••••••" required />
+                  <button type="button" class="toggle-pass" data-target="login-password">Hiện</button>
+                </div>
+              </div>
+
+              <div class="ticket-row-between">
+                <label style="display:flex;align-items:center;gap:5px;cursor:pointer;">
+                  <input type="checkbox" checked /> Ghi nhớ vé
+                </label>
+                <button type="button" class="auth-link" id="link-forgot">Quên mật khẩu?</button>
+              </div>
+
+              <button type="submit" class="ticket-submit">Đóng Dấu & Đăng Nhập</button>
+            </form>
+
+            <!-- 2. FORM ĐĂNG KÝ -->
+            <form class="auth-form" id="form-register" novalidate>
+              <div class="auth-alert" id="alert-register"></div>
+
+              <div class="ticket-field">
+                <label for="reg-name">Danh xưng / Họ tên *</label>
+                <input type="text" id="reg-name" placeholder="VD: Thám tử Minh Khôi" required />
+              </div>
+
+              <div class="ticket-field">
+                <label for="reg-phone">Số điện thoại *</label>
+                <input type="tel" id="reg-phone" placeholder="0915690033" required />
+              </div>
+
+              <div class="ticket-field">
+                <label for="reg-email">Email liên hệ *</label>
+                <input type="email" id="reg-email" placeholder="email@example.com" required />
+              </div>
+
+              <div class="ticket-field">
+                <label for="reg-password">Mật mã (tối thiểu 6 ký tự) *</label>
+                <div class="ticket-input-wrap">
+                  <input type="password" id="reg-password" placeholder="••••••" required />
+                  <button type="button" class="toggle-pass" data-target="reg-password">Hiện</button>
+                </div>
+              </div>
+
+              <div class="ticket-field">
+                <label for="reg-confirm">Xác nhận mật mã *</label>
+                <div class="ticket-input-wrap">
+                  <input type="password" id="reg-confirm" placeholder="••••••" required />
+                  <button type="button" class="toggle-pass" data-target="reg-confirm">Hiện</button>
+                </div>
+              </div>
+
+              <button type="submit" class="ticket-submit">Cấp Thẻ Điều Tra Viên</button>
+            </form>
+
+            <!-- 3. FORM QUÊN MẬT KHẨU -->
+            <form class="auth-form" id="form-forgot" novalidate>
+              <p class="ticket-hint">
+                Nhập <strong>Email</strong> hoặc <strong>Số điện thoại</strong> đã đăng ký để nhận mã OTP khôi phục vé.
+              </p>
+
+              <div class="auth-alert" id="alert-forgot"></div>
+
+              <div class="ticket-field">
+                <label for="forgot-account">Email hoặc Số điện thoại *</label>
+                <input type="text" id="forgot-account" placeholder="Nhập email hoặc SĐT..." required />
+              </div>
+
+              <div id="otp-step" style="display:none;flex-direction:column;gap:10px;">
+                <div class="ticket-field">
+                  <label for="forgot-otp">Mã xác thực OTP *</label>
+                  <input type="text" id="forgot-otp" placeholder="VD: 123456" maxlength="6" />
+                </div>
+                <div class="ticket-field">
+                  <label for="forgot-new-pass">Mật mã mới *</label>
+                  <input type="password" id="forgot-new-pass" placeholder="Tối thiểu 6 ký tự" />
+                </div>
+              </div>
+
+              <button type="submit" class="ticket-submit" id="btn-forgot-submit">Gửi Mã Xác Thực</button>
+
+              <div style="text-align:center;">
+                <button type="button" class="auth-link" id="link-back-login">← Quay lại đăng nhập</button>
+              </div>
+            </form>
+          </div>
+
+          <div class="ticket-tear-line">
+            <div class="ticket-motto">When you wake up, all bad dreams will be over.</div>
+            <div class="ticket-barcode" aria-hidden="true"></div>
+          </div>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <div id="app-footer"></div>
+
+  <script type="module" src="../src/pages-js/auth.page.js"></script>
+</body>
+</html>
