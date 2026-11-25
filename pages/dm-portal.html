@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Cổng Quản trò — Kịch Bản Sát V16</title>
+  <meta name="description" content="Cổng Quản trò: nhận ca dẫn, lịch dẫn, check-in QR, thu tiền và vận hành phiên chơi." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&family=Playfair+Display:ital,wght@0,600;0,700;1,600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../src/styles/components.css" />
+  <link rel="stylesheet" href="../src/styles/portals.css" />
+</head>
+<body>
+  <header class="site-header">
+    <div class="container header-inner">
+      <a href="../index.html" class="brand-logo">
+        <img src="../src/assets/images/logo.png" alt="Logo Kịch Bản Sát" />
+        <span>KỊCH BẢN SÁT</span>
+      </a>
+
+      <nav class="nav-links">
+        <a href="../index.html">Trang chủ</a>
+        <a href="./scenarios.html">Kho 42 Kịch Bản</a>
+        <a href="./lobby.html">Sảnh Ghép Phòng</a>
+        <a href="./info.html">Bảng Giá & Nội Quy</a>
+      </nav>
+
+      <div class="dm-header-actions">
+        <button type="button" id="notifBellBtn" class="btn btn-outline dm-bell" title="Thông báo hệ thống" aria-label="Thông báo">
+          🔔 <span id="notifBadge" class="dm-bell__count">0</span>
+        </button>
+        <select id="demoRoleSwitcher" class="dm-role-select" title="Chuyển nhanh vai trò để demo báo cáo" aria-label="Vai trò demo">
+          <option value="guest">Vai trò: Khách vãng lai</option>
+          <option value="player">Vai trò: Player (Đã duyệt HSSV)</option>
+          <option value="dm">Vai trò: Quản trò (DM)</option>
+          <option value="admin">Vai trò: Quản trị (Admin)</option>
+        </select>
+        <a href="./auth.html" id="authActionBtn" class="btn btn-outline">Đăng nhập</a>
+      </div>
+    </div>
+  </header>
+
+  <div class="dm-app" id="dm-root">
+    <div class="container dm-identity">
+      <span class="dm-identity__role">CỔNG QUẢN TRÒ (DM)</span>
+      <label class="dm-picker">Đăng nhập demo với tư cách
+        <select id="dm-who" aria-label="Chọn Quản trò"></select>
+      </label>
+      <span class="dm-identity__spacer"></span>
+      <button type="button" class="btn btn-outline dm-btn--sm" id="dm-reset" title="Xoá dữ liệu demo và tạo lại từ đầu">Đặt lại dữ liệu demo</button>
+    </div>
+    <nav class="dm-tabs" id="dm-tabs" role="tablist" aria-label="Các mục của cổng"></nav>
+    <main class="dm-main" id="dm-main" aria-live="polite"></main>
+  </div>
+
+  <footer class="site-footer">
+    <div class="container dm-footer-grid">
+      <div>
+        <strong>KỊCH BẢN SÁT V16</strong>
+        <p style="margin-top: 8px;">Không gian nhập vai phá án Murder Mystery chuyên nghiệp tại TP.HCM.</p>
+      </div>
+      <div>
+        <strong>Điều Hướng Nhanh</strong>
+        <ul style="padding: 0; margin-top: 8px; line-height: 1.8;">
+          <li><a href="./scenarios.html">Kho 42 Kịch Bản</a></li>
+          <li><a href="./lobby.html">Sảnh Ghép Phòng</a></li>
+          <li><a href="./info.html">Bảng Giá & Nội Quy</a></li>
+        </ul>
+      </div>
+      <div>
+        <strong>Liên Hệ & Giờ Mở Cửa</strong>
+        <p style="margin-top: 8px;">📍 36/52 Nguyễn Gia Trí, P.25, Q.Bình Thạnh</p>
+        <p>⏰ Mở cửa: 09:00 – 23:00 mỗi ngày</p>
+        <p>📞 Đặt phòng: <strong>091.569.0033</strong></p>
+      </div>
+    </div>
+  </footer>
+
+  <script type="module" src="../src/pages-js/dm.page.js"></script>
+</body>
+</html>
