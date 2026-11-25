@@ -3,6 +3,7 @@ import { authState } from '../../api/auth-state.js';
 import { toast } from '../../utils/toast.js';
 import { escapeHtml } from '../../utils/sanitize.js';
 import { ALL_SCRIPTS } from '../../data/scripts.data.js';
+import { DialogService } from '../../utils/dialog-service.js';
 
 export class RoomsView {
   constructor(container, onOpenAuthModal = () => {}) {
@@ -29,9 +30,14 @@ export class RoomsView {
             Sảnh Phòng Chơi
           </h1>
         </div>
-        <button id="btn-open-create-room" class="btn btn-gold" style="padding: 10px 18px; font-weight: 700; font-size: 0.9rem;">
-          + Tạo phòng mới
-        </button>
+        <div style="display: flex; gap: 10px; flex-wrap: wrap; align-items: center;">
+          <a href="/player.html" class="btn btn-ghost" style="padding: 10px 16px; font-size: 0.88rem; border: 1px solid rgba(59, 130, 246, 0.4); color: #93c5fd; text-decoration: none; border-radius: 6px;">
+            👤 Hồ Sơ &amp; Vé Cọc &rarr;
+          </a>
+          <button id="btn-open-create-room" class="btn btn-gold" style="padding: 10px 18px; font-weight: 700; font-size: 0.9rem;">
+            + Tạo phòng mới
+          </button>
+        </div>
       </div>
 
       <!-- THANH TABS THEO TRẠNG THÁI HỆ THỐNG -->
@@ -412,7 +418,51 @@ export class RoomsView {
       : (room.price_remaining_total && room.current_players ? Math.round(Number(room.price_remaining_total) / room.current_players) : 0);
     const remainingFormatted = Number(remainingAmount).toLocaleString() + ' đ';
 
+    const isStep1 = room.status === 'FORMING';
+    const isStep2 = room.status === 'VOTING' || (room.status === 'FORMED' && !isScheduled);
+    const isStep3 = isScheduled && !hasDeposited;
+    const isStep4 = isScheduled && hasDeposited;
+
     this.container.innerHTML = `
+      <!-- 4-STEP BOOKING WORKFLOW INDICATOR -->
+      <div class="kbs-steps-row">
+        <div class="kbs-step-item ${isStep1 ? 'active' : (isStep2 || isStep3 || isStep4 ? 'completed' : '')}">
+          <span class="kbs-step-num">${isStep2 || isStep3 || isStep4 ? '✓' : '1'}</span>
+          <span>1. Gom người</span>
+        </div>
+        <span class="kbs-step-separator">&rarr;</span>
+        <div class="kbs-step-item ${isStep2 ? 'active' : (isStep3 || isStep4 ? 'completed' : '')}">
+          <span class="kbs-step-num">${isStep3 || isStep4 ? '✓' : '2'}</span>
+          <span>2. Chốt lịch &amp; Quán</span>
+        </div>
+        <span class="kbs-step-separator">&rarr;</span>
+        <div class="kbs-step-item ${isStep3 ? 'active' : (isStep4 ? 'completed' : '')}">
+          <span class="kbs-step-num">${isStep4 ? '✓' : '3'}</span>
+          <span>3. Đặt cọc 50.000đ</span>
+        </div>
+        <span class="kbs-step-separator">&rarr;</span>
+        <div class="kbs-step-item ${isStep4 ? 'active' : ''}">
+          <span class="kbs-step-num">4</span>
+          <span>4. Nhận vé QR &amp; Chơi</span>
+        </div>
+      </div>
+
+      <!-- 4-HOUR COUNTDOWN WIDGET -->
+      ${room.status === 'FORMING' ? `
+        <div style="background: rgba(245, 158, 11, 0.1); border: 1px solid rgba(245, 158, 11, 0.35); border-radius: 10px; padding: 14px 18px; margin-bottom: 20px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px;">
+          <div style="display: flex; align-items: center; gap: 12px;">
+            <span style="font-size: 1.5rem;">⏳</span>
+            <div>
+              <strong style="color: #f59e0b; font-size: 0.95rem;">Hạn Giữ Chỗ Tự Động: 4 Giờ</strong>
+              <p style="margin: 2px 0 0 0; font-size: 0.82rem; color: #cbd5e1;">Phòng cần gom đủ ${room.max_players} người và đặt cọc 50.000đ trước khi hết hạn để tránh tự động giải tán.</p>
+            </div>
+          </div>
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <span style="font-family: var(--font-mono); font-weight: 700; color: #f59e0b; font-size: 1.1rem;">~3 giờ 45 phút còn lại</span>
+          </div>
+        </div>
+      ` : ''}
+
       <div style="margin-bottom: 20px;">
         <button id="btn-back-lobby" class="btn btn-secondary" style="padding: 6px 14px; font-size: 0.85rem; margin-bottom: 16px;">
           &larr; Quay lại danh sách phòng
@@ -450,7 +500,7 @@ export class RoomsView {
         </div>
       </div>
 
-      <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 24px;">
+      <div class="kbs-room-detail-grid">
         <!-- Left Column: Thành viên & Biểu quyết & Giá vé -->
         <div style="display: flex; flex-direction: column; gap: 24px;">
           <!-- Card: Danh sách thành viên -->
@@ -478,11 +528,11 @@ export class RoomsView {
                       </div>
                     </div>
                     <div style="display: flex; align-items: center; gap: 8px;">
-                      <span class="badge" style="font-size: 0.75rem; background: ${p.status === 'DEPOSITED' ? 'rgba(16, 185, 129, 0.2)' : p.status === 'LEAVE_REQUESTED' ? 'rgba(245, 158, 11, 0.2)' : 'rgba(59, 130, 246, 0.2)'}; color: ${p.status === 'DEPOSITED' ? '#10b981' : p.status === 'LEAVE_REQUESTED' ? '#f59e0b' : '#60a5fa'};">
-                        ${escapeHtml(p.status)}
+                      <span class="badge" style="font-size: 0.75rem; background: ${p.status === 'DEPOSITED' ? 'rgba(16, 185, 129, 0.2)' : p.status === 'LEAVE_REQUESTED' ? 'rgba(245, 158, 11, 0.2)' : 'rgba(59, 130, 246, 0.2)'}; color: ${p.status === 'DEPOSITED' ? '#10b981' : p.status === 'LEAVE_REQUESTED' ? '#f59e0b' : '#60a5fa'}; border: 1px solid ${p.status === 'DEPOSITED' ? 'rgba(16, 185, 129, 0.4)' : p.status === 'LEAVE_REQUESTED' ? 'rgba(245, 158, 11, 0.4)' : 'rgba(59, 130, 246, 0.4)'};">
+                        ${p.status === 'DEPOSITED' ? '✓ Đã cọc 50k' : (p.status === 'LEAVE_REQUESTED' ? 'Chờ thế chỗ' : escapeHtml(p.status))}
                       </span>
                       ${canKick && !isMe ? `
-                        <button class="btn btn-sm btn-kick-member" data-kick-user="${escapeHtml(p.user_id)}" data-user-name="${escapeHtml(p.name || p.user_name || 'Người chơi')}" style="padding: 2px 8px; font-size: 0.75rem; background: rgba(239, 68, 68, 0.15); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.3); border-radius: 4px; cursor: pointer;">
+                        <button class="btn btn-sm btn-kick-member" data-kick-user="${escapeHtml(p.user_id)}" data-user-name="${escapeHtml(p.name || p.user_name || 'Người chơi')}" style="padding: 6px 12px; min-height: 38px; font-size: 0.82rem; background: rgba(239, 68, 68, 0.15); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.35); border-radius: 6px; cursor: pointer; display: inline-flex; align-items: center; gap: 4px;">
                           Mời ra
                         </button>
                       ` : ''}
@@ -623,7 +673,11 @@ export class RoomsView {
       btn.onclick = async () => {
         const targetUserId = btn.dataset.kickUser;
         const targetName = btn.dataset.userName;
-        const reason = prompt(`Nhập lý do mời thành viên '${targetName}' ra khỏi phòng:`, 'Không nộp cọc / Không phản hồi');
+        const reason = await DialogService.prompt(
+          'Mời thành viên rời phòng',
+          `Nhập lý do mời thành viên "${targetName}" ra khỏi phòng:`,
+          'Không nộp cọc / Không phản hồi'
+        );
         if (reason !== null) {
           try {
             const res = await api.post(`/rooms/${room.id}/kick`, {

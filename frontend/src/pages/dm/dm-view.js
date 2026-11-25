@@ -2,6 +2,7 @@ import { api } from '../../api/api-client.js';
 import { authState } from '../../api/auth-state.js';
 import { toast } from '../../utils/toast.js';
 import { escapeHtml } from '../../utils/sanitize.js';
+import { DialogService } from '../../utils/dialog-service.js';
 
 export class DmView {
   constructor(container, onOpenAuthModal = () => {}) {
@@ -251,31 +252,46 @@ export class DmView {
           </div>
 
           <div style="display: flex; gap: 8px; flex-wrap: wrap;">
-            <button id="btn-toggle-players-${a.id}" class="btn" style="background: transparent; border: 1px solid var(--color-border); color: var(--color-text-main); padding: 6px 14px; font-size: 0.85rem;">
+            <button id="btn-toggle-players-${a.id}" class="btn" style="background: transparent; border: 1px solid var(--color-border); color: var(--color-text-main); padding: 7px 16px; font-size: 0.85rem; border-radius: 6px;">
               👥 Danh sách người chơi
             </button>
             ${a.status === 'PENDING' ? `
-              <button id="btn-accept-${a.id}" class="btn" style="background: var(--color-success); color: white; border: none; padding: 6px 14px; font-size: 0.85rem;">
+              <button id="btn-accept-${a.id}" class="btn" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; border: none; padding: 7px 18px; font-size: 0.88rem; font-weight: 700; border-radius: 6px; box-shadow: 0 2px 8px rgba(16, 185, 129, 0.35);">
                 ✓ Chấp nhận ca
               </button>
-              <button id="btn-reject-${a.id}" class="btn" style="background: var(--color-error); color: white; border: none; padding: 6px 14px; font-size: 0.85rem;">
+              <button id="btn-reject-${a.id}" class="btn" style="background: transparent; border: 1px solid rgba(239, 68, 68, 0.4); color: #ef4444; padding: 7px 16px; font-size: 0.85rem; border-radius: 6px;">
                 ✕ Từ chối ca
               </button>
             ` : ''}
             ${a.status === 'ACCEPTED' && a.session_id ? `
               ${a.session_status === 'SCHEDULED' ? `
-                <button id="btn-start-session-${a.session_id}" class="btn" style="background: var(--color-primary); color: white; border: none; padding: 6px 14px; font-size: 0.85rem; font-weight: 600;">
+                <button id="btn-start-session-${a.session_id}" class="btn" style="background: var(--color-primary); color: var(--ink-black); border: none; padding: 7px 18px; font-size: 0.88rem; font-weight: 700; border-radius: 6px;">
                   ▶ Bắt đầu buổi chơi
                 </button>
               ` : ''}
               ${a.session_status === 'IN_PROGRESS' ? `
-                <button id="btn-complete-session-${a.session_id}" class="btn" style="background: var(--color-success); color: white; border: none; padding: 6px 14px; font-size: 0.85rem; font-weight: 600;">
+                <button id="btn-complete-session-${a.session_id}" class="btn" style="background: #10b981; color: white; border: none; padding: 7px 18px; font-size: 0.88rem; font-weight: 700; border-radius: 6px; box-shadow: 0 2px 8px rgba(16, 185, 129, 0.35);">
                   ✔ Kết thúc buổi chơi
                 </button>
               ` : ''}
             ` : ''}
           </div>
         </div>
+
+        ${a.session_status === 'IN_PROGRESS' ? `
+          <div style="background: rgba(245, 158, 11, 0.12); border: 1px solid rgba(245, 158, 11, 0.4); border-radius: 8px; padding: 12px 16px; margin-bottom: 12px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;">
+            <div style="display: flex; align-items: center; gap: 10px;">
+              <span style="font-size: 1.2rem;">🔴</span>
+              <div>
+                <strong style="color: #f59e0b; font-size: 0.95rem;">CA CHƠI ĐANG DIỄN RA (Phiên 240 phút)</strong>
+                <p style="margin: 2px 0 0 0; font-size: 0.8rem; color: #cbd5e1;">Quản trò điều phối manh mối, đạo cụ và điểm danh người chơi tại bàn.</p>
+              </div>
+            </div>
+            <div style="display: flex; gap: 8px; align-items: center;">
+              <span class="badge" style="background: rgba(16, 185, 129, 0.2); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.4); font-size: 0.78rem;">Đạo cụ: Đủ 100%</span>
+            </div>
+          </div>
+        ` : ''}
 
         <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; background: rgba(15, 23, 42, 0.5); padding: 12px; border-radius: var(--radius-sm); border: 1px solid var(--color-border);">
           <div>
@@ -347,12 +363,13 @@ export class DmView {
   }
 
   async handleCompleteSession(sessionId) {
-    if (!confirm('Xác nhận KẾT THÚC buổi chơi? Hành động này sẽ chuyển trạng thái phòng và buổi chơi sang COMPLETED.')) return;
+    const ok = await DialogService.confirm('Kết thúc buổi chơi', 'Xác nhận KẾT THÚC buổi chơi? Hành động này sẽ chuyển trạng thái phòng và buổi chơi sang COMPLETED.');
+    if (!ok) return;
 
-    const notes = prompt('Nhập tóm tắt kết quả buổi chơi (hoặc bấm OK để tiếp tục):', 'Buổi chơi hoàn thành tốt đẹp, người chơi phá án thành công.');
+    const notes = await DialogService.prompt('Ghi nhận kết quả buổi chơi', 'Nhập tóm tắt kết quả buổi chơi (hoặc bấm OK để tiếp tục):', 'Buổi chơi hoàn thành tốt đẹp, người chơi phá án thành công.');
     if (notes === null) return;
 
-    const incident = prompt('Ghi nhận sự cố phát sinh / hỏng đạo cụ nếu có (hoặc để trống nếu không có):', '');
+    const incident = await DialogService.prompt('Ghi nhận sự cố / hỏng đạo cụ', 'Ghi nhận sự cố phát sinh / hỏng đạo cụ nếu có (hoặc để trống nếu không có):', '');
     if (incident === null) return;
 
     try {

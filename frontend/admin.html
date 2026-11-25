@@ -183,6 +183,7 @@
     import { escapeHtml } from './src/utils/sanitize.js';
     import { initSharedChrome } from './src/utils/shared-header.js';
     import { AuthModal } from './src/pages/auth/auth-modal.js';
+    import { DialogService } from './src/utils/dialog-service.js';
 
     let activeTab = 'overview';
     let authModalInstance = null;
@@ -731,8 +732,9 @@
                 });
               }
               msg += '\nBạn có muốn thêm cấu hình phiên bản mới với danh sách nhân vật mẫu không?';
-              if (confirm(msg)) {
-                const charNames = prompt('Nhập danh sách tên nhân vật (cách nhau bởi dấu phẩy):', 'Thám tử Mori, Bác sĩ Watson, Nữ quý tộc, Quản gia');
+              const ok = await DialogService.confirm('Cấu hình nhân vật', msg);
+              if (ok) {
+                const charNames = await DialogService.prompt('Danh sách nhân vật', 'Nhập danh sách tên nhân vật (cách nhau bởi dấu phẩy):', 'Thám tử Mori, Bác sĩ Watson, Nữ quý tộc, Quản gia');
                 if (charNames) {
                   const characters = charNames.split(',').map((n, idx) => ({ id: idx + 1, name: n.trim(), gender: idx % 2 === 0 ? 'M' : 'F', role: 'Player Character' }));
                   await api.post(`/admin/games/${gid}/configurations`, {
@@ -812,9 +814,9 @@
         `;
 
         document.getElementById('btn-admin-add-branch')?.addEventListener('click', async () => {
-          const name = prompt('Nhập tên chi nhánh mới:');
+          const name = await DialogService.prompt('Thêm chi nhánh', 'Nhập tên chi nhánh mới:');
           if (!name) return;
-          const address = prompt('Nhập địa chỉ:');
+          const address = await DialogService.prompt('Địa chỉ chi nhánh', 'Nhập địa chỉ:');
           if (!address) return;
           try {
             await api.post('/admin/venues', { name, address });
@@ -828,9 +830,9 @@
         root.querySelectorAll('[data-branch-add-room]').forEach(b => {
           b.addEventListener('click', async () => {
             const venueId = b.dataset.branchAddRoom;
-            const name = prompt('Nhập tên phòng vật lý mới (VD: Phòng Án Mạng 05):');
+            const name = await DialogService.prompt('Thêm phòng', 'Nhập tên phòng vật lý mới (VD: Phòng Án Mạng 05):');
             if (!name) return;
-            const cap = prompt('Sức chứa tối đa (người):', '8');
+            const cap = await DialogService.prompt('Sức chứa', 'Sức chứa tối đa (người):', '8');
             try {
               await api.post(`/admin/venues/${venueId}/rooms`, { name, capacity: Number(cap) || 8 });
               toast.success(`Đã thêm phòng "${name}" thành công!`);
@@ -944,7 +946,7 @@
         root.querySelectorAll('[data-reject-student]').forEach(btn => {
           btn.onclick = async () => {
             const uid = btn.dataset.rejectStudent;
-            const reason = prompt('Nhập lý do từ chối ảnh thẻ:', 'Ảnh mờ hoặc không có ngày hết hạn');
+            const reason = await DialogService.prompt('Từ chối thẻ HSSV', 'Nhập lý do từ chối ảnh thẻ:', 'Ảnh mờ hoặc không có ngày hết hạn');
             if (reason !== null) {
               try {
                 const res = await api.post(`/admin/users/${uid}/verify-student`, { status: 'REJECTED', reason });
@@ -1126,16 +1128,63 @@
                 if (!p) return;
                 const txs = p.transactions || [];
                 const rfs = p.refunds || [];
-                alert(`CHI TIẾT HÓA ĐƠN #${p.id}\n` +
-                      `Người chơi: ${p.user_name || 'N/A'} (${p.user_email || 'N/A'})\n` +
-                      `Kịch bản: ${p.game_name || 'N/A'} - ${p.room_title || 'N/A'}\n` +
-                      `Loại: ${p.payment_type} | Trạng thái: ${p.status}\n` +
-                      `Cần thanh toán: ${formatMoney(p.amount)} | Đã trả: ${formatMoney(p.paid_amount)}\n\n` +
-                      `LỊCH SỬ GIAO DỊCH (${txs.length}):\n` +
-                      (txs.length ? txs.map(t => `- [${t.gateway}] Mã GD: ${t.transaction_ref || 'N/A'}, Số tiền: ${formatMoney(t.amount)}, TT: ${t.status}`).join('\n') : 'Chưa có giao dịch gateway') +
-                      `\n\nYÊU CẦU HOÀN TIỀN (${rfs.length}):\n` +
-                      (rfs.length ? rfs.map(r => `- Hoàn ${formatMoney(r.amount)}, Lý do: ${r.reason}, TT: ${r.status}`).join('\n') : 'Không có')
-                );
+                const txsHtml = txs.length ? txs.map(t => `
+                  <div style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); padding: 12px; border-radius: 8px; margin-bottom: 8px;">
+                    <div style="display: flex; justify-content: space-between; font-size: 0.82rem; margin-bottom: 4px;">
+                      <strong style="color: var(--gold);">${escapeHtml(t.gateway || 'GATEWAY')}</strong>
+                      <span class="badge ${t.status === 'SUCCESS' ? 'badge-green' : 'badge-gold'}">${escapeHtml(t.status)}</span>
+                    </div>
+                    <div style="font-size: 0.8rem; color: #94a3b8;">Mã GD: <code>${escapeHtml(t.transaction_ref || 'N/A')}</code></div>
+                    <div style="font-size: 0.95rem; font-weight: 700; color: #f8fafc; margin-top: 4px;">${formatMoney(t.amount)}</div>
+                  </div>
+                `).join('') : '<p style="color: #94a3b8; font-size: 0.85rem;">Chưa có giao dịch gateway</p>';
+
+                const rfsHtml = rfs.length ? rfs.map(r => `
+                  <div style="background: rgba(239,68,68,0.05); border: 1px solid rgba(239,68,68,0.2); padding: 12px; border-radius: 8px; margin-bottom: 8px;">
+                    <div style="display: flex; justify-content: space-between; font-size: 0.82rem; margin-bottom: 4px;">
+                      <strong style="color: #ef4444;">Hoàn tiền: ${formatMoney(r.amount)}</strong>
+                      <span class="badge ${r.status === 'APPROVED' ? 'badge-green' : 'badge-gold'}">${escapeHtml(r.status)}</span>
+                    </div>
+                    <div style="font-size: 0.82rem; color: #cbd5e1;">Lý do: ${escapeHtml(r.reason || 'N/A')}</div>
+                  </div>
+                `).join('') : '<p style="color: #94a3b8; font-size: 0.85rem;">Không có yêu cầu hoàn tiền</p>';
+
+                DialogService.drawer(`Chi Tiết Hóa Đơn #${p.id}`, `
+                  <div style="display: flex; flex-direction: column; gap: 18px;">
+                    <div style="background: var(--bg-surface, #181614); padding: 16px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.08);">
+                      <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                        <span style="font-size: 0.82rem; color: #94a3b8;">Người chơi</span>
+                        <strong style="color: #f8fafc;">${escapeHtml(p.user_name || 'N/A')}</strong>
+                      </div>
+                      <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                        <span style="font-size: 0.82rem; color: #94a3b8;">Email</span>
+                        <span style="color: #cbd5e1; font-size: 0.85rem;">${escapeHtml(p.user_email || 'N/A')}</span>
+                      </div>
+                      <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                        <span style="font-size: 0.82rem; color: #94a3b8;">Kịch bản / Phòng</span>
+                        <span style="color: var(--gold); font-size: 0.85rem; text-align: right;">${escapeHtml(p.game_name || 'N/A')} - ${escapeHtml(p.room_title || 'N/A')}</span>
+                      </div>
+                      <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                        <span style="font-size: 0.82rem; color: #94a3b8;">Loại / Trạng thái</span>
+                        <span><span class="badge badge-gold">${escapeHtml(p.payment_type)}</span> <span class="badge ${p.status === 'PAID' ? 'badge-green' : 'badge-gold'}">${escapeHtml(p.status)}</span></span>
+                      </div>
+                      <div style="display: flex; justify-content: space-between; border-top: 1px solid rgba(255,255,255,0.08); padding-top: 10px; margin-top: 6px;">
+                        <span style="font-size: 0.85rem; color: #94a3b8;">Cần thu / Đã thu</span>
+                        <strong style="color: #10b981; font-size: 1.05rem;">${formatMoney(p.paid_amount)} / ${formatMoney(p.amount)}</strong>
+                      </div>
+                    </div>
+
+                    <div>
+                      <h4 style="font-size: 0.95rem; font-weight: 700; color: #f8fafc; margin: 0 0 10px 0;">Lịch Sử Giao Dịch (${txs.length})</h4>
+                      ${txsHtml}
+                    </div>
+
+                    <div>
+                      <h4 style="font-size: 0.95rem; font-weight: 700; color: #f8fafc; margin: 0 0 10px 0;">Yêu Cầu Hoàn Tiền (${rfs.length})</h4>
+                      ${rfsHtml}
+                    </div>
+                  </div>
+                `);
               } catch (err) {
                 toast.error(err.message || 'Lỗi tải chi tiết giao dịch');
               }
@@ -1317,18 +1366,42 @@
               const lid = Number(btn.dataset.viewLog);
               const l = (auditData.logs || []).find(item => item.id == lid);
               if (!l) return;
-              alert(
-                `CHI TIẾT NHẬT KÝ THAO TÁC #${l.id}\n` +
-                `Thời gian: ${l.created_at}\n` +
-                `Người thực hiện: ${l.user_name || 'Hệ thống'} (${l.user_email || 'N/A'})\n` +
-                `Hành động: ${l.action}\n` +
-                `Đối tượng: ${l.entity_type} #${l.entity_id || 'N/A'}\n` +
-                `IP: ${l.ip_address} | User Agent: ${l.user_agent || 'N/A'}\n\n` +
-                `GIÁ TRỊ CŨ (Old Values):\n` +
-                JSON.stringify(l.old_values || {}, null, 2) + '\n\n' +
-                `GIÁ TRỊ MỚI (New Values):\n` +
-                JSON.stringify(l.new_values || {}, null, 2)
-              );
+              DialogService.drawer(`Nhật Ký Thao Tác #${l.id}`, `
+                <div style="display: flex; flex-direction: column; gap: 14px;">
+                  <div style="background: var(--bg-surface, #181614); padding: 16px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.08);">
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                      <span style="font-size: 0.82rem; color: #94a3b8;">Thời gian</span>
+                      <strong style="color: #f8fafc; font-family: var(--font-mono); font-size: 0.85rem;">${escapeHtml(l.created_at)}</strong>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                      <span style="font-size: 0.82rem; color: #94a3b8;">Người thực hiện</span>
+                      <span style="color: var(--gold);">${escapeHtml(l.user_name || 'Hệ thống')} (${escapeHtml(l.user_email || 'N/A')})</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                      <span style="font-size: 0.82rem; color: #94a3b8;">Hành động</span>
+                      <span class="badge badge-gold">${escapeHtml(l.action)}</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                      <span style="font-size: 0.82rem; color: #94a3b8;">Đối tượng</span>
+                      <span style="color: #cbd5e1;">${escapeHtml(l.entity_type)} #${escapeHtml(String(l.entity_id || 'N/A'))}</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; font-size: 0.78rem; color: #94a3b8; border-top: 1px solid rgba(255,255,255,0.08); padding-top: 8px; margin-top: 4px;">
+                      <span>IP: ${escapeHtml(l.ip_address)}</span>
+                      <span style="max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${escapeHtml(l.user_agent || '')}</span>
+                    </div>
+                  </div>
+
+                  <div>
+                    <h4 style="font-size: 0.9rem; color: #94a3b8; margin: 0 0 6px 0;">GIÁ TRỊ CŨ (Old Values)</h4>
+                    <pre style="background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.08); padding: 12px; border-radius: 6px; font-size: 0.8rem; color: #f87171; overflow-x: auto; margin: 0;">${escapeHtml(JSON.stringify(l.old_values || {}, null, 2))}</pre>
+                  </div>
+
+                  <div>
+                    <h4 style="font-size: 0.9rem; color: #94a3b8; margin: 0 0 6px 0;">GIÁ TRỊ MỚI (New Values)</h4>
+                    <pre style="background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.08); padding: 12px; border-radius: 6px; font-size: 0.8rem; color: #34d399; overflow-x: auto; margin: 0;">${escapeHtml(JSON.stringify(l.new_values || {}, null, 2))}</pre>
+                  </div>
+                </div>
+              `);
             };
           });
         };

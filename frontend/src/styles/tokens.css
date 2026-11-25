@@ -1,40 +1,10 @@
+@import './design-tokens.css';
+
 :root {
-  /* Bảng màu cốt lõi */
-  --bg-void: #0D0D0D;
-  --bg-surface: #181614;
-  --bg-elevated: #221F1C;
+  /* Legacy tokens mapping to Official Design Tokens */
   --paper-cream: #F5F2EB;
   --paper-aged: #EAE4D7;
   --ink-black: #1A1816;
   --ink-muted: #5C554E;
-
-  /* Màu nhấn thương hiệu */
-  --crimson: #992B2B;
-  --crimson-bright: #C43737;
-  --crimson-glow: rgba(153, 43, 43, 0.35);
-  --gold: #D4AF37;
-  --gold-soft: rgba(212, 175, 55, 0.16);
-  --gold-border: rgba(212, 175, 55, 0.45);
-
-  /* Trạng thái */
-  --success: #2E7D4F;
-  --warning: #C97A1E;
-  --danger: #B82929;
-
-  /* Chữ trên nền tối */
-  --text-primary: #F5F2EB;
-  --text-secondary: #B8B0A4;
-  --text-dim: #7C7469;
-
-  /* Typography */
-  --font-display: 'Playfair Display', Georgia, serif;
-  --font-sans: 'Be Vietnam Pro', system-ui, -apple-system, sans-serif;
-  --font-mono: 'JetBrains Mono', monospace;
-
-  /* Spacing & Radius */
-  --radius-sm: 4px;
-  --radius-md: 8px;
-  --radius-lg: 14px;
-  --container-max: 1280px;
-  --header-height: 72px;
+  --crimson-glow: rgba(196, 55, 55, 0.35);
 }

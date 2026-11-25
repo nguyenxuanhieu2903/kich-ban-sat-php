@@ -14,28 +14,30 @@ if (!str_starts_with($path, '/api')) {
     $projectRoot = dirname(__DIR__, 2);
     $frontendDir = $projectRoot . '/frontend';
 
+    $serveFile = function (string $fullPath, string $contentType) {
+        if (is_file($fullPath)) {
+            header("Content-Type: {$contentType}; charset=utf-8");
+            header("Content-Length: " . (string) filesize($fullPath));
+            header("Cache-Control: no-cache");
+            readfile($fullPath);
+            exit;
+        }
+    };
+
     if ($path === '/' || $path === '/index.html') {
-        header('Content-Type: text/html; charset=utf-8');
-        readfile($frontendDir . '/index.html');
-        exit;
+        $serveFile($frontendDir . '/index.html', 'text/html');
     }
 
     if (in_array($path, ['/admin', '/admin.html'])) {
-        header('Content-Type: text/html; charset=utf-8');
-        readfile($frontendDir . '/admin.html');
-        exit;
+        $serveFile($frontendDir . '/admin.html', 'text/html');
     }
 
     if (in_array($path, ['/dm', '/dm.html'])) {
-        header('Content-Type: text/html; charset=utf-8');
-        readfile($frontendDir . '/dm.html');
-        exit;
+        $serveFile($frontendDir . '/dm.html', 'text/html');
     }
 
-    if (in_array($path, ['/player', '/player.html', '/phayer', '/phayer.html'])) {
-        header('Content-Type: text/html; charset=utf-8');
-        readfile($frontendDir . '/player.html');
-        exit;
+    if (in_array($path, ['/player', '/player.html'])) {
+        $serveFile($frontendDir . '/player.html', 'text/html');
     }
 
     $filePath = realpath($frontendDir . $path);
@@ -56,9 +58,7 @@ if (!str_starts_with($path, '/api')) {
             'ico' => 'image/x-icon',
         ];
         $contentType = $mimeTypes[$ext] ?? 'text/plain';
-        header("Content-Type: {$contentType}; charset=utf-8");
-        readfile($filePath);
-        exit;
+        $serveFile($filePath, $contentType);
     }
 }
 

@@ -187,6 +187,120 @@ export class HomeView {
         </div>
       </section>
 
+      <!-- KHỐI 0: 4 PHÂN HỆ ĐỘC LẬP (4 ENTERPRISE PORTALS HUB) -->
+      <section class="home-section" id="section-portals-hub" style="margin-top: 36px; margin-bottom: 24px;">
+        <div class="container">
+          <div style="text-align: center; margin-bottom: 30px;">
+            <div style="font-family: var(--font-mono); color: var(--gold); font-size: 0.8rem; letter-spacing: 0.16em; text-transform: uppercase;">
+              KIẾN TRÚC 4 PHÂN HỆ V16
+            </div>
+            <h2 style="font-family: var(--font-display); font-size: clamp(1.8rem, 3.2vw, 2.3rem); margin: 6px 0 10px; color: #f8fafc;">
+              4 Khu Vực Trải Nghiệm Độc Lập
+            </h2>
+            <p style="color: var(--text-secondary); max-width: 680px; margin: 0 auto; font-size: 0.92rem; line-height: 1.6;">
+              Hệ thống phân quyền chuẩn hoá theo từng Actor: Người chơi phá án, Quản trò dẫn dắt, Ban quản trị tài chính &amp; vận hành, và Khách vãng lai.
+            </p>
+          </div>
+
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 20px;">
+            <!-- CARD 1: PUBLIC PORTAL -->
+            <div class="kbs-portal-card" style="background: rgba(19, 21, 31, 0.85); border: 1px solid rgba(212, 175, 55, 0.3); border-radius: 12px; padding: 24px; display: flex; flex-direction: column; justify-content: space-between; position: relative; overflow: hidden;">
+              <div style="position: absolute; top: 0; left: 0; right: 0; height: 3px; background: linear-gradient(90deg, #d4af37, #f59e0b);"></div>
+              <div>
+                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px;">
+                  <span style="font-size: 2rem;">🏠</span>
+                  <span class="badge badge-gold" style="font-size: 0.72rem;">PUBLIC PORTAL</span>
+                </div>
+                <h3 style="font-family: var(--font-display); font-size: 1.25rem; color: #f8fafc; margin: 0 0 8px;">
+                  Trang Chủ &amp; Khám Phá
+                </h3>
+                <p style="color: var(--text-secondary); font-size: 0.86rem; line-height: 1.55; margin: 0 0 20px;">
+                  Khám phá kho 42 kịch bản Jubensha, tra cứu bảng giá theo khung giờ sáng/tối và thông tin chi nhánh độc quyền TP.HCM.
+                </p>
+              </div>
+              <a href="#games" class="btn btn-ghost btn-sm" style="width: 100%; justify-content: center; border-color: rgba(212,175,55,0.4); color: var(--gold); text-decoration: none;">
+                Khám Phá Kịch Bản &rarr;
+              </a>
+            </div>
+
+            <!-- CARD 2: PLAYER PORTAL -->
+            <div class="kbs-portal-card" style="background: rgba(19, 21, 31, 0.85); border: 1px solid rgba(59, 130, 246, 0.35); border-radius: 12px; padding: 24px; display: flex; flex-direction: column; justify-content: space-between; position: relative; overflow: hidden;">
+              <div style="position: absolute; top: 0; left: 0; right: 0; height: 3px; background: linear-gradient(90deg, #3b82f6, #60a5fa);"></div>
+              <div>
+                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px;">
+                  <span style="font-size: 2rem;">🎮</span>
+                  <span class="badge" style="background: rgba(59, 130, 246, 0.15); color: #93c5fd; border: 1px solid rgba(59, 130, 246, 0.4); font-size: 0.72rem;">PLAYER LOUNGE</span>
+                </div>
+                <h3 style="font-family: var(--font-display); font-size: 1.25rem; color: #f8fafc; margin: 0 0 8px;">
+                  Cổng Người Chơi
+                </h3>
+                <p style="color: var(--text-secondary); font-size: 0.86rem; line-height: 1.55; margin: 0 0 20px;">
+                  Sảnh ghép phòng, biểu quyết giờ chơi, đặt cọc cố định 50.000đ giữ chỗ 4h, thanh toán tại quán và duyệt thẻ HSSV.
+                </p>
+              </div>
+              <div style="display: flex; gap: 8px;">
+                <a href="#rooms" class="btn btn-sm" style="flex: 1; justify-content: center; background: rgba(59, 130, 246, 0.2); color: #93c5fd; border: 1px solid rgba(59, 130, 246, 0.5); text-decoration: none; font-weight: 600;">
+                  Sảnh Phòng
+                </a>
+                <a href="/player.html" class="btn btn-sm" style="flex: 1; justify-content: center; background: linear-gradient(135deg, #3b82f6, #2563eb); color: #ffffff; border: none; text-decoration: none; font-weight: 700;">
+                  Dashboard &rarr;
+                </a>
+              </div>
+            </div>
+
+            <!-- CARD 3: DM PORTAL -->
+            <div class="kbs-portal-card" style="background: rgba(19, 21, 31, 0.85); border: 1px solid rgba(245, 158, 11, 0.35); border-radius: 12px; padding: 24px; display: flex; flex-direction: column; justify-content: space-between; position: relative; overflow: hidden;">
+              <div style="position: absolute; top: 0; left: 0; right: 0; height: 3px; background: linear-gradient(90deg, #f59e0b, #fbbf24);"></div>
+              <div>
+                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px;">
+                  <span style="font-size: 2rem;">📜</span>
+                  <span class="badge" style="background: rgba(245, 158, 11, 0.15); color: #fcd34d; border: 1px solid rgba(245, 158, 11, 0.4); font-size: 0.72rem;">TACTICAL DESK</span>
+                </div>
+                <h3 style="font-family: var(--font-display); font-size: 1.25rem; color: #f8fafc; margin: 0 0 8px;">
+                  Cổng Quản Trò (DM)
+                </h3>
+                <p style="color: var(--text-secondary); font-size: 0.86rem; line-height: 1.55; margin: 0 0 20px;">
+                  Bàn điều khiển ca trực: Nhận/từ chối ca, banner ca đang diễn ra, điểm danh thành viên và ghi chép báo cáo vụ án.
+                </p>
+              </div>
+              <div style="display: flex; gap: 8px;">
+                <a href="#dm" class="btn btn-sm" style="flex: 1; justify-content: center; background: rgba(245, 158, 11, 0.2); color: #fcd34d; border: 1px solid rgba(245, 158, 11, 0.5); text-decoration: none; font-weight: 600;">
+                  Bàn Ca Trực
+                </a>
+                <a href="/dm.html" class="btn btn-sm" style="flex: 1; justify-content: center; background: linear-gradient(135deg, #f59e0b, #d97706); color: #0b0c10; border: none; text-decoration: none; font-weight: 700;">
+                  Portal &rarr;
+                </a>
+              </div>
+            </div>
+
+            <!-- CARD 4: ADMIN PORTAL -->
+            <div class="kbs-portal-card" style="background: rgba(19, 21, 31, 0.85); border: 1px solid rgba(99, 102, 241, 0.35); border-radius: 12px; padding: 24px; display: flex; flex-direction: column; justify-content: space-between; position: relative; overflow: hidden;">
+              <div style="position: absolute; top: 0; left: 0; right: 0; height: 3px; background: linear-gradient(90deg, #6366f1, #818cf8);"></div>
+              <div>
+                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px;">
+                  <span style="font-size: 2rem;">🛡️</span>
+                  <span class="badge" style="background: rgba(99, 102, 241, 0.15); color: #c7d2fe; border: 1px solid rgba(99, 102, 241, 0.4); font-size: 0.72rem;">ENTERPRISE CONSOLE</span>
+                </div>
+                <h3 style="font-family: var(--font-display); font-size: 1.25rem; color: #f8fafc; margin: 0 0 8px;">
+                  Cổng Quản Trị (Admin)
+                </h3>
+                <p style="color: var(--text-secondary); font-size: 0.86rem; line-height: 1.55; margin: 0 0 20px;">
+                  Dashboard doanh thu thực tế, slide-over drawer chi tiết hóa đơn, xét duyệt cọc/hoàn tiền, quản lý kịch bản và audit log.
+                </p>
+              </div>
+              <div style="display: flex; gap: 8px;">
+                <a href="#admin" class="btn btn-sm" style="flex: 1; justify-content: center; background: rgba(99, 102, 241, 0.2); color: #c7d2fe; border: 1px solid rgba(99, 102, 241, 0.5); text-decoration: none; font-weight: 600;">
+                  Bảng Quản Trị
+                </a>
+                <a href="/admin.html" class="btn btn-sm" style="flex: 1; justify-content: center; background: linear-gradient(135deg, #6366f1, #4f46e5); color: #ffffff; border: none; text-decoration: none; font-weight: 700;">
+                  Console &rarr;
+                </a>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
       <!-- KHỐI 1: PHÒNG ĐANG TUYỂN NGƯỜI CHƠI (GHÉP NHÓM NHANH) -->
       <section class="home-section" style="margin-top: 40px;">
         <div class="container">

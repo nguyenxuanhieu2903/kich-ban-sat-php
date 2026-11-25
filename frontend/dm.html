@@ -109,6 +109,7 @@
     import { escapeHtml, sanitizeUrl } from './src/utils/sanitize.js';
     import { initSharedChrome } from './src/utils/shared-header.js';
     import { AuthModal } from './src/pages/auth/auth-modal.js';
+    import { DialogService } from './src/utils/dialog-service.js';
 
     let dmTab = 'new';
     let authModalInstance = null;
@@ -414,9 +415,9 @@
           }
         });
         document.getElementById('btn-finish-play')?.addEventListener('click', async () => {
-          const notes = prompt('Nhập kết quả buổi chơi (hoặc bấm OK để tiếp tục):', 'Người chơi phá án thành công.');
+          const notes = await DialogService.prompt('Ghi nhận kết quả', 'Nhập kết quả buổi chơi (hoặc bấm OK để tiếp tục):', 'Người chơi phá án thành công.');
           if (notes === null) return;
-          const incident = prompt('Ghi nhận sự cố / hỏng đạo cụ (nếu có, hoặc bấm OK nếu không có):', '');
+          const incident = await DialogService.prompt('Ghi nhận sự cố', 'Ghi nhận sự cố / hỏng đạo cụ (nếu có, hoặc bấm OK nếu không có):', '');
           if (incident === null) return;
           try {
             await api.post(`/sessions/${assignment.session_id}/complete`, {

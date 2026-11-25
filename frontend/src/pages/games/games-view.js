@@ -132,12 +132,16 @@ export class GamesView {
       this.onSelectGameToCreateRoom(null);
     });
 
-    // Search input
+    // Search input with 250ms debounce
+    let searchDebounce = null;
     const searchInput = this.container.querySelector('#f-search');
     searchInput?.addEventListener('input', (e) => {
-      this.filters.search = e.target.value.trim().toLowerCase();
-      this.currentPage = 1;
-      this.applyFiltersAndRender();
+      clearTimeout(searchDebounce);
+      searchDebounce = setTimeout(() => {
+        this.filters.search = e.target.value.trim().toLowerCase();
+        this.currentPage = 1;
+        this.applyFiltersAndRender();
+      }, 250);
     });
 
     // Filter dropdowns

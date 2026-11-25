@@ -1,0 +1,152 @@
+/**
+ * ============================================================================
+ * KỊCH BẢN SÁT V16 — OFFICIAL DESIGN SYSTEM TOKENS v1.0
+ * Design Direction: Cinematic Modern Hybrid
+ * ============================================================================
+ */
+
+:root {
+  /* --- 1. CORE NEUTRAL SURFACE (DARK FIRST) --- */
+  --kbs-bg-void: #0B0C10;              /* Nền tối sâu nhất (Toàn trang) */
+  --kbs-bg-surface: #13151F;           /* Nền các khu vực khối (Section / Navbar) */
+  --kbs-bg-card: #1A1D27;              /* Nền thẻ nội dung (Card / Form Box) */
+  --kbs-bg-card-hover: #222634;        /* Nền thẻ khi hover */
+  --kbs-bg-elevated: #292F42;          /* Nền phần tử nổi (Dropdown / Dialog / Modal) */
+
+  /* --- 2. TYPOGRAPHY PALETTE --- */
+  --kbs-text-primary: #F8FAFC;         /* Chữ chính, độ tương phản cao (> 10:1) */
+  --kbs-text-secondary: #CBD5E1;       /* Chữ mô tả, thông tin phụ (> 7:1) */
+  --kbs-text-muted: #94A3B8;           /* Chữ chú thích, nhãn mờ (> 4.5:1 WCAG AA) */
+  --kbs-text-dim: #64748B;             /* Chữ vô hiệu hóa, watermark */
+
+  /* --- 3. BRAND & ACCENT COLORS (CINEMATIC) --- */
+  --kbs-gold: #D4AF37;                 /* Vàng kim cổ điển (Brand Primary) */
+  --kbs-gold-hover: #FBBF24;
+  --kbs-gold-soft: rgba(212, 175, 55, 0.14);
+  --kbs-gold-border: rgba(212, 175, 55, 0.35);
+
+  --kbs-crimson: #C43737;              /* Đỏ nhung trinh thám (18+, Cảnh báo, Brand) */
+  --kbs-crimson-hover: #EF4444;
+  --kbs-crimson-soft: rgba(196, 55, 55, 0.16);
+  --kbs-crimson-border: rgba(196, 55, 55, 0.4);
+
+  /* --- 4. PORTAL-SPECIFIC THEME PALETTES --- */
+  /* Public Portal: Mystery Manor */
+  --kbs-portal-public-bg: #0B0909;
+  --kbs-portal-public-accent: #D4AF37;
+
+  /* Player Portal: Modern Gaming Matchmaking Lounge */
+  --kbs-player-primary: #3B82F6;       /* Electric Blue */
+  --kbs-player-primary-hover: #60A5FA;
+  --kbs-player-primary-soft: rgba(59, 130, 246, 0.16);
+  --kbs-player-primary-border: rgba(59, 130, 246, 0.35);
+  --kbs-player-accent: #10B981;        /* Emerald Paid */
+
+  /* DM Portal: Tactical Briefing Command Desk */
+  --kbs-dm-primary: #F59E0B;           /* Tactical Flame Amber */
+  --kbs-dm-primary-hover: #FBBF24;
+  --kbs-dm-primary-soft: rgba(245, 158, 11, 0.16);
+  --kbs-dm-primary-border: rgba(245, 158, 11, 0.35);
+  --kbs-dm-active-green: #10B981;
+
+  /* Admin Portal: Enterprise Operations Console */
+  --kbs-admin-primary: #6366F1;        /* Executive Indigo */
+  --kbs-admin-primary-hover: #818CF8;
+  --kbs-admin-primary-soft: rgba(99, 102, 241, 0.16);
+  --kbs-admin-primary-border: rgba(99, 102, 241, 0.35);
+  --kbs-admin-revenue: #10B981;
+  --kbs-admin-danger: #EF4444;
+
+  /* --- 5. FUNCTIONAL STATUS COLORS --- */
+  --kbs-status-success: #10B981;
+  --kbs-status-success-bg: rgba(16, 185, 129, 0.16);
+  --kbs-status-success-border: rgba(16, 185, 129, 0.4);
+
+  --kbs-status-warning: #F59E0B;
+  --kbs-status-warning-bg: rgba(245, 158, 11, 0.16);
+  --kbs-status-warning-border: rgba(245, 158, 11, 0.4);
+
+  --kbs-status-error: #EF4444;
+  --kbs-status-error-bg: rgba(239, 68, 68, 0.16);
+  --kbs-status-error-border: rgba(239, 68, 68, 0.4);
+
+  --kbs-status-info: #3B82F6;
+  --kbs-status-info-bg: rgba(59, 130, 246, 0.16);
+  --kbs-status-info-border: rgba(59, 130, 246, 0.4);
+
+  /* --- 6. TYPOGRAPHY SYSTEM --- */
+  --font-display: 'Playfair Display', Georgia, serif;
+  --font-sans: 'Be Vietnam Pro', system-ui, -apple-system, sans-serif;
+  --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
+
+  /* Font Sizes */
+  --kbs-text-xs: 0.75rem;    /* 12px */
+  --kbs-text-sm: 0.875rem;   /* 14px */
+  --kbs-text-base: 1rem;     /* 16px */
+  --kbs-text-lg: 1.125rem;   /* 18px */
+  --kbs-text-xl: 1.25rem;    /* 20px */
+  --kbs-text-2xl: 1.5rem;    /* 24px */
+  --kbs-text-3xl: 1.875rem;  /* 30px */
+  --kbs-text-4xl: 2.25rem;   /* 36px */
+
+  /* --- 7. SPACING & GRID (4px / 8px Scale) --- */
+  --kbs-space-1: 0.25rem;    /* 4px */
+  --kbs-space-2: 0.5rem;     /* 8px */
+  --kbs-space-3: 0.75rem;    /* 12px */
+  --kbs-space-4: 1rem;       /* 16px */
+  --kbs-space-5: 1.25rem;    /* 20px */
+  --kbs-space-6: 1.5rem;     /* 24px */
+  --kbs-space-8: 2rem;       /* 32px */
+  --kbs-space-10: 2.5rem;    /* 40px */
+  --kbs-space-12: 3rem;      /* 48px */
+  --kbs-space-16: 4rem;      /* 64px */
+
+  /* --- 8. RADIUS & SHADOWS --- */
+  --kbs-radius-sm: 4px;
+  --kbs-radius-md: 8px;
+  --kbs-radius-lg: 12px;
+  --kbs-radius-xl: 16px;
+  --kbs-radius-full: 9999px;
+
+  --kbs-shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.4);
+  --kbs-shadow-md: 0 4px 14px rgba(0, 0, 0, 0.5);
+  --kbs-shadow-lg: 0 10px 25px -5px rgba(0, 0, 0, 0.6);
+  --kbs-shadow-drawer: -4px 0 30px rgba(0, 0, 0, 0.7);
+
+  /* --- 9. LAYOUT DIMENSIONS --- */
+  --kbs-container-max: 1280px;
+  --kbs-header-height: 72px;
+  --kbs-bottom-nav-height: 64px;
+
+  /* --- 10. BACKWARD COMPATIBILITY ALIASES --- */
+  --bg-void: var(--kbs-bg-void);
+  --bg-surface: var(--kbs-bg-surface);
+  --bg-elevated: var(--kbs-bg-elevated);
+  --color-bg-app: var(--kbs-bg-void);
+  --color-bg-card: var(--kbs-bg-card);
+  --color-bg-card-hover: var(--kbs-bg-card-hover);
+  --color-border: rgba(255, 255, 255, 0.1);
+  --color-border-subtle: rgba(255, 255, 255, 0.06);
+  --color-text-main: var(--kbs-text-primary);
+  --color-text-muted: var(--kbs-text-muted);
+  --text-primary: var(--kbs-text-primary);
+  --text-secondary: var(--kbs-text-secondary);
+  --text-dim: var(--kbs-text-dim);
+  --gold: var(--kbs-gold);
+  --gold-soft: var(--kbs-gold-soft);
+  --gold-border: var(--kbs-gold-border);
+  --crimson: var(--kbs-crimson);
+  --crimson-bright: var(--kbs-crimson-hover);
+  --color-primary: var(--kbs-gold);
+  --color-success: var(--kbs-status-success);
+  --color-success-bg: var(--kbs-status-success-bg);
+  --color-error: var(--kbs-status-error);
+  --color-error-bg: var(--kbs-status-error-bg);
+  --color-warning: var(--kbs-status-warning);
+  --color-warning-bg: var(--kbs-status-warning-bg);
+  --radius-sm: var(--kbs-radius-sm);
+  --radius-md: var(--kbs-radius-md);
+  --radius-lg: var(--kbs-radius-lg);
+  --container-max: var(--kbs-container-max);
+  --header-height: var(--kbs-header-height);
+}

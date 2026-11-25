@@ -7,6 +7,12 @@
   background: #090606;
 }
 
+@media (max-width: 768px) {
+  .scrolly-stage {
+    height: 180vh;
+  }
+}
+
 .scrolly-sticky {
   position: sticky;
   top: 0;

@@ -33,31 +33,31 @@ export function renderSiteHeader(activeKey) {
           <span id="nav-hamburger-icon">☰</span>
         </button>
 
-        <a href="/index.html" class="brand-logo" title="Kịch Bản Sát V16" style="display: flex; align-items: center; gap: 10px; text-decoration: none;">
+        <a href="/index.html#home" class="brand-logo" title="Kịch Bản Sát V16" style="display: flex; align-items: center; gap: 10px; text-decoration: none;">
           <img src="/src/images/logo.png" alt="Kịch Bản Sát" style="height: 48px; width: auto; object-fit: contain; filter: drop-shadow(0 0 6px rgba(212,175,55,0.3));" />
         </a>
       </div>
 
       <nav class="main-nav" id="main-nav" style="display: flex; align-items: center; gap: 8px;">
-        <a href="/index.html" id="nav-btn-home" class="nav-tab-btn ${activeKey === 'home' ? 'active' : ''}" data-tab="home" style="display: flex; align-items: center; gap: 6px; padding: 8px 14px; border-radius: 6px; font-size: 0.9rem; text-decoration: none; color: ${activeKey === 'home' ? 'var(--gold)' : 'var(--text-secondary)'}; font-weight: ${activeKey === 'home' ? '700' : '500'};">
+        <a href="/index.html#home" id="nav-btn-home" class="nav-tab-btn ${activeKey === 'home' ? 'active' : ''}" data-tab="home" style="display: flex; align-items: center; gap: 6px; padding: 8px 14px; border-radius: 6px; font-size: 0.9rem; text-decoration: none; color: ${activeKey === 'home' ? 'var(--gold)' : 'var(--text-secondary)'}; font-weight: ${activeKey === 'home' ? '700' : '500'};">
           <span>🏠</span> Trang Chủ
         </a>
-        <a href="/admin.html" id="nav-btn-admin" class="nav-tab-btn ${activeKey === 'admin' ? 'active' : ''}" data-tab="admin" style="${isAdmin || activeKey === 'admin' ? 'display: flex;' : 'display: none;'} align-items: center; gap: 6px; padding: 8px 14px; border-radius: 6px; font-size: 0.9rem; text-decoration: none; color: ${activeKey === 'admin' ? 'var(--gold)' : 'var(--text-secondary)'}; font-weight: ${activeKey === 'admin' ? '700' : '500'};">
-          <span>🛡️</span> Trang ADMIN
+        <a href="/index.html#games" id="nav-btn-games" class="nav-tab-btn ${activeKey === 'games' ? 'active' : ''}" data-tab="games" style="display: flex; align-items: center; gap: 6px; padding: 8px 14px; border-radius: 6px; font-size: 0.9rem; text-decoration: none; color: ${activeKey === 'games' ? 'var(--gold)' : 'var(--text-secondary)'}; font-weight: ${activeKey === 'games' ? '700' : '500'};">
+          <span>🎭</span> Kho Kịch Bản
+        </a>
+        <a href="/player.html" id="nav-btn-rooms" class="nav-tab-btn ${activeKey === 'player' || activeKey === 'rooms' ? 'active' : ''}" data-tab="rooms" style="display: flex; align-items: center; gap: 6px; padding: 8px 14px; border-radius: 6px; font-size: 0.9rem; text-decoration: none; color: ${activeKey === 'player' || activeKey === 'rooms' ? 'var(--gold)' : 'var(--text-secondary)'}; font-weight: ${activeKey === 'player' || activeKey === 'rooms' ? '700' : '500'};">
+          <span>🎲</span> Sảnh Phòng Chơi
         </a>
         <a href="/dm.html" id="nav-btn-dm" class="nav-tab-btn ${activeKey === 'dm' ? 'active' : ''}" data-tab="dm" style="${isDm || activeKey === 'dm' ? 'display: flex;' : 'display: none;'} align-items: center; gap: 6px; padding: 8px 14px; border-radius: 6px; font-size: 0.9rem; text-decoration: none; color: ${activeKey === 'dm' ? 'var(--gold)' : 'var(--text-secondary)'}; font-weight: ${activeKey === 'dm' ? '700' : '500'};">
-          <span>📜</span> Trang DM
+          <span>📜</span> Cổng Quản Trò
         </a>
-        <a href="/player.html" id="nav-btn-rooms" class="nav-tab-btn ${activeKey === 'player' ? 'active' : ''}" data-tab="rooms" style="display: flex; align-items: center; gap: 6px; padding: 8px 14px; border-radius: 6px; font-size: 0.9rem; text-decoration: none; color: ${activeKey === 'player' ? 'var(--gold)' : 'var(--text-secondary)'}; font-weight: ${activeKey === 'player' ? '700' : '500'};">
-          <span>🎲</span> Trang PLAYER
-        </a>
-        <a href="/index.html#games" id="nav-btn-games" class="nav-tab-btn ${activeKey === 'games' ? 'active' : ''}" data-tab="games" style="display: flex; align-items: center; gap: 6px; padding: 8px 14px; border-radius: 6px; font-size: 0.9rem; text-decoration: none; color: ${activeKey === 'games' ? 'var(--gold)' : 'var(--text-secondary)'}; font-weight: ${activeKey === 'games' ? '700' : '500'};">
-          <span>🎭</span> Kịch Bản
+        <a href="/admin.html" id="nav-btn-admin" class="nav-tab-btn ${activeKey === 'admin' ? 'active' : ''}" data-tab="admin" style="${isAdmin || activeKey === 'admin' ? 'display: flex;' : 'display: none;'} align-items: center; gap: 6px; padding: 8px 14px; border-radius: 6px; font-size: 0.9rem; text-decoration: none; color: ${activeKey === 'admin' ? 'var(--gold)' : 'var(--text-secondary)'}; font-weight: ${activeKey === 'admin' ? '700' : '500'};">
+          <span>🛡️</span> Cổng Quản Trị
         </a>
       </nav>
 
       <div class="nav-actions" style="display: flex; align-items: center; gap: 12px;">
-        <button id="nav-btn-notif" class="notif-btn" title="Thông báo hệ thống" style="background: rgba(255,255,255,0.05); border: 1px solid var(--color-border); color: var(--gold); border-radius: 6px; padding: 7px 12px; cursor: pointer; position: relative;">
+        <button id="nav-btn-notif" class="notif-btn" aria-label="Xem thông báo hệ thống" title="Thông báo hệ thống" style="background: rgba(255,255,255,0.05); border: 1px solid var(--color-border); color: var(--gold); border-radius: 6px; padding: 7px 12px; cursor: pointer; position: relative;">
           <span>🔔</span>
           <span id="notif-unread-count" class="notif-badge" style="display: none; position: absolute; top: -4px; right: -4px; background: var(--crimson-bright); color: white; font-size: 0.65rem; padding: 2px 5px; border-radius: 999px;">0</span>
         </button>
@@ -71,7 +71,7 @@ export function renderSiteHeader(activeKey) {
                 </span>
                 <span style="font-size: 0.85rem; font-weight: 600; color: var(--text-primary);">${escapeHtml(user.name)}</span>
               </div>
-              <button id="btn-quick-logout" class="btn btn-ghost btn-sm" title="Đăng xuất" style="padding: 4px 10px; font-size: 0.78rem;">Thoát</button>
+              <button id="btn-quick-logout" class="btn btn-ghost btn-sm" title="Đăng xuất khỏi hệ thống" style="padding: 4px 10px; font-size: 0.78rem;">Thoát</button>
             </div>
           ` : `
             <button id="btn-open-login" class="btn btn-gold btn-sm" style="padding: 7px 16px; font-size: 0.85rem;">
@@ -85,10 +85,10 @@ export function renderSiteHeader(activeKey) {
     <!-- Mobile Drawer -->
     <div id="mobile-nav-drawer" class="mobile-nav-drawer" style="display: none; flex-direction: column; background: #12100e; border-bottom: 1px solid var(--gold-border); padding: 12px 20px; gap: 8px;">
       <a href="/index.html#home" class="mobile-nav-link ${activeKey === 'home' ? 'active' : ''}" data-tab="home" style="padding: 8px 0; color: var(--text-primary); text-decoration: none;">🏠 Trang Chủ</a>
-      <a href="/admin.html" id="mobile-nav-admin" class="mobile-nav-link ${activeKey === 'admin' ? 'active' : ''}" data-tab="admin" style="${isAdmin || activeKey === 'admin' ? 'display: block;' : 'display: none;'} padding: 8px 0; color: var(--text-primary); text-decoration: none;">🛡️ Trang ADMIN</a>
-      <a href="/dm.html" id="mobile-nav-dm" class="mobile-nav-link ${activeKey === 'dm' ? 'active' : ''}" data-tab="dm" style="${isDm || activeKey === 'dm' ? 'display: block;' : 'display: none;'} padding: 8px 0; color: var(--text-primary); text-decoration: none;">📜 Trang DM</a>
-      <a href="/player.html" class="mobile-nav-link ${activeKey === 'player' ? 'active' : ''}" data-tab="rooms" style="padding: 8px 0; color: var(--text-primary); text-decoration: none;">🎲 Trang PLAYER</a>
-      <a href="/index.html#games" class="mobile-nav-link" data-tab="games" style="padding: 8px 0; color: var(--text-primary); text-decoration: none;">🎭 Khám Phá Kịch Bản</a>
+      <a href="/index.html#games" class="mobile-nav-link ${activeKey === 'games' ? 'active' : ''}" data-tab="games" style="padding: 8px 0; color: var(--text-primary); text-decoration: none;">🎭 Kho Kịch Bản</a>
+      <a href="/player.html" class="mobile-nav-link ${activeKey === 'player' ? 'active' : ''}" data-tab="rooms" style="padding: 8px 0; color: var(--text-primary); text-decoration: none;">🎲 Sảnh Phòng Chơi</a>
+      <a href="/dm.html" id="mobile-nav-dm" class="mobile-nav-link ${activeKey === 'dm' ? 'active' : ''}" data-tab="dm" style="${isDm || activeKey === 'dm' ? 'display: block;' : 'display: none;'} padding: 8px 0; color: var(--text-primary); text-decoration: none;">📜 Cổng Quản Trò</a>
+      <a href="/admin.html" id="mobile-nav-admin" class="mobile-nav-link ${activeKey === 'admin' ? 'active' : ''}" data-tab="admin" style="${isAdmin || activeKey === 'admin' ? 'display: block;' : 'display: none;'} padding: 8px 0; color: var(--text-primary); text-decoration: none;">🛡️ Cổng Quản Trị</a>
     </div>
   `;
 }
