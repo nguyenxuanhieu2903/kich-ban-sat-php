@@ -52,17 +52,15 @@ test('Phase C: Player Page (player.html) wires profile and bookings to live APIs
   assert.ok(code.includes('data-leave-room'), 'Contains leave room button');
 });
 
-test('Phase C: Standalone DM and Admin HTML pages use live API clients', () => {
+test('Phase C: Standalone DM and Admin HTML pages mount unified View modules (Single Source of Truth)', () => {
   const dmHtml = fs.readFileSync(path.resolve('frontend/dm.html'), 'utf-8');
   assert.ok(!dmHtml.includes('localMockAssignments = ['), 'Eliminated localMockAssignments mock array');
-  assert.ok(dmHtml.includes("api.get('/dm/assignments')"), 'Loads live assignments');
-  assert.ok(dmHtml.includes('api.get(`/rooms/${selectedRoomId}`)'), 'Loads live room details & participants');
+  assert.ok(dmHtml.includes("import { DmView } from './src/pages/dm/dm-view.js'"), 'DM HTML mounts unified DmView');
 
   const adminHtml = fs.readFileSync(path.resolve('frontend/admin.html'), 'utf-8');
   assert.ok(!adminHtml.includes('localScripts = [...ALL_SCRIPTS];'), 'Eliminated localScripts mock array');
   assert.ok(!adminHtml.includes('localPhysical = [...PHYSICAL_ROOMS];'), 'Eliminated localPhysical mock array');
-  assert.ok(adminHtml.includes("api.get('/admin/games')"), 'Loads live games in Admin');
-  assert.ok(adminHtml.includes("api.get('/admin/venues')"), 'Loads live venues in Admin');
+  assert.ok(adminHtml.includes("import { AdminView } from './src/pages/admin/admin-view.js'"), 'Admin HTML mounts unified AdminView');
 });
 
 test('Phase C: Public Venues API returns active branches and physical rooms', async () => {
@@ -110,7 +108,7 @@ test('Gói 1: Player profile and Admin view wire live HSSV verification API', ()
   assert.ok(playerHtml.includes('updateStudentUI'), 'Player updates student badge & status box');
 
   const adminHtml = fs.readFileSync(path.resolve('frontend/admin.html'), 'utf-8');
-  assert.ok(adminHtml.includes('/verify-student'), 'Admin HTML wires verification to /verify-student');
+  assert.ok(adminHtml.includes('AdminView'), 'Admin HTML delegates to AdminView');
 
   const adminViewJs = fs.readFileSync(path.resolve('frontend/src/pages/admin/admin-view.js'), 'utf-8');
   assert.ok(adminViewJs.includes('/verify-student'), 'Admin View JS wires verification to /verify-student');
@@ -128,14 +126,12 @@ test('Gói 1: DM View collects session notes and incident report on complete', (
   assert.ok(dmViewCode.includes('incident_report'), 'Collects incident report');
 
   const dmHtml = fs.readFileSync(path.resolve('frontend/dm.html'), 'utf-8');
-  assert.ok(dmHtml.includes('session_notes'), 'DM HTML passes session notes');
+  assert.ok(dmHtml.includes('DmView'), 'DM HTML delegates to DmView');
 });
 
 test('Gói 2: Admin HTML and AdminView wire Dashboard Overview API (/admin/dashboard)', () => {
   const adminHtml = fs.readFileSync(path.resolve('frontend/admin.html'), 'utf-8');
-  assert.ok(adminHtml.includes("api.get('/admin/dashboard')"), 'Admin HTML fetches real metrics from /admin/dashboard');
-  assert.ok(adminHtml.includes('revenue_month'), 'Renders revenue month');
-  assert.ok(adminHtml.includes('revenue_chart_7d'), 'Renders 7-day revenue chart');
+  assert.ok(adminHtml.includes('AdminView'), 'Admin HTML delegates to AdminView');
 
   const adminViewJs = fs.readFileSync(path.resolve('frontend/src/pages/admin/admin-view.js'), 'utf-8');
   assert.ok(adminViewJs.includes("api.get('/admin/dashboard')"), 'AdminView fetches metrics from /admin/dashboard');
@@ -145,9 +141,7 @@ test('Gói 2: Admin HTML and AdminView wire Dashboard Overview API (/admin/dashb
 
 test('Gói 2: Admin HTML and AdminView wire Payments and Ledger API (/admin/payments)', () => {
   const adminHtml = fs.readFileSync(path.resolve('frontend/admin.html'), 'utf-8');
-  assert.ok(adminHtml.includes("data-atab=\"payments\""), 'Admin HTML contains Tab 7 Payments button');
-  assert.ok(adminHtml.includes('/admin/payments'), 'Admin HTML queries /admin/payments');
-  assert.ok(adminHtml.includes("data-view-payment"), 'Admin HTML supports viewing payment details');
+  assert.ok(adminHtml.includes('AdminView'), 'Admin HTML delegates to AdminView');
 
   const adminViewJs = fs.readFileSync(path.resolve('frontend/src/pages/admin/admin-view.js'), 'utf-8');
   assert.ok(adminViewJs.includes('tab-btn-payments'), 'AdminView contains Payments tab button');
@@ -166,8 +160,7 @@ test('Gói 2: Admin Dashboard and Payments endpoints reject unauthenticated acce
 
 test('Gói 3: Admin HTML and AdminView wire Game Configurations API (/admin/games/:id/configurations)', () => {
   const adminHtml = fs.readFileSync(path.resolve('frontend/admin.html'), 'utf-8');
-  assert.ok(adminHtml.includes('data-config-game'), 'Admin HTML contains button to configure game characters');
-  assert.ok(adminHtml.includes('/configurations'), 'Admin HTML queries /configurations endpoint');
+  assert.ok(adminHtml.includes('AdminView'), 'Admin HTML delegates to AdminView');
 
   const adminViewJs = fs.readFileSync(path.resolve('frontend/src/pages/admin/admin-view.js'), 'utf-8');
   assert.ok(adminViewJs.includes('data-config-game'), 'AdminView contains button to configure game characters');
@@ -176,9 +169,7 @@ test('Gói 3: Admin HTML and AdminView wire Game Configurations API (/admin/game
 
 test('Gói 3: Admin HTML and AdminView wire Audit Log & System Health API (/admin/audit-logs and /admin/system/health)', () => {
   const adminHtml = fs.readFileSync(path.resolve('frontend/admin.html'), 'utf-8');
-  assert.ok(adminHtml.includes("data-atab=\"audit\""), 'Admin HTML contains Tab 8 Audit button');
-  assert.ok(adminHtml.includes('/admin/system/health'), 'Admin HTML fetches system health');
-  assert.ok(adminHtml.includes('/admin/audit-logs'), 'Admin HTML queries audit logs');
+  assert.ok(adminHtml.includes('AdminView'), 'Admin HTML delegates to AdminView');
 
   const adminViewJs = fs.readFileSync(path.resolve('frontend/src/pages/admin/admin-view.js'), 'utf-8');
   assert.ok(adminViewJs.includes('tab-btn-audit'), 'AdminView contains Audit tab button');

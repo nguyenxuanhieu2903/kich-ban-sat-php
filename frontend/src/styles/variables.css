@@ -5,4 +5,9 @@
   --shadow-sm: var(--kbs-shadow-sm);
   --shadow-md: var(--kbs-shadow-md);
   --color-primary-hover: var(--kbs-gold-hover);
+  --paper-cream: #F5F2EB;
+  --paper-aged: #EAE4D7;
+  --ink-black: #1A1816;
+  --ink-muted: #5C554E;
+  --crimson-glow: rgba(196, 55, 55, 0.35);
 }
