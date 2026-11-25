@@ -531,7 +531,7 @@ export class RoomsView {
                       <span class="badge" style="font-size: 0.75rem; background: ${p.status === 'DEPOSITED' ? 'rgba(16, 185, 129, 0.2)' : p.status === 'LEAVE_REQUESTED' ? 'rgba(245, 158, 11, 0.2)' : 'rgba(59, 130, 246, 0.2)'}; color: ${p.status === 'DEPOSITED' ? '#10b981' : p.status === 'LEAVE_REQUESTED' ? '#f59e0b' : '#60a5fa'}; border: 1px solid ${p.status === 'DEPOSITED' ? 'rgba(16, 185, 129, 0.4)' : p.status === 'LEAVE_REQUESTED' ? 'rgba(245, 158, 11, 0.4)' : 'rgba(59, 130, 246, 0.4)'};">
                         ${p.status === 'DEPOSITED' ? '✓ Đã cọc 50k' : (p.status === 'LEAVE_REQUESTED' ? 'Chờ thế chỗ' : escapeHtml(p.status))}
                       </span>
-                      ${canKick && !isMe ? `
+                      ${false && canKick && !isMe ? `
                         <button class="btn btn-sm btn-kick-member" data-kick-user="${escapeHtml(p.user_id)}" data-user-name="${escapeHtml(p.name || p.user_name || 'Người chơi')}" style="padding: 6px 12px; min-height: 38px; font-size: 0.82rem; background: rgba(239, 68, 68, 0.15); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.35); border-radius: 6px; cursor: pointer; display: inline-flex; align-items: center; gap: 4px;">
                           Mời ra
                         </button>
@@ -543,10 +543,10 @@ export class RoomsView {
             </div>
           </div>
 
-          <!-- Card: Biểu quyết Lịch chơi & Session -->
+          <!-- Card: Đề xuất Lịch chơi & Địa điểm -->
           <div class="card" style="padding: 20px;">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
-              <h3 style="font-size: 1.15rem; font-weight: 700; margin: 0;">📅 Biểu quyết Lịch Chơi (Schedule Voting)</h3>
+              <h3 style="font-size: 1.15rem; font-weight: 700; margin: 0;">📅 Đề xuất Lịch Chơi &amp; Địa Điểm</h3>
             </div>
             <div id="proposal-section">
               ${this.renderProposalSection()}

@@ -31,7 +31,7 @@
           <div>
             <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
               <span class="badge" style="background: rgba(59, 130, 246, 0.2); color: #93c5fd; border: 1px solid rgba(59, 130, 246, 0.4); font-size: 0.72rem; font-weight: 700;">🎮 PLAYER LOUNGE</span>
-              <span id="player-student-badge" class="badge" style="background: rgba(16, 185, 129, 0.2); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.4); font-size: 0.72rem;">HSSV: Đang Chờ Duyệt</span>
+              <span id="player-student-badge" class="badge" style="display: none; background: rgba(16, 185, 129, 0.2); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.4); font-size: 0.72rem;">HSSV: Đang Chờ Duyệt</span>
             </div>
             <h1 style="font-family: var(--font-display); font-size: 1.65rem; margin: 2px 0 4px; color: #f0f6fc;" id="player-greeting-name">
               Chào mừng Player Hiếu
@@ -123,8 +123,8 @@
               <button class="btn btn-primary btn-sm" id="btn-save-profile" style="background: #3b82f6; border: none; font-weight: 600; padding: 9px 18px;">Lưu Cập Nhật</button>
             </div>
 
-            <!-- Cột phải: Thẻ Học Sinh — Sinh Viên -->
-            <div class="player-room-card" style="padding: 28px;">
+            <!-- Cột phải: Thẻ Học Sinh — Sinh Viên (đã ẩn theo cấu hình) -->
+            <div class="player-room-card" style="display: none; padding: 28px;">
               <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px;">
                 <span class="badge" style="background: rgba(16, 185, 129, 0.2); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.4);">🎓 ĐẶC QUYỀN HSSV (-20K)</span>
               </div>

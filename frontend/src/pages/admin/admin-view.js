@@ -70,7 +70,7 @@ export class AdminView {
         <button id="tab-btn-users" class="admin-tab-btn ${this.currentSubTab === 'users' ? 'active' : ''}">
           👥 Quản lý Người dùng &amp; Vai trò
         </button>
-        <button id="tab-btn-rooms" class="admin-tab-btn ${this.currentSubTab === 'rooms' ? 'active' : ''}">
+        <button id="tab-btn-rooms" class="admin-tab-btn ${this.currentSubTab === 'rooms' ? 'active' : ''}" style="display: none;">
           🎲 Quản lý &amp; Hủy Phòng Chơi (Quy Tắc 24h)
         </button>
         <button id="tab-btn-refunds" class="admin-tab-btn ${this.currentSubTab === 'refunds' ? 'active' : ''}">

@@ -264,16 +264,12 @@ export class DmView {
               </button>
             ` : ''}
             ${a.status === 'ACCEPTED' && a.session_id ? `
-              ${a.session_status === 'SCHEDULED' ? `
-                <button id="btn-start-session-${a.session_id}" class="btn" style="background: var(--color-primary); color: var(--ink-black); border: none; padding: 7px 18px; font-size: 0.88rem; font-weight: 700; border-radius: 6px;">
-                  ▶ Bắt đầu buổi chơi
-                </button>
-              ` : ''}
-              ${a.session_status === 'IN_PROGRESS' ? `
-                <button id="btn-complete-session-${a.session_id}" class="btn" style="background: #10b981; color: white; border: none; padding: 7px 18px; font-size: 0.88rem; font-weight: 700; border-radius: 6px; box-shadow: 0 2px 8px rgba(16, 185, 129, 0.35);">
-                  ✔ Kết thúc buổi chơi
-                </button>
-              ` : ''}
+              <button id="btn-start-session-${a.session_id}" class="btn" style="display: none;">
+                ▶ Bắt đầu buổi chơi
+              </button>
+              <button id="btn-complete-session-${a.session_id}" class="btn" style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); color: #0b0c10; border: none; padding: 7px 18px; font-size: 0.88rem; font-weight: 700; border-radius: 6px; box-shadow: 0 2px 8px rgba(245, 158, 11, 0.35);">
+                📝 Ghi nhận kết quả / sự cố
+              </button>
             ` : ''}
           </div>
         </div>
