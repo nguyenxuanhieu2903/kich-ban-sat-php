@@ -34,6 +34,30 @@ class PaymentController
     }
 
     /**
+     * GET /api/v1/payments/{id}
+     * Lấy chi tiết một khoản thanh toán (chống IDOR)
+     */
+    public function show(Request $request, string $id): Response
+    {
+        $auth = AuthMiddleware::authenticate($request);
+        if ($auth instanceof Response) {
+            return $auth;
+        }
+
+        $payment = $this->paymentRepo->findPaymentWithDetails((int) $id);
+        if ($payment === null) {
+            return Response::fail('Không tìm thấy thông tin thanh toán', 'PAYMENT_NOT_FOUND', 404);
+        }
+
+        $userRole = strtoupper((string) ($auth['role_code'] ?? 'PLAYER'));
+        if (!in_array($userRole, ['ADMIN', 'DM'], true) && (int) $payment['user_id'] !== (int) $auth['id']) {
+            return Response::fail('Bạn không có quyền xem khoản thanh toán này', 'FORBIDDEN', 403);
+        }
+
+        return Response::success(['payment' => $payment], 'Chi tiết khoản thanh toán');
+    }
+
+    /**
      * GET /api/v1/rooms/{id}/payments
      * Player chỉ xem hóa đơn của chính mình; Admin/DM xem toàn bộ phòng.
      */
@@ -286,6 +310,10 @@ class PaymentController
         }
 
         if ($paymentId !== false) {
+            $paymentType = strtoupper(trim((string) ($body['payment_type'] ?? 'DEPOSIT')));
+            if ($paymentType === 'REMAINING') {
+                return $this->remaining($request, (string) $paymentId);
+            }
             return $this->deposit($request, (string) $paymentId);
         }
 

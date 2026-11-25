@@ -39,9 +39,58 @@ class GameRoomController
     public function index(Request $request): Response
     {
         $gameId = $request->query('game_id') !== null ? (int) $request->query('game_id') : null;
-        $status = (string) $request->query('status', 'FORMING');
-        $limit = max(1, min(100, (int) $request->query('limit', 20)));
-        $offset = max(0, (int) $request->query('offset', 0));
+        $statusRaw = $request->query('status');
+        $status = ($statusRaw !== null && trim((string) $statusRaw) !== '') ? strtoupper(trim((string) $statusRaw)) : 'FORMING';
+        $searchQ = trim((string) ($request->query('q') ?? $request->query('search') ?? ''));
+        $genre = trim((string) ($request->query('genre') ?? ''));
+
+        $perPageParam = $request->query('per_page') ?? $request->query('limit');
+        $limit = max(1, min(100, (int) ($perPageParam ?? 20)));
+        $page = max(1, (int) ($request->query('page') ?? 1));
+        $offset = $request->query('offset') !== null
+            ? max(0, (int) $request->query('offset'))
+            : ($page - 1) * $limit;
+
+        $whereSql = ' WHERE 1 = 1';
+        $bindings = [];
+
+        if ($status !== 'ALL') {
+            $whereSql .= ' AND gr.`status` = :status';
+            $bindings[':status'] = [$status, PDO::PARAM_STR];
+        }
+
+        if ($gameId !== null && $gameId > 0) {
+            $whereSql .= ' AND gr.`game_id` = :game_id';
+            $bindings[':game_id'] = [$gameId, PDO::PARAM_INT];
+        }
+
+        if ($searchQ !== '') {
+            $whereSql .= ' AND (gr.`title` LIKE :q_title OR g.`name` LIKE :q_game)';
+            $like = '%' . $searchQ . '%';
+            $bindings[':q_title'] = [$like, PDO::PARAM_STR];
+            $bindings[':q_game'] = [$like, PDO::PARAM_STR];
+        }
+
+        if ($genre !== '' && strtolower($genre) !== 'all') {
+            $whereSql .= ' AND (g.`name` LIKE :genre_name OR g.`description` LIKE :genre_desc)';
+            $genreLike = '%' . $genre . '%';
+            $bindings[':genre_name'] = [$genreLike, PDO::PARAM_STR];
+            $bindings[':genre_desc'] = [$genreLike, PDO::PARAM_STR];
+        }
+
+        $bookingType = $request->query('booking_type') !== null ? strtoupper(trim((string) $request->query('booking_type'))) : null;
+        if ($bookingType !== null && in_array($bookingType, ['PUBLIC', 'PRIVATE'], true)) {
+            $whereSql .= ' AND gr.`booking_type` = :booking_type';
+            $bindings[':booking_type'] = [$bookingType, PDO::PARAM_STR];
+        }
+
+        $countSql = 'SELECT COUNT(*) FROM `game_rooms` gr INNER JOIN `games` g ON g.`id` = gr.`game_id`' . $whereSql;
+        $countStmt = $this->pdo->prepare($countSql);
+        foreach ($bindings as $key => [$val, $type]) {
+            $countStmt->bindValue($key, $val, $type);
+        }
+        $countStmt->execute();
+        $total = (int) $countStmt->fetchColumn();
 
         $sql = 'SELECT gr.`id`, gr.`game_id`, gr.`creator_id`, gr.`title`, gr.`description`,
                        gr.`min_players`, gr.`max_players`, gr.`status`, gr.`formation_deadline_at`,
@@ -58,28 +107,9 @@ class GameRoomController
                 FROM `game_rooms` gr
                 INNER JOIN `games` g ON g.`id` = gr.`game_id`
                 INNER JOIN `users` u ON u.`id` = gr.`creator_id`
-                LEFT JOIN `venues` v ON v.`id` = gr.`target_venue_id`
-                WHERE 1 = 1';
-
-        $bindings = [];
-
-        if ($status !== 'ALL') {
-            $sql .= ' AND gr.`status` = :status';
-            $bindings[':status'] = [$status, PDO::PARAM_STR];
-        }
-
-        if ($gameId !== null && $gameId > 0) {
-            $sql .= ' AND gr.`game_id` = :game_id';
-            $bindings[':game_id'] = [$gameId, PDO::PARAM_INT];
-        }
-
-        $bookingType = $request->query('booking_type') !== null ? strtoupper(trim((string) $request->query('booking_type'))) : null;
-        if ($bookingType !== null && in_array($bookingType, ['PUBLIC', 'PRIVATE'], true)) {
-            $sql .= ' AND gr.`booking_type` = :booking_type';
-            $bindings[':booking_type'] = [$bookingType, PDO::PARAM_STR];
-        }
-
-        $sql .= ' ORDER BY gr.`id` DESC LIMIT :limit OFFSET :offset';
+                LEFT JOIN `venues` v ON v.`id` = gr.`target_venue_id`'
+            . $whereSql
+            . ' ORDER BY gr.`id` DESC LIMIT :limit OFFSET :offset';
 
         $stmt = $this->pdo->prepare($sql);
         foreach ($bindings as $key => [$val, $type]) {
@@ -90,10 +120,20 @@ class GameRoomController
         $stmt->execute();
 
         $rooms = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        foreach ($rooms as &$room) {
+            $room['member_count'] = (int) ($room['current_players'] ?? 0);
+        }
+        unset($room);
 
         return Response::success([
             'rooms' => $rooms,
             'count' => count($rooms),
+            'meta' => [
+                'total' => $total,
+                'page' => $page,
+                'per_page' => $limit,
+                'total_pages' => max(1, (int) ceil($total / $limit)),
+            ],
         ], 'Danh sách phòng chơi');
     }
 

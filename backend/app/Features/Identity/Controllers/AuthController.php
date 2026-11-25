@@ -228,7 +228,46 @@ class AuthController
     }
 
     /**
-     * POST /api/v1/auth/student-verification (UC-P02: Cập nhật thông tin xác minh HSSV)
+     * POST /api/v1/auth/change-password | POST /api/v1/me/password
+     */
+    public function changePassword(Request $request): Response
+    {
+        $authUser = AuthMiddleware::authenticate($request);
+        if ($authUser instanceof Response) {
+            return $authUser;
+        }
+
+        $body = $request->getBodyParams();
+        $currentPassword = (string) ($body['current_password'] ?? $body['old_password'] ?? '');
+        $newPassword = (string) ($body['new_password'] ?? $body['password'] ?? '');
+
+        if ($currentPassword === '' || $newPassword === '') {
+            return Response::fail('Vui lòng nhập mật khẩu hiện tại và mật khẩu mới', 'VALIDATION_ERROR', 422);
+        }
+
+        if (strlen($newPassword) < 6) {
+            return Response::fail('Mật khẩu mới phải có ít nhất 6 ký tự', 'VALIDATION_ERROR', 422);
+        }
+
+        $fullUser = $this->userRepo->findById((int) $authUser['id']);
+        if ($fullUser === null || !password_verify($currentPassword, (string) ($fullUser['password_hash'] ?? ''))) {
+            return Response::fail('Mật khẩu hiện tại không chính xác', 'INVALID_PASSWORD', 400);
+        }
+
+        $this->userRepo->update((int) $authUser['id'], [
+            'password_hash' => password_hash($newPassword, PASSWORD_BCRYPT),
+        ]);
+
+        if (session_status() === PHP_SESSION_ACTIVE) {
+            @session_regenerate_id(true);
+        }
+
+        return Response::success(['changed' => true], 'Đổi mật khẩu thành công');
+    }
+
+    /**
+     * POST /api/v1/auth/student-verification | POST /api/v1/me/student-card (UC-P02)
+     * Hỗ trợ cả JSON (student_id, school_name) lẫn multipart/form-data (student_card)
      */
     public function requestStudentVerification(Request $request): Response
     {
@@ -240,9 +279,42 @@ class AuthController
         $body = $request->getBodyParams();
         $studentId = trim((string) ($body['student_id'] ?? $body['student_card_number'] ?? $body['student_card_id'] ?? ''));
         $schoolName = trim((string) ($body['school_name'] ?? $body['university'] ?? ''));
+        $uploadedFileName = '';
+
+        if (!empty($_FILES['student_card']) && is_array($_FILES['student_card']) && ($_FILES['student_card']['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_NO_FILE) {
+            $file = $_FILES['student_card'];
+            if (($file['error'] ?? UPLOAD_ERR_OK) !== UPLOAD_ERR_OK) {
+                return Response::fail('Lỗi khi tải lên tệp thẻ HSSV', 'UPLOAD_ERROR', 400);
+            }
+            if ((int) ($file['size'] ?? 0) > 5 * 1024 * 1024) {
+                return Response::fail('Dung lượng ảnh thẻ HSSV tối đa 5MB', 'FILE_TOO_LARGE', 422);
+            }
+            $tmpPath = (string) ($file['tmp_name'] ?? '');
+            $finfo = finfo_open(FILEINFO_MIME_TYPE);
+            $mime = $finfo && $tmpPath !== '' ? (string) finfo_file($finfo, $tmpPath) : '';
+            if ($finfo) {
+                finfo_close($finfo);
+            }
+            $allowed = ['image/jpeg' => 'jpg', 'image/png' => 'png', 'image/webp' => 'webp'];
+            if (!isset($allowed[$mime])) {
+                return Response::fail('Chỉ chấp nhận ảnh định dạng JPG, PNG hoặc WEBP', 'INVALID_FILE_TYPE', 422);
+            }
+            $uploadDir = dirname(__DIR__, 4) . DIRECTORY_SEPARATOR . 'storage' . DIRECTORY_SEPARATOR . 'uploads' . DIRECTORY_SEPARATOR . 'student_cards';
+            if (!is_dir($uploadDir)) {
+                @mkdir($uploadDir, 0755, true);
+            }
+            $uploadedFileName = 'hssv_' . (int) $authUser['id'] . '_' . bin2hex(random_bytes(8)) . '.' . $allowed[$mime];
+            $destPath = $uploadDir . DIRECTORY_SEPARATOR . $uploadedFileName;
+            if (!@move_uploaded_file($tmpPath, $destPath) && !@copy($tmpPath, $destPath)) {
+                return Response::fail('Không thể lưu tệp ảnh thẻ HSSV', 'UPLOAD_SAVE_FAILED', 500);
+            }
+            if ($studentId === '') {
+                $studentId = 'CARD_UPLOAD_' . (int) $authUser['id'];
+            }
+        }
 
         if ($studentId === '') {
-            return Response::fail('Mã số sinh viên không được để trống', 'VALIDATION_ERROR', 422);
+            return Response::fail('Mã số sinh viên hoặc ảnh thẻ HSSV không được để trống', 'VALIDATION_ERROR', 422);
         }
 
         $this->userRepo->update((int) $authUser['id'], [
@@ -255,6 +327,7 @@ class AuthController
             $audit->log((int) $authUser['id'], 'STUDENT_VERIFICATION_REQUESTED', 'USER', (int) $authUser['id'], [
                 'student_id' => $studentId,
                 'school_name' => $schoolName,
+                'file_name' => $uploadedFileName,
             ]);
 
             $adminStmt = $this->pdo->query('SELECT u.`id` FROM `users` u INNER JOIN `roles` r ON r.`id` = u.`role_id` WHERE r.`code` = \'ADMIN\' AND u.`status` = \'ACTIVE\'');
@@ -279,6 +352,11 @@ class AuthController
             'user_id' => (int) $authUser['id'],
             'student_id' => $studentId,
             'school_name' => $schoolName,
+            'student_verified' => false,
+            'student_card' => [
+                'status' => 'pending',
+                'file_name' => $uploadedFileName,
+            ],
             'status' => 'PENDING_APPROVAL',
         ], 'Yêu cầu xác thực sinh viên đã được gửi tới quản trị viên');
     }

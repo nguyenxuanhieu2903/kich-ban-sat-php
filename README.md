@@ -12,7 +12,7 @@ Tài liệu hướng dẫn vận hành chuẩn hóa thực tế (SOP) dành cho 
 | :--- | :--- | :--- | :--- |
 | Mức độ hoàn thiện tổng thể | Khoảng 65% - 70% | 100% hoàn chỉnh, sẵn sàng vận hành thực tế | Đã khép kín toàn bộ quy trình từ tạo phòng, ghép người, biểu quyết lịch, phân công DM, đặt cọc, hoàn cọc đến báo cáo doanh thu. |
 | Giai đoạn Backend | Dừng lại ở Stage 2 (thiếu phần lớn nghiệp vụ vận hành quản trị) | Hoàn tất 100% cả 3 giai đoạn: Stage 1, Stage 2 và Stage 3 | Cung cấp đầy đủ nghiệp vụ quản trị, phân công DM, thu hồi ca trực, gán phòng vật lý, báo cáo doanh thu và nhật ký kiểm toán. |
-| Kiểm thử tự động (Automated Tests) | 14 test cơ bản (chưa được cấu hình đầy đủ để chạy) | 150 test PHPUnit backend (731 assertions) + 24 test Node.js E2E frontend đạt tỷ lệ vượt qua 100% | Hệ thống được bảo vệ bởi mạng lưới kiểm thử tự động dày đặc, kiểm chứng mọi điều kiện biên và logic nghiệp vụ. |
+| Kiểm thử tự động (Automated Tests) | 14 test cơ bản (chưa được cấu hình đầy đủ để chạy) | 150 test PHPUnit backend (845 assertions) + bộ test Node.js frontend đạt tỷ lệ vượt qua 100% | Hệ thống được bảo vệ bởi mạng lưới kiểm thử tự động dày đặc, kiểm chứng mọi điều kiện biên và logic nghiệp vụ. |
 | Xử lý tranh chấp phòng (Race Condition) | Kiểm tra số lượng người thông thường, dễ bị vượt quá max_players khi nhiều người bấm cùng lúc | Sử dụng cơ chế khóa bi quan (Pessimistic Locking: SELECT ... FOR UPDATE) trong Database Transaction | Đảm bảo tuyệt đối không bao giờ xảy ra tình trạng phòng 6 người mà có 7 người vào được. |
 | Kiểm soát ưu đãi Sinh viên | Tự động áp dụng giảm 20.000đ cho tất cả người dùng không kiểm tra thẻ | Bắt buộc người dùng phải được Admin xét duyệt thẻ sinh viên (student_verified = 1) | Bảo vệ doanh thu, loại bỏ triệt để nguy cơ gian lận ưu đãi. |
 | Cơ chế ngăn chặn hoàn cọc sát giờ | Cho phép truyền cờ force_refund từ phía client để lấy lại 100% tiền cọc | Chặn cờ force_refund từ client; chỉ duy nhất Admin có quyền phê duyệt đặc cách trong trường hợp bất khả kháng | Người chơi hủy trước 24h được hoàn 100%, hủy dưới 24h bị mất cọc 100% theo quy chế V16 của quán. |
@@ -21,7 +21,7 @@ Tài liệu hướng dẫn vận hành chuẩn hóa thực tế (SOP) dành cho 
 | Nhật ký kiểm toán (Audit Trail) | Chưa có bảng audit_logs, không lưu vết thao tác | Hệ thống AuditLogService tự động ghi lại IP, thời gian, người thực hiện, hành động và dữ liệu thay đổi | Cung cấp cơ chế hộp đen kiểm toán, ngăn ngừa gian lận nội bộ. |
 | Báo cáo tài chính & Doanh thu | Chưa có controller và endpoint báo cáo | Hoàn thiện AdminReportController với các endpoint thống kê doanh thu thuần, tiền cọc, tiền hoàn, tỷ lệ hủy | Cung cấp số liệu kinh doanh tức thì cho chủ cơ sở. |
 | Tài liệu đặc tả API | Không có tài liệu tương tác | Tích hợp Swagger UI tương tác trực tiếp tại đường dẫn /docs và file đặc tả chuẩn openapi.json | Người chấm thi và lập trình viên có thể thử nghiệm trực tiếp trên trình duyệt không cần cài Postman. |
-| Dữ liệu mẫu tham chiếu (Seeder) | Thiếu kịch bản số 3, thiếu cấu hình đạo cụ JSON, thiếu slot giá ban ngày | Hoàn thiện bin/seed.php và V3DataSeeder.php với đầy đủ 3 kịch bản, 3 cấu hình JSON, 7 bảng giá, 2 ưu đãi và tài khoản demo chuẩn BCRYPT | Tạo môi trường thử nghiệm hoàn hảo với một câu lệnh duy nhất. |
+| Dữ liệu mẫu tham chiếu (Seeder) | Thiếu kịch bản số 3, thiếu cấu hình đạo cụ JSON, thiếu slot giá ban ngày | Hoàn thiện `bin/seed.php`, `V3DataSeeder.php` và `catalog_42_scenarios.php` với đầy đủ 42 kịch bản chính thức (gắn nhãn 18+ cho kịch bản 16-18), 10 phòng vật lý, bảng giá ngày/tối, ưu đãi và tài khoản demo chuẩn BCRYPT | Tạo môi trường thử nghiệm sát thực tế vận hành quán với một câu lệnh duy nhất. |
 
 ---
 
@@ -221,6 +221,19 @@ Triển khai 4 cron job tự động hóa nghiệp vụ:
   5. Phân hệ Payment & Financial: Cơ chế cọc linh hoạt, mã hóa 7 kịch bản ngoại lệ cọc/hoàn cọc, 4 bước hoàn tiền (`REQUESTED` -> `APPROVED/REJECTED` -> `PROCESSING` -> `COMPLETED`), đối soát Webhook VietQR tự động, quy tắc tính giá khi ca chơi vắt qua hai khung giờ (Majority Time Block Rule), quy trình ưu đãi HSSV (giảm 20k/vé cá nhân, không cộng dồn Thứ Ba), và xác nhận tất toán quầy.
   6. Phân hệ Game Session & Notification: Sửa thời lượng chuẩn 240 phút (20p check-in + 210p 4 vòng điều tra + 10p tổng kết), DM In-game Console (Timer, ghi chú, Incident Report), xử lý No-show/đi trễ (chờ tối đa 20p, DM đóng NPC hỗ trợ), và hệ thống thông báo 2 chiều tại 6 mốc bắt buộc.
   7. Ma trận phân kỳ triển khai kỹ thuật theo 3 giai đoạn: P0 (Kiến trúc nền tảng), P1 (Vận hành cốt lõi), P2 (Hoàn thiện trải nghiệm & Nghiệp vụ mở rộng).
+
+### 4.15. Đồng bộ Frontend mới (Ý Huỳnh & Như) và Tối ưu Backend Tương thích
+- **Đồng bộ giao diện Frontend từ nhóm thiết kế:**
+  - Khu vực Guest (`index.html`, `pages/scenarios.html`, `pages/scenario-detail.html`, `pages/info.html`, `pages/auth.html`) đồng bộ từ nhánh `origin/feat/foundation-guest` (Ý Huỳnh), kết hợp cơ chế poster SVG dự phòng (`frontend/src/utils/poster-svg.js`) cho các kịch bản chưa có ảnh tĩnh (0 lỗi HTTP 404).
+  - Khu vực Player Portal (`pages/lobby.html`, `pages/create-room.html`, `pages/room-detail.html`, `pages/booking-status.html`, `pages/profile.html`) đồng bộ từ nhánh `origin/feat/player-portal` (Như), nối trực tiếp với API backend thật.
+  - Khu vực DM Portal và Admin Portal (`pages/dm-portal.html`, `pages/admin-portal.html`) giữ nguyên hoạt động ổn định chờ cập nhật nhánh giao diện mới.
+- **Tối ưu Backend khớp 100% với Frontend mới (không thay đổi schema CSDL):**
+  - `AuthController::changePassword()`: Bổ sung `POST /api/v1/auth/change-password` và alias `POST /api/v1/me/password` (kiểm tra `password_verify`, băm `PASSWORD_BCRYPT`, làm mới session).
+  - `AuthController::requestStudentVerification()`: Nâng cấp hỗ trợ song song JSON và `multipart/form-data` (`POST /api/v1/me/student-card`, kiểm tra MIME bằng `finfo`, whitelist `jpg/png/webp`, tối đa 5MB, lưu tên ngẫu nhiên tại `storage/uploads/student_cards/`).
+  - `PricingController::quote()`: Bổ sung `POST /api/v1/rooms/quote` và `POST /api/v1/quotes/calculate` tính báo giá dự kiến (stateless) trước khi tạo phòng, tái sử dụng `PricingService::calculateBasePriceForGame()`.
+  - `GameRoomController::index()`: Hỗ trợ đầy đủ tham số lọc `q`/`search`, `genre`, `status`, `page`, `per_page` (giữ tương thích `limit`/`offset`) và trả về `meta` phân trang (`total`, `page`, `per_page`, `total_pages`).
+  - `PaymentController::show()` & `quickDeposit()`: Bổ sung `GET /api/v1/payments/{id}` có kiểm tra chống IDOR và hỗ trợ `payment_type = REMAINING` trong luồng thanh toán nhanh.
+  - `routes/api.php`: Bổ sung bộ route alias chuẩn RESTful (`/me`, `/me/password`, `/me/student-card`, `/me/bookings`, `/rooms/quote`, `/rooms/{id}/booking`, `/rooms/{id}/leave-requests`, `/rooms/{id}/schedule-proposals`, `/schedule-proposals/{id}/votes`, `/payments/{id}`).
 
 ---
 

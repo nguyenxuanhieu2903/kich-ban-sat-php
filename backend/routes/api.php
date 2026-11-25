@@ -112,7 +112,15 @@ HTML;
     $router->get($prefix . '/auth/my-rooms', [AuthController::class, 'myRooms']);
     $router->post($prefix . '/auth/logout', [AuthController::class, 'logout']);
     $router->patch($prefix . '/auth/profile', [AuthController::class, 'updateProfile']);
+    $router->post($prefix . '/auth/change-password', [AuthController::class, 'changePassword']);
     $router->post($prefix . '/auth/student-verification', [AuthController::class, 'requestStudentVerification']);
+
+    // Frontend Player Portal RESTful aliases (/me/*)
+    $router->get($prefix . '/me', [AuthController::class, 'me']);
+    $router->patch($prefix . '/me', [AuthController::class, 'updateProfile']);
+    $router->post($prefix . '/me/password', [AuthController::class, 'changePassword']);
+    $router->post($prefix . '/me/student-card', [AuthController::class, 'requestStudentVerification']);
+    $router->get($prefix . '/me/bookings', [AuthController::class, 'myRooms']);
 
     // Admin User & Role Management
     $router->get($prefix . '/admin/users', [AdminUserController::class, 'index']);
@@ -165,9 +173,13 @@ HTML;
     // =============================================================
     $router->get($prefix . '/rooms', [GameRoomController::class, 'index']);
     $router->post($prefix . '/rooms', [GameRoomController::class, 'create']);
+    $router->post($prefix . '/rooms/quote', [PricingController::class, 'quote']);
+    $router->post($prefix . '/quotes/calculate', [PricingController::class, 'quote']);
     $router->get($prefix . '/rooms/{id}', [GameRoomController::class, 'show']);
+    $router->get($prefix . '/rooms/{id}/booking', [GameRoomController::class, 'show']);
     $router->post($prefix . '/rooms/{id}/join', [GameRoomController::class, 'join']);
     $router->post($prefix . '/rooms/{id}/leave', [GameRoomController::class, 'leave']);
+    $router->post($prefix . '/rooms/{id}/leave-requests', [GameRoomController::class, 'leave']);
 
     // Pricing calculation & snapshot
     $router->post($prefix . '/rooms/{id}/calculate-price', [PricingController::class, 'calculate']);
@@ -181,10 +193,12 @@ HTML;
     // =============================================================
     $router->get($prefix . '/venues', [SchedulingController::class, 'venues']);
     $router->post($prefix . '/rooms/{id}/proposals', [SchedulingController::class, 'propose']);
+    $router->post($prefix . '/rooms/{id}/schedule-proposals', [SchedulingController::class, 'propose']);
     $router->get($prefix . '/proposals', [SchedulingController::class, 'listProposals']);
     $router->get($prefix . '/admin/proposals', [SchedulingController::class, 'listProposals']);
     $router->get($prefix . '/proposals/{id}', [SchedulingController::class, 'showProposal']);
     $router->post($prefix . '/proposals/{id}/vote', [SchedulingController::class, 'vote']);
+    $router->post($prefix . '/schedule-proposals/{id}/votes', [SchedulingController::class, 'vote']);
     $router->post($prefix . '/scheduling/proposals/{id}/vote', [SchedulingController::class, 'vote']);
     $router->post($prefix . '/proposals/{id}/approve', [SchedulingController::class, 'approveProposal']);
     $router->post($prefix . '/admin/proposals/{id}/approve', [SchedulingController::class, 'approveProposal']);
@@ -202,6 +216,7 @@ HTML;
     // DOMAIN 7: PAYMENT & REFUND API
     // =============================================================
     $router->get($prefix . '/rooms/{id}/payments', [PaymentController::class, 'listByRoom']);
+    $router->get($prefix . '/payments/{id}', [PaymentController::class, 'show']);
     $router->post($prefix . '/payments/{paymentId}/deposit', [PaymentController::class, 'deposit']);
     $router->post($prefix . '/payments/deposit', [PaymentController::class, 'quickDeposit']);
     $router->post($prefix . '/payments/{paymentId}/remaining', [PaymentController::class, 'remaining']);
