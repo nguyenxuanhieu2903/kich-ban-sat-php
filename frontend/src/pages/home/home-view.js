@@ -1,802 +1,236 @@
 import { api } from '../../api/api-client.js';
-import { authState } from '../../api/auth-state.js';
-import { toast } from '../../utils/toast.js';
-import { escapeHtml, sanitizeUrl } from '../../utils/sanitize.js';
+import { escapeHtml } from '../../utils/sanitize.js';
 import { ALL_SCRIPTS } from '../../data/scripts.data.js';
+import { HOME_TEMPLATE_HTML } from './home-template.js';
 
 export class HomeView {
   constructor(container, options = {}) {
     this.container = container;
     this.onNavigate = options.onNavigate || ((tab) => { window.location.hash = `#${tab}`; });
     this.onOpenAuth = options.onOpenAuth || (() => {});
-
     this.games = [];
-    this.promotions = [];
-    this.formingRooms = [];
-    this.searchQuery = '';
-    this.selectedPlayers = '';
     this.selectedGenre = 'Tất cả';
-
-    this.isLoadingGames = false;
-    this.isLoadingPromotions = false;
-    this.gamesError = null;
-    this.promotionsError = null;
-    this.ticking = false;
+    this.searchQuery = '';
+    this.pendingAgeAction = null;
   }
 
   async render() {
-    const user = authState.getUser();
-    let roleBannerHtml = '';
-
-    if (user) {
-      if (user.role === 'ADMIN') {
-        roleBannerHtml = `
-          <div style="background: rgba(196, 55, 55, 0.14); border: 1px solid var(--crimson); border-radius: 10px; padding: 16px 20px; margin-bottom: 24px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 14px;">
-            <div style="display: flex; align-items: center; gap: 12px;">
-              <span style="font-size: 1.8rem;">🛡️</span>
-              <div>
-                <strong style="color: #fca5a5; font-size: 1rem;">Bạn đang đăng nhập: Quản Trị Viên (Admin) — ${escapeHtml(user.name)}</strong>
-                <p style="margin: 4px 0 0 0; font-size: 0.85rem; color: var(--text-secondary);">Bạn có toàn quyền điều phối phòng chơi, phân công DM và xét duyệt hoàn tiền.</p>
-              </div>
-            </div>
-            <a href="#admin" class="btn btn-crimson btn-sm btn-role-tab" data-tab="admin" style="font-size: 0.88rem;">
-              Vào Trang ADMIN &rarr;
-            </a>
-          </div>
-        `;
-      } else if (user.role === 'DM') {
-        roleBannerHtml = `
-          <div style="background: rgba(212, 175, 55, 0.14); border: 1px solid var(--gold-border); border-radius: 10px; padding: 16px 20px; margin-bottom: 24px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 14px;">
-            <div style="display: flex; align-items: center; gap: 12px;">
-              <span style="font-size: 1.8rem;">📜</span>
-              <div>
-                <strong style="color: var(--gold); font-size: 1rem;">Bạn đang đăng nhập: Quản Trò (DM) — Host ${escapeHtml(user.name)}</strong>
-                <p style="margin: 4px 0 0 0; font-size: 0.85rem; color: var(--text-secondary);">Truy cập cổng Quản trò để xem lịch trực hôm nay và điểm danh người chơi.</p>
-              </div>
-            </div>
-            <a href="#dm" class="btn btn-gold btn-sm btn-role-tab" data-tab="dm" style="font-size: 0.88rem; color: var(--ink-black);">
-              Vào Trang DM &rarr;
-            </a>
-          </div>
-        `;
-      } else {
-        roleBannerHtml = `
-          <div style="background: rgba(46, 125, 79, 0.14); border: 1px solid rgba(46, 125, 79, 0.4); border-radius: 10px; padding: 16px 20px; margin-bottom: 24px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 14px;">
-            <div style="display: flex; align-items: center; gap: 12px;">
-              <span style="font-size: 1.8rem;">🎲</span>
-              <div>
-                <strong style="color: #5CD68D; font-size: 1rem;">Chào mừng Người Chơi: ${escapeHtml(user.name)}</strong>
-                <p style="margin: 4px 0 0 0; font-size: 0.85rem; color: var(--text-secondary);">Bạn có thể kiểm tra vé cọc 50k, phòng đã chốt hoặc ghép nhóm mới tại Trang Player.</p>
-              </div>
-            </div>
-            <a href="#rooms" class="btn btn-gold btn-sm btn-role-tab" data-tab="rooms" style="font-size: 0.88rem; color: var(--ink-black);">
-              Vào Trang PLAYER &rarr;
-            </a>
-          </div>
-        `;
-      }
-    }
-
     this.container.innerHTML = `
-      <!-- VÙNG SCROLLYTELLING PARALLAX 3 TẦNG (FE_KỊCH_BẢN_SÁT) -->
-      <section class="scrolly-stage" id="scrolly-stage">
-        <div class="scrolly-sticky">
-          <div class="scrolly-progress-bar" id="scrolly-progress"></div>
-
-          <!-- PHÂN CẢNH 1: CỔNG DINH THỰ & MÀN SƯƠNG -->
-          <div class="scene-layer s1-sky" id="s1-sky">
-            <div class="blood-moon"></div>
-          </div>
-
-          <div class="scene-layer s1-mansion" id="s1-mansion">
-            <svg class="mansion-svg" viewBox="0 0 800 320" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M80 320V170L160 110L240 170V130L400 40L560 130V170L640 110L720 170V320H80Z" fill="#0B0909"/>
-              <polygon points="400,15 385,45 415,45" fill="#0B0909"/>
-              <rect x="372" y="95" width="20" height="32" rx="2" fill="#D4AF37" opacity="0.9"/>
-              <rect x="408" y="95" width="20" height="32" rx="2" fill="#D4AF37" opacity="0.75"/>
-              <rect x="280" y="165" width="22" height="36" rx="2" fill="#D4AF37" opacity="0.85"/>
-              <rect x="330" y="165" width="22" height="36" rx="2" fill="#D4AF37" opacity="0.5"/>
-              <rect x="448" y="165" width="22" height="36" rx="2" fill="#D4AF37" opacity="0.9"/>
-              <rect x="498" y="165" width="22" height="36" rx="2" fill="#D4AF37" opacity="0.65"/>
-              <rect x="148" y="195" width="24" height="38" rx="2" fill="#D4AF37" opacity="0.7"/>
-              <rect x="628" y="195" width="24" height="38" rx="2" fill="#D4AF37" opacity="0.85"/>
-            </svg>
-          </div>
-
-          <div class="scene-layer s1-gates" id="s1-gates">
-            <div class="iron-gate left" id="gate-left"></div>
-            <div class="iron-gate right" id="gate-right"></div>
-          </div>
-
-          <div class="s1-content" id="s1-content">
-            <span class="hero-kicker">36/52 NGUYỄN GIA TRÍ • BÌNH THẠNH</span>
-            <h1 class="hero-title">KỊCH BẢN <span class="text-crimson">SÁT</span></h1>
-            <p class="hero-desc">
-              Chọn kịch bản, ghép đủ 5–8 người, giữ chỗ trong 4 giờ. Hung thủ đang ngồi ngay trong phòng.
-            </p>
-            <div class="hero-cta-row">
-              <a href="#section-featured-games" class="btn btn-gold">Khám phá kịch bản</a>
-              <button id="hero-btn-create-room" class="btn btn-ghost" style="border-color: rgba(255,255,255,0.4); color: #fff;">Tạo phòng ngay</button>
-            </div>
-            <div class="scroll-cue" id="scroll-cue">↓ Cuộn để bước vào hiện trường</div>
-          </div>
-
-          <!-- PHÂN CẢNH 2: BÀN TRÒN NGHI PHẠM & ÁNH NẾN -->
-          <div class="scene-layer s2-room" id="s2-room">
-            <div class="s2-copy" id="s2-copy">
-              <span class="hero-kicker">PHÒNG THẨM VẤN KÍN</span>
-              <h2>5–8 NGHI PHẠM.<br /><span class="text-crimson">1 HUNG THỦ.</span></h2>
-              <p class="text-muted" style="font-size: 1.05rem;">
-                Mỗi người cầm một vai và giấu một bí mật. Quản trò (DM) giữ nhịp, cả nhóm lần ra sự thật.
-              </p>
-            </div>
-
-            <div class="suspects-row">
-              <div class="suspect-silhouette"></div>
-              <div class="suspect-silhouette"></div>
-              <div class="suspect-silhouette"></div>
-              <div class="suspect-silhouette"></div>
-              <div class="suspect-silhouette culprit" title="Nghi phạm số 5"></div>
-              <div class="suspect-silhouette"></div>
-              <div class="suspect-silhouette"></div>
-            </div>
-            <div class="interrogation-table">
-              <div class="candle"></div>
-              <div class="candle"></div>
-              <div class="candle"></div>
-            </div>
-          </div>
-
-          <!-- PHÂN CẢNH 3: RÚT HỒ SƠ NHÂN VẬT 3D CARD FAN -->
-          <div class="scene-layer s3-cards-scene" id="s3-cards">
-            <div class="card-fan">
-              <div class="dossier-card dossier-paper" id="card-left">
-                <span class="dossier-stamp">HỒ SƠ A</span>
-                <div>
-                  <h3 style="font-family: var(--font-display); color: var(--crimson); margin-bottom: 6px;">Người thừa kế</h3>
-                  <p style="font-size: 0.8rem; color: var(--ink-muted);">Có mặt tại thư phòng lúc 22:15. Giữ chìa khóa két sắt.</p>
-                </div>
-                <span style="font-family: var(--font-mono); font-size: 0.72rem;">MẬT MÃ #01</span>
-              </div>
-
-              <div class="dossier-card dossier-culprit" id="card-center">
-                <span class="badge badge-gold" style="width: fit-content;">#KBS</span>
-                <div>
-                  <div class="question-emblem">?</div>
-                  <p style="text-align: center; color: var(--gold); font-weight: 700; font-size: 0.95rem;">Ai là hung thủ?</p>
-                </div>
-                <span style="font-family: var(--font-mono); font-size: 0.72rem; color: var(--text-dim); text-align: center;">VAI DIỄN BÍ MẬT</span>
-              </div>
-
-              <div class="dossier-card dossier-paper" id="card-right">
-                <span class="dossier-stamp">HỒ SƠ B</span>
-                <div>
-                  <h3 style="font-family: var(--font-display); color: var(--ink-black); margin-bottom: 6px;">Quản gia</h3>
-                  <p style="font-size: 0.8rem; color: var(--ink-muted);">Người cuối cùng dâng trà cho nạn nhân trước khi mất điện.</p>
-                </div>
-                <span style="font-family: var(--font-mono); font-size: 0.72rem;">MẬT MÃ #02</span>
-              </div>
-            </div>
-
-            <div class="s3-copy">
-              <h2>RÚT MỘT HỒ SƠ. <span class="text-gold">LẬT MỘT VAI.</span></h2>
-              <p class="text-muted" style="margin-bottom: 20px;">Mỗi kịch bản là một vụ án hoàn toàn khác nhau.</p>
-              <a href="#section-featured-games" class="btn btn-gold">Chọn kịch bản</a>
-            </div>
-          </div>
+      ${HOME_TEMPLATE_HTML}
+      <dialog id="home-price-dialog" class="custom-modal" style="max-width: 560px; background: #13151F; color: #f8fafc; border: 1px solid rgba(212,175,55,0.4); border-radius: 14px; padding: 28px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+          <h3 style="font-family: var(--font-display); color: #D4AF37; margin: 0;">Quy Định &amp; Bảng Giá Vé V16</h3>
+          <button id="btn-close-price-dialog" class="btn btn-ghost btn-sm" style="padding: 4px 10px;">✕</button>
         </div>
-      </section>
-
-      <!-- KHỐI 0: 4 PHÂN HỆ ĐỘC LẬP (4 ENTERPRISE PORTALS HUB) -->
-      <section class="home-section" id="section-portals-hub" style="margin-top: 36px; margin-bottom: 24px;">
-        <div class="container">
-          <div style="text-align: center; margin-bottom: 30px;">
-            <div style="font-family: var(--font-mono); color: var(--gold); font-size: 0.8rem; letter-spacing: 0.16em; text-transform: uppercase;">
-              KIẾN TRÚC 4 PHÂN HỆ V16
-            </div>
-            <h2 style="font-family: var(--font-display); font-size: clamp(1.8rem, 3.2vw, 2.3rem); margin: 6px 0 10px; color: #f8fafc;">
-              4 Khu Vực Trải Nghiệm Độc Lập
-            </h2>
-            <p style="color: var(--text-secondary); max-width: 680px; margin: 0 auto; font-size: 0.92rem; line-height: 1.6;">
-              Hệ thống phân quyền chuẩn hoá theo từng Actor: Người chơi phá án, Quản trò dẫn dắt, Ban quản trị tài chính &amp; vận hành, và Khách vãng lai.
-            </p>
-          </div>
-
-          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 20px;">
-            <!-- CARD 1: PUBLIC PORTAL -->
-            <div class="kbs-portal-card" style="background: rgba(19, 21, 31, 0.85); border: 1px solid rgba(212, 175, 55, 0.3); border-radius: 12px; padding: 24px; display: flex; flex-direction: column; justify-content: space-between; position: relative; overflow: hidden;">
-              <div style="position: absolute; top: 0; left: 0; right: 0; height: 3px; background: linear-gradient(90deg, #d4af37, #f59e0b);"></div>
-              <div>
-                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px;">
-                  <span style="font-size: 2rem;">🏠</span>
-                  <span class="badge badge-gold" style="font-size: 0.72rem;">PUBLIC PORTAL</span>
-                </div>
-                <h3 style="font-family: var(--font-display); font-size: 1.25rem; color: #f8fafc; margin: 0 0 8px;">
-                  Trang Chủ &amp; Khám Phá
-                </h3>
-                <p style="color: var(--text-secondary); font-size: 0.86rem; line-height: 1.55; margin: 0 0 20px;">
-                  Khám phá kho 42 kịch bản Jubensha, tra cứu bảng giá theo khung giờ sáng/tối và thông tin chi nhánh độc quyền TP.HCM.
-                </p>
-              </div>
-              <a href="#games" class="btn btn-ghost btn-sm" style="width: 100%; justify-content: center; border-color: rgba(212,175,55,0.4); color: var(--gold); text-decoration: none;">
-                Khám Phá Kịch Bản &rarr;
-              </a>
-            </div>
-
-            <!-- CARD 2: PLAYER PORTAL -->
-            <div class="kbs-portal-card" style="background: rgba(19, 21, 31, 0.85); border: 1px solid rgba(59, 130, 246, 0.35); border-radius: 12px; padding: 24px; display: flex; flex-direction: column; justify-content: space-between; position: relative; overflow: hidden;">
-              <div style="position: absolute; top: 0; left: 0; right: 0; height: 3px; background: linear-gradient(90deg, #3b82f6, #60a5fa);"></div>
-              <div>
-                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px;">
-                  <span style="font-size: 2rem;">🎮</span>
-                  <span class="badge" style="background: rgba(59, 130, 246, 0.15); color: #93c5fd; border: 1px solid rgba(59, 130, 246, 0.4); font-size: 0.72rem;">PLAYER LOUNGE</span>
-                </div>
-                <h3 style="font-family: var(--font-display); font-size: 1.25rem; color: #f8fafc; margin: 0 0 8px;">
-                  Cổng Người Chơi
-                </h3>
-                <p style="color: var(--text-secondary); font-size: 0.86rem; line-height: 1.55; margin: 0 0 20px;">
-                  Sảnh ghép phòng, biểu quyết giờ chơi, đặt cọc cố định 50.000đ giữ chỗ 4h, thanh toán tại quán và duyệt thẻ HSSV.
-                </p>
-              </div>
-              <div style="display: flex; gap: 8px;">
-                <a href="#rooms" class="btn btn-sm" style="flex: 1; justify-content: center; background: rgba(59, 130, 246, 0.2); color: #93c5fd; border: 1px solid rgba(59, 130, 246, 0.5); text-decoration: none; font-weight: 600;">
-                  Sảnh Phòng
-                </a>
-                <a href="/player.html" class="btn btn-sm" style="flex: 1; justify-content: center; background: linear-gradient(135deg, #3b82f6, #2563eb); color: #ffffff; border: none; text-decoration: none; font-weight: 700;">
-                  Dashboard &rarr;
-                </a>
-              </div>
-            </div>
-
-            <!-- CARD 3: DM PORTAL -->
-            <div class="kbs-portal-card" style="background: rgba(19, 21, 31, 0.85); border: 1px solid rgba(245, 158, 11, 0.35); border-radius: 12px; padding: 24px; display: flex; flex-direction: column; justify-content: space-between; position: relative; overflow: hidden;">
-              <div style="position: absolute; top: 0; left: 0; right: 0; height: 3px; background: linear-gradient(90deg, #f59e0b, #fbbf24);"></div>
-              <div>
-                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px;">
-                  <span style="font-size: 2rem;">📜</span>
-                  <span class="badge" style="background: rgba(245, 158, 11, 0.15); color: #fcd34d; border: 1px solid rgba(245, 158, 11, 0.4); font-size: 0.72rem;">TACTICAL DESK</span>
-                </div>
-                <h3 style="font-family: var(--font-display); font-size: 1.25rem; color: #f8fafc; margin: 0 0 8px;">
-                  Cổng Quản Trò (DM)
-                </h3>
-                <p style="color: var(--text-secondary); font-size: 0.86rem; line-height: 1.55; margin: 0 0 20px;">
-                  Bàn điều khiển ca trực: Nhận/từ chối ca, banner ca đang diễn ra, điểm danh thành viên và ghi chép báo cáo vụ án.
-                </p>
-              </div>
-              <div style="display: flex; gap: 8px;">
-                <a href="#dm" class="btn btn-sm" style="flex: 1; justify-content: center; background: rgba(245, 158, 11, 0.2); color: #fcd34d; border: 1px solid rgba(245, 158, 11, 0.5); text-decoration: none; font-weight: 600;">
-                  Bàn Ca Trực
-                </a>
-                <a href="/dm.html" class="btn btn-sm" style="flex: 1; justify-content: center; background: linear-gradient(135deg, #f59e0b, #d97706); color: #0b0c10; border: none; text-decoration: none; font-weight: 700;">
-                  Portal &rarr;
-                </a>
-              </div>
-            </div>
-
-            <!-- CARD 4: ADMIN PORTAL -->
-            <div class="kbs-portal-card" style="background: rgba(19, 21, 31, 0.85); border: 1px solid rgba(99, 102, 241, 0.35); border-radius: 12px; padding: 24px; display: flex; flex-direction: column; justify-content: space-between; position: relative; overflow: hidden;">
-              <div style="position: absolute; top: 0; left: 0; right: 0; height: 3px; background: linear-gradient(90deg, #6366f1, #818cf8);"></div>
-              <div>
-                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px;">
-                  <span style="font-size: 2rem;">🛡️</span>
-                  <span class="badge" style="background: rgba(99, 102, 241, 0.15); color: #c7d2fe; border: 1px solid rgba(99, 102, 241, 0.4); font-size: 0.72rem;">ENTERPRISE CONSOLE</span>
-                </div>
-                <h3 style="font-family: var(--font-display); font-size: 1.25rem; color: #f8fafc; margin: 0 0 8px;">
-                  Cổng Quản Trị (Admin)
-                </h3>
-                <p style="color: var(--text-secondary); font-size: 0.86rem; line-height: 1.55; margin: 0 0 20px;">
-                  Dashboard doanh thu thực tế, slide-over drawer chi tiết hóa đơn, xét duyệt cọc/hoàn tiền, quản lý kịch bản và audit log.
-                </p>
-              </div>
-              <div style="display: flex; gap: 8px;">
-                <a href="#admin" class="btn btn-sm" style="flex: 1; justify-content: center; background: rgba(99, 102, 241, 0.2); color: #c7d2fe; border: 1px solid rgba(99, 102, 241, 0.5); text-decoration: none; font-weight: 600;">
-                  Bảng Quản Trị
-                </a>
-                <a href="/admin.html" class="btn btn-sm" style="flex: 1; justify-content: center; background: linear-gradient(135deg, #6366f1, #4f46e5); color: #ffffff; border: none; text-decoration: none; font-weight: 700;">
-                  Console &rarr;
-                </a>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <!-- KHỐI 1: PHÒNG ĐANG TUYỂN NGƯỜI CHƠI (GHÉP NHÓM NHANH) -->
-      <section class="home-section" style="margin-top: 40px;">
-        <div class="container">
-          ${roleBannerHtml}
-          <div class="section-head" style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 20px;">
-            <div>
-              <div class="section-kicker" style="color: var(--gold); font-size: 0.8rem; letter-spacing: 0.1em; font-family: var(--font-mono);">GHÉP NHÓM NHANH</div>
-              <h2 class="section-title" style="font-family: var(--font-display); font-size: 1.8rem; margin: 4px 0 0;">Phòng Đang Ghép Người Chơi</h2>
-            </div>
-            <a href="#rooms" id="btn-view-all-rooms" class="btn btn-ghost btn-sm" data-tab="rooms">Xem tất cả phòng &rarr;</a>
-          </div>
-          <div class="rooms-grid" id="home-rooms-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 20px;">
-            <div style="text-align: center; padding: 40px; grid-column: 1/-1;" class="text-muted">Đang tải phòng chơi trực tiếp...</div>
-          </div>
-        </div>
-      </section>
-
-      <!-- KHỐI 2: KHO 42 VỤ ÁN & KỊCH BẢN NỔI BẬT -->
-      <section class="home-section" id="section-featured-games" style="margin-top: 48px;">
-        <div class="container">
-          <div class="section-head" style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 20px; flex-wrap: wrap; gap: 12px;">
-            <div>
-              <div class="section-kicker" style="color: var(--gold); font-size: 0.8rem; letter-spacing: 0.1em; font-family: var(--font-mono);">KHO 42 VỤ ÁN ĐẶC SẮC</div>
-              <h2 class="section-title" style="font-family: var(--font-display); font-size: 1.8rem; margin: 4px 0 0;">Kịch Bản Jubensha Nổi Bật</h2>
-            </div>
-            <div style="display: flex; gap: 8px;">
-              <a href="#games" id="btn-view-all-games" class="btn btn-gold btn-sm" data-tab="games" style="font-weight: 700; color: var(--ink-black); text-decoration: none; padding: 8px 16px; display: inline-flex; align-items: center; gap: 6px;">
-                Mở kho kịch bản &rarr;
-              </a>
-            </div>
-          </div>
-
-          <!-- Bộ Lọc Thể Loại -->
-          <div class="filter-pills" id="home-genre-filters" style="display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 24px;"></div>
-
-          <!-- Danh Sách Kịch Bản -->
-          <div class="scripts-grid" id="home-scripts-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 22px;"></div>
-        </div>
-      </section>
-
-      <!-- KHỐI 3: NIỀM TIN KHÁCH HÀNG (TRUST BANNER) -->
-      <section class="home-section" style="margin-top: 48px;">
-        <div class="container">
-          <div class="trust-banner" style="background: var(--bg-surface); border: 1px solid var(--gold-border); border-radius: 12px; padding: 36px 32px; position: relative; overflow: hidden;">
-            <div class="trust-watermark" style="position: absolute; right: 24px; top: 12px; font-size: 7rem; font-weight: 900; color: rgba(212,175,55,0.06); pointer-events: none;">59</div>
-            <span class="badge badge-gold">XÁC THỰC TỪ CỘNG ĐỒNG FACEBOOK QUÁN</span>
-            <h2 class="section-title" style="font-family: var(--font-display); font-size: 1.8rem; margin: 12px 0 8px;">
-              KHÁCH ĐÁNH GIÁ: <span class="text-gold">100% ĐỀ XUẤT</span>
-            </h2>
-            <p class="text-muted" style="max-width: 640px; margin-bottom: 24px; font-size: 0.95rem; line-height: 1.6;">
-              Trải nghiệm nhập vai phá án Jubensha có Quản trò (DM) dẫn dắt bài bản, hệ thống đạo cụ trau chuốt và phòng chơi riêng tư tại 36/52 Nguyễn Gia Trí, Bình Thạnh.
-            </p>
-            <div class="trust-metrics" style="display: flex; gap: 36px; flex-wrap: wrap;">
-              <div>
-                <div class="metric-value" style="font-family: var(--font-display); font-size: 2rem; color: var(--gold); font-weight: 800;">100%</div>
-                <div class="text-muted" style="font-size: 0.85rem;">Đề xuất quán trên Facebook</div>
-              </div>
-              <div>
-                <div class="metric-value" style="font-family: var(--font-display); font-size: 2rem; font-weight: 800; color: var(--text-primary);">59</div>
-                <div class="text-muted" style="font-size: 0.85rem;">Lượt đánh giá thực tế</div>
-              </div>
-              <div>
-                <div class="metric-value" style="font-family: var(--font-display); font-size: 2rem; color: var(--gold); font-weight: 800;">2,2K</div>
-                <div class="text-muted" style="font-size: 0.85rem;">Người theo dõi cộng đồng</div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <!-- KHỐI 4: QUY TRÌNH 4 BƯỚC & CHÍNH SÁCH VÉ V16 -->
-      <section class="home-section" style="margin-top: 48px; margin-bottom: 40px;">
-        <div class="container">
-          <div class="section-head" style="margin-bottom: 24px;">
-            <div class="section-kicker" style="color: var(--gold); font-size: 0.8rem; letter-spacing: 0.1em; font-family: var(--font-mono);">MINH BẠCH & RÕ RÀNG</div>
-            <h2 class="section-title" style="font-family: var(--font-display); font-size: 1.8rem; margin: 4px 0 0;">Quy Trình 4 Bước & Chính Sách Vé V16</h2>
-          </div>
-
-          <div class="steps-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 18px; margin-bottom: 28px;">
-            <div class="step-card" style="background: var(--bg-surface); border: 1px solid rgba(255,255,255,0.1); padding: 22px; border-radius: 8px;">
-              <div class="step-num" style="width: 36px; height: 36px; border-radius: 50%; background: var(--gold); color: var(--ink-black); font-weight: 800; display: grid; place-items: center; margin-bottom: 12px;">1</div>
-              <h3 style="font-family: var(--font-display); margin-bottom: 6px;">Chọn kịch bản</h3>
-              <p class="text-muted" style="font-size: 0.88rem; line-height: 1.5;">Lọc theo 5–8 người, độ khó và thể loại trinh thám, kinh dị hoặc cổ trang.</p>
-            </div>
-            <div class="step-card" style="background: var(--bg-surface); border: 1px solid rgba(255,255,255,0.1); padding: 22px; border-radius: 8px;">
-              <div class="step-num" style="width: 36px; height: 36px; border-radius: 50%; background: var(--gold); color: var(--ink-black); font-weight: 800; display: grid; place-items: center; margin-bottom: 12px;">2</div>
-              <h3 style="font-family: var(--font-display); margin-bottom: 6px;">Tạo hoặc ghép phòng</h3>
-              <p class="text-muted" style="font-size: 0.88rem; line-height: 1.5;">Mở phòng khung giờ chẵn hoặc ghép slot cùng nhóm đang thiếu người chơi.</p>
-            </div>
-            <div class="step-card" style="background: var(--bg-surface); border: 1px solid rgba(255,255,255,0.1); padding: 22px; border-radius: 8px;">
-              <div class="step-num" style="width: 36px; height: 36px; border-radius: 50%; background: var(--gold); color: var(--ink-black); font-weight: 800; display: grid; place-items: center; margin-bottom: 12px;">3</div>
-              <h3 style="font-family: var(--font-display); margin-bottom: 6px;">Cọc 50.000đ trong 4 giờ</h3>
-              <p class="text-muted" style="font-size: 0.88rem; line-height: 1.5;">Hệ thống giữ chỗ 4 giờ để bạn hoàn tất chuyển khoản cọc và nhận mã QR Check-in.</p>
-            </div>
-            <div class="step-card" style="background: var(--bg-surface); border: 1px solid rgba(255,255,255,0.1); padding: 22px; border-radius: 8px;">
-              <div class="step-num" style="width: 36px; height: 36px; border-radius: 50%; background: var(--gold); color: var(--ink-black); font-weight: 800; display: grid; place-items: center; margin-bottom: 12px;">4</div>
-              <h3 style="font-family: var(--font-display); margin-bottom: 6px;">Đến quán, DM dẫn ca</h3>
-              <p class="text-muted" style="font-size: 0.88rem; line-height: 1.5;">Check-in tại 36/52 Nguyễn Gia Trí, nhận hồ sơ nhân vật và bắt đầu phá án.</p>
-            </div>
-          </div>
-
-          <!-- 3 Vé Chính Sách Chuẩn V16 -->
-          <div class="policy-cards" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px;">
-            <div class="paper-ticket policy-ticket" style="padding: 22px;">
-              <span class="badge badge-18">CỌC CỐ ĐỊNH</span>
-              <h3 style="font-family: var(--font-display); font-size: 1.35rem; margin: 10px 0 6px;">Cọc 50.000đ / người</h3>
-              <p style="font-size: 0.88rem; color: var(--ink-muted); line-height: 1.5;">
-                Khấu trừ trực tiếp vào tiền vé khi thanh toán phần còn lại tại quán. Mã QR mở khóa ngay sau khi chuyển cọc.
-              </p>
-            </div>
-            <div class="paper-ticket policy-ticket" style="padding: 22px;">
-              <span class="badge badge-18">THỜI HẠN GIỮ GHẾ</span>
-              <h3 style="font-family: var(--font-display); font-size: 1.35rem; margin: 10px 0 6px;">Giữ chỗ 4 giờ</h3>
-              <p style="font-size: 0.88rem; color: var(--ink-muted); line-height: 1.5;">
-                Đồng hồ đếm ngược 4 giờ kích hoạt ngay khi giữ ghế. Quá 4 giờ chưa cọc ghế sẽ tự động mở lại cho người khác.
-              </p>
-            </div>
-            <div class="paper-ticket policy-ticket" style="padding: 22px;">
-              <span class="badge badge-18">QUY TẮC VÀNG 24H</span>
-              <h3 style="font-family: var(--font-display); font-size: 1.35rem; margin: 10px 0 6px;">Hoàn 100% trước 24h</h3>
-              <p style="font-size: 0.88rem; color: var(--ink-muted); line-height: 1.5;">
-                Hủy trước giờ chơi trên 24 tiếng được hoàn đủ 50.000đ/người. Hủy dưới 24 tiếng sẽ không được hoàn cọc.
-              </p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <!-- KHỐI 5: HỆ SINH THÁI 4 KHÔNG GIAN NỀN TẢNG CHUYÊN BIỆT -->
-      <section class="home-section" style="margin-top: 48px; margin-bottom: 50px;">
-        <div class="container">
-          <div class="section-head" style="margin-bottom: 24px;">
-            <div class="section-kicker" style="color: var(--gold); font-size: 0.8rem; letter-spacing: 0.1em; font-family: var(--font-mono);">KIẾN TRÚC ĐA KHU VỰC V16</div>
-            <h2 class="section-title" style="font-family: var(--font-display); font-size: 1.8rem; margin: 4px 0 0;">4 Không Gian Nền Tảng Chuyên Biệt</h2>
-            <p class="text-muted" style="margin-top: 6px; font-size: 0.92rem;">
-              Thiết kế độc lập với ngôn ngữ thị giác, bố cục và chức năng tối ưu riêng cho từng nhóm đối tượng
-            </p>
-          </div>
-
-          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 20px;">
-            <!-- Không Gian 1: Public Discovery -->
-            <div style="background: linear-gradient(135deg, rgba(20,18,18,0.9) 0%, rgba(11,9,9,0.95) 100%); border: 1px solid rgba(212,175,55,0.3); border-radius: 12px; padding: 24px; display: flex; flex-direction: column; justify-content: space-between;">
-              <div>
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-                  <span style="font-size: 1.8rem;">🏰</span>
-                  <span class="badge" style="background: rgba(212,175,55,0.15); color: var(--gold); border: 1px solid var(--gold-border);">Public Manor</span>
-                </div>
-                <h3 style="font-family: var(--font-display); font-size: 1.25rem; color: #F5F2EB; margin: 0 0 8px 0;">Trang Chủ Trải Nghiệm</h3>
-                <p style="font-size: 0.85rem; color: #A8A29E; line-height: 1.5; margin: 0 0 16px 0;">
-                  Khám phá kho 42 kịch bản Jubensha, tra cứu bảng giá theo khung giờ, định vị chi nhánh và gửi yêu cầu đăng ký/đặt lịch.
-                </p>
-              </div>
-              <a href="#games" class="btn btn-ghost btn-sm" style="width: fit-content; border-color: rgba(212,175,55,0.4); color: var(--gold);">
-                Khám phá kịch bản &rarr;
-              </a>
-            </div>
-
-            <!-- Không Gian 2: Player Gaming Lounge -->
-            <div style="background: linear-gradient(135deg, rgba(22,27,34,0.9) 0%, rgba(13,17,23,0.95) 100%); border: 1px solid rgba(59,130,246,0.3); border-radius: 12px; padding: 24px; display: flex; flex-direction: column; justify-content: space-between;">
-              <div>
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-                  <span style="font-size: 1.8rem;">🎲</span>
-                  <span class="badge" style="background: rgba(59,130,246,0.15); color: #60A5FA; border: 1px solid rgba(59,130,246,0.35);">Gaming Lounge</span>
-                </div>
-                <h3 style="font-family: var(--font-display); font-size: 1.25rem; color: #F8FAFC; margin: 0 0 8px 0;">Cổng Người Chơi (Player)</h3>
-                <p style="font-size: 0.85rem; color: #94A3B8; line-height: 1.5; margin: 0 0 16px 0;">
-                  Tạo phòng chơi, ghép slot gom người, tham gia phòng thế chỗ, thanh toán cọc 50k nhận QR Check-in và xác thực thẻ HSSV.
-                </p>
-              </div>
-              <a href="#rooms" class="btn btn-sm" style="width: fit-content; background: #3B82F6; color: white; border: none; font-weight: 600;">
-                Vào Sảnh Phòng Chơi &rarr;
-              </a>
-            </div>
-
-            <!-- Không Gian 3: DM Tactical Command -->
-            <div style="background: linear-gradient(135deg, rgba(26,26,30,0.9) 0%, rgba(18,18,20,0.95) 100%); border: 1px solid rgba(245,158,11,0.3); border-radius: 12px; padding: 24px; display: flex; flex-direction: column; justify-content: space-between;">
-              <div>
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-                  <span style="font-size: 1.8rem;">📜</span>
-                  <span class="badge" style="background: rgba(245,158,11,0.15); color: #FBBF24; border: 1px solid rgba(245,158,11,0.35);">Tactical Desk</span>
-                </div>
-                <h3 style="font-family: var(--font-display); font-size: 1.25rem; color: #F3F4F6; margin: 0 0 8px 0;">Cổng Quản Trò (DM)</h3>
-                <p style="font-size: 0.85rem; color: #9CA3AF; line-height: 1.5; margin: 0 0 16px 0;">
-                  Bàn trực điều phối ca chơi, chấp nhận/từ chối phân công, xem danh sách người chơi, bắt đầu/kết thúc ca và ghi nhận biên bản vụ án.
-                </p>
-              </div>
-              <a href="#dm" class="btn btn-sm" style="width: fit-content; background: #F59E0B; color: #121214; border: none; font-weight: 700;">
-                Cổng Quản Trò DM &rarr;
-              </a>
-            </div>
-
-            <!-- Không Gian 4: Admin Enterprise Console -->
-            <div style="background: linear-gradient(135deg, rgba(17,24,39,0.9) 0%, rgba(11,15,25,0.95) 100%); border: 1px solid rgba(99,102,241,0.3); border-radius: 12px; padding: 24px; display: flex; flex-direction: column; justify-content: space-between;">
-              <div>
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-                  <span style="font-size: 1.8rem;">🛡️</span>
-                  <span class="badge" style="background: rgba(99,102,241,0.15); color: #C7D2FE; border: 1px solid rgba(99,102,241,0.35);">Operations Console</span>
-                </div>
-                <h3 style="font-family: var(--font-display); font-size: 1.25rem; color: #F9FAFB; margin: 0 0 8px 0;">Cổng Quản Trị (Admin)</h3>
-                <p style="font-size: 0.85rem; color: #9CA3AF; line-height: 1.5; margin: 0 0 16px 0;">
-                  Trung tâm điều hành doanh thu, phân công DM, xét duyệt hoàn cọc 24h, quản lý tài khoản RBAC, thẻ HSSV và kiểm toán Audit Logs.
-                </p>
-              </div>
-              <a href="#admin" class="btn btn-sm" style="width: fit-content; background: #6366F1; color: white; border: none; font-weight: 600;">
-                Admin Console &rarr;
-              </a>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <!-- POPUP XÁC NHẬN ĐỘ TUỔI 18+ -->
-      <div class="modal-backdrop" id="age-modal">
-        <div class="paper-ticket modal-box" style="padding: 28px; max-width: 480px; margin: auto;">
-          <span class="badge badge-18">CẢNH BÁO NỘI DUNG 18+</span>
-          <h3 style="font-family: var(--font-display); font-size: 1.45rem; margin: 12px 0 8px;">Xác nhận độ tuổi tham gia</h3>
-          <p style="font-size: 0.92rem; color: var(--ink-muted); margin-bottom: 20px; line-height: 1.5;">
-            Kịch bản <strong id="age-script-name" style="color: var(--crimson);"></strong> chứa yếu tố tâm lý nặng, kinh dị hoặc tình tiết án mạng nhạy cảm chỉ dành cho người chơi từ <strong>18 tuổi trở lên</strong>.
-          </p>
-          <div style="display: flex; gap: 10px; justify-content: flex-end;">
-            <button class="btn btn-ghost" style="color: var(--ink-black); border-color: #999;" id="age-cancel-btn">Quay lại</button>
-            <button class="btn btn-crimson" id="age-confirm-btn">Tôi đã đủ 18 tuổi &rarr;</button>
-          </div>
-        </div>
-      </div>
-
-      <!-- PRICE MATRIX MODAL -->
-      <dialog id="home-price-dialog" style="padding: 24px; background: var(--bg-surface); border: 1px solid var(--gold-border); border-radius: 12px; color: var(--text-primary); max-width: 600px; width: 92%; margin: auto;">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 10px;">
-          <h3 style="margin: 0; font-family: var(--font-display); font-size: 1.3rem; color: var(--gold);">Bảng Giá Vé Chuẩn V16 Theo Khung Giờ</h3>
-          <button id="btn-close-price-dialog" style="background: none; border: none; font-size: 1.5rem; cursor: pointer; color: var(--text-secondary);">&times;</button>
-        </div>
-        <div style="font-size: 0.88rem; color: var(--text-secondary); line-height: 1.6; margin-bottom: 16px;">
-          Giá vé áp dụng theo người, đã bao gồm Quản trò DM độc quyền, đạo cụ nhân vật, trà bánh và phòng riêng:
-        </div>
-        <table class="data-table" style="width: 100%; margin-bottom: 16px;">
-          <thead><tr><th>Khung giờ</th><th>Thứ 2 – Thứ 5</th><th>Thứ 6 – Chủ Nhật</th></tr></thead>
-          <tbody>
-            <tr><td><strong>09:00 – 12:30</strong></td><td class="text-gold">119.000đ / người</td><td>129.000đ / người</td></tr>
-            <tr><td><strong>14:00 – 17:30</strong></td><td class="text-gold">129.000đ / người</td><td>139.000đ / người</td></tr>
-            <tr><td><strong>19:00 – 22:30</strong> (Vàng)</td><td class="text-gold">139.000đ / người</td><td>149.000đ / người</td></tr>
-          </tbody>
-        </table>
-        <div style="background: rgba(212,175,55,0.08); padding: 12px; border-radius: 6px; font-size: 0.82rem; color: var(--gold); border: 1px solid var(--gold-border);">
-          🎉 <strong>Ưu đãi HSSV:</strong> Tự động giảm thêm 20.000đ/người cho ca ngày thường (09:00–19:59).<br />
-          🎉 <strong>Thứ 3 Đen Tối:</strong> Giảm 30% giá vé kịch bản kinh dị.
-        </div>
+        <ul style="list-style: none; padding: 0; margin: 0 0 18px; display: grid; gap: 10px; font-size: 0.92rem; color: #CBD5E1;">
+          <li>• <strong>Cọc cố định:</strong> 50.000đ / người để khóa ghế chính thức.</li>
+          <li>• <strong>Hoàn cọc 24h:</strong> Hoàn 100% nếu hủy trước giờ chơi tối thiểu 24 tiếng.</li>
+          <li>• <strong>Thời hạn giữ phòng:</strong> 4 giờ để ghép đủ người &amp; biểu quyết lịch.</li>
+          <li>• <strong>Ưu đãi HSSV &amp; Thứ 3:</strong> Giảm giá trực tiếp khi xác thực thẻ sinh viên tại Player Lounge.</li>
+        </ul>
+        <button id="btn-ok-price-dialog" class="btn btn-gold" style="width: 100%;">Đã hiểu</button>
       </dialog>
     `;
 
-    this.setupParallaxEngine();
-    this.setupAgeModal();
-    this.setupPriceModal();
-
-    const heroCreateBtn = document.getElementById('hero-btn-create-room');
-    if (heroCreateBtn) {
-      heroCreateBtn.addEventListener('click', () => {
-        if (!authState.isAuthenticated()) {
-          toast.info('Vui lòng đăng nhập để bắt đầu tạo phòng chơi!');
-          this.onOpenAuth();
-        } else {
-          this.onNavigate('rooms');
-        }
-      });
-    }
-
-    const viewAllRoomsBtn = document.getElementById('btn-view-all-rooms');
-    if (viewAllRoomsBtn) {
-      viewAllRoomsBtn.addEventListener('click', (e) => {
-        e.preventDefault();
-        this.onNavigate('rooms');
-      });
-    }
-
-    const viewAllGamesBtn = document.getElementById('btn-view-all-games');
-    if (viewAllGamesBtn) {
-      viewAllGamesBtn.addEventListener('click', (e) => {
-        e.preventDefault();
-        this.onNavigate('games');
-      });
-    }
-
-    document.querySelectorAll('.btn-role-tab').forEach(btn => {
-      btn.addEventListener('click', (e) => {
-        e.preventDefault();
-        const tab = btn.dataset.tab;
-        if (tab) this.onNavigate(tab);
-      });
-    });
-
-    await this.fetchRooms();
-    await this.fetchGames();
+    this.initScrollyParallax();
+    this.bindEvents();
+    await Promise.all([this.fetchOpenRooms(), this.fetchScripts()]);
   }
 
-  setupParallaxEngine() {
+  initScrollyParallax() {
     const stage = document.getElementById('scrolly-stage');
+    if (!stage) return;
+
     const progressBar = document.getElementById('scrolly-progress');
     const s1Sky = document.getElementById('s1-sky');
     const s1Mansion = document.getElementById('s1-mansion');
+    const s1Gates = document.getElementById('s1-gates');
     const gateLeft = document.getElementById('gate-left');
     const gateRight = document.getElementById('gate-right');
     const s1Content = document.getElementById('s1-content');
-    const scrollCue = document.getElementById('scroll-cue');
     const s2Room = document.getElementById('s2-room');
-    const s2Copy = document.getElementById('s2-copy');
     const s3Cards = document.getElementById('s3-cards');
-    const cardLeft = document.getElementById('card-left');
-    const cardCenter = document.getElementById('card-center');
-    const cardRight = document.getElementById('card-right');
+    const s3CurtL = document.getElementById('s3-curtain-left');
+    const s3CurtR = document.getElementById('s3-curtain-right');
+    const s3Copy = document.getElementById('s3-copy');
+    const tarot = [...document.querySelectorAll('.tarot-slot')];
+    const flipRank = [0, 1, 4, 2, 3];
+    const easeInOut = (t) => (t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2);
+    const clamp = (v, min = 0, max = 1) => Math.min(max, Math.max(min, v));
+    const seg = (p, start, end) => clamp((p - start) / (end - start));
 
-    const clamp = (val, min, max) => Math.min(max, Math.max(min, val));
+    let step = 180;
+    const calcStep = () => {
+      const w = tarot[0] ? tarot[0].offsetWidth : 150;
+      step = Math.min(window.innerWidth * 0.17, w * 1.1);
+    };
+    calcStep();
 
+    let ticking = false;
     const updateParallax = () => {
-      if (!stage) return;
+      if (!document.body.contains(stage)) return;
       const rect = stage.getBoundingClientRect();
-      const maxScroll = stage.offsetHeight - window.innerHeight;
-      const scrolled = clamp(-rect.top, 0, maxScroll);
-      const progress = maxScroll > 0 ? scrolled / maxScroll : 0;
+      const scrollable = stage.offsetHeight - window.innerHeight;
+      const p = scrollable > 0 ? clamp(-rect.top / scrollable) : 0;
 
-      if (progressBar) progressBar.style.width = `${(progress * 100).toFixed(1)}%`;
+      if (progressBar) progressBar.style.width = `${(p * 100).toFixed(1)}%`;
 
-      // Phân cảnh 1: 0.00 -> 0.35
-      const p1 = clamp(progress / 0.35, 0, 1);
-      const fadeOut1 = progress > 0.28 ? clamp(1 - (progress - 0.28) / 0.09, 0, 1) : 1;
+      const p1 = seg(p, 0.0, 0.35);
+      const p1Fade = 1 - seg(p, 0.28, 0.40);
+      const gateAngle = p1 * 82;
+      const gateShift = p1 * 32;
 
-      if (s1Sky) {
-        s1Sky.style.transform = `translate3d(0, ${scrolled * 0.12}px, 0)`;
-        s1Sky.style.opacity = fadeOut1;
-      }
+      if (gateLeft) gateLeft.style.transform = `perspective(1400px) rotateY(${gateAngle}deg) translateX(${-gateShift}%)`;
+      if (gateRight) gateRight.style.transform = `perspective(1400px) rotateY(${-gateAngle}deg) translateX(${gateShift}%)`;
       if (s1Mansion) {
-        s1Mansion.style.transform = `translate3d(0, ${p1 * -45}px, 0) scale(${1 + p1 * 0.18})`;
-        s1Mansion.style.opacity = fadeOut1;
+        s1Mansion.style.transform = `scale(${1 + p1 * 0.52}) translateY(${p1 * 45}px)`;
+        s1Mansion.style.opacity = p1Fade;
       }
-      if (gateLeft && gateRight) {
-        const gateScale = 1 + p1 * 0.6;
-        const gateSpread = p1 * 48;
-        gateLeft.style.transform = `translate3d(-${gateSpread}%, ${p1 * 30}px, 0) scale(${gateScale})`;
-        gateRight.style.transform = `translate3d(${gateSpread}%, ${p1 * 30}px, 0) scale(${gateScale})`;
-        gateLeft.style.opacity = fadeOut1;
-        gateRight.style.opacity = fadeOut1;
-      }
+      if (s1Sky) s1Sky.style.opacity = p1Fade;
+      if (s1Gates) s1Gates.style.opacity = p1Fade;
       if (s1Content) {
-        s1Content.style.opacity = fadeOut1;
-        s1Content.style.transform = `translate3d(0, ${p1 * -35}px, 0)`;
-        s1Content.style.pointerEvents = fadeOut1 > 0.2 ? 'auto' : 'none';
-      }
-      if (scrollCue) {
-        scrollCue.style.opacity = progress > 0.15 ? '0' : '1';
+        s1Content.style.opacity = 1 - seg(p, 0.16, 0.30);
+        s1Content.style.transform = `translateY(${-p1 * 65}px) scale(${1 + p1 * 0.08})`;
+        s1Content.style.pointerEvents = p > 0.28 ? 'none' : 'auto';
       }
 
-      // Phân cảnh 2: 0.35 -> 0.70
-      let op2 = 0;
-      if (progress >= 0.30 && progress <= 0.74) {
-        if (progress < 0.38) op2 = (progress - 0.30) / 0.08;
-        else if (progress > 0.66) op2 = 1 - (progress - 0.66) / 0.08;
-        else op2 = 1;
-      }
-      const p2 = clamp((progress - 0.35) / 0.35, 0, 1);
+      const p2In = seg(p, 0.34, 0.46);
+      const p2Out = 1 - seg(p, 0.64, 0.74);
       if (s2Room) {
-        s2Room.style.opacity = clamp(op2, 0, 1);
-      }
-      if (s2Copy) {
-        const slideX = (1 - clamp(p2 * 2.2, 0, 1)) * -40;
-        s2Copy.style.transform = `translate3d(${slideX}px, 0, 0)`;
+        s2Room.style.opacity = Math.min(p2In, p2Out);
+        s2Room.style.transform = `scale(${0.94 + p2In * 0.06})`;
       }
 
-      // Phân cảnh 3: 0.70 -> 1.00
-      const p3 = clamp((progress - 0.68) / 0.32, 0, 1);
       if (s3Cards) {
-        s3Cards.style.opacity = p3;
-        s3Cards.style.pointerEvents = p3 > 0.3 ? 'auto' : 'none';
-      }
-      if (cardLeft && cardCenter && cardRight) {
-        const riseY = (1 - p3) * 85;
-        cardLeft.style.transform = `translate3d(${(1 - p3) * 40}px, ${riseY}px, 0) rotate(${-6 * p3}deg)`;
-        cardCenter.style.transform = `translate3d(0, ${riseY * 0.7}px, 0) scale(${0.95 + 0.13 * p3})`;
-        cardRight.style.transform = `translate3d(${(1 - p3) * -40}px, ${riseY}px, 0) rotate(${6 * p3}deg)`;
+        s3Cards.style.opacity = seg(p, 0.66, 0.78);
+        s3Cards.style.pointerEvents = p > 0.68 ? 'auto' : 'none';
       }
 
-      this.ticking = false;
+      const open = easeInOut(seg(p, 0.68, 0.82));
+      if (s3CurtL) s3CurtL.style.transform = `translateX(${-open * 62}%)`;
+      if (s3CurtR) s3CurtR.style.transform = `translateX(${open * 62}%)`;
+
+      tarot.forEach((el, i) => {
+        const k = i - 2;
+        const a = easeInOut(seg(p, 0.72 + Math.abs(k) * 0.015, 0.88));
+        const f = seg(p, 0.78 + flipRank[i] * 0.028, 0.85 + flipRank[i] * 0.028);
+        const x = k * step * a;
+        const y = (1 - a) * 180 + k * k * 14 * a;
+        const r = k * 7 * a;
+        const s = (0.5 + 0.5 * a) * (1 + 0.1 * Math.sin(Math.PI * f));
+        el.style.transform = `translate3d(${x}px, ${y}px, 0) rotate(${r}deg) scale(${s})`;
+        el.style.opacity = a;
+        el.style.zIndex = 5 - Math.abs(k);
+        el.style.setProperty('--flip', `${(1 - easeInOut(f)) * 180}deg`);
+      });
+
+      if (s3Copy) {
+        const c = seg(p, 0.88, 0.97);
+        s3Copy.style.opacity = c;
+        s3Copy.style.transform = `translateY(${(1 - c) * 20}px)`;
+      }
+
+      ticking = false;
     };
 
-    if (this.scrollHandler) {
-      window.removeEventListener('scroll', this.scrollHandler);
-    }
-    this.scrollHandler = () => {
-      if (!this.ticking) {
+    window.addEventListener('scroll', () => {
+      if (!ticking) {
         requestAnimationFrame(updateParallax);
-        this.ticking = true;
+        ticking = true;
       }
-    };
-    window.addEventListener('scroll', this.scrollHandler, { passive: true });
+    }, { passive: true });
+
+    window.addEventListener('resize', () => {
+      calcStep();
+      updateParallax();
+    });
+
     updateParallax();
   }
 
-  setupAgeModal() {
-    const ageModal = document.getElementById('age-modal');
-    document.getElementById('age-cancel-btn')?.addEventListener('click', () => {
-      ageModal.classList.remove('open');
-      this.pendingAction = null;
-    });
-    document.getElementById('age-confirm-btn')?.addEventListener('click', () => {
-      ageModal.classList.remove('open');
-      if (typeof this.pendingAction === 'function') {
-        const action = this.pendingAction;
-        this.pendingAction = null;
-        action();
-      } else {
-        this.onNavigate('rooms');
-      }
-    });
-  }
+  bindEvents() {
+    const priceDialog = document.getElementById('home-price-dialog');
+    document.getElementById('btn-close-price-dialog')?.addEventListener('click', () => priceDialog?.close());
+    document.getElementById('btn-ok-price-dialog')?.addEventListener('click', () => priceDialog?.close());
 
-  setupPriceModal() {
-    const dialog = document.getElementById('home-price-dialog');
-    document.getElementById('btn-open-price-modal')?.addEventListener('click', () => dialog.showModal());
-    document.getElementById('btn-close-price-dialog')?.addEventListener('click', () => dialog.close());
-  }
-
-  async fetchRooms() {
-    const grid = document.getElementById('home-rooms-grid');
-    if (!grid) return;
-
-    let rooms = [];
-    try {
-      const res = await api.get('/rooms?status=FORMING');
-      rooms = res?.data?.rooms || [];
-    } catch {
-      rooms = [];
-    }
-
-    const curatedFallbacks = [
-      { id: '104', title: 'Nhóm Thám Tử Đêm', game_name: 'Yandere: Lời Thề Máu', creator_name: 'Trần Gia Bảo', current_players: 6, max_players: 8 },
-      { id: '107', title: 'Cần 2 bạn phá án nhanh', game_name: 'Căn Phòng Số 7', creator_name: 'Nguyễn Minh Khôi', current_players: 5, max_players: 7 },
-      { id: '109', title: 'Hội trinh thám cuối tuần', game_name: 'Sinh Tử: Chuyến Tàu Cuối', creator_name: 'Lê Hoàng Phúc', current_players: 7, max_players: 8 },
-      { id: '112', title: 'Nhóm cổ trang cung đình', game_name: 'Gương: Phản Chiếu Tội Ác', creator_name: 'Đào Mỹ Duyên', current_players: 4, max_players: 6 }
-    ];
-
-    // Combine or pad rooms to ensure 4 cards are displayed
-    const finalRooms = [...rooms];
-    for (const fb of curatedFallbacks) {
-      if (finalRooms.length >= 4) break;
-      if (!finalRooms.some(r => String(r.id) === String(fb.id))) {
-        finalRooms.push(fb);
-      }
-    }
-
-    grid.innerHTML = finalRooms.slice(0, 4).map(r => {
-      const filled = r.current_players ?? 4;
-      const max = r.max_players ?? 8;
-      const pct = max > 0 ? Math.round((filled / max) * 100) : 50;
-      return `
-        <article class="room-card" style="background: var(--bg-surface); border: 1px solid var(--gold-border); border-radius: 8px; padding: 20px; display: flex; flex-direction: column; justify-content: space-between;">
-          <div>
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-              <span class="badge badge-green">Đang ghép</span>
-              <span style="font-family: var(--font-mono); color: var(--gold); font-size: 0.8rem;">#${r.id}</span>
-            </div>
-            <h3 style="font-family: var(--font-display); font-size: 1.25rem; margin: 4px 0 6px;">${escapeHtml(r.title)}</h3>
-            <p class="text-gold" style="font-size: 0.88rem; margin: 0 0 4px 0;">🎭 ${escapeHtml(r.game_name || 'Kịch bản trinh thám')}</p>
-            <p class="text-muted" style="font-size: 0.84rem; margin: 0 0 10px 0;">Host: <strong>${escapeHtml(r.creator_name || 'Người chơi')}</strong></p>
-          </div>
-
-          <div style="margin-top: 14px; border-top: 1px solid rgba(255,255,255,0.08); padding-top: 12px;">
-            <div style="display: flex; justify-content: space-between; font-size: 0.82rem; margin-bottom: 6px;">
-              <span>Tiến độ ghế</span>
-              <strong class="text-gold">${filled}/${max} chỗ đã cọc</strong>
-            </div>
-            <div class="progress-track" style="height: 6px; background: rgba(255,255,255,0.1); border-radius: 3px; overflow: hidden; margin-bottom: 12px;">
-              <div class="progress-fill" style="width: ${pct}%; height: 100%; background: linear-gradient(90deg, var(--gold), var(--crimson));"></div>
-            </div>
-            <button class="btn btn-gold btn-sm btn-join-room" data-room-id="${r.id}" style="width: 100%; text-align: center; color: var(--ink-black);">
-              Vào phòng & Giữ chỗ 50k
-            </button>
-          </div>
-        </article>
-      `;
-    }).join('');
-
-    grid.querySelectorAll('.btn-join-room').forEach(btn => {
-      btn.addEventListener('click', () => {
-        if (!authState.isAuthenticated()) {
-          toast.info('Vui lòng đăng nhập để tham gia giữ chỗ phòng chơi!');
-          this.onOpenAuth();
-        } else {
-          this.onNavigate('rooms');
-        }
+    this.container.querySelectorAll('a[href="#home-price-dialog"]').forEach(a => {
+      a.addEventListener('click', (e) => {
+        e.preventDefault();
+        priceDialog?.showModal?.();
       });
     });
+
+    // Search input
+    const searchInput = document.getElementById('script-search-input');
+    const clearBtn = document.getElementById('script-search-clear');
+    let timer = null;
+    if (searchInput) {
+      searchInput.addEventListener('input', () => {
+        this.searchQuery = searchInput.value.trim().toLowerCase();
+        if (clearBtn) clearBtn.style.display = this.searchQuery ? 'inline-flex' : 'none';
+        clearTimeout(timer);
+        timer = setTimeout(() => this.renderScriptsGrid(), 200);
+      });
+    }
+    if (clearBtn) {
+      clearBtn.addEventListener('click', () => {
+        this.searchQuery = '';
+        if (searchInput) searchInput.value = '';
+        clearBtn.style.display = 'none';
+        this.renderScriptsGrid();
+      });
+    }
+
+    // 18+ Age Modal
+    const ageModal = document.getElementById('age-modal');
+    document.getElementById('age-cancel-btn')?.addEventListener('click', () => {
+      ageModal?.classList.remove('open');
+      this.pendingAgeAction = null;
+    });
+    document.getElementById('age-confirm-btn')?.addEventListener('click', () => {
+      ageModal?.classList.remove('open');
+      if (typeof this.pendingAgeAction === 'function') this.pendingAgeAction();
+      this.pendingAgeAction = null;
+    });
   }
 
-  async fetchGames() {
-    const filterWrap = document.getElementById('home-genre-filters');
-    const grid = document.getElementById('home-scripts-grid');
+  async fetchOpenRooms() {
+    const grid = document.getElementById('home-rooms-grid');
     if (!grid) return;
+    try {
+      const res = await api.get('/rooms');
+      const rooms = (res?.data?.rooms || []).filter(r => ['FORMING', 'REPLACEMENT', 'SCHEDULED'].includes(r.status)).slice(0, 3);
+      if (!rooms.length) {
+        grid.innerHTML = `<p class="text-muted">Hiện chưa có phòng mở công khai. Hãy tự tạo phòng mới!</p>`;
+        return;
+      }
+      grid.innerHTML = rooms.map(r => {
+        const joined = Number(r.current_players || r.participants_count || 1);
+        const max = Number(r.max_players || 8);
+        const missing = Math.max(0, max - joined);
+        return `
+          <div class="room-card" style="background: var(--bg-surface, #13151F); border: 1px solid rgba(212,175,55,0.28); border-radius: 10px; padding: 20px; display: flex; flex-direction: column; justify-content: space-between; gap: 12px;">
+            <div>
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+                <span class="badge badge-gold">${escapeHtml(r.status)}</span>
+                <span style="font-family:var(--font-mono);font-size:0.82rem;color:var(--gold);">${joined}/${max} người</span>
+              </div>
+              <h3 style="font-family:var(--font-display);font-size:1.15rem;margin:0 0 6px;">${escapeHtml(r.title || r.game_name || 'Phòng Kịch Bản Sát')}</h3>
+              <p class="text-muted" style="font-size:0.86rem;margin:0;">${missing > 0 ? `Còn thiếu ${missing} chỗ • Cọc 50.000đ` : 'Đã đủ người'}</p>
+            </div>
+            <button class="btn btn-gold btn-sm btn-join-room-home" style="width:100%;">Vào phòng ghép nhóm &rarr;</button>
+          </div>
+        `;
+      }).join('');
+      grid.querySelectorAll('.btn-join-room-home').forEach(b => {
+        b.addEventListener('click', () => this.onNavigate('rooms'));
+      });
+    } catch {
+      grid.innerHTML = `<p class="text-muted">Không thể tải danh sách phòng trực tuyến.</p>`;
+    }
+  }
 
+  async fetchScripts() {
     let apiGames = [];
     try {
       const res = await api.get('/games');
@@ -805,75 +239,98 @@ export class HomeView {
       apiGames = [];
     }
 
-    const scripts = ALL_SCRIPTS;
-    const genres = ['Tất cả', 'Tâm lý / Kinh dị', 'Trinh thám / Siêu nhiên', 'Sinh tồn / Đấu trí', 'Cổ điển / Phá án', 'Gia tộc / Tâm lý'];
+    const mappedApi = apiGames.map(g => ({
+      id: g.id,
+      title: g.name || g.title,
+      genre: g.category || g.genre || 'Trinh thám',
+      players: `${g.min_players || 5}–${g.max_players || 8} người`,
+      price: Number(g.price_per_person || 189000),
+      is18: Boolean(g.is_18_plus || g.age_limit >= 18),
+      summary: g.description || 'Kịch bản nhập vai phá án có Quản trò dẫn dắt.'
+    }));
 
-    if (filterWrap) {
-      filterWrap.innerHTML = genres.map(g => `
-        <button class="filter-pill ${g === this.selectedGenre ? 'active' : ''}" data-hgenre="${g}">${g}</button>
-      `).join('');
+    this.games = mappedApi.length >= 6 ? mappedApi : [
+      ...mappedApi,
+      ...ALL_SCRIPTS.slice(0, 12).map(s => ({
+        id: s.id,
+        title: s.title,
+        genre: s.genre || 'Trinh thám',
+        players: s.players || '5–8 người',
+        price: s.price || 189000,
+        is18: Boolean(s.is18),
+        summary: s.summary || 'Kịch bản nhập vai phá án đặc sắc.'
+      }))
+    ];
 
-      filterWrap.querySelectorAll('[data-hgenre]').forEach(btn => {
-        btn.addEventListener('click', () => {
-          this.selectedGenre = btn.dataset.hgenre;
-          this.fetchGames();
-        });
-      });
-    }
+    this.renderGenreFilters();
+    this.renderScriptsGrid();
+  }
 
-    const filtered = scripts.filter(s => this.selectedGenre === 'Tất cả' || s.genre.includes(this.selectedGenre));
-
-    grid.innerHTML = filtered.slice(0, 6).map(s => `
-      <article class="script-card" style="background: var(--bg-surface); border: 1px solid rgba(255,255,255,0.12); border-radius: 8px; padding: 22px; display: flex; flex-direction: column; justify-content: space-between; position: relative; overflow: hidden;">
-        <div class="script-bg-letter" style="position: absolute; right: 12px; top: -10px; font-size: 6rem; font-weight: 900; color: rgba(212,175,55,0.04); pointer-events: none;">
-          ${s.title.charAt(0)}
-        </div>
-        <div>
-          <div style="display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px;">
-            <span class="badge badge-gold">${s.playersMin}–${s.playersMax} người</span>
-            <span class="badge badge-dark">${s.difficulty}</span>
-            ${s.is18Plus ? '<span class="badge badge-18">18+</span>' : '<span class="badge badge-green">Phổ thông</span>'}
-          </div>
-          <h3 style="font-family: var(--font-display); font-size: 1.35rem; margin-bottom: 6px;">${escapeHtml(s.title)}</h3>
-          <div style="font-size: 0.82rem; color: var(--gold); margin-bottom: 10px;">
-            ${escapeHtml(s.genre)} &bull; Thời lượng: ${s.durationHours} giờ
-          </div>
-          <p class="text-muted" style="font-size: 0.88rem; line-height: 1.5; margin-bottom: 14px;">
-            ${escapeHtml(s.summary)}
-          </p>
-        </div>
-
-        <div style="border-top: 1px solid rgba(255,255,255,0.08); padding-top: 14px; display: flex; align-items: center; justify-content: space-between;">
-          <div>
-            <span style="font-size: 0.75rem; color: var(--text-dim); display: block;">Giá vé</span>
-            <strong style="font-size: 1.15rem; color: var(--gold);">${(s.price).toLocaleString('vi-VN')}đ</strong>
-          </div>
-          <button class="btn btn-crimson btn-sm" data-play-script="${s.id}" data-is18="${s.is18Plus}" data-title="${escapeHtml(s.title)}">
-            Đặt phòng chơi &rarr;
-          </button>
-        </div>
-      </article>
+  renderGenreFilters() {
+    const bar = document.getElementById('home-genre-filters');
+    if (!bar) return;
+    const genres = ['Tất cả', ...new Set(this.games.map(g => g.genre).filter(Boolean))];
+    bar.innerHTML = genres.map(g => `
+      <button type="button" class="filter-pill ${this.selectedGenre === g ? 'active' : ''}" data-genre="${escapeHtml(g)}">
+        ${escapeHtml(g)}
+      </button>
     `).join('');
 
-    grid.querySelectorAll('[data-play-script]').forEach(b => {
-      b.addEventListener('click', () => {
-        const is18 = b.dataset.is18 === 'true';
-        const scriptTitle = b.dataset.title;
-        const onConfirm = () => {
-          if (!authState.isAuthenticated()) {
-            toast.info('Vui lòng đăng nhập để bắt đầu đặt phòng kịch bản này!');
-            this.onOpenAuth();
-          } else {
-            this.onNavigate('rooms');
-          }
-        };
+    bar.querySelectorAll('[data-genre]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        this.selectedGenre = btn.dataset.genre;
+        this.renderGenreFilters();
+        this.renderScriptsGrid();
+      });
+    });
+  }
 
+  renderScriptsGrid() {
+    const grid = document.getElementById('home-scripts-grid');
+    if (!grid) return;
+
+    const filtered = this.games.filter(g => {
+      const matchGenre = this.selectedGenre === 'Tất cả' || g.genre === this.selectedGenre;
+      const matchQuery = !this.searchQuery || (g.title || '').toLowerCase().includes(this.searchQuery);
+      return matchGenre && matchQuery;
+    });
+
+    if (!filtered.length) {
+      grid.innerHTML = `<p class="text-muted">Không tìm thấy kịch bản phù hợp.</p>`;
+      return;
+    }
+
+    grid.innerHTML = filtered.slice(0, 9).map(g => `
+      <div class="script-card" style="background: var(--bg-surface, #13151F); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; padding: 20px; display: flex; flex-direction: column; justify-content: space-between; gap: 12px;">
+        <div>
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:8px;">
+            <span class="badge badge-gold">${escapeHtml(g.genre)}</span>
+            ${g.is18 ? '<span class="badge badge-18">18+</span>' : ''}
+          </div>
+          <h3 style="font-family:var(--font-display);font-size:1.15rem;margin:0 0 6px;">${escapeHtml(g.title)}</h3>
+          <p class="text-muted" style="font-size:0.85rem;margin:0 0 10px;">${escapeHtml(g.summary)}</p>
+          <div style="font-family:var(--font-mono);font-size:0.82rem;color:var(--gold);">
+            👥 ${escapeHtml(g.players)} &bull; ${Number(g.price).toLocaleString('vi-VN')}đ
+          </div>
+        </div>
+        <button class="btn btn-ghost btn-sm btn-open-script" data-title="${escapeHtml(g.title)}" data-is18="${g.is18 ? '1' : '0'}" style="width:100%;">
+          Đặt phòng kịch bản này &rarr;
+        </button>
+      </div>
+    `).join('');
+
+    grid.querySelectorAll('.btn-open-script').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const is18 = btn.dataset.is18 === '1';
+        const title = btn.dataset.title || '';
         if (is18) {
-          document.getElementById('age-script-name').textContent = scriptTitle;
-          this.pendingAction = onConfirm;
-          document.getElementById('age-modal').classList.add('open');
+          const modal = document.getElementById('age-modal');
+          const nameEl = document.getElementById('age-script-name');
+          if (nameEl) nameEl.textContent = title;
+          this.pendingAgeAction = () => this.onNavigate('games');
+          modal?.classList.add('open');
         } else {
-          onConfirm();
+          this.onNavigate('games');
         }
       });
     });
