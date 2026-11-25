@@ -26,7 +26,7 @@
     .navbar-container {
       background: rgba(13, 13, 13, 0.94);
       backdrop-filter: blur(12px);
-      border-bottom: 1px solid var(--gold-border, rgba(212, 175, 55, 0.3));
+      border-bottom: 1px solid rgba(196, 55, 55, 0.45);
       position: sticky;
       top: 0;
       z-index: 100;
@@ -80,8 +80,8 @@
     .notif-btn {
       position: relative;
       background: transparent;
-      border: 1px solid var(--color-border);
-      color: var(--gold);
+      border: 1px solid rgba(196, 55, 55, 0.45);
+      color: #EF4444;
       border-radius: var(--radius-sm);
       padding: 8px 12px;
       cursor: pointer;
@@ -90,6 +90,23 @@
       align-items: center;
       justify-content: center;
       transition: all 0.2s;
+    }
+
+    .nav-tab-btn.active {
+      color: #EF4444 !important;
+      border-bottom-color: #C43737 !important;
+    }
+
+    .btn-header-crimson {
+      background: #C43737 !important;
+      color: #FFFFFF !important;
+      border: 1px solid #EF4444 !important;
+      white-space: nowrap;
+      font-weight: 700;
+    }
+
+    .btn-header-crimson:hover {
+      background: #EF4444 !important;
     }
 
     .notif-btn:hover {
@@ -156,8 +173,7 @@
         </button>
 
         <a href="#home" class="brand-logo" title="Kịch Bản Sát V16">
-          <img src="./src/images/logo.png" alt="Kịch Bản Sát" style="height: 46px; width: auto; object-fit: contain; filter: drop-shadow(0 0 6px rgba(212,175,55,0.3));" />
-          <span class="brand-text">Kịch Bản Sát V16</span>
+          <img src="./src/images/logo.png" alt="Kịch Bản Sát" style="height: 46px; width: auto; object-fit: contain; filter: drop-shadow(0 0 6px rgba(196,55,55,0.4));" />
         </a>
       </div>
 
@@ -199,10 +215,10 @@
 
         <!-- User container -->
         <div id="nav-user-container" style="display: flex; align-items: center; gap: 8px;">
-          <button id="btn-open-login" class="btn btn-ghost btn-sm">
+          <button id="btn-open-login" class="btn btn-sm btn-header-crimson">
             Đăng nhập
           </button>
-          <button id="btn-open-register" class="btn btn-gold btn-sm">
+          <button id="btn-open-register" class="btn btn-sm btn-header-crimson">
             Đăng ký
           </button>
         </div>

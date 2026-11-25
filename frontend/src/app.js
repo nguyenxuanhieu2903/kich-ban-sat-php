@@ -344,10 +344,10 @@ class App {
     } else {
       this.userContainer.innerHTML = `
         <div style="display: flex; align-items: center; gap: 8px;">
-          <button id="btn-open-login" class="btn btn-ghost btn-sm" style="color: var(--text-primary); border-color: rgba(255,255,255,0.25);">
+          <button id="btn-open-login" class="btn btn-sm btn-header-crimson">
             Đăng nhập
           </button>
-          <button id="btn-open-register" class="btn btn-gold btn-sm" style="color: var(--ink-black);">
+          <button id="btn-open-register" class="btn btn-sm btn-header-crimson">
             Đăng ký
           </button>
         </div>
