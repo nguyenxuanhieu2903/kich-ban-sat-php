@@ -29,12 +29,24 @@ function initScrollyParallax() {
   const s1Content = document.getElementById('s1-content');
   const s2Room = document.getElementById('s2-room');
   const s3Cards = document.getElementById('s3-cards');
-  const cardLeft = document.getElementById('card-left');
-  const cardCenter = document.getElementById('card-center');
-  const cardRight = document.getElementById('card-right');
+
+  // --- Phân cảnh 3: tiệm bói tarot ---
+  const s3CurtL = document.getElementById('s3-curtain-left');
+  const s3CurtR = document.getElementById('s3-curtain-right');
+  const s3Copy = document.getElementById('s3-copy');
+  const tarot = [...document.querySelectorAll('.tarot-slot')];
+  const flipRank = [0, 1, 4, 2, 3]; // thứ tự lật: ngoài trước, lá giữa (hung thủ) lật cuối
+  const easeInOut = (t) => (t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2);
 
   const clamp = (v, min = 0, max = 1) => Math.min(max, Math.max(min, v));
   const seg = (p, start, end) => clamp((p - start) / (end - start));
+
+  let step = 180;
+  function calcStep() {
+    const w = tarot[0] ? tarot[0].offsetWidth : 150;
+    step = Math.min(window.innerWidth * 0.17, w * 1.1);
+  }
+  calcStep();
 
   let ticking = false;
   function updateParallax() {
@@ -77,20 +89,34 @@ function initScrollyParallax() {
       s2Room.style.transform = `scale(${0.94 + p2In * 0.06})`;
     }
 
-    // --- PHÂN CẢNH 3 (0.68 -> 1.00): Quạt 3 lá bài hồ sơ nhân vật ---
-    const p3 = seg(p, 0.68, 0.88);
+    // --- PHÂN CẢNH 3 (0.66 -> 1.00): Rèm mở, 5 lá bài bay lên, lật lần lượt ---
     if (s3Cards) {
       s3Cards.style.opacity = seg(p, 0.66, 0.78);
       s3Cards.style.pointerEvents = p > 0.68 ? 'auto' : 'none';
     }
-    if (cardLeft) {
-      cardLeft.style.transform = `translateX(${(1 - p3) * 90}px) rotate(${-14 * p3}deg) translateY(${12 * p3}px)`;
-    }
-    if (cardRight) {
-      cardRight.style.transform = `translateX(${-(1 - p3) * 90}px) rotate(${14 * p3}deg) translateY(${12 * p3}px)`;
-    }
-    if (cardCenter) {
-      cardCenter.style.transform = `translateY(${-10 * p3}px) scale(${0.92 + p3 * 0.1})`;
+
+    const open = easeInOut(seg(p, 0.68, 0.82));
+    if (s3CurtL) s3CurtL.style.transform = `translateX(${-open * 62}%)`;
+    if (s3CurtR) s3CurtR.style.transform = `translateX(${open * 62}%)`;
+
+    tarot.forEach((el, i) => {
+      const k = i - 2;
+      const a = easeInOut(seg(p, 0.72 + Math.abs(k) * 0.015, 0.88));
+      const f = seg(p, 0.78 + flipRank[i] * 0.028, 0.85 + flipRank[i] * 0.028);
+      const x = k * step * a;
+      const y = (1 - a) * 180 + k * k * 14 * a;
+      const r = k * 7 * a;
+      const s = (0.5 + 0.5 * a) * (1 + 0.1 * Math.sin(Math.PI * f));
+      el.style.transform = `translate3d(${x}px, ${y}px, 0) rotate(${r}deg) scale(${s})`;
+      el.style.opacity = a;
+      el.style.zIndex = 5 - Math.abs(k);
+      el.style.setProperty('--flip', `${(1 - easeInOut(f)) * 180}deg`);
+    });
+
+    if (s3Copy) {
+      const c = seg(p, 0.88, 0.97);
+      s3Copy.style.opacity = c;
+      s3Copy.style.transform = `translateY(${(1 - c) * 20}px)`;
     }
 
     ticking = false;
@@ -102,6 +128,11 @@ function initScrollyParallax() {
       ticking = true;
     }
   }, { passive: true });
+
+  window.addEventListener('resize', () => {
+    calcStep();
+    updateParallax();
+  });
 
   updateParallax();
 }
