@@ -318,6 +318,45 @@
     </div>
   </footer>
 
+  <!-- Global Price & Policy Dialog (works on all tabs) -->
+  <dialog id="home-price-dialog" style="margin: auto; max-width: 760px; width: 94%; max-height: 90vh; overflow-y: auto; background: #F3EFE0; color: #1F1C18; border: 1.5px solid #8B1E1E; border-radius: 14px; padding: 28px 32px; box-shadow: 0 20px 50px rgba(0,0,0,0.75);">
+    <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; border-bottom: 2px dashed rgba(139,30,30,0.35); padding-bottom: 12px; margin-bottom: 20px;">
+      <div>
+        <div style="font-family: var(--font-mono); font-size: 0.72rem; letter-spacing: 0.16em; color: #8B1E1E;">CẨM NANG THAM GIA V16</div>
+        <h3 style="font-family: var(--font-display); font-size: 1.65rem; color: #8B1E1E; margin: 4px 0 0;">Bảng Giá Vé &amp; Nội Quy Hiện Trường</h3>
+      </div>
+      <button id="btn-close-price-dialog" type="button" class="btn btn-ghost btn-sm" style="padding: 4px 10px; color: #1F1C18; border-color: #C8BFA8;">✕</button>
+    </div>
+
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; margin-bottom: 22px;">
+      <div style="background: #FAF7EE; border: 1px solid #D5CCB8; border-left: 4px solid #8B1E1E; border-radius: 8px; padding: 16px;">
+        <div style="font-weight: 700; text-transform: uppercase; font-size: 0.8rem; color: #1F1C18;">Khung Giờ Ban Ngày (09:00 – 19:59)</div>
+        <div style="font-size: 1.5rem; font-weight: 800; color: #8B1E1E; margin: 6px 0;">159.000đ <span style="font-size: 0.85rem; font-weight: 400; color: #524B42;">/ người</span></div>
+        <p style="font-size: 0.86rem; color: #3D372F; margin: 0;">Bao gồm trọn bộ hồ sơ nhân vật, đạo cụ phá án, Quản Trò (DM) dẫn chuyện và 01 phần nước tự chọn.</p>
+      </div>
+      <div style="background: #FAF7EE; border: 1px solid #D5CCB8; border-left: 4px solid #8B1E1E; border-radius: 8px; padding: 16px;">
+        <div style="font-weight: 700; text-transform: uppercase; font-size: 0.8rem; color: #1F1C18;">Khung Giờ Buổi Tối (Từ 20:00)</div>
+        <div style="font-size: 1.5rem; font-weight: 800; color: #8B1E1E; margin: 6px 0;">199.000đ <span style="font-size: 0.85rem; font-weight: 400; color: #524B42;">/ người</span></div>
+        <p style="font-size: 0.86rem; color: #3D372F; margin: 0;">Trải nghiệm không gian ánh nến &amp; âm thanh tăng cường, kèm hồ sơ nhân vật, DM và 01 phần nước tự chọn.</p>
+      </div>
+    </div>
+
+    <h4 style="font-family: var(--font-display); font-size: 1.15rem; color: #8B1E1E; margin: 0 0 10px;">Nội Quy, Ưu Đãi &amp; Chính Sách Giữ Ghế</h4>
+    <ol style="padding-left: 20px; margin: 0 0 20px; display: grid; gap: 8px; font-size: 0.9rem; line-height: 1.55; color: #1F1C18;">
+      <li><strong>Cọc cố định 50.000đ &amp; Giữ chỗ 4 giờ:</strong> Hệ thống giữ ghế <strong>4 giờ</strong> để hoàn tất cọc 50.000đ/người (khấu trừ trực tiếp vào tiền vé tại quán).</li>
+      <li><strong>Quy tắc hoàn cọc 24 giờ:</strong> Hủy trước giờ chơi tối thiểu <strong>24 tiếng</strong> được hoàn 100% cọc tự động.</li>
+      <li><strong>Ưu đãi Thứ 3 &amp; HSSV:</strong> Giảm giá trực tiếp khi xác thực thẻ Học sinh — Sinh viên tại Player Lounge hoặc đặt lịch ngày Thứ 3.</li>
+      <li><strong>Đúng giờ mở màn:</strong> Có mặt tại 36/52 Nguyễn Gia Trí, Bình Thạnh trước <strong>15 phút</strong> để nhận kịch bản và hóa trang.</li>
+      <li><strong>Bảo mật &amp; Độ tuổi:</strong> Không tiết lộ hung thủ/cốt truyện sau khi chơi; kịch bản <strong>18+</strong> chỉ dành cho người từ đủ 18 tuổi.</li>
+    </ol>
+
+    <div style="display: flex; gap: 10px; flex-wrap: wrap; justify-content: flex-end;">
+      <button id="btn-price-goto-games" type="button" class="btn btn-sm" style="background: #8B1E1E; color: #fff; border: none; font-weight: 700;">Xem Kho Kịch Bản</button>
+      <button id="btn-price-goto-rooms" type="button" class="btn btn-ghost btn-sm" style="color: #8B1E1E; border-color: #8B1E1E;">Xem Phòng Đang Tuyển</button>
+      <button id="btn-ok-price-dialog" type="button" class="btn btn-ghost btn-sm" style="color: #1F1C18; border-color: #C8BFA8;">Đóng</button>
+    </div>
+  </dialog>
+
   <script type="module" src="./src/app.js"></script>
 </body>
 </html>

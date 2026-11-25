@@ -3,6 +3,14 @@ import { escapeHtml } from '../../utils/sanitize.js';
 import { ALL_SCRIPTS } from '../../data/scripts.data.js';
 import { HOME_TEMPLATE_HTML } from './home-template.js';
 
+function normalizeText(str) {
+  return (str || '')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/đ/g, 'd');
+}
+
 export class HomeView {
   constructor(container, options = {}) {
     this.container = container;
@@ -12,25 +20,12 @@ export class HomeView {
     this.selectedGenre = 'Tất cả';
     this.searchQuery = '';
     this.pendingAgeAction = null;
+    this._onScroll = null;
+    this._onResize = null;
   }
 
   async render() {
-    this.container.innerHTML = `
-      ${HOME_TEMPLATE_HTML}
-      <dialog id="home-price-dialog" class="custom-modal" style="max-width: 560px; background: #13151F; color: #f8fafc; border: 1px solid rgba(212,175,55,0.4); border-radius: 14px; padding: 28px;">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
-          <h3 style="font-family: var(--font-display); color: #D4AF37; margin: 0;">Quy Định &amp; Bảng Giá Vé V16</h3>
-          <button id="btn-close-price-dialog" class="btn btn-ghost btn-sm" style="padding: 4px 10px;">✕</button>
-        </div>
-        <ul style="list-style: none; padding: 0; margin: 0 0 18px; display: grid; gap: 10px; font-size: 0.92rem; color: #CBD5E1;">
-          <li>• <strong>Cọc cố định:</strong> 50.000đ / người để khóa ghế chính thức.</li>
-          <li>• <strong>Hoàn cọc 24h:</strong> Hoàn 100% nếu hủy trước giờ chơi tối thiểu 24 tiếng.</li>
-          <li>• <strong>Thời hạn giữ phòng:</strong> 4 giờ để ghép đủ người &amp; biểu quyết lịch.</li>
-          <li>• <strong>Ưu đãi HSSV &amp; Thứ 3:</strong> Giảm giá trực tiếp khi xác thực thẻ sinh viên tại Player Lounge.</li>
-        </ul>
-        <button id="btn-ok-price-dialog" class="btn btn-gold" style="width: 100%;">Đã hiểu</button>
-      </dialog>
-    `;
+    this.container.innerHTML = HOME_TEMPLATE_HTML;
 
     this.initScrollyParallax();
     this.bindEvents();
@@ -38,6 +33,10 @@ export class HomeView {
   }
 
   initScrollyParallax() {
+    // Dọn listener cũ tránh rò rỉ bộ nhớ khi chuyển tab qua lại
+    if (this._onScroll) window.removeEventListener('scroll', this._onScroll);
+    if (this._onResize) window.removeEventListener('resize', this._onResize);
+
     const stage = document.getElementById('scrolly-stage');
     if (!stage) return;
 
@@ -133,40 +132,41 @@ export class HomeView {
       ticking = false;
     };
 
-    window.addEventListener('scroll', () => {
+    this._onScroll = () => {
       if (!ticking) {
         requestAnimationFrame(updateParallax);
         ticking = true;
       }
-    }, { passive: true });
-
-    window.addEventListener('resize', () => {
+    };
+    this._onResize = () => {
       calcStep();
       updateParallax();
-    });
+    };
+
+    window.addEventListener('scroll', this._onScroll, { passive: true });
+    window.addEventListener('resize', this._onResize);
 
     updateParallax();
   }
 
   bindEvents() {
     const priceDialog = document.getElementById('home-price-dialog');
-    document.getElementById('btn-close-price-dialog')?.addEventListener('click', () => priceDialog?.close());
-    document.getElementById('btn-ok-price-dialog')?.addEventListener('click', () => priceDialog?.close());
-
     this.container.querySelectorAll('a[href="#home-price-dialog"]').forEach(a => {
       a.addEventListener('click', (e) => {
         e.preventDefault();
-        priceDialog?.showModal?.();
+        if (priceDialog && typeof priceDialog.showModal === 'function' && !priceDialog.open) {
+          priceDialog.showModal();
+        }
       });
     });
 
-    // Search input
+    // Tìm kiếm tiếng Việt không dấu + debounce 200ms
     const searchInput = document.getElementById('script-search-input');
     const clearBtn = document.getElementById('script-search-clear');
     let timer = null;
     if (searchInput) {
       searchInput.addEventListener('input', () => {
-        this.searchQuery = searchInput.value.trim().toLowerCase();
+        this.searchQuery = searchInput.value.trim();
         if (clearBtn) clearBtn.style.display = this.searchQuery ? 'inline-flex' : 'none';
         clearTimeout(timer);
         timer = setTimeout(() => this.renderScriptsGrid(), 200);
@@ -178,10 +178,11 @@ export class HomeView {
         if (searchInput) searchInput.value = '';
         clearBtn.style.display = 'none';
         this.renderScriptsGrid();
+        searchInput?.focus();
       });
     }
 
-    // 18+ Age Modal
+    // Popup xác nhận 18+
     const ageModal = document.getElementById('age-modal');
     document.getElementById('age-cancel-btn')?.addEventListener('click', () => {
       ageModal?.classList.remove('open');
@@ -209,16 +210,16 @@ export class HomeView {
         const max = Number(r.max_players || 8);
         const missing = Math.max(0, max - joined);
         return `
-          <div class="room-card" style="background: var(--bg-surface, #13151F); border: 1px solid rgba(212,175,55,0.28); border-radius: 10px; padding: 20px; display: flex; flex-direction: column; justify-content: space-between; gap: 12px;">
+          <div class="room-card" style="background: var(--bg-surface, #13151F); border: 1px solid rgba(196, 55, 55, 0.45); border-radius: 10px; padding: 20px; display: flex; flex-direction: column; justify-content: space-between; gap: 12px;">
             <div>
               <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
-                <span class="badge badge-gold">${escapeHtml(r.status)}</span>
-                <span style="font-family:var(--font-mono);font-size:0.82rem;color:var(--gold);">${joined}/${max} người</span>
+                <span class="badge badge-18">${escapeHtml(r.status)}</span>
+                <span style="font-family:var(--font-mono);font-size:0.82rem;color:#EF4444;font-weight:700;">${joined}/${max} người</span>
               </div>
               <h3 style="font-family:var(--font-display);font-size:1.15rem;margin:0 0 6px;">${escapeHtml(r.title || r.game_name || 'Phòng Kịch Bản Sát')}</h3>
               <p class="text-muted" style="font-size:0.86rem;margin:0;">${missing > 0 ? `Còn thiếu ${missing} chỗ • Cọc 50.000đ` : 'Đã đủ người'}</p>
             </div>
-            <button class="btn btn-gold btn-sm btn-join-room-home" style="width:100%;">Vào phòng ghép nhóm &rarr;</button>
+            <button class="btn btn-sm btn-header-crimson btn-join-room-home" style="width:100%;">Vào phòng ghép nhóm &rarr;</button>
           </div>
         `;
       }).join('');
@@ -231,36 +232,16 @@ export class HomeView {
   }
 
   async fetchScripts() {
-    let apiGames = [];
-    try {
-      const res = await api.get('/games');
-      apiGames = res?.data?.games || [];
-    } catch {
-      apiGames = [];
-    }
-
-    const mappedApi = apiGames.map(g => ({
-      id: g.id,
-      title: g.name || g.title,
-      genre: g.category || g.genre || 'Trinh thám',
-      players: `${g.min_players || 5}–${g.max_players || 8} người`,
-      price: Number(g.price_per_person || 189000),
-      is18: Boolean(g.is_18_plus || g.age_limit >= 18),
-      summary: g.description || 'Kịch bản nhập vai phá án có Quản trò dẫn dắt.'
-    }));
-
-    this.games = mappedApi.length >= 6 ? mappedApi : [
-      ...mappedApi,
-      ...ALL_SCRIPTS.slice(0, 12).map(s => ({
+    // Chỉ lấy đúng 42 kịch bản chuẩn có ảnh bìa thật từ scripts.data.js
+    this.games = (ALL_SCRIPTS || [])
+      .filter(s => Boolean(s.poster))
+      .map(s => ({
         id: s.id,
         title: s.title,
-        genre: s.genre || 'Trinh thám',
-        players: s.players || '5–8 người',
-        price: s.price || 189000,
-        is18: Boolean(s.is18),
-        summary: s.summary || 'Kịch bản nhập vai phá án đặc sắc.'
-      }))
-    ];
+        genre: s.genre,
+        is18Plus: Boolean(s.is18Plus),
+        poster: `./src/assets/images/${(s.poster || '').split('/').pop()}`
+      }));
 
     this.renderGenreFilters();
     this.renderScriptsGrid();
@@ -271,7 +252,7 @@ export class HomeView {
     if (!bar) return;
     const genres = ['Tất cả', ...new Set(this.games.map(g => g.genre).filter(Boolean))];
     bar.innerHTML = genres.map(g => `
-      <button type="button" class="filter-pill ${this.selectedGenre === g ? 'active' : ''}" data-genre="${escapeHtml(g)}">
+      <button type="button" class="btn btn-sm ${this.selectedGenre === g ? 'btn-header-crimson' : 'btn-ghost'}" data-genre="${escapeHtml(g)}">
         ${escapeHtml(g)}
       </button>
     `).join('');
@@ -289,40 +270,39 @@ export class HomeView {
     const grid = document.getElementById('home-scripts-grid');
     if (!grid) return;
 
+    const kw = normalizeText(this.searchQuery);
     const filtered = this.games.filter(g => {
       const matchGenre = this.selectedGenre === 'Tất cả' || g.genre === this.selectedGenre;
-      const matchQuery = !this.searchQuery || (g.title || '').toLowerCase().includes(this.searchQuery);
+      const matchQuery = !kw || normalizeText(g.title).includes(kw);
       return matchGenre && matchQuery;
     });
 
     if (!filtered.length) {
-      grid.innerHTML = `<p class="text-muted">Không tìm thấy kịch bản phù hợp.</p>`;
+      grid.innerHTML = `<p class="text-muted" style="grid-column: 1 / -1; text-align: center; padding: 32px 0;">Không tìm thấy kịch bản phù hợp.</p>`;
       return;
     }
 
-    grid.innerHTML = filtered.slice(0, 9).map(g => `
-      <div class="script-card" style="background: var(--bg-surface, #13151F); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; padding: 20px; display: flex; flex-direction: column; justify-content: space-between; gap: 12px;">
-        <div>
-          <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:8px;">
-            <span class="badge badge-gold">${escapeHtml(g.genre)}</span>
-            ${g.is18 ? '<span class="badge badge-18">18+</span>' : ''}
+    grid.innerHTML = filtered.slice(0, 12).map(g => {
+      const fallbackUrl = `https://placehold.co/400x600/181512/D64545?text=${encodeURIComponent(g.title)}`;
+      return `
+        <a href="#games"
+           class="poster-card btn-open-script"
+           data-title="${escapeHtml(g.title)}"
+           data-18="${g.is18Plus ? '1' : '0'}">
+          <div class="poster-thumb">
+            <img src="${escapeHtml(g.poster)}" alt="${escapeHtml(g.title)}" loading="lazy" onerror="this.onerror=null;this.src='${fallbackUrl}'" />
+            ${g.is18Plus ? '<span class="poster-tag">18+</span>' : ''}
           </div>
-          <h3 style="font-family:var(--font-display);font-size:1.15rem;margin:0 0 6px;">${escapeHtml(g.title)}</h3>
-          <p class="text-muted" style="font-size:0.85rem;margin:0 0 10px;">${escapeHtml(g.summary)}</p>
-          <div style="font-family:var(--font-mono);font-size:0.82rem;color:var(--gold);">
-            👥 ${escapeHtml(g.players)} &bull; ${Number(g.price).toLocaleString('vi-VN')}đ
-          </div>
-        </div>
-        <button class="btn btn-ghost btn-sm btn-open-script" data-title="${escapeHtml(g.title)}" data-is18="${g.is18 ? '1' : '0'}" style="width:100%;">
-          Đặt phòng kịch bản này &rarr;
-        </button>
-      </div>
-    `).join('');
+          <h3 class="poster-title">${escapeHtml(g.title)}</h3>
+        </a>
+      `;
+    }).join('');
 
-    grid.querySelectorAll('.btn-open-script').forEach(btn => {
-      btn.addEventListener('click', () => {
-        const is18 = btn.dataset.is18 === '1';
-        const title = btn.dataset.title || '';
+    grid.querySelectorAll('.btn-open-script').forEach(card => {
+      card.addEventListener('click', (e) => {
+        e.preventDefault();
+        const is18 = card.dataset['18'] === '1';
+        const title = card.dataset.title || '';
         if (is18) {
           const modal = document.getElementById('age-modal');
           const nameEl = document.getElementById('age-script-name');

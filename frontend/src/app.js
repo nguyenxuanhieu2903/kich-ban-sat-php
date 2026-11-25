@@ -118,11 +118,11 @@ class App {
     });
 
     const pricingBtn = document.getElementById('nav-link-pricing');
+    const priceDialog = document.getElementById('home-price-dialog');
     const openPricingDialog = (e) => {
       e.preventDefault();
-      const dialog = document.getElementById('home-price-dialog');
-      if (dialog && typeof dialog.showModal === 'function') {
-        dialog.showModal();
+      if (priceDialog && typeof priceDialog.showModal === 'function') {
+        if (!priceDialog.open) priceDialog.showModal();
       } else {
         this.navigateTo('games');
       }
@@ -134,6 +134,16 @@ class App {
     if (footerPricingBtn) {
       footerPricingBtn.addEventListener('click', openPricingDialog);
     }
+    document.getElementById('btn-close-price-dialog')?.addEventListener('click', () => priceDialog?.close());
+    document.getElementById('btn-ok-price-dialog')?.addEventListener('click', () => priceDialog?.close());
+    document.getElementById('btn-price-goto-games')?.addEventListener('click', () => {
+      priceDialog?.close();
+      this.navigateTo('games');
+    });
+    document.getElementById('btn-price-goto-rooms')?.addEventListener('click', () => {
+      priceDialog?.close();
+      this.navigateTo('rooms');
+    });
 
     const contactBtn = document.getElementById('nav-link-contact');
     if (contactBtn) {
