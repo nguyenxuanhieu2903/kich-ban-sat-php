@@ -69,24 +69,34 @@ class PaymentRefundRequestController
             $reason = 'Yêu cầu hoàn tiền từ người chơi';
         }
 
-        // Kiểm tra mốc 24h trước giờ chơi nếu có session
+        // Kiểm tra mốc 24h trước giờ chơi nếu có session (chặn hoàn cọc nếu buổi chơi đã COMPLETED)
         $roomId = (int) $payment['game_room_id'];
         $sessStmt = $this->pdo->prepare(
-            'SELECT `start_at` FROM `sessions` WHERE `game_room_id` = :rid AND `status` IN (\'SCHEDULED\', \'IN_PROGRESS\') ORDER BY `id` DESC LIMIT 1'
+            'SELECT `start_at`, `status` FROM `sessions` WHERE `game_room_id` = :rid AND `status` IN (\'SCHEDULED\', \'IN_PROGRESS\', \'COMPLETED\') ORDER BY `id` DESC LIMIT 1'
         );
         $sessStmt->bindValue(':rid', $roomId, PDO::PARAM_INT);
         $sessStmt->execute();
-        $startAt = $sessStmt->fetchColumn();
+        $sessRow = $sessStmt->fetch(PDO::FETCH_ASSOC);
 
-        if ($startAt !== false && $startAt !== null) {
-            $diffHours = (strtotime((string) $startAt) - time()) / 3600;
+        if ($sessRow !== false) {
             $allowForceRefund = ($roleCode === 'ADMIN' && !empty($body['force_refund']));
-            if ($diffHours < 24 && !$allowForceRefund) {
+            if (strtoupper((string) ($sessRow['status'] ?? '')) === 'COMPLETED' && !$allowForceRefund) {
                 return Response::fail(
-                    'Chỉ có thể yêu cầu hoàn tiền trước giờ chơi ít nhất 24 giờ',
-                    'REFUND_WINDOW_EXPIRED',
+                    'Không thể yêu cầu hoàn tiền cho buổi chơi đã hoàn tất',
+                    'SESSION_ALREADY_COMPLETED',
                     422
                 );
+            }
+            $startAt = $sessRow['start_at'] ?? null;
+            if ($startAt !== null) {
+                $diffHours = (strtotime((string) $startAt) - time()) / 3600;
+                if ($diffHours < 24 && !$allowForceRefund) {
+                    return Response::fail(
+                        'Chỉ có thể yêu cầu hoàn tiền trước giờ chơi ít nhất 24 giờ',
+                        'REFUND_WINDOW_EXPIRED',
+                        422
+                    );
+                }
             }
         }
 
@@ -118,6 +128,11 @@ class PaymentRefundRequestController
             return $auth;
         }
 
+        $actorRole = strtoupper((string) ($auth['role_code'] ?? $auth['role'] ?? 'PLAYER'));
+        if (in_array($actorRole, ['DM', 'ADMIN'], true)) {
+            return Response::fail('Tài khoản Quản trò (DM) và Quản trị viên (Admin) không gửi yêu cầu hoàn cọc cá nhân', 'FORBIDDEN_ROLE', 403);
+        }
+
         $body = $request->getBodyParams();
         $roomId = (int) ($body['room_id'] ?? $body['game_room_id'] ?? 0);
 
@@ -127,14 +142,42 @@ class PaymentRefundRequestController
                 WHERE rp.`game_room_id` = :room_id AND rp.`user_id` = :user_id
                   AND rp.`status` IN (\'PENDING_DEPOSIT\', \'DEPOSITED\', \'LEAVE_REQUESTED\')
                   AND p.`paid_amount` > 0
-                ORDER BY p.`id` DESC LIMIT 1');
+                  AND NOT EXISTS (
+                      SELECT 1 FROM `refunds` r
+                      WHERE r.`player_payment_id` = p.`id`
+                        AND r.`status` IN (\'PENDING\', \'APPROVED\', \'PROCESSING\', \'COMPLETED\')
+                  )
+                ORDER BY p.`id` ASC');
             $stmt->bindValue(':room_id', $roomId, PDO::PARAM_INT);
             $stmt->bindValue(':user_id', (int) $auth['id'], PDO::PARAM_INT);
             $stmt->execute();
-            $paymentId = $stmt->fetchColumn();
+            $paymentIds = array_map('intval', $stmt->fetchAll(PDO::FETCH_COLUMN));
 
-            if ($paymentId !== false) {
-                return $this->requestRefund($request, (string) $paymentId);
+            if (!empty($paymentIds)) {
+                $createdRefunds = [];
+                $totalAmount = 0;
+                $lastResponse = null;
+                foreach ($paymentIds as $pid) {
+                    $res = $this->requestRefund($request, (string) $pid);
+                    $lastResponse = $res;
+                    if ($res->getStatusCode() >= 400) {
+                        return $res;
+                    }
+                    $decoded = json_decode($res->getContent(), true);
+                    if (!empty($decoded['data'])) {
+                        $createdRefunds[] = $decoded['data'];
+                        $totalAmount += (int) ($decoded['data']['amount'] ?? 0);
+                    }
+                }
+                if (count($createdRefunds) === 1 && $lastResponse !== null) {
+                    return $lastResponse;
+                }
+                return Response::success([
+                    'refund_id' => $createdRefunds[0]['refund_id'] ?? null,
+                    'refunds' => $createdRefunds,
+                    'amount' => $totalAmount,
+                    'status' => 'PENDING',
+                ], 'Đã gửi yêu cầu hoàn tiền cho toàn bộ khoản đã thanh toán thành công', null, 201);
             }
         }
 

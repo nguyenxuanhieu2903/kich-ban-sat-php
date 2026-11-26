@@ -262,7 +262,16 @@ class AdminRefundController
 
         $this->pdo->beginTransaction();
         try {
-            $stmt = $this->pdo->prepare('SELECT `id`, `player_payment_id`, `amount`, `status` FROM `refunds` WHERE `id` = :id LIMIT 1 FOR UPDATE');
+            $stmt = $this->pdo->prepare(
+                'SELECT r.`id`, r.`player_payment_id`, r.`amount`, r.`status`,
+                        rp.`user_id`, gr.`title` AS `room_title`
+                 FROM `refunds` r
+                 INNER JOIN `player_payments` p ON p.`id` = r.`player_payment_id`
+                 INNER JOIN `room_participants` rp ON rp.`id` = p.`room_participant_id`
+                 INNER JOIN `game_rooms` gr ON gr.`id` = rp.`game_room_id`
+                 WHERE r.`id` = :id
+                 LIMIT 1 FOR UPDATE'
+            );
             $stmt->bindValue(':id', $refundId, PDO::PARAM_INT);
             $stmt->execute();
             $refund = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -270,6 +279,11 @@ class AdminRefundController
             if ($refund === false) {
                 $this->pdo->rollBack();
                 return Response::fail('Không tìm thấy yêu cầu hoàn tiền', 'REFUND_NOT_FOUND', 404);
+            }
+
+            if (strtoupper((string) ($refund['status'] ?? '')) !== 'APPROVED') {
+                $this->pdo->rollBack();
+                return Response::fail('Chỉ có thể hoàn tất chuyển khoản cho yêu cầu đã được duyệt (APPROVED)', 'INVALID_REFUND_STATUS', 422);
             }
 
             $upStmt = $this->pdo->prepare(
@@ -285,6 +299,21 @@ class AdminRefundController
             $upPay = $this->pdo->prepare('UPDATE `player_payments` SET `status` = \'CANCELLED\', `updated_at` = NOW() WHERE `id` = :pid');
             $upPay->bindValue(':pid', (int) $refund['player_payment_id'], PDO::PARAM_INT);
             $upPay->execute();
+
+            $auditService = new \App\Shared\Services\AuditLogService($this->pdo);
+            $auditService->log((int) $auth['id'], 'COMPLETE_REFUND', 'REFUND', $refundId, [
+                'amount' => (int) $refund['amount'],
+                'bank_reference_code' => $bankRef,
+                'player_payment_id' => (int) $refund['player_payment_id'],
+            ]);
+
+            $this->notiRepo->createNotification(
+                'Hoàn tiền đã chuyển khoản thành công',
+                "Khoản hoàn tiền " . number_format((int) $refund['amount']) . " VNĐ cho phòng '{$refund['room_title']}' đã được chuyển khoản hoàn tất (Mã GD: {$bankRef}).",
+                'REFUND',
+                (int) $auth['id'],
+                [(int) $refund['user_id']]
+            );
 
             $this->pdo->commit();
 

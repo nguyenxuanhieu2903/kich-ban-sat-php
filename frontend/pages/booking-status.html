@@ -1,20 +1,192 @@
 <!DOCTYPE html>
 <html lang="vi">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Vé đặt phòng — Kịch Bản Sát</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="../src/styles/tokens.css">
-  <link rel="stylesheet" href="../src/styles/components.css">
-  <link rel="stylesheet" href="../src/styles/player.css">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Trạng Thái Đặt Chỗ &amp; Vé Điện Tử — Kịch Bản Sát V16</title>
+  <link rel="stylesheet" href="../src/styles/components.css" />
+  <link rel="stylesheet" href="../src/styles/portals-vintage.css" />
 </head>
 <body>
-  <div id="player-header"></div>
-  <main class="player-main" id="player-root"></main>
-  <div id="player-footer"></div>
-  <script type="module" src="../src/pages/player/booking-status-page.js"></script>
+  <div id="app-header"></div>
+
+  <main class="portal-main">
+    <div class="container" id="booking-root">Đang tải thông tin vé...</div>
+  </main>
+
+  <div id="app-footer"></div>
+
+  <script type="module">
+    import { initChrome } from '../src/logic/layout.js';
+    import { api } from '../src/logic/api.js';
+    import { requireAuthRole, formatVND, escapeHtml, showToast } from '../src/logic/portal-mock.js';
+
+    const params = new URLSearchParams(window.location.search);
+    const roomId = params.get('id') || params.get('room_id') || '1';
+    let currentAuthUser = null;
+    let currentRole = 'guest';
+
+    async function render() {
+      const root = document.getElementById('booking-root');
+      try {
+        const [roomData, payData] = await Promise.all([
+          api.get(`/rooms/${encodeURIComponent(roomId)}`),
+          api.get(`/rooms/${encodeURIComponent(roomId)}/payments`).catch(() => ({ payments: [] })),
+        ]);
+        const room = roomData?.room || roomData;
+        const payments = payData?.payments || [];
+        const participants = room?.participants || roomData?.participants || [];
+        const isPlayer = currentRole === 'player';
+        const myUid = Number(currentAuthUser?.id || 0);
+        const myPart = participants.find((p) => Number(p.user_id) === myUid && !['LEFT', 'CANCELLED', 'CANCELLED_UNPAID', 'CANCELLED_BY_ADMIN'].includes(String(p.status)));
+
+        if (!isPlayer) {
+          const totalCollected = payments.reduce((sum, p) => sum + Number(p.paid_amount || 0), 0);
+          root.innerHTML = `
+            <div class="portal-hero">
+              <div>
+                <div class="portal-eyebrow">${currentRole === 'admin' ? 'ADMIN AUDIT' : 'DM OPERATIONS'} — ĐỐI SOÁT THANH TOÁN PHÒNG</div>
+                <h1 class="portal-title">Đối Soát Thanh Toán Phòng #${room.id}</h1>
+                <p class="portal-subtitle">Kịch bản: ${escapeHtml(room.game?.name || room.title || '')} • Trạng thái: ${escapeHtml(room.status || '')}</p>
+              </div>
+              <div class="portal-actions">
+                <a href="./room-detail.html?id=${encodeURIComponent(room.id)}" class="btn btn-ghost">Chi tiết phòng</a>
+                <a href="${currentRole === 'admin' ? './admin-portal.html' : './dm-portal.html'}" class="btn btn-gold">${currentRole === 'admin' ? 'Về Admin Portal' : 'Về DM Portal'}</a>
+              </div>
+            </div>
+
+            <section class="portal-panel">
+              <h2 class="portal-panel-title">Danh Sách Giao Dịch Thành Viên (Chế Độ Xem Đối Soát)</h2>
+              <p class="text-muted" style="margin-bottom:14px;font-size:0.88rem;">Tài khoản ${currentRole === 'admin' ? 'Quản trị viên (Admin)' : 'Quản trò (DM)'} chỉ xem đối soát tình trạng thanh toán của khách, không phát sinh giao dịch đặt cọc cá nhân.</p>
+              <div class="summary-row" style="margin-bottom:14px;"><span>Tổng thực thu đã ghi nhận của phòng</span><strong>${formatVND(totalCollected)}</strong></div>
+              <div class="portal-table-wrap">
+                <table class="portal-table">
+                  <thead><tr><th>Mã GD</th><th>Người chơi</th><th>Loại</th><th>Phải thu</th><th>Đã thu</th><th>Trạng thái</th></tr></thead>
+                  <tbody>
+                    ${payments.length ? payments.map((p) => `
+                      <tr>
+                        <td><strong>#${p.id}</strong></td>
+                        <td>${escapeHtml(p.full_name || p.player_name || ('User #' + (p.user_id || '')))}</td>
+                        <td>${escapeHtml(p.payment_type || 'DEPOSIT')}</td>
+                        <td>${formatVND(p.amount || 0)}</td>
+                        <td><strong>${formatVND(p.paid_amount || 0)}</strong></td>
+                        <td><span class="v-badge ${p.status === 'PAID' ? 'v-badge-green' : 'v-badge-gold'}">${escapeHtml(p.status || '')}</span></td>
+                      </tr>
+                    `).join('') : '<tr><td colspan="6" class="text-muted">Phòng này chưa có giao dịch thanh toán nào từ người chơi.</td></tr>'}
+                  </tbody>
+                </table>
+              </div>
+            </section>
+          `;
+          return;
+        }
+
+        const isCreator = myUid > 0 && myUid === Number(room.creator_id || 0);
+        // Chỉ Chủ phòng thanh toán theo số chỗ nhóm mình đặt; khách ghép lẻ chỉ thanh toán đúng 1 suất
+        const seatCount = isCreator ? Number(room.total_players || 1) : 1;
+        const myPayments = myUid > 0 ? payments.filter((p) => Number(p.user_id || myUid) === myUid) : payments;
+        const own = myPayments[0] || payments[0] || {};
+
+        // Gọi trực tiếp /rooms/quote từ MySQL (giữ nguyên ưu đãi Thứ Ba / HSSV; không fallback cứng ngày Thứ Ba)
+        let quoteInfo = null;
+        let quotedTotal = seatCount * 199000;
+        try {
+          const nowFallback = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}-${String(new Date().getDate()).padStart(2, '0')} 14:00`;
+          const firstProp = (room.proposals && room.proposals[0]?.proposed_start_at) || '';
+          const slotRaw = String(room.session?.start_at || firstProp || room.target_time_slot || nowFallback).trim();
+          const isoSlot = slotRaw.includes('T') ? slotRaw : (slotRaw.length === 16 ? slotRaw.replace(' ', 'T') + ':00' : slotRaw.replace(' ', 'T'));
+          quoteInfo = await api.post('/rooms/quote', {
+            game_id: Number(room.game_id),
+            player_count: seatCount,
+            session_start_time: isoSlot,
+            is_student_verified: Boolean(currentAuthUser?.student_verified),
+          });
+          quotedTotal = Number(quoteInfo?.final_total_vnd ?? (Number(quoteInfo?.base_price_per_player || 0) * seatCount));
+        } catch {
+          quotedTotal = seatCount * 199000;
+        }
+
+        const roomStUpper = String(room.status || '').toUpperCase();
+        const canPayRemaining = ['SCHEDULED', 'CONFIRMED', 'IN_PROGRESS'].includes(roomStUpper);
+
+        const paidAmt = myPayments.reduce((sum, p) => sum + Number(p.paid_amount || 0), 0);
+        const totalAmt = Math.max(paidAmt, quotedTotal);
+        const remaining = Math.max(0, totalAmt - paidAmt);
+        const depAmt = Math.min(totalAmt, seatCount * 50000);
+        const status = paidAmt >= totalAmt ? 'PAID' : paidAmt > 0 ? 'DEPOSITED' : (own.status || 'PENDING');
+        const rawSub = Number(quoteInfo?.raw_total_vnd || totalAmt);
+        const discAmt = Number(quoteInfo?.total_discount_vnd || 0);
+        const promoName = quoteInfo?.applied_promotion?.name || '';
+
+        root.innerHTML = `
+          <div class="portal-hero">
+            <div>
+              <div class="portal-eyebrow">VINTAGE E-TICKET — BOOKING STATUS</div>
+              <h1 class="portal-title">Vé Điện Tử &amp; Trạng Thái Thanh Toán</h1>
+              <p class="portal-subtitle">Mã phòng: #${room.id} • Kịch bản: ${room.game?.name || room.title || ''}</p>
+            </div>
+            <div class="portal-actions">
+              <a href="./room-detail.html?id=${encodeURIComponent(room.id)}" class="btn btn-ghost">Quay lại Phòng</a>
+              <a href="./profile.html" class="btn btn-ghost">Lịch Sử Đặt Chỗ</a>
+            </div>
+          </div>
+
+          <div class="portal-two-col">
+            <section class="portal-panel">
+              <h2 class="portal-panel-title">Thông Tin Vé Tham Dự</h2>
+              <div class="summary-row"><span>Mã phòng</span><strong>#${room.id}</strong></div>
+              <div class="summary-row"><span>Tên phòng</span><strong>${escapeHtml(room.title || '')}</strong></div>
+              <div class="summary-row"><span>Kịch bản</span><strong>${escapeHtml(room.game?.name || '')}</strong></div>
+              <div class="summary-row"><span>Số chỗ của bạn</span><strong>${seatCount} người</strong></div>
+              <div class="summary-row"><span>Trạng thái phòng</span><span class="v-badge v-badge-gold">${escapeHtml(room.status)}</span></div>
+              <div class="summary-row"><span>Trạng thái thanh toán</span><span class="v-badge ${status === 'PAID' ? 'v-badge-green' : paidAmt > 0 ? 'v-badge-gold' : 'v-badge-crimson'}">${escapeHtml(status)}</span></div>
+            </section>
+
+            <aside class="portal-panel">
+              <h2 class="portal-panel-title">Chi Tiết Thanh Toán</h2>
+              ${quoteInfo?.base_price_per_player ? `<div class="summary-row"><span>Đơn giá gốc / người</span><strong>${formatVND(quoteInfo.base_price_per_player)}</strong></div>` : ''}
+              ${discAmt > 0 ? `
+                <div class="summary-row"><span>Tạm tính gốc (${seatCount} người)</span><strong>${formatVND(rawSub)}</strong></div>
+                <div class="summary-row"><span>${escapeHtml(promoName || 'Ưu đãi áp dụng')}</span><strong style="color:#1A5936;">-${formatVND(discAmt)}</strong></div>
+              ` : ''}
+              <div class="summary-row"><span>Tổng giá vé (${seatCount} người)</span><strong>${formatVND(totalAmt)}</strong></div>
+              <div class="summary-row"><span>Đã thanh toán</span><strong>${formatVND(paidAmt)}</strong></div>
+              <div class="summary-row total"><span>Còn phải thanh toán</span><span>${formatVND(remaining)}</span></div>
+              <div style="margin-top:18px;display:flex;flex-direction:column;gap:10px;">
+                ${!myPart ? `<a href="./room-detail.html?id=${encodeURIComponent(room.id)}" class="btn btn-ghost">Vào chi tiết phòng để tham gia trước khi đặt cọc</a>` : ''}
+                ${myPart && paidAmt === 0 && !['CANCELLED', 'COMPLETED'].includes(roomStUpper) ? `<button class="btn btn-gold" id="btn-pay-dep">Đặt cọc giữ chỗ (${formatVND(depAmt)})</button>` : ''}
+                ${myPart && paidAmt > 0 && remaining > 0 && canPayRemaining ? `<button class="btn btn-gold" id="btn-pay-rem">Thanh toán phần còn lại (${formatVND(remaining)})</button>` : ''}
+                ${myPart && paidAmt > 0 && remaining > 0 && !canPayRemaining && roomStUpper === 'FORMING' ? `<div class="v-badge v-badge-gold" style="justify-content:center;padding:10px;white-space:normal;text-align:center;">Đã cọc giữ chỗ — Phần còn lại sẽ mở thanh toán sau khi đủ người &amp; chốt ca (hoặc tại quán)</div>` : ''}
+                ${myPart && remaining === 0 && paidAmt > 0 ? `<div class="v-badge v-badge-green" style="justify-content:center;padding:10px;">Hóa đơn đã hoàn tất 100%</div>` : ''}
+              </div>
+            </aside>
+          </div>
+        `;
+
+        document.getElementById('btn-pay-dep')?.addEventListener('click', async () => {
+          try {
+            await api.post('/payments/deposit', { room_id: Number(room.id), is_lump_sum: isCreator && seatCount > 1, amount: depAmt, provider: 'VNPAY' });
+            showToast(`Đặt cọc giữ ${seatCount} chỗ (${formatVND(depAmt)}) thành công.`);
+            render();
+          } catch (e) { showToast(e.message); }
+        });
+
+        document.getElementById('btn-pay-rem')?.addEventListener('click', async () => {
+          try { await api.post('/payments/deposit', { room_id: Number(room.id), payment_type: 'REMAINING', amount: remaining, provider: 'VNPAY' }); showToast(`Thanh toán phần còn lại (${formatVND(remaining)}) thành công.`); render(); } catch (e) { showToast(e.message); }
+        });
+      } catch (err) {
+        root.innerHTML = `<div class="portal-panel">Không tải được thông tin thanh toán: ${escapeHtml(err.message)}</div>`;
+      }
+    }
+
+    (async () => {
+      const auth = await requireAuthRole(['player', 'dm', 'admin'], 'Vé Điện Tử & Thanh Toán');
+      currentAuthUser = auth.user;
+      currentRole = auth.role;
+      initChrome('lobby');
+      if (!auth.allowed) return;
+      render();
+    })();
+  </script>
 </body>
 </html>

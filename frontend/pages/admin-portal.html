@@ -3,1031 +3,462 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Cổng Quản Trị Hệ Thống (Admin Portal) — Kịch Bản Sát V16</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:ital,wght@0,600;0,700;1,600&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet" />
+  <title>Cổng Quản Trị Viên (Admin Portal) — Kịch Bản Sát V16</title>
   <link rel="stylesheet" href="../src/styles/components.css" />
-  <link rel="stylesheet" href="../src/styles/home.css" />
-  <style>
-    .admin-kpi-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-      gap: 16px;
-      margin-bottom: 24px;
-    }
-    .kpi-card {
-      background: var(--bg-surface);
-      border: 1px solid rgba(201,162,94,0.3);
-      padding: 20px;
-      border-radius: var(--radius-sm);
-    }
-    .kpi-num {
-      font-size: 1.8rem;
-      font-weight: 700;
-      color: var(--color-gold);
-      font-family: var(--font-mono);
-      margin-top: 8px;
-    }
-    .admin-table {
-      width: 100%;
-      border-collapse: collapse;
-      font-size: 0.9rem;
-      margin-top: 12px;
-    }
-    .admin-table th, .admin-table td {
-      padding: 10px 12px;
-      text-align: left;
-      border-bottom: 1px solid rgba(201,162,94,0.2);
-    }
-    .admin-table th {
-      background: rgba(201,162,94,0.1);
-      color: var(--color-gold);
-    }
-    .auth-banner {
-      background: rgba(201, 162, 94, 0.15);
-      border: 1px solid var(--color-gold);
-      padding: 12px 16px;
-      border-radius: var(--radius-sm);
-      margin-bottom: 24px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      flex-wrap: wrap;
-      gap: 12px;
-    }
-    .filter-select {
-      padding: 6px 10px;
-      background: rgba(13, 12, 11, 0.85);
-      border: 1px solid rgba(201, 162, 94, 0.45);
-      color: var(--text-light);
-      border-radius: 4px;
-      font-size: 0.85rem;
-    }
-  </style>
+  <link rel="stylesheet" href="../src/styles/portals-vintage.css" />
 </head>
 <body>
-  <header class="site-header">
-    <div class="container header-inner">
-      <a href="../index.html" class="brand-logo">
-        <img src="../src/assets/images/logo.png" alt="Logo Kịch Bản Sát" />
-        <span>KỊCH BẢN SÁT — ADMIN PORTAL</span>
-      </a>
-      <nav class="nav-links">
-        <a href="../index.html">Trang chủ</a>
-        <a href="./lobby.html">Sảnh Phòng</a>
-        <a href="./admin-portal.html" class="active">Cổng Quản Trị</a>
-        <a href="/api/v1/docs" target="_blank" style="color: var(--color-gold);">Swagger API Docs</a>
-      </nav>
-      <div class="home-header-actions">
-        <span style="font-size: 0.9rem; color: var(--color-gold);" id="adminHeaderName">Quản Trị Viên (Admin)</span>
-        <a href="./auth.html" class="btn btn-outline" style="font-size: 0.85rem;">Đổi Tài Khoản</a>
-      </div>
-    </div>
-  </header>
+  <div id="app-header"></div>
 
-  <main class="container" style="padding-top: 32px; padding-bottom: 60px;">
-    <!-- Auth Status Notice -->
-    <div id="authNotice" class="auth-banner" style="display: none;">
-      <div>
-        <strong id="authNoticeText">Bạn chưa đăng nhập với tài khoản Quản trị viên (Admin).</strong>
-        <p style="font-size: 0.85rem; color: var(--text-muted); margin-top: 2px;">Vui lòng đăng nhập quyền Admin để thực hiện các thao tác quản trị hệ thống.</p>
-      </div>
-      <button type="button" class="btn btn-gold" id="btnQuickAdminLogin" style="font-size: 0.85rem;">Đăng Nhập Nhanh Admin</button>
-    </div>
-
-    <!-- KPI Header -->
-    <div class="admin-kpi-grid">
-      <div class="kpi-card">
-        <span style="font-size: 0.85rem; color: var(--text-muted);">Tổng Doanh Thu Thuần</span>
-        <div class="kpi-num" id="kpiRevenue">--</div>
-      </div>
-      <div class="kpi-card">
-        <span style="font-size: 0.85rem; color: var(--text-muted);">Tiền Cọc Đã Thu (50k/slot)</span>
-        <div class="kpi-num" id="kpiDeposit">--</div>
-      </div>
-      <div class="kpi-card">
-        <span style="font-size: 0.85rem; color: var(--text-muted);">Tổng Phòng Chơi Theo Bộ Lọc</span>
-        <div class="kpi-num" id="kpiRooms">--</div>
-      </div>
-      <div class="kpi-card">
-        <span style="font-size: 0.85rem; color: var(--text-muted);">Số Buổi Chơi Đã Xong</span>
-        <div class="kpi-num" id="kpiCompleted">--</div>
-      </div>
-    </div>
-
-    <!-- Operations Card -->
-    <div class="ticket-card" style="margin-bottom: 24px;">
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 10px;">
-        <h3 style="margin: 0;">Điều Phối Phòng Chơi & Phân Công Quản Trò (DM)</h3>
-        <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
-          <label for="adminRoomStatusFilter" style="font-size: 0.82rem; color: var(--text-muted);">Trạng thái:</label>
-          <select id="adminRoomStatusFilter" class="filter-select">
-            <option value="ALL">Tất cả trạng thái</option>
-            <option value="FORMING">FORMING (Đang ghép)</option>
-            <option value="SCHEDULED">SCHEDULED (Đã chốt lịch)</option>
-            <option value="CONFIRMED">CONFIRMED (Đã cọc đủ)</option>
-            <option value="IN_PROGRESS">IN_PROGRESS (Đang diễn ra)</option>
-            <option value="COMPLETED">COMPLETED (Hoàn tất)</option>
-            <option value="CANCELLED">CANCELLED (Đã hủy)</option>
-          </select>
-          <button type="button" class="btn btn-gold" id="btnOfflineBlock" style="font-size: 0.85rem; padding: 6px 12px;">Khóa Giữ Chỗ Hotline</button>
-          <span class="stamp-badge open">STAGE 3 OPERATIONS</span>
-        </div>
-      </div>
-
-      <div style="overflow-x: auto;">
-        <table class="admin-table">
-          <thead>
-            <tr>
-              <th>Mã Phòng</th>
-              <th>Tiêu Đề & Kịch Bản</th>
-              <th>Số Lượng</th>
-              <th>Trạng Thái</th>
-              <th>Thao Tác Quản Trị</th>
-            </tr>
-          </thead>
-          <tbody id="roomsTableBody">
-            <tr>
-              <td colspan="5" style="text-align: center; padding: 20px; color: var(--text-muted);">Đang tải danh sách phòng chơi...</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
-
-    <!-- Schedule Proposals Management Card -->
-    <div class="ticket-card" style="margin-bottom: 24px;">
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 10px;">
+  <main class="portal-main">
+    <div class="container">
+      <div class="portal-hero">
         <div>
-          <h3>Quản Lý & Duyệt Đơn Đề Xuất Lịch Chơi (Schedule Proposals)</h3>
-          <p style="font-size: 0.85rem; color: var(--text-muted); margin-top: 2px;">
-            Thẩm định khung giờ người chơi đề xuất, chỉ định phòng vật lý, phân công quản trò và chốt lịch chơi
-          </p>
+          <div class="portal-eyebrow">ADMIN PORTAL — CENTRAL OPERATIONS &amp; FINANCE</div>
+          <h1 class="portal-title">Cổng Quản Trị Hệ Thống</h1>
+          <p class="portal-subtitle">Điều phối Quản trò &amp; Phòng vật lý, phê duyệt hoàn tiền, xét duyệt HSSV và kiểm toán trực tiếp trên MySQL.</p>
         </div>
-        <span class="stamp-badge open">PROPOSAL APPROVAL</span>
-      </div>
-
-      <div style="overflow-x: auto;">
-        <table class="admin-table">
-          <thead>
-            <tr>
-              <th>Mã Đơn</th>
-              <th>Phòng & Kịch Bản</th>
-              <th>Người Đề Xuất</th>
-              <th>Khung Giờ Đề Xuất</th>
-              <th>Trạng Thái</th>
-              <th>Thao Tác Quản Trị</th>
-            </tr>
-          </thead>
-          <tbody id="proposalsTableBody">
-            <tr>
-              <td colspan="6" style="text-align: center; padding: 20px; color: var(--text-muted);">Đang tải danh sách đơn đề xuất lịch...</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
-
-    <!-- Physical Rooms & Maintenance Management Card -->
-    <div class="ticket-card" style="margin-bottom: 24px;">
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 10px;">
-        <div>
-          <h3 style="margin: 0;">Quản Lý Phòng Vật Lý & Bảo Trì Kỹ Thuật (Dynamic Rerouting)</h3>
-          <p style="font-size: 0.85rem; color: var(--text-muted); margin-top: 2px;">
-            Tự động điều chuyển ca chơi sang phòng trống cùng chi nhánh khi kích hoạt bảo trì kỹ thuật (Buffer 30 phút)
-          </p>
-        </div>
-        <span class="stamp-badge open">PHYSICAL ROOMS</span>
-      </div>
-
-      <div style="overflow-x: auto;">
-        <table class="admin-table">
-          <thead>
-            <tr>
-              <th>Mã Phòng</th>
-              <th>Tên Phòng & Chi Nhánh</th>
-              <th>Sức Chứa</th>
-              <th>Chuyên Đề</th>
-              <th>Trạng Thái</th>
-              <th>Ca Chơi Tiếp Theo</th>
-              <th>Thao Tác</th>
-            </tr>
-          </thead>
-          <tbody id="physicalRoomsTableBody">
-            <tr>
-              <td colspan="7" style="text-align: center; padding: 20px; color: var(--text-muted);">Đang tải danh sách phòng vật lý...</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
-
-    <!-- Refunds Ledger Management Card -->
-    <div class="ticket-card" style="margin-bottom: 24px;">
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 10px;">
-        <div>
-          <h3 style="margin: 0;">Sổ Cái & Xét Duyệt Hoàn Tiền Cọc (Refunds Ledger)</h3>
-          <p style="font-size: 0.85rem; color: var(--text-muted); margin-top: 2px;">
-            Xử lý yêu cầu hoàn cọc 50.000 VNĐ: Duyệt (Approve), Từ chối (Reject), Hoàn tất chi trả kế toán (Complete)
-          </p>
-        </div>
-        <span class="stamp-badge open">REFUNDS AUDIT</span>
-      </div>
-
-      <div style="overflow-x: auto;">
-        <table class="admin-table">
-          <thead>
-            <tr>
-              <th>Mã Hoàn Tiền</th>
-              <th>Người Chơi</th>
-              <th>Số Tiền Cọc</th>
-              <th>Trạng Thái</th>
-              <th>Lý Do</th>
-              <th>Thao Tác Kế Toán</th>
-            </tr>
-          </thead>
-          <tbody id="refundsTableBody">
-            <tr>
-              <td colspan="6" style="text-align: center; padding: 20px; color: var(--text-muted);">Đang tải danh sách yêu cầu hoàn tiền...</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
-
-    <!-- Users & Account Suspension Lifecycle Card -->
-    <div class="ticket-card" style="margin-bottom: 24px;">
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 10px;">
-        <div>
-          <h3 style="margin: 0;">Quản Trị Tài Khoản, Phân Quyền & Khóa Tài Khoản (Identity & Suspension)</h3>
-          <p style="font-size: 0.85rem; color: var(--text-muted); margin-top: 2px;">
-            Gán vai trò (Player / DM / Admin) và khóa/mở khóa tài khoản tự động kích hoạt chuyển quyền Host hoặc giải phóng slot phòng
-          </p>
-        </div>
-        <span class="stamp-badge open">RBAC & SUSPENSION</span>
-      </div>
-
-      <div style="overflow-x: auto;">
-        <table class="admin-table">
-          <thead>
-            <tr>
-              <th>ID</th>
-              <th>Họ Tên & Email</th>
-              <th>Vai Trò</th>
-              <th>HSSV</th>
-              <th>Trạng Thái</th>
-              <th>Thao Tác Quản Trị</th>
-            </tr>
-          </thead>
-          <tbody id="usersTableBody">
-            <tr>
-              <td colspan="6" style="text-align: center; padding: 20px; color: var(--text-muted);">Đang tải danh sách người dùng...</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
-
-    <!-- Student Verification & Audit Logs -->
-    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(360px, 1fr)); gap: 24px;">
-      <!-- Student Card Approval -->
-      <div class="ticket-card">
-        <h3>Duyệt Thẻ Học Sinh - Sinh Viên (HSSV)</h3>
-        <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 12px;">Xét duyệt để cấp quyền giảm 20.000đ/người theo chuẩn V16</p>
-        <div id="studentListContainer" style="display: flex; flex-direction: column; gap: 10px; max-height: 320px; overflow-y: auto;">
-          <p style="color: var(--text-muted); font-size: 0.85rem;">Đang tải danh sách tài khoản...</p>
+        <div class="portal-actions">
+          <a href="./dm-portal.html" class="btn btn-ghost">Mở DM Portal</a>
         </div>
       </div>
 
-      <!-- Audit Logs Quick Peek -->
-      <div class="ticket-card">
-        <h3>Nhật Ký Kiểm Toán (Audit Trail)</h3>
-        <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 12px;">Lịch sử thao tác tự động ghi vết trong CSDL</p>
-        <div id="auditLogContainer" style="font-size: 0.85rem; line-height: 1.6; font-family: var(--font-mono); color: var(--text-muted); max-height: 320px; overflow-y: auto;">
-          <p style="color: var(--text-muted);">Đang tải nhật ký kiểm toán...</p>
-        </div>
+      <div class="kpi-grid" id="admin-kpi"></div>
+
+      <div class="portal-tabs" id="admin-tabs">
+        <button class="portal-tab active" data-tab="rooms">Điều phối Phòng &amp; DM</button>
+        <button class="portal-tab" data-tab="games">Kịch bản &amp; Bảng giá</button>
+        <button class="portal-tab" data-tab="promos">Khuyến mãi &amp; Chi nhánh</button>
+        <button class="portal-tab" data-tab="refunds">Duyệt Hoàn tiền</button>
+        <button class="portal-tab" data-tab="payments">Giao dịch Thanh toán</button>
+        <button class="portal-tab" data-tab="hssv">Người dùng &amp; Thẻ HSSV</button>
+        <button class="portal-tab" data-tab="audit">Nhật ký Kiểm toán</button>
       </div>
+
+      <section class="portal-panel" id="admin-panel">Đang tải dữ liệu quản trị...</section>
     </div>
   </main>
 
+  <div id="app-footer"></div>
+
   <script type="module">
-    import { apiClient } from '../src/api/api-client.js';
-    import { escapeHtml } from '../src/utils/sanitize.js';
+    import { initChrome } from '../src/logic/layout.js';
+    import { api } from '../src/logic/api.js';
+    import { requireAuthRole, formatVND, escapeHtml, showToast } from '../src/logic/portal-mock.js';
 
-    const authNotice = document.getElementById('authNotice');
-    const authNoticeText = document.getElementById('authNoticeText');
-    const btnQuickAdminLogin = document.getElementById('btnQuickAdminLogin');
-    const adminHeaderName = document.getElementById('adminHeaderName');
-    const roomsTableBody = document.getElementById('roomsTableBody');
-    const studentListContainer = document.getElementById('studentListContainer');
-    const auditLogContainer = document.getElementById('auditLogContainer');
-    const adminRoomStatusFilter = document.getElementById('adminRoomStatusFilter');
+    let activeTab = 'rooms';
+    let currentAdminId = 0;
 
-    let physicalRoomCache = new Map();
-
-    function formatLocalSqlDatetime(date) {
-      const pad = (n) => String(n).padStart(2, '0');
-      return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
-    }
-
-    btnQuickAdminLogin.addEventListener('click', async () => {
+    async function render() {
+      const panel = document.getElementById('admin-panel');
       try {
-        await apiClient.post('/auth/login', {
-          email: 'admin@kichbansat.vn',
-          password: 'password123'
-        });
-        localStorage.setItem('kbs_demo_role', 'admin');
-        authNotice.style.display = 'none';
-        adminHeaderName.textContent = 'Quản Trị Viên (Admin)';
-        await loadAdminDashboard();
-      } catch (err) {
-        alert('Lỗi đăng nhập Admin: ' + (err.message || 'Không thể đăng nhập tài khoản Admin'));
-      }
-    });
+        const [revData, roomsData, refundsData, usersData, prData] = await Promise.all([
+          api.get('/admin/reports/revenue').catch(() => ({})),
+          api.get('/rooms?status=ALL&per_page=20').catch(() => ({ rooms: [] })),
+          api.get('/admin/refunds').catch(() => ({ refunds: [] })),
+          api.get('/admin/users?per_page=100').catch(() => ({ users: [] })),
+          api.get('/admin/physical-rooms').catch(() => ({ physical_rooms: [] })),
+        ]);
 
-    adminRoomStatusFilter?.addEventListener('change', () => {
-      loadRooms();
-    });
+        const rooms = Array.isArray(roomsData) ? roomsData : (roomsData?.rooms || roomsData?.items || []);
+        const refunds = Array.isArray(refundsData) ? refundsData : (refundsData?.refunds || refundsData?.items || []);
+        const users = Array.isArray(usersData) ? usersData : (usersData?.users || usersData?.items || []);
+        const physicalRooms = Array.isArray(prData) ? prData : (prData?.physical_rooms || prData?.items || []);
+        const dms = users.filter((u) => String(u.role_code || u.role || '').toUpperCase() === 'DM');
 
-    window.assignPhysicalRoom = async function(roomId) {
-      const roomNum = prompt('Nhập số ID phòng vật lý (1: Sherlock Holmes - Q.1, 2: Dracula VIP - Q.1, 3: Cổ Trang Á Đông - Bình Thạnh):', '1');
-      if (!roomNum) return;
-      try {
-        const json = await apiClient.post(`/admin/rooms/${roomId}/assign-physical-room`, { physical_room_id: Number(roomNum) });
-        alert(json.message || 'Gán phòng vật lý thành công!');
-        loadAdminDashboard();
-      } catch (err) {
-        alert('Lỗi gán phòng vật lý: ' + (err.message || 'Không thể gán phòng vật lý'));
-      }
-    };
+        const netRev = Number(
+          revData?.total_net_revenue
+          ?? revData?.revenue?.net_revenue
+          ?? revData?.net_revenue
+          ?? revData?.total_revenue
+          ?? revData?.summary?.net_revenue
+          ?? 0
+        );
+        const pendingRefunds = refunds.filter((r) => r.status === 'PENDING').length;
 
-    window.assignDmToRoom = async function(roomId) {
-      const dmId = prompt('Nhập ID Quản trò (DM) cần phân công (Ví dụ: 2 - Host Hoàng Nam):', '2');
-      if (!dmId) return;
-      try {
-        const json = await apiClient.post(`/admin/rooms/${roomId}/assign-dm`, { dm_user_id: Number(dmId), reason: 'Admin phân công ca trực' });
-        alert(json.message || 'Đã phân công Quản trò thành công!');
-        loadAdminDashboard();
-      } catch (err) {
-        alert('Lỗi chỉ định Quản trò: ' + (err.message || 'Không thể phân công Quản trò'));
-      }
-    };
-
-    window.revokeDm = async function(roomId) {
-      if (!confirm('Bạn có chắc chắn muốn thu hồi phân công DM cho phòng này?')) return;
-      try {
-        const json = await apiClient.post(`/admin/rooms/${roomId}/revoke-dm`);
-        alert(json.message || 'Đã thu hồi phân công Quản trò!');
-        loadAdminDashboard();
-      } catch (err) {
-        alert('Lỗi thu hồi Quản trò: ' + (err.message || 'Không thể thu hồi phân công DM'));
-      }
-    };
-
-    window.disbandRoom = async function(roomId) {
-      const reason = prompt('Nhập lý do giải tán phòng khẩn cấp:', 'Hủy lịch đột xuất theo yêu cầu');
-      if (!reason) return;
-      try {
-        const json = await apiClient.post(`/admin/rooms/${roomId}/disband`, { reason });
-        alert(json.message || 'Đã giải tán phòng chơi và cập nhật trạng thái hủy!');
-        loadAdminDashboard();
-      } catch (err) {
-        alert('Lỗi giải tán phòng: ' + (err.message || 'Không thể giải tán phòng'));
-      }
-    };
-
-    window.verifyStudent = async function(userId) {
-      try {
-        const json = await apiClient.post(`/admin/users/${userId}/verify-student`, { student_verified: true });
-        alert(json.message || 'Đã duyệt xác minh thẻ học sinh - sinh viên thành công!');
-        loadStudents();
-        loadAuditLogs();
-      } catch (err) {
-        alert('Lỗi duyệt thẻ HSSV: ' + (err.message || 'Không thể duyệt xác minh thẻ HSSV'));
-      }
-    };
-
-    async function checkAuth() {
-      try {
-        const me = await apiClient.get('/auth/me');
-        if (me.success && me.data && me.data.user) {
-          const user = me.data.user;
-          const role = (user.role || user.role_code || '').toUpperCase();
-          adminHeaderName.textContent = `${user.full_name || 'Admin'} (${role})`;
-          if (role !== 'ADMIN') {
-            authNotice.style.display = 'flex';
-            authNoticeText.textContent = `Bạn đang đăng nhập với tài khoản "${user.full_name}" (Vai trò: ${role}), không phải Quản Trị Viên (Admin).`;
-            return false;
-          }
-          authNotice.style.display = 'none';
-          return true;
-        }
-        authNotice.style.display = 'flex';
-        return false;
-      } catch (e) {
-        authNotice.style.display = 'flex';
-        return false;
-      }
-    }
-
-    async function loadRooms() {
-      const status = adminRoomStatusFilter ? adminRoomStatusFilter.value : 'ALL';
-      try {
-        const res = await apiClient.get(`/rooms?status=${encodeURIComponent(status)}&limit=50`);
-        const rooms = res.data?.rooms || [];
-
-        if (rooms.length === 0) {
-          roomsTableBody.innerHTML = `
-            <tr>
-              <td colspan="5" style="text-align: center; padding: 20px; color: var(--text-muted);">
-                Không có phòng chơi nào khớp trạng thái ${escapeHtml(status)}.
-              </td>
-            </tr>
-          `;
-          document.getElementById('kpiRooms').textContent = '0 Phòng';
-          return;
-        }
-
-        document.getElementById('kpiRooms').textContent = `${rooms.length} Phòng`;
-
-        roomsTableBody.innerHTML = rooms.map(r => {
-          const roomId = Number(r.id);
-          const maxSlots = Number(r.total_players || r.max_players || 8);
-          const curSlots = Number(r.current_players ?? 0);
-          const isTerminal = r.status === 'COMPLETED' || r.status === 'CANCELLED';
-          return `
-            <tr>
-              <td><strong>#RM-${roomId}</strong></td>
-              <td>
-                <strong>${escapeHtml(r.title || 'Phòng Chơi Nhập Vai')}</strong>
-                <div style="font-size: 0.8rem; color: var(--text-muted);">
-                  ${escapeHtml(r.game_name || 'Kịch bản nhập vai')} • ${escapeHtml(r.booking_type || 'PUBLIC')}
-                </div>
-              </td>
-              <td>${curSlots}/${maxSlots} Slot</td>
-              <td><span class="stamp-badge ${r.status === 'FORMING' || r.status === 'SCHEDULED' || r.status === 'CONFIRMED' ? 'open' : ''}">${escapeHtml(r.status || 'UNKNOWN')}</span></td>
-              <td>
-                <div style="display: flex; gap: 6px; flex-wrap: wrap;">
-                  <a href="./room-detail.html?id=${roomId}" class="btn btn-outline" style="font-size: 0.8rem; padding: 4px 8px;">Xem</a>
-                  ${!isTerminal ? `
-                    <button type="button" class="btn btn-outline" style="font-size: 0.8rem; padding: 4px 8px;" onclick="assignPhysicalRoom(${roomId})">Gán Phòng</button>
-                    <button type="button" class="btn btn-gold" style="font-size: 0.8rem; padding: 4px 8px;" onclick="assignDmToRoom(${roomId})">Chỉ Định DM</button>
-                    <button type="button" class="btn btn-outline" style="font-size: 0.8rem; padding: 4px 8px; border-color: #992b2b; color: #ef9a9a;" onclick="revokeDm(${roomId})">Thu Hồi DM</button>
-                    <button type="button" class="btn btn-outline" style="font-size: 0.8rem; padding: 4px 8px; border-color: #992b2b; color: #ef9a9a;" onclick="disbandRoom(${roomId})">Giải Tán</button>
-                  ` : '<span style="font-size: 0.8rem; color: var(--text-muted);">Đã đóng</span>'}
-                </div>
-              </td>
-            </tr>
-          `;
-        }).join('');
-      } catch (err) {
-        roomsTableBody.innerHTML = `
-          <tr>
-            <td colspan="5" style="text-align: center; padding: 20px; color: #ef9a9a;">
-              Không thể tải danh sách phòng chơi: ${escapeHtml(err.message || 'Lỗi kết nối')}
-            </td>
-          </tr>
+        document.getElementById('admin-kpi').innerHTML = `
+          <div class="kpi-card"><div class="kpi-label">Doanh thu thuần</div><div class="kpi-value">${formatVND(netRev)}</div><div class="kpi-meta">Báo cáo trực tiếp từ MySQL</div></div>
+          <div class="kpi-card"><div class="kpi-label">Phòng chơi (tải gần nhất)</div><div class="kpi-value">${roomsData?.meta?.total ?? rooms.length}</div><div class="kpi-meta">${physicalRooms.length} phòng vật lý</div></div>
+          <div class="kpi-card"><div class="kpi-label">Hoàn tiền chờ duyệt</div><div class="kpi-value">${pendingRefunds}</div><div class="kpi-meta">Tổng ${refunds.length} yêu cầu</div></div>
+          <div class="kpi-card"><div class="kpi-label">Người dùng hệ thống</div><div class="kpi-value">${users.length}</div><div class="kpi-meta">${dms.length} Quản trò (DM)</div></div>
         `;
-      }
-    }
 
-    window.toggleUserSuspension = async function(userId, currentStatus) {
-      const nextStatus = currentStatus === 'ACTIVE' ? 'SUSPENDED' : 'ACTIVE';
-      const label = nextStatus === 'SUSPENDED' ? 'KHÓA tài khoản (tự động xử lý phòng đang tham gia)' : 'MỞ KHÓA tài khoản';
-      if (!confirm(`Xác nhận ${label} cho người dùng #${userId}?`)) return;
-      try {
-        const res = await apiClient.patch(`/admin/users/${userId}`, { status: nextStatus });
-        alert(res.message || 'Đã cập nhật trạng thái tài khoản thành công!');
-        loadStudents();
-        loadRooms();
-        loadAuditLogs();
-      } catch (err) {
-        alert('Lỗi cập nhật trạng thái tài khoản: ' + (err.message || 'Không thể thực hiện'));
-      }
-    };
+        if (activeTab === 'rooms') {
+          panel.innerHTML = `
+            <h2 class="portal-panel-title">Điều Phối Phòng Chơi, Quản Trò (DM) &amp; Phòng Vật Lý</h2>
+            <div class="portal-table-wrap">
+              <table class="portal-table">
+                <thead><tr><th>Phòng</th><th>Kịch bản</th><th>Trạng thái</th><th>Gán DM</th><th>Gán Phòng vật lý</th><th>Thao tác</th></tr></thead>
+                <tbody>
+                  ${rooms.slice(0, 15).map((r) => {
+                    const isClosedRoom = r.status === 'CANCELLED' || r.status === 'COMPLETED';
+                    return `
+                    <tr>
+                      <td><strong>#${r.id}</strong></td>
+                      <td>${escapeHtml(r.game_name || r.title || '')}</td>
+                      <td><span class="v-badge ${r.status === 'COMPLETED' ? 'v-badge-green' : r.status === 'CANCELLED' ? 'v-badge-crimson' : 'v-badge-gold'}">${escapeHtml(r.status)}</span></td>
+                      <td>
+                        ${isClosedRoom ? '<span class="text-muted" style="font-size:0.82rem;">Không áp dụng</span>' : `
+                          <select class="portal-select" data-dm-sel="${r.id}">
+                            <option value="">-- Chọn DM --</option>
+                            ${dms.map((d) => `<option value="${d.id}">${d.full_name || d.email}</option>`).join('')}
+                          </select>
+                        `}
+                      </td>
+                      <td>
+                        ${isClosedRoom ? '<span class="text-muted" style="font-size:0.82rem;">Không áp dụng</span>' : `
+                          <select class="portal-select" data-pr-sel="${r.id}">
+                            <option value="">-- Chọn phòng vật lý --</option>
+                            ${physicalRooms.map((p) => `<option value="${p.id}">${p.name || ('PR #' + p.id)}${p.is_maintenance ? ' (Bảo trì)' : ''}</option>`).join('')}
+                          </select>
+                        `}
+                      </td>
+                      <td style="display:flex;gap:6px;flex-wrap:wrap;">
+                        ${!isClosedRoom ? `
+                          <button class="btn btn-gold btn-sm" data-assign-dm="${r.id}">Gán DM</button>
+                          <button class="btn btn-ghost btn-sm" data-assign-pr="${r.id}">Gán Phòng</button>
+                          <button class="btn btn-ghost btn-sm" data-disband="${r.id}">Giải tán</button>
+                        ` : `<a href="./room-detail.html?id=${encodeURIComponent(r.id)}" class="btn btn-ghost btn-sm">Xem hồ sơ</a>`}
+                      </td>
+                    </tr>
+                  `; }).join('')}
+                </tbody>
+              </table>
+            </div>
 
-    window.changeUserRole = async function(userId, currentRole) {
-      const nextRole = prompt('Nhập mã vai trò mới cho tài khoản (PLAYER, DM, ADMIN):', currentRole || 'PLAYER');
-      if (!nextRole) return;
-      const code = nextRole.trim().toUpperCase();
-      if (!['PLAYER', 'DM', 'ADMIN'].includes(code)) {
-        alert('Vai trò không hợp lệ. Vui lòng nhập PLAYER, DM hoặc ADMIN.');
-        return;
-      }
-      try {
-        const res = await apiClient.put(`/admin/users/${userId}/role`, { role_code: code });
-        alert(res.message || 'Đã cập nhật vai trò người dùng thành công!');
-        loadStudents();
-        loadAuditLogs();
-      } catch (err) {
-        alert('Lỗi phân quyền: ' + (err.message || 'Không thể cập nhật vai trò'));
-      }
-    };
-
-    async function loadStudents() {
-      const usersTableBody = document.getElementById('usersTableBody');
-      try {
-        const res = await apiClient.get('/admin/users?per_page=50');
-        const users = Array.isArray(res.data) ? res.data : (res.data?.items || res.data?.users || []);
-
-        if (usersTableBody) {
-          if (!Array.isArray(users) || users.length === 0) {
-            usersTableBody.innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 20px; color: var(--text-muted);">Chưa có dữ liệu người dùng.</td></tr>';
-          } else {
-            usersTableBody.innerHTML = users.slice(0, 30).map(u => {
-              const uid = Number(u.id);
-              const roleCode = String(u.role_code || u.role || 'PLAYER').toUpperCase();
-              const statusStr = String(u.status || 'ACTIVE').toUpperCase();
-              const isVerified = Number(u.student_verified) === 1;
-              return `
-                <tr>
-                  <td><strong>#${uid}</strong></td>
-                  <td>
-                    <strong>${escapeHtml(u.full_name || 'Người dùng #' + uid)}</strong>
-                    <div style="font-size: 0.8rem; color: var(--text-muted);">${escapeHtml(u.email || '')}${u.phone ? ' • ' + escapeHtml(u.phone) : ''}</div>
-                  </td>
-                  <td><span class="stamp-badge" style="font-size: 0.75rem;">${escapeHtml(roleCode)}</span></td>
-                  <td>${isVerified ? '<span style="color: #4ade80; font-size: 0.82rem;">Đã xác minh</span>' : '<span style="color: var(--text-muted); font-size: 0.82rem;">Chưa</span>'}</td>
-                  <td>
-                    <span class="stamp-badge ${statusStr === 'ACTIVE' ? 'open' : ''}" style="${statusStr !== 'ACTIVE' ? 'color: #f87171; border-color: #f87171;' : ''} font-size: 0.75rem;">
-                      ${escapeHtml(statusStr)}
-                    </span>
-                  </td>
-                  <td>
-                    <div style="display: flex; gap: 6px; flex-wrap: wrap;">
-                      <button type="button" class="btn btn-outline" style="font-size: 0.78rem; padding: 4px 8px;" onclick="changeUserRole(${uid}, '${escapeHtml(roleCode)}')">Đổi Vai Trò</button>
-                      ${uid !== 1 ? `
-                        <button type="button" class="btn btn-outline" style="font-size: 0.78rem; padding: 4px 8px; ${statusStr === 'ACTIVE' ? 'border-color: #992b2b; color: #ef9a9a;' : 'border-color: #4ade80; color: #4ade80;'}" onclick="toggleUserSuspension(${uid}, '${escapeHtml(statusStr)}')">
-                          ${statusStr === 'ACTIVE' ? 'Khóa TK' : 'Mở Khóa'}
-                        </button>
-                      ` : '<span style="font-size: 0.78rem; color: var(--text-muted);">Root Admin</span>'}
-                    </div>
-                  </td>
-                </tr>
-              `;
-            }).join('');
-          }
-        }
-
-        const students = Array.isArray(users)
-          ? users.filter(u => (u.role_code || u.role || '').toUpperCase() === 'PLAYER' || u.student_card_id || Number(u.student_verified) === 1)
-          : [];
-
-        // Prioritize unverified users with student_card_id first, then other unverified players, then verified players
-        students.sort((a, b) => {
-          const av = Number(a.student_verified) === 1 ? 1 : 0;
-          const bv = Number(b.student_verified) === 1 ? 1 : 0;
-          if (av !== bv) return av - bv;
-          const ac = a.student_card_id ? 0 : 1;
-          const bc = b.student_card_id ? 0 : 1;
-          if (ac !== bc) return ac - bc;
-          return Number(b.id) - Number(a.id);
-        });
-
-        if (students.length === 0) {
-          studentListContainer.innerHTML = `
-            <div style="padding: 12px; border: 1px dashed rgba(201,162,94,0.3); border-radius: 4px; text-align: center; color: var(--text-muted); font-size: 0.85rem;">
-              Không có tài khoản người chơi hoặc yêu cầu duyệt thẻ HSSV nào.
+            <h3 class="portal-panel-title" style="margin-top:24px;">Quản Lý Phòng Vật Lý: Khóa Hotline/Walk-in &amp; Bảo Trì</h3>
+            <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px;">
+              <select class="portal-select" id="ob-pr-id" style="max-width:220px;">
+                ${physicalRooms.map((p) => `<option value="${p.id}">${p.name || ('PR #' + p.id)}${p.is_maintenance ? ' (Đang bảo trì)' : ''}</option>`).join('')}
+              </select>
+              <input type="datetime-local" id="ob-start" class="portal-input" value="2026-12-15T14:00" style="max-width:200px;" />
+              <input type="datetime-local" id="ob-end" class="portal-input" value="2026-12-15T17:00" style="max-width:200px;" />
+              <input type="text" id="ob-reason" class="portal-input" placeholder="Lý do (VD: Khách đặt Hotline)" style="max-width:220px;" />
+              <button class="btn btn-gold btn-sm" id="btn-offline-block">Khóa phòng Hotline</button>
+              <button class="btn btn-ghost btn-sm" id="btn-toggle-maint">Bật/Tắt Bảo trì</button>
             </div>
           `;
-          return;
-        }
 
-        studentListContainer.innerHTML = students.slice(0, 20).map(u => {
-          const isVerified = Number(u.student_verified) === 1;
-          return `
-            <div style="padding: 12px; border: 1px solid rgba(201,162,94,0.3); border-radius: 4px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
-              <div>
-                <strong>${escapeHtml(u.full_name || 'Người chơi #' + u.id)}</strong>
-                <p style="font-size: 0.8rem; color: var(--text-muted); margin-top: 2px;">
-                  ${u.student_card_id ? 'Mã SV: ' + escapeHtml(u.student_card_id) + ' • ' : ''}${escapeHtml(u.email || '')}
-                </p>
-              </div>
-              <div>
-                ${isVerified ? `
-                  <span class="stamp-badge open" style="font-size: 0.75rem;">Đã Duyệt HSSV</span>
-                ` : `
-                  <button type="button" class="btn btn-gold" style="font-size: 0.8rem; padding: 4px 10px;" onclick="verifyStudent(${Number(u.id)})">Duyệt Thẻ</button>
-                `}
-              </div>
+          panel.querySelectorAll('[data-assign-dm]').forEach((btn) => btn.addEventListener('click', async () => {
+            const rid = btn.getAttribute('data-assign-dm');
+            const dmId = Number(panel.querySelector(`[data-dm-sel="${rid}"]`).value);
+            if (!dmId) { showToast('Vui lòng chọn Quản trò trước.'); return; }
+            try { await api.post(`/admin/rooms/${rid}/assign-dm`, { dm_user_id: dmId }); showToast(`Đã phân công DM cho phòng #${rid}.`); render(); } catch (e) { showToast(e.message); }
+          }));
+
+          panel.querySelectorAll('[data-assign-pr]').forEach((btn) => btn.addEventListener('click', async () => {
+            const rid = btn.getAttribute('data-assign-pr');
+            const prId = Number(panel.querySelector(`[data-pr-sel="${rid}"]`).value);
+            if (!prId) { showToast('Vui lòng chọn phòng vật lý trước.'); return; }
+            try { await api.post(`/admin/rooms/${rid}/assign-venue`, { physical_room_id: prId }); showToast(`Đã gán phòng vật lý cho phòng #${rid}.`); render(); } catch (e) { showToast(e.message); }
+          }));
+
+          panel.querySelectorAll('[data-disband]').forEach((btn) => btn.addEventListener('click', async () => {
+            const rid = btn.getAttribute('data-disband');
+            const reason = window.prompt(`Nhập lý do giải tán phòng #${rid}:`, 'Điều phối lại lịch vận hành');
+            if (!reason) return;
+            try { await api.post(`/admin/rooms/${rid}/disband`, { reason }); showToast(`Đã giải tán phòng #${rid}.`); render(); } catch (e) { showToast(e.message); }
+          }));
+
+          document.getElementById('btn-offline-block')?.addEventListener('click', async () => {
+            const prId = Number(document.getElementById('ob-pr-id')?.value);
+            const startAt = (document.getElementById('ob-start')?.value || '').replace('T', ' ') + ':00';
+            const endAt = (document.getElementById('ob-end')?.value || '').replace('T', ' ') + ':00';
+            const reason = (document.getElementById('ob-reason')?.value || '').trim() || 'Khóa giữ chỗ khách Hotline/Walk-in';
+            try { await api.post('/admin/rooms/offline-block', { physical_room_id: prId, start_at: startAt, end_at: endAt, reason }); showToast('Đã khóa phòng cho khách Hotline/Walk-in.'); render(); } catch (e) { showToast(e.message); }
+          });
+
+          document.getElementById('btn-toggle-maint')?.addEventListener('click', async () => {
+            const prId = Number(document.getElementById('ob-pr-id')?.value);
+            const pr = physicalRooms.find((p) => Number(p.id) === prId);
+            const nextState = !Boolean(pr?.is_maintenance);
+            try { await api.patch(`/admin/physical-rooms/${prId}/maintenance`, { is_maintenance: nextState, reason: nextState ? 'Bảo trì đạo cụ phòng' : 'Hoàn tất bảo trì' }); showToast(`Đã ${nextState ? 'bật' : 'tắt'} bảo trì phòng #${prId}.`); render(); } catch (e) { showToast(e.message); }
+          });
+        } else if (activeTab === 'games') {
+          const gData = await api.get('/admin/games').catch(() => ({ games: [] }));
+          const games = gData?.games || (Array.isArray(gData) ? gData : []);
+          panel.innerHTML = `
+            <h2 class="portal-panel-title">Quản Lý Danh Mục Kịch Bản &amp; Bảng Giá (${games.length} bộ)</h2>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;">
+              <input id="ng-name" class="portal-input" placeholder="Tên kịch bản mới..." style="max-width:220px;" />
+              <input id="ng-genre" class="portal-input" placeholder="Thể loại" value="Trinh thám" style="max-width:140px;" />
+              <input id="ng-min" type="number" class="portal-input" value="5" style="max-width:70px;" title="Số người tối thiểu" />
+              <input id="ng-max" type="number" class="portal-input" value="8" style="max-width:70px;" title="Số người tối đa" />
+              <input id="ng-day" type="number" class="portal-input" value="199000" style="max-width:110px;" title="Giá ban ngày" />
+              <input id="ng-night" type="number" class="portal-input" value="239000" style="max-width:110px;" title="Giá ban tối" />
+              <button class="btn btn-gold btn-sm" id="btn-add-game">+ Thêm kịch bản</button>
+            </div>
+            <div class="portal-table-wrap">
+              <table class="portal-table">
+                <thead><tr><th>ID</th><th>Tên kịch bản</th><th>Sĩ số</th><th>Giá ngày</th><th>Giá tối</th><th>Trạng thái</th><th>Thao tác</th></tr></thead>
+                <tbody>
+                  ${games.map((g) => `
+                    <tr>
+                      <td><strong>#${g.id}</strong></td>
+                      <td><strong>${g.name}</strong><div class="text-muted" style="font-size:0.78rem;">${g.genre || ''}</div></td>
+                      <td>${g.min_players}–${g.max_players}</td>
+                      <td><input type="number" class="portal-input" data-gday="${g.id}" value="${g.day_price || 199000}" style="width:105px;" /></td>
+                      <td><input type="number" class="portal-input" data-gnight="${g.id}" value="${g.night_price || 239000}" style="width:105px;" /></td>
+                      <td><span class="v-badge ${g.status === 'ACTIVE' ? 'v-badge-green' : 'v-badge-crimson'}">${g.status}</span></td>
+                      <td style="display:flex;gap:6px;">
+                        <button class="btn btn-gold btn-sm" data-save-game="${g.id}">Lưu giá</button>
+                        <button class="btn btn-ghost btn-sm" data-toggle-game="${g.id}" data-next-gst="${g.status === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE'}">${g.status === 'ACTIVE' ? 'Ẩn' : 'Hiện'}</button>
+                      </td>
+                    </tr>
+                  `).join('')}
+                </tbody>
+              </table>
             </div>
           `;
-        }).join('');
-      } catch (e) {
-        studentListContainer.innerHTML = `
-          <div style="padding: 12px; border: 1px dashed rgba(239,68,68,0.4); border-radius: 4px; text-align: center; color: #ef9a9a; font-size: 0.85rem;">
-            Yêu cầu đăng nhập tài khoản Quản Trị Viên (Admin) để xem danh sách duyệt thẻ HSSV.
-          </div>
-        `;
-      }
-    }
+          document.getElementById('btn-add-game')?.addEventListener('click', async () => {
+            const name = document.getElementById('ng-name').value.trim();
+            if (!name) { showToast('Vui lòng nhập tên kịch bản.'); return; }
+            try {
+              await api.post('/admin/games', {
+                name,
+                genre: document.getElementById('ng-genre').value.trim(),
+                min_players: Number(document.getElementById('ng-min').value),
+                max_players: Number(document.getElementById('ng-max').value),
+                day_price: Number(document.getElementById('ng-day').value),
+                night_price: Number(document.getElementById('ng-night').value),
+              });
+              showToast('Đã thêm kịch bản mới.');
+              render();
+            } catch (e) { showToast(e.message); }
+          });
+          panel.querySelectorAll('[data-save-game]').forEach((b) => b.addEventListener('click', async () => {
+            const gid = b.getAttribute('data-save-game');
+            const day_price = Number(panel.querySelector(`[data-gday="${gid}"]`).value);
+            const night_price = Number(panel.querySelector(`[data-gnight="${gid}"]`).value);
+            try { await api.patch(`/admin/games/${gid}`, { day_price, night_price }); showToast(`Đã cập nhật bảng giá kịch bản #${gid}.`); render(); } catch (e) { showToast(e.message); }
+          }));
+          panel.querySelectorAll('[data-toggle-game]').forEach((b) => b.addEventListener('click', async () => {
+            const gid = b.getAttribute('data-toggle-game');
+            const status = b.getAttribute('data-next-gst');
+            try { await api.patch(`/admin/games/${gid}`, { status }); showToast(`Đã chuyển kịch bản #${gid} sang ${status}.`); render(); } catch (e) { showToast(e.message); }
+          }));
+        } else if (activeTab === 'promos') {
+          const [pData, vData] = await Promise.all([
+            api.get('/admin/promotions').catch(() => ({ promotions: [] })),
+            api.get('/venues').catch(() => ({ venues: [] })),
+          ]);
+          const promos = pData?.promotions || (Array.isArray(pData) ? pData : []);
+          const venues = vData?.venues || (Array.isArray(vData) ? vData : []);
+          panel.innerHTML = `
+            <h2 class="portal-panel-title">Chương Trình Khuyến Mãi</h2>
+            <div class="portal-table-wrap" style="margin-bottom:24px;">
+              <table class="portal-table">
+                <thead><tr><th>ID</th><th>Tên chương trình</th><th>Loại</th><th>Giá trị</th><th>Trạng thái</th><th>Thao tác</th></tr></thead>
+                <tbody>
+                  ${promos.length ? promos.map((pr) => `
+                    <tr>
+                      <td><strong>#${pr.id}</strong></td>
+                      <td>${pr.name || pr.code || ''}</td>
+                      <td>${pr.discount_type || ''}</td>
+                      <td><strong>${pr.discount_value || 0}</strong></td>
+                      <td><span class="v-badge ${pr.is_active ? 'v-badge-green' : 'v-badge-crimson'}">${pr.is_active ? 'ĐANG CHẠY' : 'TẠM TẮT'}</span></td>
+                      <td><button class="btn btn-gold btn-sm" data-promo-toggle="${pr.id}" data-promo-next="${pr.is_active ? 0 : 1}">${pr.is_active ? 'Tắt' : 'Bật'}</button></td>
+                    </tr>
+                  `).join('') : '<tr><td colspan="6" class="text-muted">Chưa có chương trình khuyến mãi.</td></tr>'}
+                </tbody>
+              </table>
+            </div>
 
-    async function loadAuditLogs() {
-      try {
-        const res = await apiClient.get('/admin/audit-logs?limit=20');
-        const logs = Array.isArray(res.data) ? res.data : (res.data?.items || res.data?.logs || []);
-
-        if (logs.length === 0) {
-          auditLogContainer.innerHTML = '<p style="color: var(--text-muted);">Chưa có bản ghi kiểm toán nào trong hệ thống.</p>';
-          return;
-        }
-
-        auditLogContainer.innerHTML = logs.slice(0, 15).map(l => {
-          const timeStr = l.created_at ? String(l.created_at) : 'Mới nhất';
-          const actorLabel = l.actor_name || l.user_name || (l.actor_id ? `USER #${l.actor_id}` : 'SYSTEM');
-          return `<p style="margin-bottom: 6px;">• [${escapeHtml(timeStr)}] <strong>${escapeHtml(actorLabel)}</strong>: ${escapeHtml(l.action || 'ACTION')} trên ${escapeHtml(l.entity_type || 'SYSTEM')} #${escapeHtml(String(l.entity_id ?? ''))}</p>`;
-        }).join('');
-      } catch (e) {
-        auditLogContainer.innerHTML = `
-          <p style="color: #ef9a9a;">Yêu cầu đăng nhập tài khoản Quản Trị Viên (Admin) để xem nhật ký kiểm toán.</p>
-        `;
-      }
-    }
-
-    async function loadReports() {
-      try {
-        const json = await apiClient.get('/admin/reports/revenue');
-        if (json.success && json.data) {
-          if (json.data.total_net_revenue !== undefined && json.data.total_net_revenue !== null) {
-            document.getElementById('kpiRevenue').textContent = Number(json.data.total_net_revenue).toLocaleString('vi-VN') + 'đ';
-          }
-          if (json.data.total_deposit !== undefined && json.data.total_deposit !== null) {
-            document.getElementById('kpiDeposit').textContent = Number(json.data.total_deposit).toLocaleString('vi-VN') + 'đ';
-          }
-          if (json.data.completed_sessions !== undefined && json.data.completed_sessions !== null) {
-            document.getElementById('kpiCompleted').textContent = `${Number(json.data.completed_sessions)} Buổi`;
-          }
-        }
-      } catch (e) {
-        document.getElementById('kpiRevenue').textContent = '--';
-        document.getElementById('kpiDeposit').textContent = '--';
-        document.getElementById('kpiCompleted').textContent = '--';
-      }
-    }
-
-    window.approveProposal = async function(propId) {
-      if (!confirm('Xác nhận phê duyệt đơn đề xuất lịch này? Hệ thống sẽ tự động xếp phòng vật lý trống, chỉ định quản trò và chốt lịch chơi.')) {
-        return;
-      }
-      try {
-        const json = await apiClient.post(`/admin/proposals/${propId}/approve`);
-        alert(json.message || 'Đã duyệt đơn đề xuất lịch chơi và chốt lịch thành công!');
-        loadAdminDashboard();
-      } catch (err) {
-        alert('Lỗi duyệt đề xuất: ' + (err.message || 'Không thể phê duyệt đơn đề xuất'));
-      }
-    };
-
-    window.rejectProposal = async function(propId) {
-      const reason = prompt('Nhập lý do từ chối đơn đề xuất lịch:', 'Trùng lịch phòng hoặc không đủ quản trò');
-      if (reason === null) return;
-      try {
-        const json = await apiClient.post(`/admin/proposals/${propId}/reject`, { reason });
-        alert(json.message || 'Đã từ chối đơn đề xuất lịch thành công!');
-        loadAdminDashboard();
-      } catch (err) {
-        alert('Lỗi từ chối đề xuất: ' + (err.message || 'Không thể từ chối đơn đề xuất'));
-      }
-    };
-
-    async function loadProposals() {
-      const proposalsTableBody = document.getElementById('proposalsTableBody');
-      if (!proposalsTableBody) return;
-      try {
-        const res = await apiClient.get('/admin/proposals');
-        const proposals = res.data?.proposals || [];
-
-        if (proposals.length === 0) {
-          proposalsTableBody.innerHTML = `
-            <tr>
-              <td colspan="6" style="text-align: center; padding: 20px; color: var(--text-muted);">
-                Chưa có đơn đề xuất lịch chơi nào từ người chơi.
-              </td>
-            </tr>
+            <h2 class="portal-panel-title">Quản Lý Chi Nhánh &amp; Thêm Phòng Vật Lý</h2>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;">
+              <input id="nv-name" class="portal-input" placeholder="Tên chi nhánh mới..." style="max-width:200px;" />
+              <input id="nv-addr" class="portal-input" placeholder="Địa chỉ chi nhánh..." style="max-width:260px;" />
+              <button class="btn btn-gold btn-sm" id="btn-add-venue">+ Thêm chi nhánh</button>
+            </div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;">
+              <select id="npr-vid" class="portal-select" style="max-width:220px;">
+                ${venues.map((v) => `<option value="${v.id}">${v.name}</option>`).join('')}
+              </select>
+              <input id="npr-name" class="portal-input" placeholder="Tên phòng vật lý mới..." style="max-width:200px;" />
+              <input id="npr-cap" type="number" class="portal-input" value="8" style="max-width:80px;" title="Sức chứa" />
+              <button class="btn btn-ghost btn-sm" id="btn-add-pr">+ Thêm phòng vật lý</button>
+            </div>
           `;
-          return;
-        }
-
-        proposalsTableBody.innerHTML = proposals.map(p => {
-          const propId = Number(p.id);
-          const roomId = Number(p.game_room_id);
-          const time = `${p.proposed_start_at || ''} - ${p.proposed_end_at ? String(p.proposed_end_at).split(' ')[1] || p.proposed_end_at : ''}`;
-          let statusBadge = `<span class="stamp-badge">${escapeHtml(p.status || 'UNKNOWN')}</span>`;
-          let actionButtons = '';
-
-          if (p.status === 'PROPOSED') {
-            statusBadge = `<span class="stamp-badge" style="color: var(--color-gold); border-color: var(--color-gold);">CHỜ DUYỆT</span>`;
-            actionButtons = `
-              <button type="button" class="btn btn-primary" style="font-size: 0.8rem; padding: 4px 10px;" onclick="approveProposal(${propId})">Duyệt & Chốt</button>
-              <button type="button" class="btn btn-outline" style="font-size: 0.8rem; padding: 4px 10px;" onclick="rejectProposal(${propId})">Từ Chối</button>
-            `;
-          } else if (p.status === 'CONFIRMED') {
-            statusBadge = `<span class="stamp-badge open">ĐÃ CHỐT</span>`;
-            actionButtons = `<span style="font-size: 0.8rem; color: #4ade80;">Đã phê duyệt</span>`;
-          } else if (p.status === 'REJECTED') {
-            statusBadge = `<span class="stamp-badge" style="color: #f87171; border-color: #f87171;">TỪ CHỐI</span>`;
-            actionButtons = `<span style="font-size: 0.8rem; color: #f87171;">Đã bác bỏ</span>`;
-          } else {
-            actionButtons = `<span style="font-size: 0.8rem; color: var(--text-muted);">${escapeHtml(p.status || '')}</span>`;
-          }
-
-          return `
-            <tr>
-              <td><strong>#PP-${propId}</strong></td>
-              <td>
-                <div><strong>Phòng #${roomId}: ${escapeHtml(p.room_title || 'Phòng Chơi')}</strong></div>
-                <div style="font-size: 0.8rem; color: var(--text-muted);">Kịch bản: ${escapeHtml(p.game_name || 'Kịch bản nhập vai')}</div>
-              </td>
-              <td>
-                ${escapeHtml(p.proposer_name || 'Thành viên')}<br>
-                <span style="font-size: 0.75rem; color: var(--text-muted);">${escapeHtml(p.proposer_email || '')}</span>
-              </td>
-              <td>${escapeHtml(time)}</td>
-              <td>${statusBadge}</td>
-              <td>
-                <div style="display: flex; gap: 6px; flex-wrap: wrap;">
-                  ${actionButtons}
-                </div>
-              </td>
-            </tr>
+          panel.querySelectorAll('[data-promo-toggle]').forEach((b) => b.addEventListener('click', async () => {
+            const pid = b.getAttribute('data-promo-toggle');
+            const is_active = Number(b.getAttribute('data-promo-next')) === 1;
+            try { await api.patch(`/admin/promotions/${pid}`, { is_active }); showToast('Đã cập nhật trạng thái khuyến mãi.'); render(); } catch (e) { showToast(e.message); }
+          }));
+          document.getElementById('btn-add-venue')?.addEventListener('click', async () => {
+            const name = document.getElementById('nv-name').value.trim();
+            const address = document.getElementById('nv-addr').value.trim();
+            if (!name || !address) { showToast('Vui lòng nhập tên và địa chỉ chi nhánh.'); return; }
+            try { await api.post('/admin/venues', { name, address }); showToast('Đã thêm chi nhánh mới.'); render(); } catch (e) { showToast(e.message); }
+          });
+          document.getElementById('btn-add-pr')?.addEventListener('click', async () => {
+            const vid = Number(document.getElementById('npr-vid').value);
+            const name = document.getElementById('npr-name').value.trim();
+            const capacity = Number(document.getElementById('npr-cap').value) || 8;
+            if (!name) { showToast('Vui lòng nhập tên phòng vật lý.'); return; }
+            try { await api.post(`/admin/venues/${vid}/rooms`, { name, capacity }); showToast('Đã thêm phòng vật lý mới.'); render(); } catch (e) { showToast(e.message); }
+          });
+        } else if (activeTab === 'refunds') {
+          panel.innerHTML = `
+            <h2 class="portal-panel-title">Quản Lý Yêu Cầu Hoàn Tiền Cọc</h2>
+            <div class="portal-table-wrap">
+              <table class="portal-table">
+                <thead><tr><th>Mã</th><th>Người chơi</th><th>Số tiền</th><th>Lý do</th><th>Trạng thái</th><th>Thao tác</th></tr></thead>
+                <tbody>
+                  ${refunds.length ? refunds.map((rf) => `
+                    <tr>
+                      <td><strong>#${rf.id}</strong></td>
+                      <td>${rf.user_name || rf.full_name || ('Payment #' + rf.player_payment_id)}</td>
+                      <td><strong>${formatVND(rf.amount)}</strong></td>
+                      <td>${rf.reason || ''}</td>
+                      <td><span class="v-badge ${rf.status === 'COMPLETED' ? 'v-badge-green' : rf.status === 'APPROVED' ? 'v-badge-gold' : 'v-badge-crimson'}">${rf.status}</span></td>
+                      <td style="display:flex;gap:6px;">
+                        ${rf.status === 'PENDING' ? `
+                          <button class="btn btn-gold btn-sm" data-rf-app="${rf.id}">Duyệt</button>
+                          <button class="btn btn-ghost btn-sm" data-rf-rej="${rf.id}">Từ chối</button>
+                        ` : ''}
+                        ${rf.status === 'APPROVED' ? `<button class="btn btn-gold btn-sm" data-rf-comp="${rf.id}">Hoàn tất CK</button>` : ''}
+                      </td>
+                    </tr>
+                  `).join('') : '<tr><td colspan="6" class="text-muted">Chưa có yêu cầu hoàn tiền nào.</td></tr>'}
+                </tbody>
+              </table>
+            </div>
           `;
-        }).join('');
-      } catch (e) {
-        proposalsTableBody.innerHTML = `
-          <tr>
-            <td colspan="6" style="text-align: center; padding: 20px; color: #ef9a9a;">
-              Không thể tải danh sách đơn đề xuất lịch: ${escapeHtml(e.message || 'Yêu cầu quyền Admin')}
-            </td>
-          </tr>
-        `;
+          panel.querySelectorAll('[data-rf-app]').forEach((b) => b.addEventListener('click', async () => {
+            try { await api.post(`/admin/refunds/${b.getAttribute('data-rf-app')}/approve`, {}); showToast('Đã duyệt hoàn tiền.'); render(); } catch (e) { showToast(e.message); }
+          }));
+          panel.querySelectorAll('[data-rf-rej]').forEach((b) => b.addEventListener('click', async () => {
+            try { await api.post(`/admin/refunds/${b.getAttribute('data-rf-rej')}/reject`, { reason: 'Không đủ điều kiện hoàn cọc theo quy chế 24h' }); showToast('Đã từ chối hoàn tiền.'); render(); } catch (e) { showToast(e.message); }
+          }));
+          panel.querySelectorAll('[data-rf-comp]').forEach((b) => b.addEventListener('click', async () => {
+            try { await api.post(`/admin/refunds/${b.getAttribute('data-rf-comp')}/complete`, { bank_reference_code: 'CK_' + Date.now() }); showToast('Đã hoàn tất chuyển khoản hoàn tiền.'); render(); } catch (e) { showToast(e.message); }
+          }));
+        } else if (activeTab === 'payments') {
+          const payData = await api.get('/admin/payments?per_page=30').catch(() => []);
+          const payments = Array.isArray(payData) ? payData : (payData?.payments || payData?.items || []);
+          panel.innerHTML = `
+            <h2 class="portal-panel-title">Danh Sách Giao Dịch Thanh Toán Hệ Thống</h2>
+            <div class="portal-table-wrap">
+              <table class="portal-table">
+                <thead><tr><th>ID</th><th>Người chơi</th><th>Phòng</th><th>Loại</th><th>Số tiền</th><th>Đã thu</th><th>Trạng thái</th></tr></thead>
+                <tbody>
+                  ${payments.length ? payments.map((p) => `
+                    <tr>
+                      <td><strong>#${p.id}</strong></td>
+                      <td>${p.player_name || p.player_email || ''}</td>
+                      <td>#${p.game_room_id || ''} ${p.room_title || ''}</td>
+                      <td>${p.payment_type || ''}</td>
+                      <td>${formatVND(p.amount)}</td>
+                      <td><strong>${formatVND(p.paid_amount)}</strong></td>
+                      <td><span class="v-badge ${p.status === 'PAID' ? 'v-badge-green' : 'v-badge-gold'}">${p.status}</span></td>
+                    </tr>
+                  `).join('') : '<tr><td colspan="7" class="text-muted">Chưa có giao dịch thanh toán nào.</td></tr>'}
+                </tbody>
+              </table>
+            </div>
+          `;
+        } else if (activeTab === 'hssv') {
+          panel.innerHTML = `
+            <h2 class="portal-panel-title">Danh Sách Tài Khoản, Phân Quyền &amp; Xét Duyệt Thẻ HSSV</h2>
+            <div class="portal-table-wrap">
+              <table class="portal-table">
+                <thead><tr><th>ID</th><th>Họ tên</th><th>Email</th><th>Vai trò</th><th>Thẻ HSSV</th><th>Thao tác</th></tr></thead>
+                <tbody>
+                  ${users.map((u) => {
+                    const roleCode = String(u.role_code || u.role || 'PLAYER').toUpperCase();
+                    const isPlayerAcc = roleCode === 'PLAYER';
+                    const isSelf = currentAdminId > 0 && Number(u.id) === currentAdminId;
+                    const isSuspended = String(u.status || 'ACTIVE').toUpperCase() === 'SUSPENDED';
+                    return `
+                    <tr>
+                      <td><strong>#${u.id}</strong></td>
+                      <td>${escapeHtml(u.full_name || '')}${isSelf ? ' <span class="text-muted" style="font-size:0.75rem;">(Bạn)</span>' : ''}</td>
+                      <td>${escapeHtml(u.email || '')}</td>
+                      <td>
+                        ${isSelf
+                          ? `<span class="v-badge v-badge-gold">${roleCode}</span>`
+                          : `<select class="portal-select" data-role-sel="${u.id}" style="min-width:100px;">
+                              ${['PLAYER', 'DM', 'ADMIN'].map((rc) => `<option value="${rc}" ${rc === roleCode ? 'selected' : ''}>${rc}</option>`).join('')}
+                            </select>`}
+                      </td>
+                      <td>
+                        ${isPlayerAcc ? `
+                          <span class="v-badge ${u.student_verified ? 'v-badge-green' : u.student_card_status === 'PENDING' ? 'v-badge-gold' : 'v-badge-muted'}">${u.student_verified ? 'ĐÃ DUYỆT' : u.student_card_status === 'PENDING' ? 'CHỜ DUYỆT' : 'CHƯA NỘP'}</span>
+                          ${u.student_card_url ? `<div style="font-size:0.75rem;margin-top:3px;"><span class="text-muted">Đã nộp ảnh thẻ</span></div>` : ''}
+                        ` : `<span class="text-muted" style="font-size:0.82rem;">Nội bộ (${roleCode})</span>`}
+                      </td>
+                      <td style="display:flex;gap:6px;flex-wrap:wrap;">
+                        ${isPlayerAcc ? `<button class="btn btn-gold btn-sm" data-sv-toggle="${u.id}" data-sv-val="${u.student_verified ? 0 : 1}">${u.student_verified ? 'Hủy HSSV' : 'Duyệt HSSV'}</button>` : ''}
+                        ${!isSelf ? `
+                          <button class="btn btn-ghost btn-sm" data-role-save="${u.id}">Lưu Role</button>
+                          <button class="btn btn-ghost btn-sm" data-status-toggle="${u.id}" data-next-status="${isSuspended ? 'ACTIVE' : 'SUSPENDED'}">${isSuspended ? 'Mở khóa' : 'Khóa'}</button>
+                        ` : `<span class="text-muted" style="font-size:0.8rem;">Tài khoản hiện tại</span>`}
+                      </td>
+                    </tr>
+                  `; }).join('')}
+                </tbody>
+              </table>
+            </div>
+          `;
+          panel.querySelectorAll('[data-sv-toggle]').forEach((b) => b.addEventListener('click', async () => {
+            const uid = b.getAttribute('data-sv-toggle');
+            const val = Number(b.getAttribute('data-sv-val')) === 1;
+            try { await api.post(`/admin/users/${uid}/verify-student`, { student_verified: val, verified: val }); showToast('Đã cập nhật trạng thái HSSV.'); render(); } catch (e) { showToast(e.message); }
+          }));
+          panel.querySelectorAll('[data-role-save]').forEach((b) => b.addEventListener('click', async () => {
+            const uid = b.getAttribute('data-role-save');
+            const role = panel.querySelector(`[data-role-sel="${uid}"]`).value;
+            try { await api.put(`/admin/users/${uid}/role`, { role_code: role, role }); showToast(`Đã đổi vai trò tài khoản #${uid} sang ${role}.`); render(); } catch (e) { showToast(e.message); }
+          }));
+          panel.querySelectorAll('[data-status-toggle]').forEach((b) => b.addEventListener('click', async () => {
+            const uid = b.getAttribute('data-status-toggle');
+            const nextStatus = b.getAttribute('data-next-status');
+            try { await api.patch(`/admin/users/${uid}`, { status: nextStatus }); showToast(`Đã cập nhật trạng thái tài khoản #${uid} sang ${nextStatus}.`); render(); } catch (e) { showToast(e.message); }
+          }));
+        } else {
+          const auditData = await api.get('/admin/audit-logs?limit=30').catch(() => ({ logs: [] }));
+          const logs = auditData?.logs || auditData?.items || (Array.isArray(auditData) ? auditData : []);
+          panel.innerHTML = `
+            <h2 class="portal-panel-title">Nhật Ký Kiểm Toán Hệ Thống (Audit Logs)</h2>
+            <div class="portal-table-wrap">
+              <table class="portal-table">
+                <thead><tr><th>Thời gian</th><th>Actor ID</th><th>Hành động</th><th>Đối tượng</th></tr></thead>
+                <tbody>
+                  ${logs.length ? logs.map((l) => `
+                    <tr>
+                      <td style="font-family:var(--font-mono);font-size:0.8rem;">${l.created_at || ''}</td>
+                      <td>#${l.actor_id || ''}</td>
+                      <td><span class="v-badge v-badge-gold">${l.action || ''}</span></td>
+                      <td>${l.entity_type || ''} #${l.entity_id || ''}</td>
+                    </tr>
+                  `).join('') : '<tr><td colspan="4" class="text-muted">Chưa có bản ghi kiểm toán.</td></tr>'}
+                </tbody>
+              </table>
+            </div>
+          `;
+        }
+      } catch (err) {
+        panel.innerHTML = `<p class="text-muted">Lỗi tải dữ liệu quản trị: ${err.message}</p>`;
       }
     }
 
-    window.togglePhysicalRoomMaintenance = async function(roomId) {
-      const pr = physicalRoomCache.get(Number(roomId));
-      const isMaint = Boolean(pr?.is_maintenance);
-      const roomName = pr?.name || `Phòng #${roomId}`;
-      const action = isMaint ? 'tắt chế độ bảo trì' : 'kích hoạt chế độ bảo trì và tự động điều chuyển ca chơi';
-      if (!confirm(`Xác nhận ${action} cho phòng "${roomName}"?`)) return;
+    (async () => {
+      const auth = await requireAuthRole(['admin'], 'Cổng Quản Trị Viên (Admin Portal)');
+      currentAdminId = Number(auth.user?.id || 0);
+      initChrome('admin');
+      if (!auth.allowed) return;
 
-      let reason = 'Bảo trì trang thiết bị kỹ thuật';
-      if (!isMaint) {
-        const input = prompt('Nhập lý do bảo trì phòng (VD: Hỏng đèn chiếu, phục chế đạo cụ...):', reason);
-        if (input === null) return;
-        if (input.trim()) reason = input.trim();
-      }
-
-      try {
-        const res = await apiClient.post(`/admin/physical-rooms/${roomId}/maintenance`, {
-          is_maintenance: !isMaint,
-          reason: reason
+      document.querySelectorAll('#admin-tabs .portal-tab').forEach((tab) => {
+        tab.addEventListener('click', () => {
+          document.querySelectorAll('#admin-tabs .portal-tab').forEach((t) => t.classList.remove('active'));
+          tab.classList.add('active');
+          activeTab = tab.getAttribute('data-tab');
+          render();
         });
-        let msg = res.message || 'Cập nhật trạng thái bảo trì thành công!';
-        if (res.data?.rerouted_sessions && res.data.rerouted_sessions.length > 0) {
-          msg += ` Đã tự động điều chuyển ${res.data.rerouted_sessions.length} ca chơi sang phòng trống khác.`;
-        }
-        alert(msg);
-        loadPhysicalRooms();
-        loadRooms();
-        loadAuditLogs();
-      } catch (err) {
-        alert('Lỗi cập nhật bảo trì: ' + (err.message || 'Không thể cập nhật bảo trì'));
-      }
-    };
+      });
 
-    async function loadPhysicalRooms() {
-      const tbody = document.getElementById('physicalRoomsTableBody');
-      if (!tbody) return;
-      try {
-        const res = await apiClient.get('/admin/physical-rooms');
-        const rooms = Array.isArray(res.data) ? res.data : (res.data?.physical_rooms || []);
-        physicalRoomCache.clear();
-
-        if (rooms.length === 0) {
-          tbody.innerHTML = `
-            <tr>
-              <td colspan="7" style="text-align: center; padding: 20px; color: var(--text-muted);">
-                Chưa có phòng vật lý nào được cấu hình trong hệ thống.
-              </td>
-            </tr>
-          `;
-          return;
-        }
-
-        tbody.innerHTML = rooms.map(pr => {
-          const prId = Number(pr.id);
-          physicalRoomCache.set(prId, pr);
-          const isMaint = Boolean(pr.is_maintenance);
-          const statusBadge = isMaint
-            ? `<span class="stamp-badge" style="color: #f87171; border-color: #f87171;">BẢO TRÌ</span>`
-            : `<span class="stamp-badge open">SẴN SÀNG</span>`;
-          let nextSession = 'Không có ca sắp tới';
-          if (pr.upcoming_session_info) {
-            const parts = String(pr.upcoming_session_info).split(':');
-            nextSession = parts.length > 2 ? parts.slice(2).join(':') : String(pr.upcoming_session_info);
-          }
-
-          return `
-            <tr>
-              <td><strong>#PR-${prId}</strong></td>
-              <td>
-                <div><strong>${escapeHtml(pr.name || 'Phòng vật lý')}</strong></div>
-                <div style="font-size: 0.8rem; color: var(--text-muted);">${escapeHtml(pr.venue_name || 'Chi nhánh #' + pr.venue_id)}</div>
-              </td>
-              <td>${Number(pr.capacity || 0)} người</td>
-              <td><span class="stamp-badge" style="font-size: 0.75rem;">${escapeHtml(pr.theme_code || 'GENERAL')}</span></td>
-              <td>${statusBadge}</td>
-              <td style="font-size: 0.8rem; color: var(--text-muted); max-width: 200px;">${escapeHtml(nextSession)}</td>
-              <td>
-                <button type="button" class="btn ${isMaint ? 'btn-primary' : 'btn-outline'}" style="font-size: 0.8rem; padding: 4px 10px;" onclick="togglePhysicalRoomMaintenance(${prId})">
-                  ${isMaint ? 'Tắt Bảo Trì' : 'Bật Bảo Trì'}
-                </button>
-              </td>
-            </tr>
-          `;
-        }).join('');
-      } catch (e) {
-        tbody.innerHTML = `
-          <tr>
-            <td colspan="7" style="text-align: center; padding: 20px; color: #ef9a9a;">
-              Không thể tải danh sách phòng vật lý: ${escapeHtml(e.message || 'Yêu cầu quyền Admin')}
-            </td>
-          </tr>
-        `;
-      }
-    }
-
-    window.approveRefund = async function(refundId) {
-      if (!confirm('Xác nhận DUYỆT yêu cầu hoàn cọc này?')) return;
-      try {
-        const res = await apiClient.post(`/admin/refunds/${refundId}/approve`);
-        alert(res.message || 'Đã duyệt yêu cầu hoàn tiền thành công!');
-        loadRefunds();
-        loadReports();
-        loadAuditLogs();
-      } catch (err) {
-        alert('Lỗi duyệt hoàn tiền: ' + (err.message || 'Không thể duyệt hoàn tiền'));
-      }
-    };
-
-    window.rejectRefund = async function(refundId) {
-      const reason = prompt('Nhập lý do từ chối hoàn tiền:', 'Vi phạm chính sách hủy muộn dưới 24 giờ');
-      if (!reason) return;
-      try {
-        const res = await apiClient.post(`/admin/refunds/${refundId}/reject`, { reason });
-        alert(res.message || 'Đã từ chối hoàn tiền!');
-        loadRefunds();
-        loadAuditLogs();
-      } catch (err) {
-        alert('Lỗi từ chối hoàn tiền: ' + (err.message || 'Không thể từ chối hoàn tiền'));
-      }
-    };
-
-    window.completeRefund = async function(refundId) {
-      const bankRef = prompt('Nhập mã ủy nhiệm chi hoặc mã giao dịch chuyển khoản ngân hàng:', 'UNC_' + Date.now());
-      if (!bankRef) return;
-      try {
-        const res = await apiClient.post(`/admin/refunds/${refundId}/complete`, { bank_reference_code: bankRef });
-        alert(res.message || 'Đã đóng hồ sơ chi trả tiền cọc thành công!');
-        loadRefunds();
-        loadReports();
-        loadAuditLogs();
-      } catch (err) {
-        alert('Lỗi cập nhật hoàn tất hoàn tiền: ' + (err.message || 'Không thể hoàn tất chi trả'));
-      }
-    };
-
-    async function loadRefunds() {
-      const tbody = document.getElementById('refundsTableBody');
-      if (!tbody) return;
-      try {
-        const res = await apiClient.get('/admin/refunds');
-        const refunds = Array.isArray(res.data) ? res.data : (res.data?.refunds || []);
-
-        if (refunds.length === 0) {
-          tbody.innerHTML = `
-            <tr>
-              <td colspan="6" style="text-align: center; padding: 20px; color: var(--text-muted);">
-                Chưa có yêu cầu hoàn cọc nào trong hệ thống.
-              </td>
-            </tr>
-          `;
-          return;
-        }
-
-        tbody.innerHTML = refunds.map(r => {
-          const refId = Number(r.id);
-          let statusBadge = '';
-          let actions = '';
-          if (r.status === 'PENDING') {
-            statusBadge = `<span class="stamp-badge" style="color: var(--color-gold); border-color: var(--color-gold);">CHỜ DUYỆT</span>`;
-            actions = `
-              <button type="button" class="btn btn-primary" style="font-size: 0.8rem; padding: 4px 10px;" onclick="approveRefund(${refId})">Duyệt</button>
-              <button type="button" class="btn btn-outline" style="font-size: 0.8rem; padding: 4px 10px;" onclick="rejectRefund(${refId})">Từ Chối</button>
-            `;
-          } else if (r.status === 'APPROVED') {
-            statusBadge = `<span class="stamp-badge open">ĐÃ DUYỆT</span>`;
-            actions = `
-              <button type="button" class="btn btn-gold" style="font-size: 0.8rem; padding: 4px 10px;" onclick="completeRefund(${refId})">Chi Tiền (UNC)</button>
-            `;
-          } else if (r.status === 'COMPLETED') {
-            statusBadge = `<span class="stamp-badge open" style="color: #60a5fa; border-color: #60a5fa;">ĐÃ CHI TRẢ</span>`;
-            actions = `<span style="font-size: 0.8rem; color: #60a5fa;">Hoàn tất kế toán</span>`;
-          } else {
-            statusBadge = `<span class="stamp-badge" style="color: #f87171; border-color: #f87171;">TỪ CHỐI</span>`;
-            actions = `<span style="font-size: 0.8rem; color: #f87171;">Đã bác bỏ</span>`;
-          }
-
-          return `
-            <tr>
-              <td><strong>#REF-${refId}</strong></td>
-              <td>${escapeHtml(r.user_name || 'Người chơi #' + (r.user_id || ''))}</td>
-              <td style="font-weight: 700; color: var(--color-gold);">${Number(r.amount || 50000).toLocaleString('vi-VN')} đ</td>
-              <td>${statusBadge}</td>
-              <td style="font-size: 0.8rem; color: var(--text-muted); max-width: 220px;">${escapeHtml(r.reason || 'N/A')}</td>
-              <td>
-                <div style="display: flex; gap: 6px; flex-wrap: wrap;">
-                  ${actions}
-                </div>
-              </td>
-            </tr>
-          `;
-        }).join('');
-      } catch (e) {
-        tbody.innerHTML = `
-          <tr>
-            <td colspan="6" style="text-align: center; padding: 20px; color: #ef9a9a;">
-              Không thể tải danh sách hoàn tiền: ${escapeHtml(e.message || 'Yêu cầu quyền Admin')}
-            </td>
-          </tr>
-        `;
-      }
-    }
-
-    async function loadAdminDashboard() {
-      const isAdmin = await checkAuth();
-      if (!isAdmin) {
-        document.getElementById('kpiRevenue').textContent = '--';
-        document.getElementById('kpiDeposit').textContent = '--';
-        document.getElementById('kpiRooms').textContent = '--';
-        document.getElementById('kpiCompleted').textContent = '--';
-        roomsTableBody.innerHTML = '<tr><td colspan="5" style="text-align: center; padding: 20px; color: var(--text-muted);">Yêu cầu đăng nhập tài khoản Quản Trị Viên (Admin).</td></tr>';
-        document.getElementById('proposalsTableBody').innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 20px; color: var(--text-muted);">Yêu cầu đăng nhập tài khoản Quản Trị Viên (Admin).</td></tr>';
-        document.getElementById('physicalRoomsTableBody').innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 20px; color: var(--text-muted);">Yêu cầu đăng nhập tài khoản Quản Trị Viên (Admin).</td></tr>';
-        document.getElementById('refundsTableBody').innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 20px; color: var(--text-muted);">Yêu cầu đăng nhập tài khoản Quản Trị Viên (Admin).</td></tr>';
-        const uBody = document.getElementById('usersTableBody');
-        if (uBody) uBody.innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 20px; color: var(--text-muted);">Yêu cầu đăng nhập tài khoản Quản Trị Viên (Admin).</td></tr>';
-        studentListContainer.innerHTML = '<div style="padding: 12px; text-align: center; color: var(--text-muted); font-size: 0.85rem;">Yêu cầu đăng nhập tài khoản Quản Trị Viên (Admin).</div>';
-        auditLogContainer.innerHTML = '<p style="color: var(--text-muted);">Yêu cầu đăng nhập tài khoản Quản Trị Viên (Admin).</p>';
-        return;
-      }
-      await Promise.all([
-        loadRooms(),
-        loadProposals(),
-        loadPhysicalRooms(),
-        loadRefunds(),
-        loadStudents(),
-        loadAuditLogs(),
-        loadReports()
-      ]);
-    }
-
-    document.getElementById('btnOfflineBlock')?.addEventListener('click', async () => {
-      const customerName = prompt('Tên khách hàng đặt qua Hotline/Walk-in:', 'Anh Tuấn (Hotline)');
-      if (!customerName) return;
-      const customerPhone = prompt('Số điện thoại khách hàng:', '0909123456');
-      if (!customerPhone) return;
-      const venueId = prompt('ID Chi nhánh (1: Quận 1, 2: Bình Thạnh):', '1');
-      if (!venueId) return;
-      const pRoomId = prompt('ID Phòng vật lý (1: Sherlock Holmes, 2: Dracula, 3: Cổ Trang):', '1');
-      if (!pRoomId) return;
-      const nowStr = formatLocalSqlDatetime(new Date(Date.now() + 3600000));
-      const endStr = formatLocalSqlDatetime(new Date(Date.now() + 18000000));
-      const startAt = prompt('Thời gian bắt đầu theo giờ địa phương (YYYY-MM-DD HH:MM:SS):', nowStr);
-      if (!startAt) return;
-      const endAt = prompt('Thời gian kết thúc theo giờ địa phương (YYYY-MM-DD HH:MM:SS):', endStr);
-      if (!endAt) return;
-      const notes = prompt('Ghi chú đặt phòng:', 'Khách cọc trực tiếp tại quầy 100k');
-
-      try {
-        const json = await apiClient.post('/admin/rooms/offline-block', {
-          venue_id: Number(venueId),
-          physical_room_id: Number(pRoomId),
-          start_at: startAt,
-          end_at: endAt,
-          customer_name: customerName,
-          customer_phone: customerPhone,
-          notes: notes || ''
-        });
-        alert(json.message || 'Đã khóa giữ chỗ phòng vật lý thành công!');
-        loadAdminDashboard();
-      } catch (err) {
-        alert('Lỗi khóa phòng Hotline: ' + (err.message || 'Không thể khóa giữ chỗ phòng'));
-      }
-    });
-
-    loadAdminDashboard();
+      render();
+    })();
   </script>
 </body>
 </html>

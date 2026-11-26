@@ -29,12 +29,24 @@ function initScrollyParallax() {
   const s1Content = document.getElementById('s1-content');
   const s2Room = document.getElementById('s2-room');
   const s3Cards = document.getElementById('s3-cards');
-  const cardLeft = document.getElementById('card-left');
-  const cardCenter = document.getElementById('card-center');
-  const cardRight = document.getElementById('card-right');
+
+  // --- Phân cảnh 3: tiệm bói tarot ---
+  const s3CurtL = document.getElementById('s3-curtain-left');
+  const s3CurtR = document.getElementById('s3-curtain-right');
+  const s3Copy = document.getElementById('s3-copy');
+  const tarot = [...document.querySelectorAll('.tarot-slot')];
+  const flipRank = [0, 1, 4, 2, 3]; // thứ tự lật: ngoài trước, lá giữa (hung thủ) lật cuối
+  const easeInOut = (t) => (t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2);
 
   const clamp = (v, min = 0, max = 1) => Math.min(max, Math.max(min, v));
   const seg = (p, start, end) => clamp((p - start) / (end - start));
+
+  let step = 180;
+  function calcStep() {
+    const w = tarot[0] ? tarot[0].offsetWidth : 150;
+    step = Math.min(window.innerWidth * 0.17, w * 1.1);
+  }
+  calcStep();
 
   let ticking = false;
   function updateParallax() {
@@ -77,20 +89,34 @@ function initScrollyParallax() {
       s2Room.style.transform = `scale(${0.94 + p2In * 0.06})`;
     }
 
-    // --- PHÂN CẢNH 3 (0.68 -> 1.00): Quạt 3 lá bài hồ sơ nhân vật ---
-    const p3 = seg(p, 0.68, 0.88);
+    // --- PHÂN CẢNH 3 (0.66 -> 1.00): Rèm mở, 5 lá bài bay lên, lật lần lượt ---
     if (s3Cards) {
       s3Cards.style.opacity = seg(p, 0.66, 0.78);
       s3Cards.style.pointerEvents = p > 0.68 ? 'auto' : 'none';
     }
-    if (cardLeft) {
-      cardLeft.style.transform = `translateX(${(1 - p3) * 90}px) rotate(${-14 * p3}deg) translateY(${12 * p3}px)`;
-    }
-    if (cardRight) {
-      cardRight.style.transform = `translateX(${-(1 - p3) * 90}px) rotate(${14 * p3}deg) translateY(${12 * p3}px)`;
-    }
-    if (cardCenter) {
-      cardCenter.style.transform = `translateY(${-10 * p3}px) scale(${0.92 + p3 * 0.1})`;
+
+    const open = easeInOut(seg(p, 0.68, 0.82));
+    if (s3CurtL) s3CurtL.style.transform = `translateX(${-open * 62}%)`;
+    if (s3CurtR) s3CurtR.style.transform = `translateX(${open * 62}%)`;
+
+    tarot.forEach((el, i) => {
+      const k = i - 2;
+      const a = easeInOut(seg(p, 0.72 + Math.abs(k) * 0.015, 0.88));
+      const f = seg(p, 0.78 + flipRank[i] * 0.028, 0.85 + flipRank[i] * 0.028);
+      const x = k * step * a;
+      const y = (1 - a) * 180 + k * k * 14 * a;
+      const r = k * 7 * a;
+      const s = (0.5 + 0.5 * a) * (1 + 0.1 * Math.sin(Math.PI * f));
+      el.style.transform = `translate3d(${x}px, ${y}px, 0) rotate(${r}deg) scale(${s})`;
+      el.style.opacity = a;
+      el.style.zIndex = 5 - Math.abs(k);
+      el.style.setProperty('--flip', `${(1 - easeInOut(f)) * 180}deg`);
+    });
+
+    if (s3Copy) {
+      const c = seg(p, 0.88, 0.97);
+      s3Copy.style.opacity = c;
+      s3Copy.style.transform = `translateY(${(1 - c) * 20}px)`;
     }
 
     ticking = false;
@@ -103,28 +129,74 @@ function initScrollyParallax() {
     }
   }, { passive: true });
 
+  window.addEventListener('resize', () => {
+    calcStep();
+    updateParallax();
+  });
+
   updateParallax();
 }
 
 /* =========================================================
 2. KHỐI PHÒNG ĐANG TUYỂN NGƯỜI CHƠI
    ========================================================= */
-function renderOpenRooms() {
+async function renderOpenRooms() {
   const grid = document.getElementById('home-rooms-grid');
   if (!grid) return;
 
-  const state = getState();
-  const rooms = (state.rooms || []).slice(0, 3);
+  // Khách chưa đăng nhập không được phép xem danh sách phòng đang tuyển
+  let isLoggedIn = false;
+  let userRole = 'GUEST';
+  try {
+    const meRes = await fetch('/api/v1/auth/me', { credentials: 'include' });
+    if (meRes.ok) {
+      const meJson = await meRes.json();
+      const meUser = meJson?.data?.user || meJson?.data;
+      isLoggedIn = Boolean(meJson?.success && meUser?.id);
+      userRole = String(meUser?.role_code || meUser?.role || 'PLAYER').toUpperCase();
+    }
+  } catch {
+    isLoggedIn = false;
+  }
 
+  if (!isLoggedIn) {
+    grid.innerHTML = `
+      <div class="paper-ticket" style="grid-column:1/-1; padding:28px; text-align:center;">
+        <h3 style="font-family:var(--font-display); font-size:1.35rem; margin-bottom:8px;">Đăng nhập để xem phòng đang tuyển</h3>
+        <p style="font-size:0.92rem; color:var(--ink-muted); margin-bottom:18px;">
+          Thông tin bàn chơi đang ghép chỉ hiển thị cho thành viên đã đăng nhập nhằm bảo mật lịch đặt của người chơi.
+        </p>
+        <div style="display:flex; gap:10px; justify-content:center; flex-wrap:wrap;">
+          <a href="./pages/auth.html#login" class="btn btn-crimson btn-sm">Đăng nhập ngay</a>
+          <a href="./pages/auth.html#register" class="btn btn-gold btn-sm">Đăng ký thành viên</a>
+        </div>
+      </div>
+    `;
+    return;
+  }
+
+  let rooms = [];
+  try {
+    const res = await fetch('/api/v1/rooms?status=FORMING&per_page=6', { credentials: 'include' });
+    const json = await res.json();
+    const list = json?.data?.rooms || json?.rooms || [];
+    rooms = list
+      .filter((r) => Number(r.current_players ?? 0) > 0)
+      .filter((r) => !(String(r.booking_type || r.room_type || 'PUBLIC').toUpperCase() === 'PRIVATE' && Number(r.guest_slots ?? 0) === 0))
+      .slice(0, 3);
+  } catch {
+    rooms = [];
+  }
+
+  const isPlayerRole = userRole === 'PLAYER';
   if (!rooms.length) {
-    grid.innerHTML = `<p class="text-muted">Hiện chưa có phòng mở công khai. Hãy tự tạo phòng mới!</p>`;
+    grid.innerHTML = `<p class="text-muted">${isPlayerRole ? 'Hiện chưa có phòng mở công khai. Hãy tự tạo phòng mới!' : 'Hiện chưa có phòng đang tuyển công khai.'}</p>`;
     return;
   }
 
   grid.innerHTML = rooms.map((r) => {
-    const sc = SCENARIOS.find((s) => s.id === r.scriptId) || SCENARIOS[0] || {};
-    const filledSlots = Array.isArray(r.slots) ? r.slots.filter((sl) => sl.name).length : (r.players?.length || 1);
-    const max = r.maxPlayers || 8;
+    const filledSlots = Number(r.current_players ?? 1);
+    const max = Number(r.max_players ?? 8);
     const missing = Math.max(0, max - filledSlots);
     return `
       <div class="paper-ticket" style="padding:20px; display:flex; flex-direction:column; justify-content:space-between; gap:14px;">
@@ -133,11 +205,11 @@ function renderOpenRooms() {
             <span class="badge badge-18">PHÒNG #${r.id}</span>
             <span class="badge ${missing > 0 ? 'badge-green' : 'badge-dark'}">${missing > 0 ? `Thiếu ${missing} người` : 'Đủ người'}</span>
           </div>
-          <h3 style="font-family:var(--font-display); font-size:1.25rem; margin-bottom:6px;">${sc.title || sc.name || 'Kịch bản bí ẩn'}</h3>
-          <p style="font-size:0.86rem; color:var(--ink-muted);">📅 ${r.date || 'Hôm nay'} • ⏰ ${r.timeSlot || r.slot || '19:00'}</p>
-          <p style="font-size:0.86rem; color:var(--ink-muted);">👥 Đã có ${filledSlots}/${max} người chơi</p>
+          <h3 style="font-family:var(--font-display); font-size:1.25rem; margin-bottom:6px;">${r.game_name || r.title || 'Kịch bản bí ẩn'}</h3>
+          <p style="font-size:0.86rem; color:var(--ink-muted);">Khung giờ dự kiến: ${r.target_time_slot || 'Đang biểu quyết'}</p>
+          <p style="font-size:0.86rem; color:var(--ink-muted);">Sĩ số: ${filledSlots}/${max} người chơi</p>
         </div>
-        <a href="./pages/room-detail.html?id=${r.id}" class="btn btn-crimson btn-sm">Xem chi tiết &amp; Vào ghế</a>
+        <a href="./pages/room-detail.html?id=${r.id}" class="btn btn-crimson btn-sm">${isPlayerRole ? 'Xem chi tiết &amp; Vào ghế' : 'Xem chi tiết phòng'}</a>
       </div>
     `;
   }).join('');

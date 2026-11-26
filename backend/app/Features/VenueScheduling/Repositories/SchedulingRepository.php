@@ -88,11 +88,13 @@ class SchedulingRepository extends BaseRepository
                     (SELECT COUNT(*) FROM `sessions`
                      WHERE `physical_room_id` = :pr1
                        AND `status` IN (\'SCHEDULED\', \'IN_PROGRESS\')
-                       AND `start_at` < :end1 AND `end_at` > :start1)
+                       AND `start_at` < DATE_ADD(:end1, INTERVAL 30 MINUTE)
+                       AND `end_at` > DATE_SUB(:start1, INTERVAL 30 MINUTE))
                     +
                     (SELECT COUNT(*) FROM `offline_room_blocks`
                      WHERE `physical_room_id` = :pr2
-                       AND `start_at` < :end2 AND `end_at` > :start2)
+                       AND `start_at` < DATE_ADD(:end2, INTERVAL 30 MINUTE)
+                       AND `end_at` > DATE_SUB(:start2, INTERVAL 30 MINUTE))
                  ) AS conflict_count'
             );
 

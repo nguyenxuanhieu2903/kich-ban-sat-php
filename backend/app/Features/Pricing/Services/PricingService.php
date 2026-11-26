@@ -111,7 +111,6 @@ class PricingService
         // Tiền cọc: Cố định 50.000 VNĐ / người
         $depositPerPerson = self::DEPOSIT_PER_PERSON;
         $depositTotal = $depositPerPerson * $totalParticipants;
-        $depositTotal = $depositPerPerson * $totalParticipants;
 
         // 5. Xử lý khuyến mãi (Không cộng dồn - Tự động chọn mức có lợi nhất nếu không truyền mã cụ thể)
         $discountAmount = 0;
@@ -467,6 +466,219 @@ class PricingService
             'end_datetime' => $endDateTime,
             'duration_minutes' => $durationMinutes,
             'tier_overlaps' => $tierOverlaps,
+        ];
+    }
+
+    /**
+     * Tra đơn giá chuẩn theo GIỜ BẮT ĐẦU ca chơi trong bảng `game_prices`
+     * (Khung ban ngày 09:00–19:59, Khung buổi tối từ 20:00 — bám sát menu quán).
+     *
+     * @return array<string, mixed>
+     */
+    public function resolveTierPriceByStartTime(int $gameId, string $startDateTime): array
+    {
+        $ts = strtotime(str_replace('T', ' ', $startDateTime));
+        if ($ts === false) {
+            $ts = time();
+        }
+        $playDate = date('Y-m-d', $ts);
+        $timeOfDay = date('H:i:s', $ts);
+        $minutesOfDay = ((int) date('G', $ts)) * 60 + (int) date('i', $ts);
+        $isNight = $minutesOfDay >= 20 * 60;
+
+        $stmt = $this->pdo->prepare(
+            'SELECT `id`, `price_per_person`, `start_time`, `end_time`
+             FROM `game_prices`
+             WHERE `game_id` = :gid AND `status` = \'ACTIVE\'
+               AND (`effective_until` IS NULL OR `effective_until` >= :d1)
+               AND `effective_from` <= :d2
+             ORDER BY `start_time` ASC'
+        );
+        $stmt->execute([':gid' => $gameId, ':d1' => $playDate, ':d2' => $playDate]);
+        $tiers = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        $matched = null;
+        foreach ($tiers as $t) {
+            if ($timeOfDay >= (string) $t['start_time'] && $timeOfDay <= (string) $t['end_time']) {
+                $matched = $t;
+                break;
+            }
+        }
+
+        if ($matched === null && !empty($tiers)) {
+            foreach ($tiers as $t) {
+                $tierIsNight = ((string) $t['start_time']) >= '20:00:00';
+                if ($tierIsNight === $isNight) {
+                    $matched = $t;
+                    break;
+                }
+            }
+            if ($matched === null) {
+                $matched = $tiers[0];
+            }
+        }
+
+        if ($matched === null) {
+            $fb = $this->pdo->prepare('SELECT `price_per_person`, `start_time`, `end_time` FROM `game_prices` WHERE `game_id` = :gid AND `status` = \'ACTIVE\' ORDER BY `start_time` ASC LIMIT 1');
+            $fb->execute([':gid' => $gameId]);
+            $row = $fb->fetch(PDO::FETCH_ASSOC);
+            $price = $row !== false ? (int) $row['price_per_person'] : 199000;
+        } else {
+            $price = (int) $matched['price_per_person'];
+        }
+
+        return [
+            'base_price_per_person' => $price,
+            'is_night' => $isNight,
+            'time_slot' => $isNight ? 'NIGHT' : 'DAY',
+            'time_window' => $isNight ? 'Khung tối (từ 20:00)' : 'Khung ngày (09:00–19:59)',
+            'play_datetime' => date('Y-m-d H:i:s', $ts),
+            'timestamp' => $ts,
+        ];
+    }
+
+    /**
+     * Hàm tính báo giá chuẩn duy nhất (Single Source of Truth) cho toàn hệ thống:
+     * - Đơn giá tra theo giờ bắt đầu từ `game_prices` (09:00–19:59 vs từ 20:00).
+     * - Ưu đãi đọc trực tiếp từ bảng `promotions` đang bật (`is_active = 1`), không cộng dồn, tự chọn mức có lợi nhất.
+     * - Ưu đãi HSSV áp dụng theo số thẻ HSSV đã được duyệt (mặc định 1 thẻ của chủ tài khoản).
+     * - Tiền cọc cố định 50.000đ/người (không vượt quá tổng sau giảm).
+     *
+     * @return array<string, mixed>
+     */
+    public function calculateQuote(
+        int $gameId,
+        int $playerCount,
+        string $startDateTime,
+        bool $isStudentVerified = false,
+        int $verifiedStudentCount = 0
+    ): array {
+        $playerCount = max(1, $playerCount);
+        $tier = $this->resolveTierPriceByStartTime($gameId, $startDateTime);
+        $ts = (int) $tier['timestamp'];
+        $playDateTime = (string) $tier['play_datetime'];
+        $basePrice = (int) $tier['base_price_per_person'];
+        $subtotal = $basePrice * $playerCount;
+
+        $timeOfDay = date('H:i:s', $ts);
+        $dayOfWeek = (int) date('N', $ts); // 1=Mon..7=Sun
+        $advanceHours = ($ts - time()) / 3600.0;
+
+        $promoStmt = $this->pdo->prepare(
+            'SELECT `id`, `code`, `name`, `promotion_type`, `discount_type`, `discount_value`, `rules`, `start_at`, `end_at`
+             FROM `promotions`
+             WHERE `is_active` = 1
+               AND (`start_at` IS NULL OR `start_at` <= :dt1)
+               AND (`end_at` IS NULL OR `end_at` >= :dt2)
+             ORDER BY `id` ASC'
+        );
+        $promoStmt->execute([':dt1' => $playDateTime, ':dt2' => $playDateTime]);
+        $activePromos = $promoStmt->fetchAll(PDO::FETCH_ASSOC);
+
+        $discountAmount = 0;
+        $discountCode = null;
+        $discountLabel = 'Không có ưu đãi';
+        $appliedPromoId = null;
+        $promotionNote = null;
+        $eligibleCandidates = [];
+
+        foreach ($activePromos as $promo) {
+            $rules = !empty($promo['rules']) ? (json_decode((string) $promo['rules'], true) ?: []) : [];
+
+            if (!empty($rules['weekdays']) && is_array($rules['weekdays'])) {
+                $allowedDays = array_map('intval', $rules['weekdays']);
+                if (!in_array($dayOfWeek, $allowedDays, true)) {
+                    continue;
+                }
+            }
+
+            if (!empty($rules['valid_from']) && !empty($rules['valid_until'])) {
+                if ($timeOfDay < (string) $rules['valid_from'] || $timeOfDay > (string) $rules['valid_until']) {
+                    continue;
+                }
+            }
+
+            if (!empty($rules['minimum_booking_hours'])) {
+                $minHours = (float) $rules['minimum_booking_hours'];
+                if ($advanceHours < $minHours) {
+                    if ($promotionNote === null && strtoupper((string) $promo['code']) === 'TUESDAY_30') {
+                        $promotionNote = 'Ưu đãi Thứ Ba (-30%) yêu cầu đặt trước ít nhất 24 giờ trong khung 09:00–19:00.';
+                    }
+                    continue;
+                }
+            }
+
+            $requiresStudent = !empty($rules['requires_student_verification']);
+            $eligibleCount = $playerCount;
+            if ($requiresStudent) {
+                if (!$isStudentVerified) {
+                    continue;
+                }
+                $stuCount = $verifiedStudentCount > 0 ? $verifiedStudentCount : 1;
+                $eligibleCount = max(1, min($playerCount, $stuCount));
+            }
+
+            $candDiscount = 0;
+            $dType = strtoupper((string) ($promo['discount_type'] ?? ''));
+            if ($dType === 'PERCENT') {
+                $pct = (float) ($promo['discount_value'] ?? 0);
+                $candDiscount = (int) round($subtotal * ($pct / 100.0));
+            } elseif ($dType === 'FIXED') {
+                $perPerson = (int) ($rules['discount_per_eligible_person'] ?? $promo['discount_value'] ?? 0);
+                $candDiscount = $perPerson * $eligibleCount;
+            }
+
+            if ($candDiscount > 0) {
+                $eligibleCandidates[] = [
+                    'id' => (int) $promo['id'],
+                    'code' => (string) $promo['code'],
+                    'name' => (string) $promo['name'],
+                    'discount' => $candDiscount,
+                    'requires_student' => $requiresStudent,
+                    'eligible_count' => $eligibleCount,
+                ];
+            }
+        }
+
+        if (!empty($eligibleCandidates)) {
+            usort($eligibleCandidates, fn ($a, $b) => $b['discount'] <=> $a['discount']);
+            $best = $eligibleCandidates[0];
+            $discountAmount = min($subtotal, (int) $best['discount']);
+            $discountCode = $best['code'];
+            $discountLabel = $best['name'];
+            $appliedPromoId = $best['id'];
+
+            if (count($eligibleCandidates) > 1) {
+                $promotionNote = 'Không cộng dồn ưu đãi — hệ thống tự động chọn mức giảm cao nhất cho bạn.';
+            } elseif (!empty($best['requires_student']) && $playerCount > (int) $best['eligible_count']) {
+                $promotionNote = 'Đã áp dụng ưu đãi HSSV cho 01 tài khoản đã duyệt thẻ; thành viên đi cùng có thẻ HSSV sẽ được DM giảm thêm 20.000đ/người tại quầy.';
+            }
+        }
+
+        $finalTotal = max(0, $subtotal - $discountAmount);
+        $depositTotal = min($finalTotal, self::DEPOSIT_PER_PERSON * $playerCount);
+        $remainingTotal = max(0, $finalTotal - $depositTotal);
+
+        return [
+            'time_slot' => $tier['time_slot'],
+            'time_window' => $tier['time_window'],
+            'play_datetime' => $playDateTime,
+            'player_count' => $playerCount,
+            'base_price_per_player' => $basePrice,
+            'raw_total_vnd' => $subtotal,
+            'subtotal' => $subtotal,
+            'total_discount_vnd' => $discountAmount,
+            'discount_amount' => $discountAmount,
+            'discount_code' => $discountCode,
+            'promotion_id' => $appliedPromoId,
+            'applied_promotion' => ['id' => $appliedPromoId, 'code' => $discountCode, 'name' => $discountLabel],
+            'promotion_note' => $promotionNote,
+            'final_total_vnd' => $finalTotal,
+            'total_amount' => $finalTotal,
+            'total_deposit_vnd' => $depositTotal,
+            'deposit_amount' => $depositTotal,
+            'remaining_vnd' => $remainingTotal,
+            'remaining_amount' => $remainingTotal,
         ];
     }
 }

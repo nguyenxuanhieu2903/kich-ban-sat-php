@@ -229,15 +229,22 @@ class AdminUserController
             $nextHostId = $nextMemberStmt->fetchColumn();
 
             if ($nextHostId !== false) {
-                // Chuyển quyền Host
-                $this->pdo->prepare('UPDATE `game_rooms` SET `creator_id` = :new_host, `updated_at` = NOW() WHERE `id` = :rid')
-                    ->execute([':new_host' => (int) $nextHostId, ':rid' => $rId]);
-                // Xóa tài khoản bị khóa khỏi phòng
-                $this->pdo->prepare('DELETE FROM `room_participants` WHERE `game_room_id` = :rid AND `user_id` = :uid')
+                // Chuyển quyền Host, đặt lại total_players=1 và mở lại guest_slots tương ứng
+                $this->pdo->prepare(
+                    'UPDATE `game_rooms`
+                     SET `creator_id` = :new_host,
+                         `total_players` = 1,
+                         `guest_slots` = GREATEST(0, COALESCE(`max_players`, 6) - 1),
+                         `confirmed_players` = GREATEST(1, `confirmed_players` - 1),
+                         `updated_at` = NOW()
+                     WHERE `id` = :rid'
+                )->execute([':new_host' => (int) $nextHostId, ':rid' => $rId]);
+                // Soft-update tài khoản bị khóa khỏi phòng (giữ nguyên lịch sử khóa ngoại)
+                $this->pdo->prepare('UPDATE `room_participants` SET `status` = \'CANCELLED_BY_ADMIN\', `cancel_reason` = \'Tài khoản bị khóa\', `cancelled_at` = NOW(), `updated_at` = NOW() WHERE `game_room_id` = :rid AND `user_id` = :uid')
                     ->execute([':rid' => $rId, ':uid' => $targetUserId]);
             } else {
-                // Không còn ai trong phòng -> Giải tán phòng
-                $this->pdo->prepare('UPDATE `game_rooms` SET `status` = \'DISBANDED\', `updated_at` = NOW() WHERE `id` = :rid')
+                // Không còn ai trong phòng -> Hủy phòng (đồng bộ chuẩn CANCELLED)
+                $this->pdo->prepare('UPDATE `game_rooms` SET `status` = \'CANCELLED\', `cancelled_at` = NOW(), `cancel_reason` = \'Chủ phòng bị khóa tài khoản và không còn thành viên\', `updated_at` = NOW() WHERE `id` = :rid')
                     ->execute([':rid' => $rId]);
             }
         }
@@ -253,8 +260,8 @@ class AdminUserController
 
         foreach ($memberRooms as $roomId) {
             $rId = (int) $roomId;
-            // Chỉ loại khỏi phòng, giảm confirmed_players và mở lại slot trống trên sảnh
-            $this->pdo->prepare('DELETE FROM `room_participants` WHERE `game_room_id` = :rid AND `user_id` = :uid')
+            // Soft-update loại khỏi phòng, giảm confirmed_players và mở lại slot trống trên sảnh
+            $this->pdo->prepare('UPDATE `room_participants` SET `status` = \'CANCELLED_BY_ADMIN\', `cancel_reason` = \'Tài khoản bị khóa\', `cancelled_at` = NOW(), `updated_at` = NOW() WHERE `game_room_id` = :rid AND `user_id` = :uid')
                 ->execute([':rid' => $rId, ':uid' => $targetUserId]);
             $this->pdo->prepare('UPDATE `game_rooms` SET `confirmed_players` = GREATEST(1, `confirmed_players` - 1), `updated_at` = NOW() WHERE `id` = :rid')
                 ->execute([':rid' => $rId]);

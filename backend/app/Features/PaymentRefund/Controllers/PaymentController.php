@@ -207,32 +207,62 @@ class PaymentController
             return $auth;
         }
 
+        $actorRole = strtoupper((string) ($auth['role_code'] ?? $auth['role'] ?? 'PLAYER'));
+        if (in_array($actorRole, ['DM', 'ADMIN'], true)) {
+            return Response::fail(
+                'Tài khoản Quản trò (DM) và Quản trị viên (Admin) chỉ điều phối/đối soát, không thực hiện đặt cọc người chơi',
+                'FORBIDDEN_ROLE',
+                403
+            );
+        }
+
         $body = $request->getBodyParams();
         $roomId = (int) ($body['room_id'] ?? $body['game_room_id'] ?? 0);
         if ($roomId <= 0) {
             return Response::fail('Thiếu mã phòng chơi (room_id) để thực hiện thanh toán cọc', 'ROOM_ID_REQUIRED', 400);
+        }
+
+        // Xác nhận người gọi là thành viên đang hoạt động trong phòng (chống thanh toán nhầm phòng chưa tham gia)
+        $memChk = $this->pdo->prepare(
+            'SELECT `id` FROM `room_participants`
+             WHERE `game_room_id` = :rid AND `user_id` = :uid
+               AND `status` IN (\'PENDING_DEPOSIT\', \'DEPOSITED\', \'LEAVE_REQUESTED\')
+             LIMIT 1'
+        );
+        $memChk->execute([':rid' => $roomId, ':uid' => (int) $auth['id']]);
+        if ($memChk->fetchColumn() === false) {
+            return Response::fail('Bạn chưa tham gia phòng chơi này nên không thể thực hiện thanh toán cọc', 'NOT_ROOM_MEMBER', 403);
         }
         $amount = (int) ($body['amount'] ?? 50000);
 
         // Hỗ trợ nộp cọc trọn gói cho nhóm bạn riêng (Điểm 3 & Điểm 21)
         $isLumpSum = !empty($body['is_lump_sum']) || !empty($body['is_group_lump_sum']) || ($body['deposit_type'] ?? '') === 'LUMP_SUM';
         if ($isLumpSum) {
-            $rStmt = $this->pdo->prepare('SELECT `id`, `booking_type`, `total_players`, `guest_slots`, `creator_id` FROM `game_rooms` WHERE `id` = :rid LIMIT 1');
+            $rStmt = $this->pdo->prepare('SELECT `id`, `booking_type`, `total_players`, `max_players`, `guest_slots`, `creator_id` FROM `game_rooms` WHERE `id` = :rid LIMIT 1');
             $rStmt->execute([':rid' => $roomId]);
             $roomData = $rStmt->fetch(PDO::FETCH_ASSOC);
 
             if ($roomData && (int) $roomData['creator_id'] === (int) $auth['id']) {
-                $totalPlayers = (int) ($roomData['total_players'] ?: 6);
+                $bookingType = strtoupper((string) ($roomData['booking_type'] ?? 'PUBLIC'));
+                $totalPlayers = (int) ($roomData['total_players'] ?: 1);
+                $maxPlayers = (int) ($roomData['max_players'] ?: $totalPlayers);
                 $guestSlots = (int) ($roomData['guest_slots'] ?: 0);
-                $privateGroupSize = max(1, $totalPlayers - $guestSlots);
+                $privateGroupSize = $bookingType === 'PRIVATE'
+                    ? max(1, $maxPlayers - $guestSlots)
+                    : max(1, $totalPlayers);
                 $lumpSumAmount = $privateGroupSize * 50000;
 
                 // Đảm bảo có bản ghi player_payments cho các thành viên active để đồng bộ báo cáo doanh thu & hoàn cọc
                 $this->paymentRepo->ensureDepositPaymentsForRoom($roomId, PricingService::DEPOSIT_PER_PERSON, 2);
 
-                // Cập nhật toàn bộ thành viên ĐANG HOẠT ĐỘNG thành DEPOSITED (tuyệt đối không hồi sinh người LEFT/CANCELLED)
-                $this->pdo->prepare('UPDATE `room_participants` SET `status` = \'DEPOSITED\', `deposited_at` = COALESCE(`deposited_at`, NOW()), `updated_at` = NOW() WHERE `game_room_id` = :rid AND `status` IN (\'PENDING_DEPOSIT\', \'DEPOSITED\')')
-                    ->execute([':rid' => $roomId]);
+                // Cập nhật trạng thái DEPOSITED: phòng PRIVATE cập nhật cả nhóm, phòng PUBLIC chỉ cập nhật Chủ phòng (không miễn phí cọc cho khách ghép)
+                if ($bookingType === 'PRIVATE') {
+                    $this->pdo->prepare('UPDATE `room_participants` SET `status` = \'DEPOSITED\', `deposited_at` = COALESCE(`deposited_at`, NOW()), `updated_at` = NOW() WHERE `game_room_id` = :rid AND `status` IN (\'PENDING_DEPOSIT\', \'DEPOSITED\')')
+                        ->execute([':rid' => $roomId]);
+                } else {
+                    $this->pdo->prepare('UPDATE `room_participants` SET `status` = \'DEPOSITED\', `deposited_at` = COALESCE(`deposited_at`, NOW()), `updated_at` = NOW() WHERE `game_room_id` = :rid AND `user_id` = :uid AND `status` IN (\'PENDING_DEPOSIT\', \'DEPOSITED\')')
+                        ->execute([':rid' => $roomId, ':uid' => (int) $auth['id']]);
+                }
 
                 // Ghi nhận thanh toán vào player_payments và payment_transactions của Chủ phòng (Host)
                 $hostPayStmt = $this->pdo->prepare(
@@ -291,10 +321,85 @@ class PaymentController
             }
         }
 
+        $paymentType = strtoupper(trim((string) ($body['payment_type'] ?? 'DEPOSIT')));
+
+        // Xử lý thanh toán phần còn lại (REMAINING): tìm hoặc tự khởi tạo dòng REMAINING theo đúng giá vé trừ cọc đã đóng
+        if ($paymentType === 'REMAINING') {
+            $partStmt = $this->pdo->prepare(
+                'SELECT rp.`id` AS `participant_id`, gr.`game_id`, gr.`creator_id`, gr.`total_players`, gr.`target_time_slot`, gr.`status` AS `room_status`
+                 FROM `room_participants` rp
+                 INNER JOIN `game_rooms` gr ON gr.`id` = rp.`game_room_id`
+                 WHERE rp.`game_room_id` = :rid AND rp.`user_id` = :uid
+                   AND rp.`status` IN (\'PENDING_DEPOSIT\', \'DEPOSITED\', \'LEAVE_REQUESTED\')
+                 LIMIT 1'
+            );
+            $partStmt->execute([':rid' => $roomId, ':uid' => (int) $auth['id']]);
+            $partInfo = $partStmt->fetch(PDO::FETCH_ASSOC);
+            if ($partInfo === false) {
+                return Response::fail('Bạn không phải thành viên đang hoạt động trong phòng này', 'PARTICIPANT_NOT_FOUND', 404);
+            }
+            $roomStatusUpper = strtoupper((string) ($partInfo['room_status'] ?? ''));
+            if (!in_array($roomStatusUpper, ['SCHEDULED', 'CONFIRMED', 'IN_PROGRESS'], true)) {
+                return Response::fail(
+                    'Phòng chưa chốt ca chơi (Trạng thái: ' . $roomStatusUpper . '). Vui lòng chỉ đóng cọc giữ chỗ; phần còn lại sẽ mở thanh toán sau khi chốt lịch hoặc tại quán.',
+                    'ROOM_NOT_SCHEDULED',
+                    422
+                );
+            }
+            $participantId = (int) $partInfo['participant_id'];
+
+            $remChk = $this->pdo->prepare(
+                'SELECT `id`, `status` FROM `player_payments`
+                 WHERE `room_participant_id` = :pid AND `payment_type` = \'REMAINING\'
+                 ORDER BY `id` DESC LIMIT 1'
+            );
+            $remChk->execute([':pid' => $participantId]);
+            $existingRem = $remChk->fetch(PDO::FETCH_ASSOC);
+
+            if ($existingRem !== false) {
+                return $this->remaining($request, (string) $existingRem['id']);
+            }
+
+            // Tính số tiền đã đóng (DEPOSIT)
+            $paidStmt = $this->pdo->prepare(
+                'SELECT COALESCE(SUM(`paid_amount`), 0) FROM `player_payments` WHERE `room_participant_id` = :pid'
+            );
+            $paidStmt->execute([':pid' => $participantId]);
+            $alreadyPaid = (int) $paidStmt->fetchColumn();
+
+            $seatCount = ((int) $partInfo['creator_id'] === (int) $auth['id'])
+                ? max(1, (int) ($partInfo['total_players'] ?: 1))
+                : 1;
+
+            $pricingService = new PricingService($this->pdo);
+            $slotRaw = trim((string) ($partInfo['target_time_slot'] ?? ''));
+            $playDt = $slotRaw !== '' ? date('Y-m-d H:i:s', strtotime($slotRaw) ?: time()) : date('Y-m-d H:i:s');
+            $isStu = !empty($auth['student_verified']);
+            $quote = $pricingService->calculateQuote((int) $partInfo['game_id'], $seatCount, $playDt, $isStu);
+            $serverFinal = (int) ($quote['final_total_vnd'] ?? 0);
+            $serverRemaining = max(0, $serverFinal - $alreadyPaid);
+            $requestedRemaining = isset($body['amount']) && (int) $body['amount'] > 0 ? (int) $body['amount'] : $serverRemaining;
+            $effectiveRemaining = $serverRemaining > 0 ? min($serverRemaining, $requestedRemaining) : $requestedRemaining;
+
+            if ($effectiveRemaining <= 0) {
+                return Response::fail('Khoản phí này đã được thanh toán toàn bộ', 'PAYMENT_ALREADY_COMPLETED', 400);
+            }
+
+            $insRem = $this->pdo->prepare(
+                'INSERT INTO `player_payments` (`room_participant_id`, `payment_type`, `amount`, `paid_amount`, `status`, `created_at`, `updated_at`)
+                 VALUES (:pid, \'REMAINING\', :amt, 0, \'PENDING\', NOW(), NOW())'
+            );
+            $insRem->execute([':pid' => $participantId, ':amt' => $effectiveRemaining]);
+            $remPaymentId = (int) $this->pdo->lastInsertId();
+
+            return $this->remaining($request, (string) $remPaymentId);
+        }
+
         $stmt = $this->pdo->prepare('SELECT p.`id` FROM `player_payments` p
             INNER JOIN `room_participants` rp ON rp.`id` = p.`room_participant_id`
             WHERE rp.`game_room_id` = :room_id AND rp.`user_id` = :user_id
               AND rp.`status` IN (\'PENDING_DEPOSIT\', \'DEPOSITED\', \'LEAVE_REQUESTED\')
+              AND p.`payment_type` = \'DEPOSIT\'
             ORDER BY p.`id` DESC
             LIMIT 1');
         $stmt->bindValue(':room_id', $roomId, PDO::PARAM_INT);
@@ -310,10 +415,6 @@ class PaymentController
         }
 
         if ($paymentId !== false) {
-            $paymentType = strtoupper(trim((string) ($body['payment_type'] ?? 'DEPOSIT')));
-            if ($paymentType === 'REMAINING') {
-                return $this->remaining($request, (string) $paymentId);
-            }
             return $this->deposit($request, (string) $paymentId);
         }
 

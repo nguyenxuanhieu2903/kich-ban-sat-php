@@ -276,6 +276,11 @@ class AuthController
             return $authUser;
         }
 
+        $actorRole = strtoupper((string) ($authUser['role_code'] ?? $authUser['role'] ?? 'PLAYER'));
+        if (in_array($actorRole, ['DM', 'ADMIN'], true)) {
+            return Response::fail('Chỉ tài khoản Người chơi (Player) mới sử dụng tính năng xác minh thẻ HSSV', 'FORBIDDEN_ROLE', 403);
+        }
+
         $body = $request->getBodyParams();
         $studentId = trim((string) ($body['student_id'] ?? $body['student_card_number'] ?? $body['student_card_id'] ?? ''));
         $schoolName = trim((string) ($body['school_name'] ?? $body['university'] ?? ''));
@@ -317,9 +322,18 @@ class AuthController
             return Response::fail('Mã số sinh viên hoặc ảnh thẻ HSSV không được để trống', 'VALIDATION_ERROR', 422);
         }
 
-        $this->userRepo->update((int) $authUser['id'], [
-            'student_verified' => 0,
-        ]);
+        $cardUrl = $uploadedFileName !== '' ? ('/storage/uploads/student_cards/' . $uploadedFileName) : null;
+        $upCard = $this->pdo->prepare(
+            "UPDATE `users`
+             SET `student_verified` = 0,
+                 `student_card_status` = 'PENDING',
+                 `student_card_url` = COALESCE(:url, `student_card_url`),
+                 `updated_at` = NOW()
+             WHERE `id` = :uid"
+        );
+        $upCard->bindValue(':url', $cardUrl, $cardUrl === null ? PDO::PARAM_NULL : PDO::PARAM_STR);
+        $upCard->bindValue(':uid', (int) $authUser['id'], PDO::PARAM_INT);
+        $upCard->execute();
 
         // Ghi nhận nhật ký kiểm toán và bắn thông báo cho Quản trị viên duyệt thẻ HSSV
         try {
@@ -394,7 +408,7 @@ class AuthController
                        AND p2.`status` IN (\'PENDING_DEPOSIT\', \'DEPOSITED\', \'LEAVE_REQUESTED\')
                     ) AS `current_players`,
                     (SELECT pp.`id` FROM `player_payments` pp WHERE pp.`room_participant_id` = rp.`id` ORDER BY pp.`id` DESC LIMIT 1) AS `payment_id`,
-                    (SELECT pp.`paid_amount` FROM `player_payments` pp WHERE pp.`room_participant_id` = rp.`id` ORDER BY pp.`id` DESC LIMIT 1) AS `paid_amount`,
+                    (SELECT COALESCE(SUM(pp.`paid_amount`), 0) FROM `player_payments` pp WHERE pp.`room_participant_id` = rp.`id`) AS `paid_amount`,
                     (SELECT pp.`status` FROM `player_payments` pp WHERE pp.`room_participant_id` = rp.`id` ORDER BY pp.`id` DESC LIMIT 1) AS `payment_status`,
                     (SELECT ref.`id` FROM `refunds` ref 
                      INNER JOIN `player_payments` pp2 ON pp2.`id` = ref.`player_payment_id` 
@@ -424,6 +438,13 @@ class AuthController
         $stmt->bindValue(':user_id', $userId, PDO::PARAM_INT);
         $stmt->execute();
         $rooms = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        foreach ($rooms as &$mr) {
+            $rawCur = (int) ($mr['current_players'] ?? 0);
+            $cSeats = max(1, (int) ($mr['total_players'] ?? 1));
+            $maxP = (int) ($mr['max_players'] ?? 8);
+            $mr['current_players'] = $rawCur > 0 ? min($maxP, $cSeats + max(0, $rawCur - 1)) : 0;
+        }
+        unset($mr);
 
         $now = time();
         foreach ($rooms as &$r) {
@@ -443,7 +464,13 @@ class AuthController
                 } elseif ($refStatus === 'COMPLETED') {
                     $refundHint = 'Đã hoàn tất chuyển tiền cọc về tài khoản';
                 } elseif ($refStatus === null || $refStatus === 'REJECTED') {
-                    if ($r['room_status'] === 'CANCELLED') {
+                    if (
+                        in_array(strtoupper((string) ($r['room_status'] ?? '')), ['COMPLETED', 'IN_PROGRESS'], true)
+                        || in_array(strtoupper((string) ($r['session_status'] ?? '')), ['COMPLETED', 'IN_PROGRESS'], true)
+                    ) {
+                        $canRefund = false;
+                        $refundHint = 'Buổi chơi đang diễn ra hoặc đã hoàn tất — không áp dụng hoàn cọc';
+                    } elseif ($r['room_status'] === 'CANCELLED') {
                         $canRefund = true;
                         $refundHint = 'Phòng đã bị hủy - Đủ điều kiện nhận lại 100% tiền cọc';
                     } elseif ($diffHours === null || $diffHours >= 24) {

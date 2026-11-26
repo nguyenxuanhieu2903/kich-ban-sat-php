@@ -27,10 +27,45 @@ class SessionLifecycleController
     }
 
     /**
+     * Đảm bảo DM chỉ thao tác trên ca chơi được phân công cho chính mình (Admin luôn có quyền).
+     *
+     * @param array<string, mixed> $auth
+     * @param array<string, mixed> $session
+     */
+    private function assertDmSessionAccess(array $auth, array $session): ?Response
+    {
+        $role = strtoupper((string) ($auth['role_code'] ?? $auth['role'] ?? ''));
+        if ($role === 'ADMIN') {
+            return null;
+        }
+        $dmAssignId = (int) ($session['dm_assignment_id'] ?? 0);
+        if ($dmAssignId <= 0) {
+            return null;
+        }
+        $chk = $this->pdo->prepare('SELECT `dm_user_id` FROM `dm_assignments` WHERE `id` = :id LIMIT 1');
+        $chk->bindValue(':id', $dmAssignId, PDO::PARAM_INT);
+        $chk->execute();
+        $assignedDmId = (int) $chk->fetchColumn();
+        if ($assignedDmId > 0 && $assignedDmId !== (int) $auth['id']) {
+            return Response::fail(
+                'Bạn không phải Quản trò được phân công phụ trách ca chơi này',
+                'FORBIDDEN_DM_SESSION',
+                403
+            );
+        }
+        return null;
+    }
+
+    /**
      * GET /api/v1/sessions/{id} (UC-D02: Xem chi tiết buổi chơi)
      */
     public function show(Request $request, string $id): Response
     {
+        $auth = AuthMiddleware::authenticate($request);
+        if ($auth instanceof Response) {
+            return $auth;
+        }
+
         $sessionId = (int) $id;
         $stmt = $this->pdo->prepare(
             'SELECT s.`id`, s.`game_room_id`, s.`schedule_proposal_id`, s.`dm_assignment_id`,
@@ -74,11 +109,19 @@ class SessionLifecycleController
 
         $this->pdo->beginTransaction();
         try {
-            $stmt = $this->pdo->prepare('SELECT `id`, `game_room_id`, `status` FROM `sessions` WHERE `id` = :id OR `game_room_id` = :rid ORDER BY `id` DESC LIMIT 1 FOR UPDATE');
+            $stmt = $this->pdo->prepare('SELECT `id`, `game_room_id`, `dm_assignment_id`, `status` FROM `sessions` WHERE `id` = :id OR `game_room_id` = :rid ORDER BY `id` DESC LIMIT 1 FOR UPDATE');
             $stmt->bindValue(':id', $sessionId, PDO::PARAM_INT);
             $stmt->bindValue(':rid', $sessionId, PDO::PARAM_INT);
             $stmt->execute();
             $session = $stmt->fetch(PDO::FETCH_ASSOC);
+
+            if ($session !== false) {
+                $ownerErr = $this->assertDmSessionAccess($auth, $session);
+                if ($ownerErr !== null) {
+                    $this->pdo->rollBack();
+                    return $ownerErr;
+                }
+            }
 
             if ($session === false) {
                 $rStmt = $this->pdo->prepare('SELECT `id`, `status` FROM `game_rooms` WHERE `id` = :id LIMIT 1 FOR UPDATE');
@@ -87,6 +130,10 @@ class SessionLifecycleController
                 $room = $rStmt->fetch(PDO::FETCH_ASSOC);
 
                 if ($room !== false) {
+                    if (in_array(strtoupper((string) ($room['status'] ?? '')), ['CANCELLED', 'COMPLETED'], true)) {
+                        $this->pdo->rollBack();
+                        return Response::fail('Không thể bắt đầu buổi chơi cho phòng đã hủy hoặc đã hoàn tất', 'INVALID_ROOM_STATUS', 409);
+                    }
                     $roomId = (int) $room['id'];
                     // 1. Get or create proposal
                     $pStmt = $this->pdo->prepare('SELECT `id` FROM `schedule_proposals` WHERE `game_room_id` = :rid ORDER BY `id` DESC LIMIT 1');
@@ -206,11 +253,19 @@ class SessionLifecycleController
 
         $this->pdo->beginTransaction();
         try {
-            $stmt = $this->pdo->prepare('SELECT `id`, `game_room_id`, `status` FROM `sessions` WHERE `id` = :id OR `game_room_id` = :rid ORDER BY `id` DESC LIMIT 1 FOR UPDATE');
+            $stmt = $this->pdo->prepare('SELECT `id`, `game_room_id`, `dm_assignment_id`, `status` FROM `sessions` WHERE `id` = :id OR `game_room_id` = :rid ORDER BY `id` DESC LIMIT 1 FOR UPDATE');
             $stmt->bindValue(':id', $sessionId, PDO::PARAM_INT);
             $stmt->bindValue(':rid', $sessionId, PDO::PARAM_INT);
             $stmt->execute();
             $session = $stmt->fetch(PDO::FETCH_ASSOC);
+
+            if ($session !== false) {
+                $ownerErr = $this->assertDmSessionAccess($auth, $session);
+                if ($ownerErr !== null) {
+                    $this->pdo->rollBack();
+                    return $ownerErr;
+                }
+            }
 
             if ($session === false) {
                 $rStmt = $this->pdo->prepare('SELECT `id`, `status` FROM `game_rooms` WHERE `id` = :id LIMIT 1 FOR UPDATE');
@@ -218,6 +273,10 @@ class SessionLifecycleController
                 $rStmt->execute();
                 $room = $rStmt->fetch(PDO::FETCH_ASSOC);
                 if ($room !== false) {
+                    if (in_array(strtoupper((string) ($room['status'] ?? '')), ['CANCELLED', 'COMPLETED'], true)) {
+                        $this->pdo->rollBack();
+                        return Response::fail('Không thể hoàn tất buổi chơi cho phòng đã hủy hoặc đã kết thúc', 'INVALID_ROOM_STATUS', 409);
+                    }
                     $updRoom = $this->pdo->prepare('UPDATE `game_rooms` SET `status` = \'COMPLETED\', `updated_at` = NOW() WHERE `id` = :rid');
                     $updRoom->bindValue(':rid', (int) $room['id'], PDO::PARAM_INT);
                     $updRoom->execute();
@@ -305,14 +364,40 @@ class SessionLifecycleController
 
         $sessionId = (int) $id;
         $body = $request->getBodyParams();
-        $notes = trim((string) ($body['notes'] ?? ''));
+        $notes = trim((string) ($body['notes'] ?? $body['session_notes'] ?? ''));
+        $incident = trim((string) ($body['incident_report'] ?? ''));
+
+        $chkStmt = $this->pdo->prepare('SELECT `id`, `game_room_id`, `dm_assignment_id`, `status` FROM `sessions` WHERE `id` = :sid OR `game_room_id` = :rid ORDER BY `id` DESC LIMIT 1');
+        $chkStmt->bindValue(':sid', $sessionId, PDO::PARAM_INT);
+        $chkStmt->bindValue(':rid', $sessionId, PDO::PARAM_INT);
+        $chkStmt->execute();
+        $sessCheck = $chkStmt->fetch(PDO::FETCH_ASSOC);
+        if ($sessCheck !== false) {
+            $ownerErr = $this->assertDmSessionAccess($auth, $sessCheck);
+            if ($ownerErr !== null) {
+                return $ownerErr;
+            }
+        }
+
+        $up = $this->pdo->prepare(
+            'UPDATE `sessions`
+             SET `session_notes` = :notes,
+                 `incident_report` = COALESCE(NULLIF(:incident, \'\'), `incident_report`),
+                 `updated_at` = NOW()
+             WHERE `id` = :sid OR `game_room_id` = :rid'
+        );
+        $up->bindValue(':notes', $notes, PDO::PARAM_STR);
+        $up->bindValue(':incident', $incident, PDO::PARAM_STR);
+        $up->bindValue(':sid', $sessionId, PDO::PARAM_INT);
+        $up->bindValue(':rid', $sessionId, PDO::PARAM_INT);
+        $up->execute();
 
         $this->auditService->log(
             (int) $auth['id'],
             'SESSION_NOTES_UPDATED',
             'session',
             $sessionId,
-            ['notes' => $notes]
+            ['notes' => $notes, 'incident_report' => $incident]
         );
 
         return Response::success([
@@ -339,25 +424,104 @@ class SessionLifecycleController
         $extraFee = max(0, (float) ($body['extra_fee'] ?? 0));
         $extraFeeReason = trim((string) ($body['extra_fee_reason'] ?? ''));
 
-        $stmt = $this->pdo->prepare('SELECT `id`, `game_room_id`, `status` FROM `sessions` WHERE `id` = :id OR `game_room_id` = :rid ORDER BY `id` DESC LIMIT 1');
+        $stmt = $this->pdo->prepare('SELECT `id`, `game_room_id`, `dm_assignment_id`, `status` FROM `sessions` WHERE `id` = :id OR `game_room_id` = :rid ORDER BY `id` DESC LIMIT 1');
         $stmt->bindValue(':id', $sessionId, PDO::PARAM_INT);
         $stmt->bindValue(':rid', $sessionId, PDO::PARAM_INT);
         $stmt->execute();
         $session = $stmt->fetch(PDO::FETCH_ASSOC);
 
+        if ($session !== false) {
+            $ownerErr = $this->assertDmSessionAccess($auth, $session);
+            if ($ownerErr !== null) {
+                return $ownerErr;
+            }
+            if (in_array(strtoupper((string) ($session['status'] ?? '')), ['CANCELLED', 'COMPLETED'], true)) {
+                return Response::fail('Không thể tất toán tại quầy cho ca chơi đã hủy hoặc đã hoàn tất', 'INVALID_SESSION_STATUS', 409);
+            }
+        }
+
         $roomId = $session ? (int) $session['game_room_id'] : $sessionId;
-        $targetDbStatus = $isDisputed ? 'CANCELLED' : 'PAID';
         $targetStatus = $isDisputed ? 'PAYMENT_DISPUTE' : 'SETTLED';
 
-        $updPay = $this->pdo->prepare(
-            'UPDATE `player_payments` p
-             INNER JOIN `room_participants` rp ON rp.`id` = p.`room_participant_id`
-             SET p.`status` = :st, p.`paid_amount` = p.`amount`, p.`paid_at` = NOW(), p.`updated_at` = NOW()
-             WHERE rp.`game_room_id` = :rid'
-        );
-        $updPay->bindValue(':st', $targetDbStatus, PDO::PARAM_STR);
-        $updPay->bindValue(':rid', $roomId, PDO::PARAM_INT);
-        $updPay->execute();
+        if ($isDisputed) {
+            $updPay = $this->pdo->prepare(
+                'UPDATE `player_payments` p
+                 INNER JOIN `room_participants` rp ON rp.`id` = p.`room_participant_id`
+                 SET p.`status` = \'CANCELLED\', p.`updated_at` = NOW()
+                 WHERE rp.`game_room_id` = :rid
+                   AND rp.`status` IN (\'PENDING_DEPOSIT\', \'DEPOSITED\', \'LEAVE_REQUESTED\')'
+            );
+            $updPay->bindValue(':rid', $roomId, PDO::PARAM_INT);
+            $updPay->execute();
+        } else {
+            // 1. Đánh dấu PAID cho tất cả bản ghi player_payments hiện có
+            $updPay = $this->pdo->prepare(
+                'UPDATE `player_payments` p
+                 INNER JOIN `room_participants` rp ON rp.`id` = p.`room_participant_id`
+                 SET p.`status` = \'PAID\', p.`paid_amount` = p.`amount`, p.`paid_at` = COALESCE(p.`paid_at`, NOW()), p.`updated_at` = NOW()
+                 WHERE rp.`game_room_id` = :rid
+                   AND rp.`status` IN (\'PENDING_DEPOSIT\', \'DEPOSITED\', \'LEAVE_REQUESTED\')'
+            );
+            $updPay->bindValue(':rid', $roomId, PDO::PARAM_INT);
+            $updPay->execute();
+
+            // 2. Tự động ghi nhận khoản thu phần còn lại (REMAINING) tại quầy vào player_payments để đồng bộ Doanh thu thuần cho Admin
+            $rMetaStmt = $this->pdo->prepare('SELECT `game_id`, `creator_id`, `total_players`, `target_time_slot` FROM `game_rooms` WHERE `id` = :rid LIMIT 1');
+            $rMetaStmt->execute([':rid' => $roomId]);
+            $rMeta = $rMetaStmt->fetch(PDO::FETCH_ASSOC);
+
+            if ($rMeta !== false) {
+                $pricingService = new \App\Features\Pricing\Services\PricingService($this->pdo);
+                $slotRaw = trim((string) ($rMeta['target_time_slot'] ?? ''));
+                $playDt = $slotRaw !== '' ? date('Y-m-d H:i:s', strtotime($slotRaw) ?: time()) : date('Y-m-d H:i:s');
+
+                $partsStmt = $this->pdo->prepare(
+                    'SELECT rp.`id`, rp.`user_id`, COALESCE(u.`student_verified`, 0) AS `student_verified`
+                     FROM `room_participants` rp
+                     INNER JOIN `users` u ON u.`id` = rp.`user_id`
+                     WHERE rp.`game_room_id` = :rid AND rp.`status` IN (\'PENDING_DEPOSIT\', \'DEPOSITED\', \'LEAVE_REQUESTED\')'
+                );
+                $partsStmt->execute([':rid' => $roomId]);
+                $activeParts = $partsStmt->fetchAll(PDO::FETCH_ASSOC);
+
+                foreach ($activeParts as $ap) {
+                    $pid = (int) $ap['id'];
+                    $hasRem = $this->pdo->prepare('SELECT `id` FROM `player_payments` WHERE `room_participant_id` = :pid AND `payment_type` = \'REMAINING\' LIMIT 1');
+                    $hasRem->execute([':pid' => $pid]);
+                    if ($hasRem->fetchColumn() !== false) {
+                        continue;
+                    }
+
+                    $paidSumStmt = $this->pdo->prepare('SELECT COALESCE(SUM(`paid_amount`), 0) FROM `player_payments` WHERE `room_participant_id` = :pid');
+                    $paidSumStmt->execute([':pid' => $pid]);
+                    $alreadyPaid = (int) $paidSumStmt->fetchColumn();
+
+                    $seats = ((int) $ap['user_id'] === (int) $rMeta['creator_id']) ? max(1, (int) ($rMeta['total_players'] ?: 1)) : 1;
+                    $quote = $pricingService->calculateQuote((int) $rMeta['game_id'], $seats, $playDt, !empty($ap['student_verified']));
+                    $remAmt = max(0, (int) ($quote['final_total_vnd'] ?? 0) - $alreadyPaid);
+                    if ($remAmt > 0) {
+                        $insRem = $this->pdo->prepare(
+                            'INSERT INTO `player_payments` (`room_participant_id`, `payment_type`, `amount`, `paid_amount`, `status`, `paid_at`, `created_at`, `updated_at`)
+                             VALUES (:pid, \'REMAINING\', :amt, :paid, \'PAID\', NOW(), NOW(), NOW())'
+                        );
+                        $insRem->execute([':pid' => $pid, ':amt' => $remAmt, ':paid' => $remAmt]);
+                        $newPayId = (int) $this->pdo->lastInsertId();
+
+                        $txRef = 'TX_CTR_' . strtoupper(bin2hex(random_bytes(5)));
+                        $this->pdo->prepare(
+                            'INSERT INTO `payment_transactions` (`player_payment_id`, `idempotency_key`, `transaction_reference`, `amount`, `status`, `provider_response`, `requested_at`, `processed_at`, `created_at`)
+                             VALUES (:ppid, :ikey, :txref, :amt, \'SUCCESS\', :meta, NOW(), NOW(), NOW())'
+                        )->execute([
+                            ':ppid' => $newPayId,
+                            ':ikey' => 'CTR_' . $roomId . '_' . $pid . '_' . time(),
+                            ':txref' => $txRef,
+                            ':amt' => $remAmt,
+                            ':meta' => json_encode(['method' => 'COUNTER_SETTLE', 'dm_id' => (int) $auth['id']]),
+                        ]);
+                    }
+                }
+            }
+        }
 
         $this->auditService->log((int) $auth['id'], 'SETTLE_PAYMENT_AT_COUNTER', 'session', $sessionId, [
             'status' => $targetStatus,
@@ -390,19 +554,35 @@ class SessionLifecycleController
         $sessionId = (int) $id;
         $body = $request->getBodyParams();
         $absentUserIds = $body['absent_user_ids'] ?? [];
-
-        if (!is_array($absentUserIds) || empty($absentUserIds)) {
-            return Response::fail('Vui lòng cung cấp danh sách ID người chơi vắng mặt (absent_user_ids)', 'VALIDATION_ERROR', 422);
+        if (empty($absentUserIds) && !empty($body['absent_user_id'])) {
+            $absentUserIds = [(int) $body['absent_user_id']];
         }
 
-        $absentUserIds = array_map('intval', $absentUserIds);
+        if (!is_array($absentUserIds) || empty($absentUserIds)) {
+            return Response::fail('Vui lòng nhập ID người chơi vắng mặt (absent_user_id hoặc absent_user_ids)', 'VALIDATION_ERROR', 422);
+        }
+
+        $absentUserIds = array_values(array_filter(array_map('intval', $absentUserIds), fn ($uid) => $uid > 0));
+        if (empty($absentUserIds)) {
+            return Response::fail('Danh sách ID người chơi vắng mặt không hợp lệ', 'VALIDATION_ERROR', 422);
+        }
         $absentCount = count($absentUserIds);
 
-        $stmt = $this->pdo->prepare('SELECT `id`, `game_room_id`, `status` FROM `sessions` WHERE `id` = :id OR `game_room_id` = :rid ORDER BY `id` DESC LIMIT 1');
+        $stmt = $this->pdo->prepare('SELECT `id`, `game_room_id`, `dm_assignment_id`, `status` FROM `sessions` WHERE `id` = :id OR `game_room_id` = :rid ORDER BY `id` DESC LIMIT 1');
         $stmt->bindValue(':id', $sessionId, PDO::PARAM_INT);
         $stmt->bindValue(':rid', $sessionId, PDO::PARAM_INT);
         $stmt->execute();
         $session = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        if ($session !== false) {
+            $ownerErr = $this->assertDmSessionAccess($auth, $session);
+            if ($ownerErr !== null) {
+                return $ownerErr;
+            }
+            if (in_array(strtoupper((string) ($session['status'] ?? '')), ['CANCELLED', 'COMPLETED'], true)) {
+                return Response::fail('Không thể tất toán tại quầy cho ca chơi đã hủy hoặc đã hoàn tất', 'INVALID_SESSION_STATUS', 409);
+            }
+        }
 
         $roomId = $session ? (int) $session['game_room_id'] : $sessionId;
         $actualSessionId = $session ? (int) $session['id'] : $sessionId;
@@ -457,15 +637,19 @@ class SessionLifecycleController
                 }
                 $forfeitedUsers[] = $uid;
             } else {
-                // Người có mặt đúng giờ: Hoàn cọc 100% trong 2h làm việc + voucher
-                $paidAmt = (int) ($p['paid_amount'] ?? 50000);
+                // Người có mặt đúng giờ: Hoàn cọc 100% trong 2h làm việc + voucher (không tạo trùng lặp)
+                $paidAmt = (int) ($p['paid_amount'] ?? 0);
                 if ($paidAmt > 0 && !empty($p['payment_id'])) {
-                    $insRef = $this->pdo->prepare('INSERT INTO `refunds` (`player_payment_id`, `amount`, `reason`, `status`, `requested_at`, `reviewed_by`, `reviewed_at`, `created_at`, `updated_at`) VALUES (:pid, :amt, :r, \'APPROVED\', NOW(), :rev, NOW(), NOW(), NOW())');
-                    $insRef->bindValue(':pid', (int) $p['payment_id'], PDO::PARAM_INT);
-                    $insRef->bindValue(':amt', $paidAmt, PDO::PARAM_INT);
-                    $insRef->bindValue(':r', 'Hoàn cọc 100% do sự cố bàn chơi thiếu người (No-show >= 2)', PDO::PARAM_STR);
-                    $insRef->bindValue(':rev', (int) $auth['id'], PDO::PARAM_INT);
-                    $insRef->execute();
+                    $chkRef = $this->pdo->prepare('SELECT `id` FROM `refunds` WHERE `player_payment_id` = :pid AND `status` IN (\'PENDING\', \'APPROVED\', \'COMPLETED\') LIMIT 1');
+                    $chkRef->execute([':pid' => (int) $p['payment_id']]);
+                    if ($chkRef->fetchColumn() === false) {
+                        $insRef = $this->pdo->prepare('INSERT INTO `refunds` (`player_payment_id`, `amount`, `reason`, `status`, `requested_at`, `reviewed_by`, `reviewed_at`, `created_at`, `updated_at`) VALUES (:pid, :amt, :r, \'APPROVED\', NOW(), :rev, NOW(), NOW(), NOW())');
+                        $insRef->bindValue(':pid', (int) $p['payment_id'], PDO::PARAM_INT);
+                        $insRef->bindValue(':amt', $paidAmt, PDO::PARAM_INT);
+                        $insRef->bindValue(':r', 'Hoàn cọc 100% do sự cố bàn chơi thiếu người (No-show >= 2)', PDO::PARAM_STR);
+                        $insRef->bindValue(':rev', (int) $auth['id'], PDO::PARAM_INT);
+                        $insRef->execute();
+                    }
                 }
 
                 $notiRepo->createNotification(
@@ -511,7 +695,7 @@ class SessionLifecycleController
         $estimatedMinutes = max(10, min(180, (int) ($body['estimated_minutes'] ?? 30)));
         $reason = trim((string) ($body['reason'] ?? 'Người chơi tranh luận cao trào, dự kiến kéo dài thêm'));
 
-        $stmt = $this->pdo->prepare('SELECT `id`, `game_room_id`, `physical_room_id`, `venue_id`, `end_at` FROM `sessions` WHERE `id` = :id OR `game_room_id` = :rid ORDER BY `id` DESC LIMIT 1');
+        $stmt = $this->pdo->prepare('SELECT `id`, `game_room_id`, `dm_assignment_id`, `physical_room_id`, `venue_id`, `end_at` FROM `sessions` WHERE `id` = :id OR `game_room_id` = :rid ORDER BY `id` DESC LIMIT 1');
         $stmt->bindValue(':id', $sessionId, PDO::PARAM_INT);
         $stmt->bindValue(':rid', $sessionId, PDO::PARAM_INT);
         $stmt->execute();
@@ -519,6 +703,11 @@ class SessionLifecycleController
 
         if (!$session) {
             return Response::fail('Không tìm thấy ca chơi', 'SESSION_NOT_FOUND', 404);
+        }
+
+        $ownerErr = $this->assertDmSessionAccess($auth, $session);
+        if ($ownerErr !== null) {
+            return $ownerErr;
         }
 
         $actualSessionId = (int) $session['id'];
@@ -572,8 +761,9 @@ class SessionLifecycleController
         $userId = (int) $auth['id'];
         $body = $request->getBodyParams();
 
-        $dmRating = max(1, min(5, (int) ($body['dm_rating'] ?? 5)));
-        $scenarioRating = max(1, min(5, (int) ($body['scenario_rating'] ?? 5)));
+        $fallbackRating = isset($body['rating']) ? (int) $body['rating'] : 5;
+        $dmRating = max(1, min(5, (int) ($body['dm_rating'] ?? $fallbackRating)));
+        $scenarioRating = max(1, min(5, (int) ($body['scenario_rating'] ?? $fallbackRating)));
         $comment = trim((string) ($body['comment'] ?? ''));
 
         $stmt = $this->pdo->prepare('SELECT `id`, `game_room_id`, `status`, `dm_assignment_id` FROM `sessions` WHERE `id` = :id LIMIT 1');
@@ -602,7 +792,19 @@ class SessionLifecycleController
             return Response::fail('Bạn không phải là người tham gia ca chơi này', 'FORBIDDEN', 403);
         }
 
+        $dupStmt = $this->pdo->prepare(
+            'SELECT `id` FROM `audit_logs`
+             WHERE `entity_type` = \'session\' AND `entity_id` = :sid AND `action` = \'POST_GAME_REVIEW\'
+               AND (`actor_id` = :uid1 OR `user_id` = :uid2)
+             LIMIT 1'
+        );
+        $dupStmt->execute([':sid' => $sessionId, ':uid1' => $userId, ':uid2' => $userId]);
+        if ($dupStmt->fetchColumn() !== false) {
+            return Response::fail('Bạn đã gửi đánh giá cho buổi chơi này rồi', 'ALREADY_REVIEWED', 409);
+        }
+
         $this->auditService->log($userId, 'POST_GAME_REVIEW', 'session', $sessionId, [
+            'rating' => $dmRating,
             'dm_rating' => $dmRating,
             'scenario_rating' => $scenarioRating,
             'comment' => $comment,
@@ -611,6 +813,7 @@ class SessionLifecycleController
 
         return Response::success([
             'session_id' => $sessionId,
+            'rating' => $dmRating,
             'dm_rating' => $dmRating,
             'scenario_rating' => $scenarioRating,
             'comment' => $comment,
@@ -626,7 +829,7 @@ class SessionLifecycleController
         $sessionId = (int) $id;
 
         $stmt = $this->pdo->prepare(
-            'SELECT `id`, `actor_id`, `metadata`, `created_at`
+            'SELECT `id`, COALESCE(`actor_id`, `user_id`) AS `actor_id`, `metadata`, `created_at`
              FROM `audit_logs`
              WHERE `entity_type` = \'session\' AND `entity_id` = :sid AND `action` = \'POST_GAME_REVIEW\'
              ORDER BY `id` DESC'

@@ -32,10 +32,11 @@ class AuditLogService
     ): void {
         try {
             $stmt = $this->pdo->prepare(
-                'INSERT INTO `audit_logs` (`actor_id`, `action`, `entity_type`, `entity_id`, `metadata`, `ip_address`, `created_at`)
-                 VALUES (:actor_id, :action, :entity_type, :entity_id, :metadata, :ip_address, NOW())'
+                'INSERT INTO `audit_logs` (`actor_id`, `user_id`, `action`, `entity_type`, `entity_id`, `metadata`, `ip_address`, `created_at`)
+                 VALUES (:actor_id, :user_id, :action, :entity_type, :entity_id, :metadata, :ip_address, NOW())'
             );
             $stmt->bindValue(':actor_id', $actorId, $actorId === null ? PDO::PARAM_NULL : PDO::PARAM_INT);
+            $stmt->bindValue(':user_id', $actorId, $actorId === null ? PDO::PARAM_NULL : PDO::PARAM_INT);
             $stmt->bindValue(':action', $action, PDO::PARAM_STR);
             $stmt->bindValue(':entity_type', $entityType, PDO::PARAM_STR);
             $stmt->bindValue(':entity_id', $entityId, $entityId === null ? PDO::PARAM_NULL : PDO::PARAM_INT);
@@ -79,10 +80,11 @@ class AuditLogService
 
         $offset = max(0, ($page - 1) * $perPage);
         $stmt = $this->pdo->prepare(
-            "SELECT al.`id`, al.`actor_id`, u.`full_name` AS `actor_name`, u.`email` AS `actor_email`,
+            "SELECT al.`id`, COALESCE(al.`actor_id`, al.`user_id`) AS `actor_id`,
+                    u.`full_name` AS `actor_name`, u.`email` AS `actor_email`,
                     al.`action`, al.`entity_type`, al.`entity_id`, al.`metadata`, al.`ip_address`, al.`created_at`
              FROM `audit_logs` al
-             LEFT JOIN `users` u ON u.`id` = al.`actor_id`
+             LEFT JOIN `users` u ON u.`id` = COALESCE(al.`actor_id`, al.`user_id`)
              WHERE {$whereSql}
              ORDER BY al.`id` DESC
              LIMIT :limit OFFSET :offset"

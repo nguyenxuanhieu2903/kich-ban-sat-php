@@ -131,6 +131,28 @@ class SchedulingController
 
         $this->pdo->beginTransaction();
         try {
+            // Bảo vệ đề xuất đang mở của Chủ phòng: thành viên khác không được ghi đè đề xuất của Chủ phòng
+            $hostCheck = $this->pdo->prepare('SELECT `creator_id` FROM `game_rooms` WHERE `id` = :rid LIMIT 1');
+            $hostCheck->bindValue(':rid', $roomId, PDO::PARAM_INT);
+            $hostCheck->execute();
+            $hostUserId = (int) $hostCheck->fetchColumn();
+
+            $activePropStmt = $this->pdo->prepare(
+                'SELECT `id`, `proposed_by` FROM `schedule_proposals` WHERE `game_room_id` = :room_id AND `status` = \'PROPOSED\' ORDER BY `id` DESC LIMIT 1'
+            );
+            $activePropStmt->bindValue(':room_id', $roomId, PDO::PARAM_INT);
+            $activePropStmt->execute();
+            $activeProp = $activePropStmt->fetch(PDO::FETCH_ASSOC);
+
+            if ($activeProp !== false && (int) $activeProp['proposed_by'] === $hostUserId && $userId !== $hostUserId) {
+                $this->pdo->rollBack();
+                return Response::fail(
+                    'Đang có đề xuất lịch của Chủ phòng. Chỉ Chủ phòng mới có quyền thay thế đề xuất này.',
+                    'HOST_PROPOSAL_PROTECTED',
+                    403
+                );
+            }
+
             // Hủy đề xuất cũ đang mở (nếu có)
             $cancelStmt = $this->pdo->prepare('UPDATE `schedule_proposals` SET `status` = \'CANCELLED\' WHERE `game_room_id` = :room_id AND `status` = \'PROPOSED\'');
             $cancelStmt->bindValue(':room_id', $roomId, PDO::PARAM_INT);
@@ -194,6 +216,11 @@ class SchedulingController
      */
     public function showProposal(Request $request, string $id): Response
     {
+        $auth = AuthMiddleware::authenticate($request);
+        if ($auth instanceof Response) {
+            return $auth;
+        }
+
         $proposalId = (int) $id;
         $stmt = $this->pdo->prepare(
             'SELECT sp.`id`, sp.`game_room_id`, sp.`proposed_by`, sp.`proposed_start_at`, sp.`proposed_end_at`,
@@ -325,19 +352,7 @@ class SchedulingController
             $voteStmt->bindValue(':response', $responseVote, PDO::PARAM_STR);
             $voteStmt->execute();
 
-            // Nếu REJECTED -> bác bỏ proposal ngay
-            if ($responseVote === 'REJECTED') {
-                $rejStmt = $this->pdo->prepare('UPDATE `schedule_proposals` SET `status` = \'REJECTED\', `rejected_at` = NOW() WHERE `id` = :id');
-                $rejStmt->bindValue(':id', $proposalId, PDO::PARAM_INT);
-                $rejStmt->execute();
-                $this->pdo->commit();
-
-                return Response::success([
-                    'proposal_status' => 'REJECTED',
-                ], 'Bạn đã từ chối mốc thời gian này. Đề xuất lịch đã được đánh dấu REJECTED để thành viên đề xuất mốc khác.');
-            }
-
-            // Đếm số active participants và số phiếu ACCEPTED
+            // Đếm số active participants và số phiếu ACCEPTED / REJECTED
             $allPartsStmt = $this->pdo->prepare(
                 'SELECT `id` FROM `room_participants`
                  WHERE `game_room_id` = :room_id
@@ -355,18 +370,62 @@ class SchedulingController
             $acceptStmt->execute();
             $acceptedCount = (int) $acceptStmt->fetchColumn();
 
+            $rejectStmt = $this->pdo->prepare(
+                'SELECT COUNT(*) FROM `schedule_responses`
+                 WHERE `schedule_proposal_id` = :pid AND `response` = \'REJECTED\''
+            );
+            $rejectStmt->bindValue(':pid', $proposalId, PDO::PARAM_INT);
+            $rejectStmt->execute();
+            $rejectedCount = (int) $rejectStmt->fetchColumn();
+
+            $totalActive = count($activeParticipantIds);
+            $quorumThreshold = max(1, (int) ceil($totalActive * 0.8));
+
+            // Chỉ bác bỏ proposal khi số phiếu REJECTED làm mất khả năng đạt Quorum 80%
+            if ($responseVote === 'REJECTED') {
+                $maxAllowedRejects = max(0, $totalActive - $quorumThreshold);
+                if ($rejectedCount > $maxAllowedRejects) {
+                    $rejStmt = $this->pdo->prepare('UPDATE `schedule_proposals` SET `status` = \'REJECTED\', `rejected_at` = NOW() WHERE `id` = :id');
+                    $rejStmt->bindValue(':id', $proposalId, PDO::PARAM_INT);
+                    $rejStmt->execute();
+                    $this->pdo->commit();
+
+                    return Response::success([
+                        'proposal_status' => 'REJECTED',
+                        'accepted_votes' => $acceptedCount,
+                        'rejected_votes' => $rejectedCount,
+                    ], 'Số phiếu từ chối vượt ngưỡng cho phép. Đề xuất lịch đã bị bác bỏ để phòng đề xuất mốc khác.');
+                }
+
+                $this->pdo->commit();
+                return Response::success([
+                    'proposal_status' => 'PROPOSED',
+                    'accepted_votes' => $acceptedCount,
+                    'rejected_votes' => $rejectedCount,
+                ], 'Đã ghi nhận phiếu từ chối. Đề xuất vẫn tiếp tục chờ các thành viên còn lại biểu quyết.');
+            }
+
             $sessionCreated = false;
             $sessionId = null;
             $assignedPhysicalRoomId = null;
             $assignedVenueId = null;
             $proposalConfirmed = false;
 
-            // Ngưỡng Quorum 80% thành viên đồng ý (SOP Điểm 4: 80% Quorum chốt đề xuất)
-            $totalActive = count($activeParticipantIds);
-            $quorumThreshold = max(1, (int) ceil($totalActive * 0.8));
+            // Kiểm tra số người tối thiểu cho phòng PUBLIC (tính cả nhóm Chủ phòng + khách ghép)
+            $roomMetaStmt = $this->pdo->prepare(
+                'SELECT `booking_type`, `min_players`, `total_players`, `creator_id` FROM `game_rooms` WHERE `id` = :rid LIMIT 1'
+            );
+            $roomMetaStmt->bindValue(':rid', $roomId, PDO::PARAM_INT);
+            $roomMetaStmt->execute();
+            $roomMeta = $roomMetaStmt->fetch(PDO::FETCH_ASSOC);
+            $minPlayers = (int) ($roomMeta['min_players'] ?? 1);
+            $roomType = strtoupper((string) ($roomMeta['booking_type'] ?? 'PUBLIC'));
+            $creatorSeats = max(1, (int) ($roomMeta['total_players'] ?? 1));
+            $occupiedSeats = $creatorSeats + max(0, $totalActive - 1);
+            $hasEnoughPlayers = ($roomType === 'PRIVATE') || ($occupiedSeats >= $minPlayers);
 
-            // Nếu đạt Quorum >= 80% thành viên ACCEPTED -> Tìm phòng trống + DM rảnh + Chốt session + Sinh hóa đơn cọc
-            if ($acceptedCount >= $quorumThreshold && $totalActive > 0) {
+            // Nếu đạt Quorum >= 80% thành viên ACCEPTED và đủ số người tối thiểu -> Chốt session
+            if ($acceptedCount >= $quorumThreshold && $totalActive > 0 && $hasEnoughPlayers) {
                 $proposalConfirmed = true;
                 $startAt = (string) $proposal['proposed_start_at'];
                 $endAt = (string) $proposal['proposed_end_at'];
@@ -499,6 +558,12 @@ class SchedulingController
      */
     public function listProposals(Request $request): Response
     {
+        $isAdminRoute = str_contains($request->getPath(), '/admin/proposals');
+        $auth = AuthMiddleware::authenticate($request, $isAdminRoute ? ['ADMIN', 'DM'] : []);
+        if ($auth instanceof Response) {
+            return $auth;
+        }
+
         $queryParams = $request->getQueryParams();
         $status = trim((string) ($queryParams['status'] ?? ''));
         $roomId = (int) ($queryParams['room_id'] ?? 0);

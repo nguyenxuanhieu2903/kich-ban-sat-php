@@ -1,16 +1,6 @@
 // src/pages-js/catalog.page.js
 import * as ScriptData from '../data/scripts.data.js';
 import { initChrome } from '../logic/layout.js';
-import { generateGamePosterSvg } from '../utils/poster-svg.js';
-
-const EXISTING_POSTER_FILES = new Set([
-  'co-gai-ben-cua-so.png',
-  'guong.png',
-  'ly-luan-hu-cau.png',
-  'ngoi-nha-ngot-ngao.png',
-  'nguyet-lac-oa.png',
-  'sinh-tu.png',
-]);
 
 const SCENARIOS = ScriptData.SCENARIOS
   || ScriptData.ALL_SCRIPTS
@@ -70,13 +60,11 @@ function renderCatalog() {
     return;
   }
 
-  grid.innerHTML = list.map((sc, idx) => {
+  grid.innerHTML = list.map((sc) => {
     const title = sc.title || sc.name;
     const posterFile = (sc.poster || '').split('/').pop();
-    const hasLocalImg = posterFile && EXISTING_POSTER_FILES.has(posterFile);
-    const thumbHtml = hasLocalImg
-      ? `<img src="../src/assets/images/${posterFile}" alt="${title}" loading="lazy" />`
-      : generateGamePosterSvg({ id: Number(sc.id) || (idx + 1), title, is18Plus: Boolean(sc.is18Plus) }, { width: 320, height: 420 });
+    const imgSrc = posterFile ? `../src/assets/images/${posterFile}` : '';
+    const fallbackUrl = `https://placehold.co/400x600/181512/D64545?text=${encodeURIComponent(title)}`;
 
     return `
       <a href="./scenario-detail.html?id=${sc.id}"
@@ -85,7 +73,7 @@ function renderCatalog() {
          data-title="${title}"
          data-18="${Boolean(sc.is18Plus)}">
         <div class="poster-thumb">
-          ${thumbHtml}
+          <img src="${imgSrc || fallbackUrl}" alt="${title}" loading="lazy" onerror="this.src='${fallbackUrl}'" />
           ${sc.is18Plus ? '<span class="poster-tag">18+</span>' : ''}
         </div>
         <h3 class="poster-title">${title}</h3>

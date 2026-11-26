@@ -1,17 +1,7 @@
 // src/pages-js/scenario-detail.page.js
 import * as ScriptData from '../data/scripts.data.js';
+import { store, formatVND } from '../logic/store.js';
 import { initChrome } from '../logic/layout.js';
-import { generateGamePosterSvg } from '../utils/poster-svg.js';
-
-const formatVND = (v) => `${Number(v || 0).toLocaleString('vi-VN')}đ`;
-const EXISTING_POSTER_FILES = new Set([
-  'co-gai-ben-cua-so.png',
-  'guong.png',
-  'ly-luan-hu-cau.png',
-  'ngoi-nha-ngot-ngao.png',
-  'nguyet-lac-oa.png',
-  'sinh-tu.png',
-]);
 
 const SCENARIOS = ScriptData.SCENARIOS
   || ScriptData.ALL_SCRIPTS
@@ -36,12 +26,11 @@ if (!script) {
   const title = script.title || script.name || 'Kịch bản bí ẩn';
   document.title = `${title} | Kịch Bản Sát`;
 
-  // Xử lý đường dẫn ảnh tương đối từ thư mục pages/ (fallback về Poster SVG Noir nếu chưa có file ảnh)
+  // Xử lý đường dẫn ảnh tương đối từ thư mục pages/
   const posterFile = (script.poster || script.image || '').split('/').pop();
-  const hasLocalImg = posterFile && EXISTING_POSTER_FILES.has(posterFile);
-  const posterMediaHtml = hasLocalImg
-    ? `<img src="../src/assets/images/${posterFile}" alt="${title}" />`
-    : generateGamePosterSvg({ id: Number(script.id) || 1, title, is18Plus: Boolean(script.is18Plus) }, { width: 320, height: 430 });
+  const posterUrl = posterFile
+    ? `../src/assets/images/${posterFile}`
+    : `https://placehold.co/400x600/181512/d4af37?text=${encodeURIComponent(title)}`;
 
   // Định dạng giá vé 2 khung giờ
   const rawDay = script.priceDay ?? script.price ?? 159000;
@@ -69,7 +58,11 @@ if (!script) {
     <!-- PHẦN TRÊN: POSTER TRÁI + THÔNG SỐ PHẢI -->
     <div class="detail-hero-grid">
       <div class="detail-poster-box">
-        ${posterMediaHtml}
+        <img
+          src="${posterUrl}"
+          alt="${title}"
+          onerror="this.src='https://placehold.co/400x600/181512/d4af37?text=${encodeURIComponent(title)}'"
+        />
         ${script.isBestSeller ? `<span class="poster-badge">BEST SELLER</span>` : ''}
         ${script.is18Plus ? `<span class="poster-tag">18+</span>` : ''}
       </div>
@@ -97,7 +90,9 @@ if (!script) {
         </div>
 
         <div class="detail-actions">
-          <a href="./create-room.html?scriptId=${script.id}" class="btn btn-gold">Tạo phòng chơi kịch bản này</a>
+          ${store.state.currentRole !== 'dm' && store.state.currentRole !== 'admin'
+            ? `<a href="./create-room.html?scriptId=${encodeURIComponent(script.id)}&title=${encodeURIComponent(script.title || script.name || '')}" class="btn btn-gold">Tạo phòng chơi kịch bản này</a>`
+            : ''}
           <a href="../index.html#phong-dang-tuyen" class="btn btn-ghost">Xem phòng đang tuyển</a>
         </div>
       </div>

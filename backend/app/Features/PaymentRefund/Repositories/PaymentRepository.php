@@ -285,20 +285,7 @@ class PaymentRepository extends BaseRepository
         return $this->executeQuery(function () use ($paymentId, $payAmount, $idempotencyKey, $method): array {
             $this->pdo->beginTransaction();
             try {
-                // 1. Check existing idempotency key inside transaction
-                $existingTx = $this->findAttemptByIdempotencyKey($idempotencyKey);
-                if ($existingTx !== null) {
-                    $this->pdo->commit();
-                    $payment = $this->findPaymentWithDetails($paymentId);
-                    return [
-                        'success' => $existingTx['status'] === 'SUCCESS',
-                        'payment' => $payment ?? [],
-                        'transaction' => $existingTx,
-                        'idempotent_replay' => true,
-                    ];
-                }
-
-                // 2. Lock player_payments row FOR UPDATE
+                // 1. Lock player_payments row FOR UPDATE first to prevent idempotency race conditions
                 $lockStmt = $this->pdo->prepare(
                     'SELECT `id`, `room_participant_id`, `amount`, `paid_amount`, `status`
                      FROM `player_payments`
@@ -311,6 +298,19 @@ class PaymentRepository extends BaseRepository
 
                 if ($lockedPayment === false) {
                     throw new \InvalidArgumentException('Không tìm thấy thông tin khoản thanh toán');
+                }
+
+                // 2. Check existing idempotency key AFTER acquiring row lock
+                $existingTx = $this->findAttemptByIdempotencyKey($idempotencyKey);
+                if ($existingTx !== null) {
+                    $this->pdo->commit();
+                    $payment = $this->findPaymentWithDetails($paymentId);
+                    return [
+                        'success' => $existingTx['status'] === 'SUCCESS',
+                        'payment' => $payment ?? [],
+                        'transaction' => $existingTx,
+                        'idempotent_replay' => true,
+                    ];
                 }
 
                 $currentPaid = (int) $lockedPayment['paid_amount'];

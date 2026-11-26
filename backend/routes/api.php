@@ -138,6 +138,7 @@ HTML;
     $router->post($prefix . '/admin/rooms/offline-block', [AdminOperationsController::class, 'offlineBlock']);
     $router->get($prefix . '/admin/physical-rooms', [AdminOperationsController::class, 'listPhysicalRooms']);
     $router->post($prefix . '/admin/physical-rooms/{id}/maintenance', [AdminOperationsController::class, 'togglePhysicalRoomMaintenance']);
+    $router->patch($prefix . '/admin/physical-rooms/{id}/maintenance', [AdminOperationsController::class, 'togglePhysicalRoomMaintenance']);
     $router->post($prefix . '/admin/rooms/{id}/disband', [AdminGameRoomController::class, 'cancel']);
     $router->put($prefix . '/admin/users/{id}/student-verification', [AdminOperationsController::class, 'updateStudentVerification']);
     $router->post($prefix . '/admin/users/{id}/verify-student', [AdminOperationsController::class, 'updateStudentVerification']);
@@ -180,6 +181,7 @@ HTML;
     $router->post($prefix . '/rooms/{id}/join', [GameRoomController::class, 'join']);
     $router->post($prefix . '/rooms/{id}/leave', [GameRoomController::class, 'leave']);
     $router->post($prefix . '/rooms/{id}/leave-requests', [GameRoomController::class, 'leave']);
+    $router->post($prefix . '/rooms/{id}/kick', [GameRoomController::class, 'kick']);
 
     // Pricing calculation & snapshot
     $router->post($prefix . '/rooms/{id}/calculate-price', [PricingController::class, 'calculate']);
@@ -233,6 +235,17 @@ HTML;
     $router->get($prefix . '/notifications', [NotificationController::class, 'index']);
     $router->post($prefix . '/notifications/{id}/read', [NotificationController::class, 'markAsRead']);
     $router->post($prefix . '/notifications/read-all', [NotificationController::class, 'markAllAsRead']);
+
+    // =============================================================
+    // DOMAIN 9: ADMIN CATALOG, PRICING, PROMOTIONS & VENUES
+    // =============================================================
+    $router->get($prefix . '/admin/games', [\App\Features\GameroomManagement\Controllers\AdminCatalogController::class, 'listGames']);
+    $router->post($prefix . '/admin/games', [\App\Features\GameroomManagement\Controllers\AdminCatalogController::class, 'createGame']);
+    $router->patch($prefix . '/admin/games/{id}', [\App\Features\GameroomManagement\Controllers\AdminCatalogController::class, 'updateGame']);
+    $router->get($prefix . '/admin/promotions', [\App\Features\GameroomManagement\Controllers\AdminCatalogController::class, 'listPromotions']);
+    $router->patch($prefix . '/admin/promotions/{id}', [\App\Features\GameroomManagement\Controllers\AdminCatalogController::class, 'togglePromotion']);
+    $router->post($prefix . '/admin/venues', [\App\Features\GameroomManagement\Controllers\AdminCatalogController::class, 'createVenue']);
+    $router->post($prefix . '/admin/venues/{id}/rooms', [\App\Features\GameroomManagement\Controllers\AdminCatalogController::class, 'createPhysicalRoom']);
 };
 
 // Register for both standard V16 prefix (/api/v1) and legacy fallback (/api)

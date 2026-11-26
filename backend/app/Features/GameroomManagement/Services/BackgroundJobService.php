@@ -330,7 +330,7 @@ class BackgroundJobService
 
             $this->pdo->prepare("UPDATE `schedule_proposals` SET `status` = 'EXPIRED' WHERE `id` = :id")
                 ->execute([':id' => $propId]);
-            $this->pdo->prepare("UPDATE `game_rooms` SET `status` = 'FORMING' WHERE `id` = :rid AND `status` = 'PENDING_SCHEDULE'")
+            $this->pdo->prepare("UPDATE `game_rooms` SET `status` = 'FORMING', `updated_at` = NOW() WHERE `id` = :rid AND `status` IN ('PENDING_SCHEDULE', 'SCHEDULE_PROPOSED')")
                 ->execute([':rid' => $roomId]);
             $count++;
         }
@@ -370,7 +370,7 @@ class BackgroundJobService
             $revCountStmt->execute([':rid' => $roomId]);
             if ((int) $revCountStmt->fetchColumn() >= 3) {
                 // Đẩy thông báo khẩn cấp cho Quản trị viên
-                $adminStmt = $this->pdo->query("SELECT `id` FROM `users` WHERE `role_code` = 'ADMIN'");
+                $adminStmt = $this->pdo->query("SELECT u.`id` FROM `users` u INNER JOIN `roles` r ON r.`id` = u.`role_id` WHERE r.`code` = 'ADMIN' AND u.`status` = 'ACTIVE'");
                 $adminIds = $adminStmt ? array_map('intval', $adminStmt->fetchAll(PDO::FETCH_COLUMN)) : [1];
 
                 $this->notiRepo->createNotification(

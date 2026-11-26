@@ -271,7 +271,9 @@ class UserRepository extends BaseRepository
             $stmt = $this->pdo->prepare(
                 "SELECT u.`id`, u.`role_id`, r.`code` AS `role_code`, r.`name` AS `role_name`,
                         u.`full_name` AS `name`, u.`full_name`, u.`email`,
-                        u.`phone`, u.`avatar_url`, u.`status`, u.`student_verified`, u.`email_verified_at`, u.`last_login_at`,
+                        u.`phone`, u.`avatar_url`, u.`status`, u.`student_verified`,
+                        u.`student_card_status`, u.`student_card_url`, u.`student_verified_at`, u.`student_reject_reason`,
+                        u.`email_verified_at`, u.`last_login_at`,
                         u.`created_at`, u.`updated_at`
                  FROM `users` u
                  LEFT JOIN `roles` r ON r.`id` = u.`role_id`

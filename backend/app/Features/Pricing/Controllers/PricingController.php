@@ -34,9 +34,16 @@ class PricingController
     {
         $body = $request->getBodyParams();
         $gameId = (int) ($body['game_id'] ?? 0);
-        $playerCount = max(1, (int) ($body['player_count'] ?? $body['total_players'] ?? 0));
+        $playerCount = max(1, (int) ($body['player_count'] ?? $body['total_players'] ?? 1));
         $startRaw = trim((string) ($body['session_start_time'] ?? $body['play_time'] ?? ''));
-        $isStudentVerified = !empty($body['is_student_verified']);
+        $verifiedStudentCount = isset($body['verified_student_count']) ? (int) $body['verified_student_count'] : 0;
+
+        if (array_key_exists('is_student_verified', $body)) {
+            $isStudentVerified = !empty($body['is_student_verified']);
+        } else {
+            $auth = AuthMiddleware::authenticate($request);
+            $isStudentVerified = !($auth instanceof Response) && !empty($auth['student_verified']);
+        }
 
         if ($gameId <= 0) {
             return Response::fail('Thiếu mã kịch bản (game_id)', 'VALIDATION_ERROR', 422);
@@ -49,73 +56,18 @@ class PricingController
             return Response::fail('Không tìm thấy kịch bản', 'GAME_NOT_FOUND', 404);
         }
 
-        if ($playerCount <= 1) {
-            $playerCount = max(1, (int) ($game['min_players'] ?? 4));
-        }
+        $quote = $this->pricingService->calculateQuote(
+            $gameId,
+            $playerCount,
+            $startRaw !== '' ? $startRaw : date('Y-m-d H:i:s'),
+            $isStudentVerified,
+            $verifiedStudentCount
+        );
 
-        $ts = $startRaw !== '' ? strtotime(str_replace('T', ' ', $startRaw)) : time();
-        if ($ts === false) {
-            $ts = time();
-        }
-        $playDateTime = date('Y-m-d H:i:s', $ts);
-        $durationMinutes = max(60, (int) ($game['duration_minutes'] ?? 240));
-
-        $priceCalc = $this->pricingService->calculateBasePriceForGame($gameId, $playDateTime, null, $durationMinutes);
-        $basePrice = (int) ($priceCalc['base_price_per_person'] ?? 250000);
-
-        $hour = (int) date('G', $ts);
-        $minute = (int) date('i', $ts);
-        $dayOfWeek = (int) date('N', $ts);
-        $minutesOfDay = $hour * 60 + $minute;
-        $isNight = $minutesOfDay >= 20 * 60;
-        $promoWindow = $minutesOfDay >= 9 * 60 && $minutesOfDay <= 19 * 60;
-        $advanceHours = ($ts - time()) / 3600;
-
-        $subtotal = $basePrice * $playerCount;
-
-        $isTuesday = ($dayOfWeek === 2 && $advanceHours >= 24 && $promoWindow);
-        $isStudent = ($isStudentVerified && $dayOfWeek >= 1 && $dayOfWeek <= 4 && $promoWindow);
-
-        $discountAmount = 0;
-        $discountCode = null;
-        $discountLabel = 'Không có ưu đãi';
-
-        if ($isTuesday && $isStudent) {
-            $discountLabel = 'Hai ưu đãi cùng điều kiện — hệ thống không cộng dồn, chưa áp dụng giảm';
-        } elseif ($isTuesday) {
-            $discountAmount = (int) round($subtotal * 0.3);
-            $discountCode = 'TUESDAY_30';
-            $discountLabel = 'Ưu đãi Thứ Ba (-30%)';
-        } elseif ($isStudent) {
-            $discountAmount = 20000 * $playerCount;
-            $discountCode = 'STUDENT_20K';
-            $discountLabel = 'Ưu đãi HSSV (-20.000đ/người)';
-        }
-
-        $finalTotal = max(0, $subtotal - $discountAmount);
-        $depositTotal = min($finalTotal, PricingService::DEPOSIT_PER_PERSON * $playerCount);
-        $remainingTotal = max(0, $finalTotal - $depositTotal);
-
-        return Response::success([
+        return Response::success(array_merge([
             'game_id' => $gameId,
             'game_name' => $game['name'],
-            'time_slot' => $isNight ? 'NIGHT' : 'DAY',
-            'time_window' => $isNight ? 'Khung tối (từ 20:00)' : 'Khung ngày (09:00–19:59)',
-            'player_count' => $playerCount,
-            'base_price_per_player' => $basePrice,
-            'raw_total_vnd' => $subtotal,
-            'subtotal' => $subtotal,
-            'total_discount_vnd' => $discountAmount,
-            'discount_amount' => $discountAmount,
-            'discount_code' => $discountCode,
-            'applied_promotion' => ['code' => $discountCode, 'name' => $discountLabel],
-            'final_total_vnd' => $finalTotal,
-            'total_amount' => $finalTotal,
-            'total_deposit_vnd' => $depositTotal,
-            'deposit_amount' => $depositTotal,
-            'remaining_vnd' => $remainingTotal,
-            'remaining_amount' => $remainingTotal,
-        ], 'Tính toán báo giá dự kiến thành công');
+        ], $quote), 'Tính toán báo giá dự kiến thành công');
     }
 
     public function calculate(Request $request, string $id): Response
@@ -146,6 +98,11 @@ class PricingController
      */
     public function snapshot(Request $request, string $id): Response
     {
+        $auth = AuthMiddleware::authenticate($request);
+        if ($auth instanceof Response) {
+            return $auth;
+        }
+
         $roomId = (int) $id;
         $stmt = $this->pdo->prepare(
             'SELECT gr.`id`, gr.`price_total_participants`, gr.`price_subtotal`, gr.`price_discount_amount`,

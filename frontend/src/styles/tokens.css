@@ -1,31 +1,57 @@
-/* Design tokens — đồng bộ bảng màu Dark Luxury đã kiểm chứng. */
+/* src/styles/tokens.css */
+@import url('https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400&family=JetBrains+Mono:wght@500;700&family=Playfair+Display:ital,wght@0,600;0,700;0,800;1,600&display=swap');
+
 :root {
-  --bg-primary: #0B0B0A;
-  --bg-surface: #141411;
-  --bg-elevated: #1B1A17;
-  --bg-paper: #F3EFE6;
-  --bg-paper-dark: #E6E0D2;
-  --color-border: #333129;
+  /* Bảng màu cốt lõi */
+  --bg-void: #0D0D0D;
+  --bg-surface: #181614;
+  --bg-elevated: #221F1C;
+  --paper-cream: #F5F2EB;
+  --paper-aged: #EAE4D7;
+  --ink-black: #1A1816;
+  --ink-muted: #5C554E;
 
-  --color-crimson: #922F2F;
-  --color-crimson-hover: #B53333;
-  --color-gold: #D4AF37;
-  --color-gold-light: #E6C65C;
+  /* Màu nhấn thương hiệu */
+  --crimson: #992B2B;
+  --crimson-bright: #C43737;
+  --crimson-glow: rgba(153, 43, 43, 0.35);
+  --gold: #D4AF37;
+  --gold-soft: rgba(212, 175, 55, 0.16);
+  --gold-border: rgba(212, 175, 55, 0.45);
 
-  --text-light: #F3EFE6;
-  --text-muted: #A8A296;
-  --text-ink: #1A1816;
+  /* Trạng thái */
+  --success: #2E7D4F;
+  --warning: #C97A1E;
+  --danger: #B82929;
 
-  --status-open: #2E7D32;
-  --status-hold: #D97706;
-  --status-locked: #992B2B;
+  /* Chữ trên nền tối */
+  --text-primary: #F5F2EB;
+  --text-secondary: #B8B0A4;
+  --text-dim: #7C7469;
 
-  --font-serif: 'Playfair Display', Georgia, serif;
-  --font-sans: 'Be Vietnam Pro', 'Inter', system-ui, -apple-system, sans-serif;
+  /* Typography */
+  --font-display: 'Playfair Display', Georgia, serif;
+  --font-sans: 'Be Vietnam Pro', system-ui, -apple-system, sans-serif;
   --font-mono: 'JetBrains Mono', monospace;
 
+  /* Spacing & Radius */
   --radius-sm: 4px;
   --radius-md: 8px;
-  --shadow-ticket: 0 10px 30px rgba(0, 0, 0, 0.65);
-  --transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  --radius-lg: 14px;
+  --container-max: 1280px;
+  --header-height: 72px;
+
+  /* Ánh xạ tên biến cho components.css & portals.css */
+  --bg-primary: var(--bg-void);
+  --bg-paper: var(--paper-cream);
+  --text-light: var(--text-primary);
+  --text-muted: var(--text-secondary);
+  --text-ink: var(--ink-black);
+  --color-gold: var(--gold);
+  --color-gold-light: #E6C65C;
+  --color-crimson: var(--crimson);
+  --color-crimson-hover: var(--crimson-bright);
+  --font-serif: var(--font-display);
+  --status-open: var(--success);
+  --status-hold: var(--warning);
 }

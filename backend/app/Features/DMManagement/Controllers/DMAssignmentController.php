@@ -174,6 +174,90 @@ class DMAssignmentController
 
         $this->dmRepo->respondAssignment($assignmentId, 'REJECTED', $reason);
 
+        // Tự động xoay tua sang Quản trò (DM) rảnh tiếp theo chưa từ chối phòng này và không trùng lịch ca khác
+        $rotatedAssignmentId = null;
+        $rotatedDmId = null;
+        $roomId = (int) ($assignment['game_room_id'] ?? 0);
+        if ($roomId > 0) {
+            $sessTimeStmt = $this->pdo->prepare(
+                "SELECT `start_at`, `end_at` FROM `sessions`
+                 WHERE `game_room_id` = :rid AND `status` = 'SCHEDULED'
+                 ORDER BY `id` DESC LIMIT 1"
+            );
+            $sessTimeStmt->execute([':rid' => $roomId]);
+            $sessTime = $sessTimeStmt->fetch(PDO::FETCH_ASSOC);
+
+            if ($sessTime !== false && !empty($sessTime['start_at']) && !empty($sessTime['end_at'])) {
+                $nextDmStmt = $this->pdo->prepare(
+                    "SELECT u.`id`
+                     FROM `users` u
+                     INNER JOIN `roles` r ON r.`id` = u.`role_id`
+                     WHERE r.`code` = 'DM'
+                       AND u.`status` = 'ACTIVE'
+                       AND u.`id` NOT IN (
+                           SELECT da.`dm_user_id` FROM `dm_assignments` da
+                           WHERE da.`game_room_id` = :rid AND da.`status` IN ('REJECTED', 'PENDING', 'ACCEPTED')
+                       )
+                       AND NOT EXISTS (
+                           SELECT 1 FROM `sessions` s2
+                           INNER JOIN `dm_assignments` da2 ON da2.`id` = s2.`dm_assignment_id`
+                           WHERE da2.`dm_user_id` = u.`id`
+                             AND da2.`status` IN ('PENDING', 'ACCEPTED')
+                             AND s2.`status` IN ('SCHEDULED', 'IN_PROGRESS')
+                             AND s2.`start_at` < DATE_ADD(:end_at, INTERVAL 30 MINUTE)
+                             AND s2.`end_at` > DATE_SUB(:start_at, INTERVAL 30 MINUTE)
+                       )
+                     ORDER BY u.`id` ASC
+                     LIMIT 1"
+                );
+                $nextDmStmt->execute([
+                    ':rid' => $roomId,
+                    ':start_at' => $sessTime['start_at'],
+                    ':end_at' => $sessTime['end_at'],
+                ]);
+            } else {
+                $nextDmStmt = $this->pdo->prepare(
+                    "SELECT u.`id`
+                     FROM `users` u
+                     INNER JOIN `roles` r ON r.`id` = u.`role_id`
+                     WHERE r.`code` = 'DM'
+                       AND u.`status` = 'ACTIVE'
+                       AND u.`id` NOT IN (
+                           SELECT da.`dm_user_id` FROM `dm_assignments` da
+                           WHERE da.`game_room_id` = :rid AND da.`status` IN ('REJECTED', 'PENDING', 'ACCEPTED')
+                       )
+                     ORDER BY u.`id` ASC
+                     LIMIT 1"
+                );
+                $nextDmStmt->execute([':rid' => $roomId]);
+            }
+            $candidateId = (int) $nextDmStmt->fetchColumn();
+            if ($candidateId > 0) {
+                $rotatedDmId = $candidateId;
+                $rotatedAssignmentId = $this->dmRepo->assignToRoom(
+                    $roomId,
+                    $candidateId,
+                    'Tự động xoay tua do Quản trò trước từ chối ca',
+                    (int) $auth['id']
+                );
+                $updSess = $this->pdo->prepare(
+                    "UPDATE `sessions` SET `dm_assignment_id` = :daid, `updated_at` = NOW()
+                     WHERE `game_room_id` = :rid AND `status` = 'SCHEDULED'"
+                );
+                $updSess->bindValue(':daid', $rotatedAssignmentId, PDO::PARAM_INT);
+                $updSess->bindValue(':rid', $roomId, PDO::PARAM_INT);
+                $updSess->execute();
+
+                $this->notiRepo->createNotification(
+                    'Phân công ca trực mới (Xoay tua tự động)',
+                    "Bạn được hệ thống tự động xoay tua phân công phụ trách phòng '{$assignment['room_title']}'. Vui lòng xác nhận trong vòng 2 giờ.",
+                    'DM_ASSIGNMENT',
+                    (int) $auth['id'],
+                    [$candidateId]
+                );
+            }
+        }
+
         // Audit log & thông báo Admin
         $this->auditService->log((int) $auth['id'], 'REJECT_DM_ASSIGNMENT', 'DM_ASSIGNMENT', $assignmentId, [
             'game_room_id' => $assignment['game_room_id'] ?? null,

@@ -45,8 +45,23 @@ class V16StandardP1FeaturesTest extends TestCase
         );
 
         $response = $this->app->dispatch($request);
-        $this->assertSame(200, $response->getStatusCode());
-        $data = json_decode($response->getContent(), true);
+        $this->assertSame(403, $response->getStatusCode());
+
+        // Chỉ Admin mới có quyền duyệt thẻ HSSV
+        $adminReq = new Request(
+            method: 'POST',
+            path: '/api/dm/users/3/verify-student',
+            queryParams: [],
+            bodyParams: [
+                'student_verified' => true,
+            ],
+            headers: [
+                'Authorization' => 'Bearer 1', // Admin ID
+            ]
+        );
+        $adminRes = $this->app->dispatch($adminReq);
+        $this->assertSame(200, $adminRes->getStatusCode());
+        $data = json_decode($adminRes->getContent(), true);
         $this->assertTrue($data['success']);
     }
 

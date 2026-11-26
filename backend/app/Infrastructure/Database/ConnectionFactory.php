@@ -109,7 +109,7 @@ class ConnectionFactory
         // 2. Enforce MySQL charset and collation init command (cannot be disabled or bypassed by custom options)
         if ($dbConfig->getDriver() === 'mysql' && defined('PDO::MYSQL_ATTR_INIT_COMMAND')) {
             $requiredInitCommand = sprintf(
-                "SET NAMES '%s' COLLATE '%s'",
+                "SET NAMES '%s' COLLATE '%s', time_zone = '+07:00'",
                 $dbConfig->getCharset(),
                 $dbConfig->getCollation()
             );

@@ -1,20 +1,251 @@
 <!DOCTYPE html>
 <html lang="vi">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Chi tiết phòng — Kịch Bản Sát</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="../src/styles/tokens.css">
-  <link rel="stylesheet" href="../src/styles/components.css">
-  <link rel="stylesheet" href="../src/styles/player.css">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Chi Tiết Phòng Chơi — Kịch Bản Sát V16</title>
+  <link rel="stylesheet" href="../src/styles/components.css" />
+  <link rel="stylesheet" href="../src/styles/portals-vintage.css" />
 </head>
 <body>
-  <div id="player-header"></div>
-  <main class="player-main" id="player-root"></main>
-  <div id="player-footer"></div>
-  <script type="module" src="../src/pages/player/room-detail-page.js"></script>
+  <div id="app-header"></div>
+
+  <main class="portal-main">
+    <div class="container" id="room-detail-root">Đang tải thông tin phòng...</div>
+  </main>
+
+  <div id="app-footer"></div>
+
+  <script type="module">
+    import { initChrome } from '../src/logic/layout.js';
+    import { store } from '../src/logic/store.js';
+    import { api, syncSessionUser } from '../src/logic/api.js';
+    import { requireAuthRole, escapeHtml, showToast } from '../src/logic/portal-mock.js';
+
+    const params = new URLSearchParams(window.location.search);
+    const roomId = params.get('id') || '1';
+    let sessionInfo = { user: null, role: 'guest' };
+
+    function ensureLogin() {
+      if (sessionInfo.role === 'guest') {
+        showToast('Vui lòng đăng nhập để thực hiện thao tác này.');
+        window.setTimeout(() => { window.location.href = './auth.html#login'; }, 600);
+        return false;
+      }
+      return true;
+    }
+
+    async function render() {
+      const root = document.getElementById('room-detail-root');
+      try {
+        const data = await api.get(`/rooms/${encodeURIComponent(roomId)}`);
+        const room = data?.room || data;
+        const participants = data?.participants || room?.participants || [];
+        const proposals = data?.proposals || room?.proposals || [];
+        const game = room?.game || {};
+        const myId = Number(sessionInfo.user?.id || 0);
+        const myPart = participants.find((p) => Number(p.user_id) === myId && !['LEFT', 'CANCELLED', 'CANCELLED_UNPAID', 'CANCELLED_BY_ADMIN'].includes(String(p.status)));
+        const activeParts = participants.filter((p) => !['LEFT', 'CANCELLED', 'CANCELLED_UNPAID', 'CANCELLED_BY_ADMIN'].includes(String(p.status)));
+        const isPlayer = sessionInfo?.role === 'player';
+        const isCreator = isPlayer && myId > 0 && myId === Number(room.creator_id || 0);
+        const mySeatCount = isCreator ? Number(room.total_players || 1) : 1;
+        const myDepAmt = mySeatCount * 50000;
+        const occupiedSeats = Number(room.current_players ?? activeParts.length);
+
+        root.innerHTML = `
+          <div class="portal-hero">
+            <div>
+              <div class="portal-eyebrow">PHÒNG #${room.id} • ${escapeHtml(room.booking_type || 'PUBLIC')} • ${escapeHtml(room.status)}</div>
+              <h1 class="portal-title">${escapeHtml(room.title || game.name || 'Chi tiết phòng chơi')}</h1>
+              <p class="portal-subtitle">Kịch bản: ${escapeHtml(game.name || 'Kịch bản')} • Thời lượng: ${game.duration_minutes || 210} phút • Sĩ số: ${occupiedSeats}/${room.max_players || 6}</p>
+            </div>
+            <div class="portal-actions">
+              ${sessionInfo?.role === 'dm'
+                ? `<a href="./dm-portal.html" class="btn btn-gold">Quay lại DM Portal</a>`
+                : sessionInfo?.role === 'admin'
+                  ? `<a href="./admin-portal.html" class="btn btn-gold">Quay lại Admin Portal</a>`
+                  : `<a href="./lobby.html" class="btn btn-ghost">Quay lại Sảnh</a>`}
+              ${isPlayer && myPart ? `<a href="./booking-status.html?id=${encodeURIComponent(room.id)}" class="btn btn-gold">Xem Vé &amp; Thanh Toán</a>` : ''}
+              ${!isPlayer ? `<a href="./booking-status.html?id=${encodeURIComponent(room.id)}" class="btn btn-ghost">Đối Soát Thanh Toán Phòng</a>` : ''}
+            </div>
+          </div>
+
+          <div class="portal-two-col">
+            <div>
+              <section class="portal-panel">
+                <h2 class="portal-panel-title">Danh Sách Thành Viên (${occupiedSeats} / ${room.max_players || 6} chỗ)</h2>
+                <div class="portal-table-wrap">
+                  <table class="portal-table">
+                    <thead><tr><th>#</th><th>Thành viên</th><th>Trạng thái</th><th>Cọc</th>${isCreator && room.status === 'FORMING' ? '<th>Thao tác</th>' : ''}</tr></thead>
+                    <tbody>
+                      ${activeParts.map((p, i) => {
+                        const pIsCreator = Number(p.user_id) === Number(room.creator_id || 0);
+                        const pSeats = pIsCreator ? Number(room.total_players || 1) : 1;
+                        return `
+                        <tr>
+                          <td>${i + 1}</td>
+                          <td><strong>${escapeHtml(p.full_name || p.name || ('User #' + p.user_id))}</strong>${pIsCreator && pSeats > 1 ? ` <span class="text-muted" style="font-size:0.8rem;">(Đại diện ${pSeats} người)</span>` : ''}</td>
+                          <td><span class="v-badge ${p.status === 'DEPOSITED' ? 'v-badge-green' : 'v-badge-gold'}">${escapeHtml(p.status)}</span></td>
+                          <td>${p.status === 'DEPOSITED' ? `Đã cọc ${(pSeats * 50000).toLocaleString('vi-VN')} đ` : 'Chờ cọc'}</td>
+                          ${isCreator && room.status === 'FORMING' ? `<td>${!pIsCreator ? `<button class="btn btn-ghost btn-sm" data-kick-uid="${p.user_id}">Mời ra</button>` : '<span class="text-muted" style="font-size:0.78rem;">Chủ phòng</span>'}</td>` : ''}
+                        </tr>
+                      `; }).join('')}
+                    </tbody>
+                  </table>
+                </div>
+                ${isPlayer ? `
+                  <div style="margin-top:16px;display:flex;gap:10px;flex-wrap:wrap;">
+                    ${!myPart && room.status === 'FORMING' && String(room.booking_type || '').toUpperCase() !== 'PRIVATE' ? `<button class="btn btn-gold btn-sm" id="btn-join-room">Tham gia phòng này</button>` : ''}
+                    ${myPart && myPart.status !== 'DEPOSITED' && room.status !== 'CANCELLED' && room.status !== 'COMPLETED' ? `<button class="btn btn-gold btn-sm" id="btn-deposit-now">Thanh toán cọc giữ chỗ (${myDepAmt.toLocaleString('vi-VN')} đ)</button>` : ''}
+                    ${myPart ? `<button class="btn btn-ghost btn-sm" id="btn-leave-room">Hủy / Rời phòng</button>` : ''}
+                  </div>
+                ` : `
+                  <p class="text-muted" style="margin-top:14px;font-size:0.84rem;">Chế độ điều phối dành cho ${sessionInfo?.role === 'admin' ? 'Quản trị viên (Admin)' : 'Quản trò (DM)'} — không phát sinh thao tác tham gia hoặc đặt cọc cá nhân.</p>
+                `}
+              </section>
+
+              <section class="portal-panel">
+                <h2 class="portal-panel-title">Khung Giờ Đã Chọn</h2>
+                ${proposals.length ? proposals.map((prop) => `
+                  <div class="summary-row" style="align-items:center;">
+                    <div>
+                      <strong>${prop.proposed_start_at || prop.start_at || ''}</strong>
+                      <div class="text-muted" style="font-size:0.8rem;">Trạng thái: ${prop.status} • Đồng ý: ${prop.accepted_votes ?? 0} • Từ chối: ${prop.rejected_votes ?? 0}</div>
+                    </div>
+                    ${sessionInfo?.role === 'player' && prop.status === 'PROPOSED' ? `
+                      <div style="display:flex;gap:6px;">
+                        <button class="btn btn-gold btn-sm" data-vote-yes="${prop.id}">Đồng ý</button>
+                        <button class="btn btn-ghost btn-sm" data-vote-no="${prop.id}">Từ chối</button>
+                      </div>
+                    ` : ''}
+                  </div>
+                `).join('') : '<p class="text-muted">Chưa có khung giờ nào.</p>'}
+
+                ${sessionInfo?.role === 'player' && room.status === 'FORMING' ? `
+                  <form id="prop-form" style="margin-top:14px;display:flex;gap:10px;flex-wrap:wrap;">
+                    <input type="datetime-local" id="prop-time" class="portal-input" value="2026-12-10T14:00" style="flex:1;" required />
+                    <button type="submit" class="btn btn-ghost btn-sm">+ Đề xuất giờ khác</button>
+                  </form>
+                ` : ''}
+              </section>
+
+              ${isPlayer && myPart && room.status === 'COMPLETED' && room.session?.id ? `
+                <section class="portal-panel">
+                  <h2 class="portal-panel-title">Đánh Giá Sau Buổi Chơi</h2>
+                  <form id="review-form" style="display:flex;flex-direction:column;gap:10px;">
+                    <select id="review-rating" class="portal-select">
+                      <option value="5">5 sao — Xuất sắc</option>
+                      <option value="4">4 sao — Rất tốt</option>
+                      <option value="3">3 sao — Khá ổn</option>
+                      <option value="2">2 sao — Cần cải thiện</option>
+                      <option value="1">1 sao — Chưa hài lòng</option>
+                    </select>
+                    <textarea id="review-comment" class="portal-input" rows="2" placeholder="Chia sẻ cảm nhận của bạn về kịch bản và Quản trò..."></textarea>
+                    <button type="submit" class="btn btn-gold btn-sm" style="align-self:flex-start;">Gửi đánh giá</button>
+                  </form>
+                </section>
+              ` : ''}
+            </div>
+
+            <aside>
+              <section class="portal-panel">
+                <h2 class="portal-panel-title">Thông Tin Phòng &amp; Ca Chơi</h2>
+                <div class="summary-row"><span>Mã phòng</span><strong>#${room.id} (${room.booking_type || 'PUBLIC'})</strong></div>
+                <div class="summary-row"><span>Trạng thái</span><strong>${room.status}</strong></div>
+                <div class="summary-row"><span>Chi nhánh</span><strong>${room.session?.venue_name || room.venue?.name || room.target_venue_name || 'Chưa gán'}</strong></div>
+                ${room.session?.physical_room_name ? `<div class="summary-row"><span>Phòng vật lý</span><strong>${room.session.physical_room_name}</strong></div>` : ''}
+                ${room.session?.dm_name ? `<div class="summary-row"><span>Quản trò (DM)</span><strong>${room.session.dm_name}</strong></div>` : ''}
+                ${room.session?.start_at ? `<div class="summary-row"><span>Giờ bắt đầu</span><strong>${room.session.start_at}</strong></div>` : ''}
+                <div class="summary-row"><span>Số người tối thiểu</span><strong>${room.min_players || game.min_players || 4} người</strong></div>
+                <p class="text-muted" style="margin-top:12px;font-size:0.86rem;">${escapeHtml(room.description || 'Không có mô tả thêm.')}</p>
+              </section>
+            </aside>
+          </div>
+        `;
+
+        document.getElementById('btn-join-room')?.addEventListener('click', async () => {
+          if (!ensureLogin()) return;
+          const inv = new URLSearchParams(window.location.search).get('invite') || undefined;
+          try { await api.post(`/rooms/${room.id}/join`, inv ? { invite_token: inv } : {}); showToast('Tham gia phòng thành công.'); render(); } catch (e) { showToast(e.message); }
+        });
+
+        document.getElementById('btn-deposit-now')?.addEventListener('click', async () => {
+          if (!ensureLogin()) return;
+          try {
+            await api.post('/payments/deposit', { room_id: Number(room.id), is_lump_sum: isCreator && mySeatCount > 1, amount: myDepAmt, provider: 'VNPAY' });
+            showToast(`Thanh toán cọc giữ ${mySeatCount} chỗ (${myDepAmt.toLocaleString('vi-VN')} đ) thành công.`);
+            render();
+          } catch (e) { showToast(e.message); }
+        });
+
+        document.getElementById('btn-deposit-lump')?.addEventListener('click', async () => {
+          if (!ensureLogin()) return;
+          try { await api.post('/payments/deposit', { room_id: Number(room.id), is_lump_sum: true, provider: 'VNPAY' }); showToast('Đã thanh toán cọc gộp cho cả nhóm thành công.'); render(); } catch (e) { showToast(e.message); }
+        });
+
+        document.getElementById('btn-copy-invite')?.addEventListener('click', async () => {
+          const url = `${window.location.origin}${window.location.pathname}?id=${encodeURIComponent(room.id)}&invite=${encodeURIComponent(room.invite_token)}`;
+          try { await navigator.clipboard.writeText(url); showToast('Đã sao chép link mời phòng riêng.'); } catch { window.prompt('Link mời phòng riêng:', url); }
+        });
+
+        document.getElementById('btn-leave-room')?.addEventListener('click', async () => {
+          if (!ensureLogin()) return;
+          try { await api.post(`/rooms/${room.id}/leave`, { reason: 'Người chơi chủ động rời phòng' }); showToast('Đã rời phòng.'); render(); } catch (e) { showToast(e.message); }
+        });
+
+        document.querySelectorAll('[data-kick-uid]').forEach((b) => {
+          b.addEventListener('click', async () => {
+            if (!ensureLogin()) return;
+            const targetUid = Number(b.getAttribute('data-kick-uid'));
+            const reason = window.prompt('Nhập lý do mời thành viên này rời phòng:', 'Điều chỉnh đội hình') || 'Điều chỉnh đội hình';
+            try { await api.post(`/rooms/${room.id}/kick`, { user_id: targetUid, reason }); showToast('Đã mời thành viên rời phòng.'); render(); } catch (e) { showToast(e.message); }
+          });
+        });
+
+        document.querySelectorAll('[data-vote-yes]').forEach((b) => {
+          b.addEventListener('click', async () => {
+            if (!ensureLogin()) return;
+            try { await api.post(`/proposals/${b.getAttribute('data-vote-yes')}/vote`, { response: 'ACCEPTED' }); showToast('Đã bỏ phiếu Đồng ý.'); render(); } catch (e) { showToast(e.message); }
+          });
+        });
+
+        document.querySelectorAll('[data-vote-no]').forEach((b) => {
+          b.addEventListener('click', async () => {
+            if (!ensureLogin()) return;
+            try { await api.post(`/proposals/${b.getAttribute('data-vote-no')}/vote`, { response: 'REJECTED' }); showToast('Đã bỏ phiếu Từ chối.'); render(); } catch (e) { showToast(e.message); }
+          });
+        });
+
+        document.getElementById('review-form')?.addEventListener('submit', async (e) => {
+          e.preventDefault();
+          if (!ensureLogin()) return;
+          try {
+            await api.post(`/sessions/${room.session.id}/reviews`, {
+              rating: Number(document.getElementById('review-rating').value),
+              comment: document.getElementById('review-comment').value.trim(),
+            });
+            showToast('Cảm ơn bạn đã gửi đánh giá buổi chơi.');
+          } catch (err) { showToast(err.message); }
+        });
+
+        document.getElementById('prop-form')?.addEventListener('submit', async (e) => {
+          e.preventDefault();
+          if (!ensureLogin()) return;
+          const val = document.getElementById('prop-time').value.replace('T', ' ') + ':00';
+          try { await api.post(`/rooms/${room.id}/proposals`, { proposed_start_at: val }); showToast('Đã tạo đề xuất khung giờ mới.'); render(); } catch (err) { showToast(err.message); }
+        });
+      } catch (err) {
+        root.innerHTML = `<div class="portal-panel">Không tìm thấy phòng chơi #${roomId}: ${err.message}</div>`;
+      }
+    }
+
+    (async () => {
+      const auth = await requireAuthRole(['player', 'dm', 'admin'], 'Chi Tiết Phòng Chơi');
+      sessionInfo = auth;
+      initChrome('lobby');
+      if (!auth.allowed) return;
+      render();
+    })();
+  </script>
 </body>
 </html>

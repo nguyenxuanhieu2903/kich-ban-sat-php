@@ -1,4 +1,4 @@
-#  QUY ĐỊNH LÀM VIỆC NHÓM & QUY TRÌNH DUYỆT CODE
+# 📜 QUY ĐỊNH LÀM VIỆC NHÓM & QUY TRÌNH DUYỆT CODE
 
 Để tránh xung đột code (`Merge Conflict`), đảm bảo toàn bộ màn hình đồng nhất về giao diện lẫn nghiệp vụ, và sẵn sàng tích hợp mượt mà với Backend PHP & MySQL (22 bảng), tất cả thành viên bắt buộc tuân thủ **5 quy tắc sau**:
 
@@ -22,7 +22,7 @@ Các file sau là nền tảng dùng chung cho toàn website, do Lead (`@yhuynh0
 * `src/api/api-client.js` (Lớp cầu nối dữ liệu dùng chung để sẵn sàng tích hợp PHP Backend, gắn `Idempotency-Key`)
 * `src/data/scripts.data.js` (Danh sách 42 kịch bản thật của KBS Hồ Chí Minh)
 
- **Quy định bắt buộc:**
+👉 **Quy định bắt buộc:**
 1. Thành viên 2 và 3 chỉ được `import` và sử dụng các file trên, **không tự ý chỉnh sửa nội dung bên trong**. Nếu cần bổ sung class CSS hoặc trường dữ liệu mới, nhắn lên nhóm để Lead cập nhật đồng bộ.
 2. **Dữ liệu giả (`src/data/mock-db.js`):** Là file dùng chung nên mỗi người chỉ thêm dữ liệu vào đúng vùng comment của mình (`// === PLAYER ===`, `// === DM ===`, `// === ADMIN ===`), không sửa vùng của người khác.
 3. **Luôn dùng đường dẫn tương đối (`./` hoặc `../`)**: Ví dụ trong `pages/` viết `src="../src/assets/images/logo.png"`, **tuyệt đối không** dùng dấu `/` ở đầu đường dẫn để không bị lỗi khi ghép vào thư mục `frontend/` của Backend PHP.

@@ -1,20 +1,170 @@
 <!DOCTYPE html>
 <html lang="vi">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Sảnh phòng — Kịch Bản Sát</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="../src/styles/tokens.css">
-  <link rel="stylesheet" href="../src/styles/components.css">
-  <link rel="stylesheet" href="../src/styles/player.css">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sảnh Ghép Phòng — Kịch Bản Sát V16</title>
+  <link rel="stylesheet" href="../src/styles/components.css" />
+  <link rel="stylesheet" href="../src/styles/portals-vintage.css" />
 </head>
 <body>
-  <div id="player-header"></div>
-  <main class="player-main" id="player-root"></main>
-  <div id="player-footer"></div>
-  <script type="module" src="../src/pages/player/lobby-page.js"></script>
+  <div id="app-header"></div>
+
+  <main class="portal-main">
+    <div class="container">
+      <div class="portal-hero">
+        <div>
+          <div class="portal-eyebrow">PLAYER PORTAL — MATCHMAKING LOBBY</div>
+          <h1 class="portal-title">Sảnh Ghép Phòng Đang Tuyển</h1>
+          <p class="portal-subtitle">Dữ liệu đồng bộ trực tiếp từ cơ sở dữ liệu hệ thống Kịch Bản Sát V16.</p>
+        </div>
+        <div class="portal-actions" id="lobby-hero-actions">
+          <a href="./create-room.html" class="btn btn-gold" id="lobby-create-btn">+ Tạo Phòng Mới</a>
+          <a href="./profile.html" class="btn btn-ghost">Hồ Sơ &amp; Lịch Sử</a>
+        </div>
+      </div>
+
+      <div class="kpi-grid" id="lobby-kpi"></div>
+
+      <div class="portal-toolbar">
+        <input type="search" id="lobby-search" class="portal-input" placeholder="Tìm theo tên phòng hoặc tên kịch bản..." />
+        <select id="lobby-status" class="portal-select">
+          <option value="ALL">Tất cả trạng thái</option>
+          <option value="FORMING" selected>Đang tuyển người (FORMING)</option>
+          <option value="SCHEDULED">Đã xếp lịch (SCHEDULED)</option>
+          <option value="CONFIRMED">Đã chốt ca (CONFIRMED)</option>
+          <option value="COMPLETED">Đã hoàn tất (COMPLETED)</option>
+        </select>
+        <select id="lobby-type" class="portal-select">
+          <option value="">Mọi loại bàn</option>
+          <option value="PUBLIC">Ghép công khai (PUBLIC)</option>
+          <option value="PRIVATE">Nhóm riêng (PRIVATE)</option>
+        </select>
+      </div>
+
+      <div class="ticket-grid" id="lobby-grid"></div>
+    </div>
+  </main>
+
+  <div id="app-footer"></div>
+
+  <script type="module">
+    import { initChrome } from '../src/logic/layout.js';
+    import { store } from '../src/logic/store.js';
+    import { api, syncSessionUser } from '../src/logic/api.js';
+    import { requireAuthRole, escapeHtml, showToast } from '../src/logic/portal-mock.js';
+
+    const statusLabels = {
+      FORMING: ['Đang tuyển', 'v-badge-gold'],
+      SCHEDULED: ['Chờ cọc', 'v-badge-gold'],
+      CONFIRMED: ['Đã chốt ca', 'v-badge-green'],
+      IN_PROGRESS: ['Đang chơi', 'v-badge-crimson'],
+      COMPLETED: ['Hoàn tất', 'v-badge-muted'],
+      CANCELLED: ['Đã hủy', 'v-badge-crimson'],
+    };
+
+    let currentRole = 'guest';
+
+    async function loadAndRender() {
+      const q = document.getElementById('lobby-search').value.trim();
+      const status = document.getElementById('lobby-status').value;
+      const bookingType = document.getElementById('lobby-type').value;
+      const params = new URLSearchParams({ status, page: '1', per_page: '24' });
+      if (q) params.set('q', q);
+      if (bookingType) params.set('booking_type', bookingType);
+
+      const grid = document.getElementById('lobby-grid');
+      try {
+        const data = await api.get(`/rooms?${params.toString()}`);
+        const rooms = data?.rooms || [];
+        const total = data?.meta?.total ?? rooms.length;
+        const formingCount = rooms.filter((r) => r.status === 'FORMING').length;
+        const openSlots = rooms.reduce((sum, r) => sum + (r.status === 'FORMING' ? Math.max(0, Number(r.max_players || 6) - Number(r.current_players || 0)) : 0), 0);
+
+        document.getElementById('lobby-kpi').innerHTML = `
+          <div class="kpi-card"><div class="kpi-label">Tổng số bàn khớp lọc</div><div class="kpi-value">${total}</div><div class="kpi-meta">Dữ liệu trực tiếp từ MySQL</div></div>
+          <div class="kpi-card"><div class="kpi-label">Bàn đang tuyển</div><div class="kpi-value">${formingCount}</div><div class="kpi-meta">Còn ${openSlots} ghế trống</div></div>
+          <div class="kpi-card"><div class="kpi-label">Cọc giữ chỗ chuẩn</div><div class="kpi-value">50.000 đ</div><div class="kpi-meta">Hoàn 100% nếu hủy trước 24h</div></div>
+        `;
+
+        if (!rooms.length) {
+          grid.innerHTML = `<div class="portal-panel" style="grid-column:1/-1;text-align:center;">Không có phòng chơi nào phù hợp bộ lọc hiện tại.</div>`;
+          return;
+        }
+
+        grid.innerHTML = rooms.map((r) => {
+          const [label, cls] = statusLabels[r.status] || [r.status, 'v-badge-muted'];
+          const cur = Number(r.current_players ?? r.member_count ?? 0);
+          const max = Number(r.max_players || 6);
+          const empty = Math.max(0, max - cur);
+          const isClosedPrivate = String(r.booking_type || 'PUBLIC').toUpperCase() === 'PRIVATE' && Number(r.guest_slots ?? 0) === 0;
+          const isPlayer = currentRole === 'player';
+          const canJoin = isPlayer && r.status === 'FORMING' && empty > 0 && !isClosedPrivate;
+          return `
+            <article class="ticket-card">
+              <div class="ticket-header">
+                <span class="ticket-code">PHÒNG #${r.id} • ${r.booking_type || 'PUBLIC'}</span>
+                <span class="v-badge ${cls}">${label}</span>
+              </div>
+              <h2 class="ticket-title">${escapeHtml(r.title || r.game_name)}</h2>
+              <div class="ticket-meta">
+                <div>Kịch bản: <strong>${escapeHtml(r.game_name || 'Kịch bản')}</strong></div>
+                <div>Thời lượng: <strong>${r.duration_minutes || 210} phút</strong></div>
+                <div>Sĩ số: <strong>${cur} / ${max} người</strong></div>
+                <div>Chủ phòng: <strong>${escapeHtml(r.creator_name || 'Thành viên')}</strong></div>
+                <div>Chi nhánh: <strong>${escapeHtml(r.target_venue_name || 'Chưa chọn')}</strong></div>
+                <div>Khung giờ: <strong>${escapeHtml(r.target_time_slot || 'Linh hoạt')}</strong></div>
+              </div>
+              <div class="ticket-footer">
+                <a href="./room-detail.html?id=${encodeURIComponent(r.id)}" class="btn btn-ghost btn-sm">Chi tiết phòng</a>
+                ${canJoin
+                  ? `<button class="btn btn-gold btn-sm" data-join="${r.id}">Tham gia ngay (Còn ${empty})</button>`
+                  : (isPlayer ? `<a href="./booking-status.html?id=${encodeURIComponent(r.id)}" class="btn btn-ghost btn-sm">Xem vé</a>` : `<a href="./booking-status.html?id=${encodeURIComponent(r.id)}" class="btn btn-ghost btn-sm">Đối soát thu</a>`)}
+              </div>
+            </article>
+          `;
+        }).join('');
+
+        grid.querySelectorAll('[data-join]').forEach((btn) => {
+          btn.addEventListener('click', async () => {
+            if (currentRole === 'guest') {
+              showToast('Vui lòng đăng nhập để tham gia phòng chơi.');
+              window.setTimeout(() => { window.location.href = './auth.html#login'; }, 600);
+              return;
+            }
+            const rid = btn.getAttribute('data-join');
+            try {
+              await api.post(`/rooms/${encodeURIComponent(rid)}/join`, {});
+              showToast(`Đã tham gia phòng #${rid} thành công.`);
+              loadAndRender();
+            } catch (err) {
+              showToast(err.message || 'Không thể tham gia phòng.');
+            }
+          });
+        });
+      } catch (err) {
+        grid.innerHTML = `<div class="portal-panel" style="grid-column:1/-1;text-align:center;">Lỗi tải danh sách phòng: ${err.message}</div>`;
+      }
+    }
+
+    (async () => {
+      const auth = await requireAuthRole(['player', 'dm', 'admin'], 'Sảnh Phòng Đang Tuyển');
+      currentRole = auth.role;
+      initChrome('lobby');
+      if (!auth.allowed) return;
+      if (currentRole !== 'player') {
+        const createBtn = document.getElementById('lobby-create-btn');
+        if (createBtn) createBtn.style.display = 'none';
+      }
+      ['lobby-search', 'lobby-status', 'lobby-type'].forEach((id) => {
+        document.getElementById(id).addEventListener('change', loadAndRender);
+      });
+      document.getElementById('lobby-search').addEventListener('input', () => {
+        clearTimeout(window._lobbyTimer);
+        window._lobbyTimer = setTimeout(loadAndRender, 250);
+      });
+      loadAndRender();
+    })();
+  </script>
 </body>
 </html>

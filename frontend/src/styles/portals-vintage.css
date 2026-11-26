@@ -1,0 +1,554 @@
+/* src/styles/portals-vintage.css
+ * Nâng cấp trực tiếp từ source hiện có theo chuẩn ui-ux-pro-max + pbakaus/impeccable
+ * Giữ nguyên 100% bảng màu tokens.css (--bg-void, --paper-cream, --crimson, --gold, --ink-black)
+ * Tập trung: Operate & Read clarity, optical elevation, tabular-nums, 44px touch targets, focus-visible, reduced-motion
+ */
+
+.portal-main {
+  flex: 1;
+  padding: 40px 0 88px;
+}
+
+.portal-main :focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: 2px;
+}
+
+.portal-hero {
+  border-bottom: 1px solid rgba(212, 175, 55, 0.28);
+  padding-bottom: 24px;
+  margin-bottom: 30px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+
+.portal-eyebrow {
+  font-family: var(--font-mono);
+  font-size: 0.74rem;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--gold);
+  margin-bottom: 8px;
+}
+
+.portal-title {
+  font-family: var(--font-display);
+  font-size: clamp(1.85rem, 3vw, 2.45rem);
+  font-weight: 700;
+  letter-spacing: -0.015em;
+  color: var(--paper-cream);
+  line-height: 1.18;
+}
+
+.portal-subtitle {
+  color: var(--text-secondary);
+  font-size: 0.95rem;
+  line-height: 1.55;
+  margin-top: 8px;
+  max-width: 680px;
+}
+
+.portal-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+/* =========================================================
+   KPI STRIP — EDITORIAL METRICS (IMPECCABLE OPERATE MODE)
+   ========================================================= */
+.kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 16px;
+  margin-bottom: 28px;
+}
+
+.kpi-card {
+  background: var(--paper-cream);
+  color: var(--ink-black);
+  border: 1px solid rgba(153, 43, 43, 0.28);
+  border-top: 3px solid var(--crimson);
+  border-radius: 6px;
+  padding: 20px 22px;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.34);
+  transition: transform 0.2s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.2s ease;
+}
+
+.kpi-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.44);
+}
+
+.kpi-label {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--ink-muted);
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+
+.kpi-value {
+  font-family: var(--font-display);
+  font-size: 1.9rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-black);
+  line-height: 1.12;
+  letter-spacing: -0.01em;
+}
+
+.kpi-meta {
+  font-family: var(--font-mono);
+  font-size: 0.76rem;
+  color: var(--crimson);
+  margin-top: 8px;
+}
+
+/* =========================================================
+   FILTER TOOLBAR (CALM DARK SURFACE)
+   ========================================================= */
+.portal-toolbar {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  align-items: center;
+  background: var(--bg-surface);
+  border: 1px solid rgba(245, 242, 235, 0.12);
+  border-radius: var(--radius-md);
+  padding: 14px 16px;
+  margin-bottom: 26px;
+}
+
+.portal-toolbar .portal-input,
+.portal-toolbar .portal-select {
+  min-height: 44px;
+  background: var(--bg-void);
+  color: var(--paper-cream);
+  border: 1px solid rgba(245, 242, 235, 0.16);
+}
+
+.portal-toolbar .portal-input:focus,
+.portal-toolbar .portal-select:focus {
+  border-color: var(--gold);
+  box-shadow: 0 0 0 2px rgba(212, 175, 55, 0.18);
+}
+
+.portal-toolbar .portal-input {
+  flex: 1 1 260px;
+}
+
+/* Inputs bên trong tờ giấy kem */
+.portal-input,
+.portal-select,
+.portal-textarea {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  min-height: 42px;
+  background: #FCFBF7;
+  border: 1px solid rgba(26, 24, 22, 0.22);
+  color: var(--ink-black);
+  border-radius: 5px;
+  padding: 9px 13px;
+  font-family: var(--font-sans);
+  font-size: 0.92rem;
+  line-height: 1.4;
+  outline: none;
+  transition: border-color 0.18s ease, box-shadow 0.18s ease;
+}
+
+.portal-textarea {
+  min-height: 92px;
+  resize: vertical;
+}
+
+.portal-input:focus,
+.portal-select:focus,
+.portal-textarea:focus {
+  border-color: var(--crimson);
+  box-shadow: 0 0 0 3px rgba(153, 43, 43, 0.12);
+}
+
+/* =========================================================
+   TICKET CARDS GRID — CRISP VINTAGE PAPER SHEET
+   ========================================================= */
+.ticket-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  gap: 22px;
+}
+
+.ticket-card {
+  background: var(--paper-cream);
+  color: var(--ink-black);
+  border: 1px solid rgba(153, 43, 43, 0.26);
+  border-top: 3px solid var(--crimson);
+  border-radius: 6px;
+  padding: 22px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  position: relative;
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.38);
+  transition: transform 0.22s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.22s ease, border-color 0.2s;
+}
+
+.ticket-card:hover {
+  transform: translateY(-3px);
+  border-color: rgba(153, 43, 43, 0.55);
+  box-shadow: 0 20px 44px rgba(0, 0, 0, 0.5);
+}
+
+.ticket-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  border-bottom: 1px dashed rgba(153, 43, 43, 0.3);
+  padding-bottom: 12px;
+}
+
+.ticket-code {
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  color: var(--crimson);
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  font-variant-numeric: tabular-nums;
+}
+
+.ticket-title {
+  font-family: var(--font-display);
+  font-size: 1.28rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--ink-black);
+  line-height: 1.3;
+}
+
+.ticket-meta {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px 14px;
+  font-size: 0.85rem;
+  color: var(--ink-muted);
+}
+
+.ticket-meta strong {
+  color: var(--ink-black);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.ticket-footer {
+  margin-top: auto;
+  padding-top: 14px;
+  border-top: 1px dashed rgba(26, 24, 22, 0.16);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+/* =========================================================
+   PANELS & WORKSPACE LAYOUT
+   ========================================================= */
+.portal-two-col {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr);
+  gap: 24px;
+  align-items: start;
+}
+
+.portal-panel {
+  background: var(--paper-cream);
+  color: var(--ink-black);
+  border: 1px solid rgba(153, 43, 43, 0.25);
+  border-top: 3px solid var(--crimson);
+  border-radius: 6px;
+  padding: 26px 28px;
+  margin-bottom: 24px;
+  box-shadow: 0 16px 38px rgba(0, 0, 0, 0.4);
+}
+
+.portal-panel .text-muted {
+  color: var(--ink-muted);
+}
+
+.portal-panel .text-gold {
+  color: var(--crimson);
+  font-weight: 700;
+}
+
+/* Tactile Paper Buttons — Min 40-44px Touch Target */
+.portal-panel .btn,
+.ticket-card .btn {
+  min-height: 40px;
+  padding: 0 16px;
+  font-weight: 600;
+  border-radius: 5px;
+  transition: background 0.18s ease, color 0.18s ease, border-color 0.18s ease, transform 0.12s ease;
+}
+
+.portal-panel .btn:active,
+.ticket-card .btn:active {
+  transform: translateY(1px);
+}
+
+.portal-panel .btn-ghost,
+.ticket-card .btn-ghost {
+  background: transparent;
+  color: var(--crimson);
+  border: 1px solid rgba(153, 43, 43, 0.45);
+}
+
+.portal-panel .btn-ghost:hover,
+.ticket-card .btn-ghost:hover {
+  background: rgba(153, 43, 43, 0.08);
+  border-color: var(--crimson);
+  color: var(--crimson);
+}
+
+.portal-panel .btn-gold,
+.ticket-card .btn-gold {
+  background: var(--crimson);
+  color: var(--paper-cream);
+  border: 1px solid var(--crimson);
+}
+
+.portal-panel .btn-gold:hover,
+.ticket-card .btn-gold:hover {
+  background: var(--crimson-bright);
+  border-color: var(--crimson-bright);
+}
+
+.portal-panel-title {
+  font-family: var(--font-display);
+  font-size: 1.32rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--crimson);
+  margin-bottom: 18px;
+  padding-bottom: 12px;
+  border-bottom: 1px dashed rgba(153, 43, 43, 0.3);
+}
+
+/* Semantic AA Contrast Badges */
+.v-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border-radius: 4px;
+  font-family: var(--font-mono);
+  font-size: 0.71rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.v-badge-gold {
+  background: #FBF1DA;
+  color: #784F04;
+}
+
+.v-badge-crimson {
+  background: #FBE6E6;
+  color: #8C1D1D;
+}
+
+.v-badge-green {
+  background: #E2F2E8;
+  color: #1A5936;
+}
+
+.v-badge-muted {
+  background: var(--paper-aged);
+  color: var(--ink-muted);
+}
+
+/* Forms */
+.form-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 16px;
+}
+
+.form-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.form-field.full {
+  grid-column: 1 / -1;
+}
+
+.form-field label {
+  font-family: var(--font-mono);
+  font-size: 0.74rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--ink-muted);
+  font-weight: 700;
+}
+
+/* Segmented Tabs (Impeccable Restrained Navigation) */
+.portal-tabs {
+  display: inline-flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-bottom: 24px;
+  padding: 5px;
+  background: var(--bg-surface);
+  border: 1px solid rgba(245, 242, 235, 0.12);
+  border-radius: var(--radius-md);
+}
+
+.portal-tab {
+  min-height: 40px;
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  padding: 0 18px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.88rem;
+  font-weight: 600;
+  transition: background 0.18s ease, color 0.18s ease;
+}
+
+.portal-tab:hover {
+  color: var(--paper-cream);
+}
+
+.portal-tab.active {
+  background: var(--paper-cream);
+  color: var(--ink-black);
+}
+
+/* Ledger Tables */
+.portal-table-wrap {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.portal-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+  color: var(--ink-black);
+  font-variant-numeric: tabular-nums;
+}
+
+.portal-table th,
+.portal-table td {
+  text-align: left;
+  padding: 14px 12px;
+  border-bottom: 1px solid rgba(26, 24, 22, 0.1);
+  vertical-align: middle;
+}
+
+.portal-table th {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--ink-muted);
+  background: var(--paper-aged);
+  border-bottom: 1px solid rgba(153, 43, 43, 0.25);
+}
+
+.portal-table tbody tr {
+  transition: background 0.15s ease;
+}
+
+.portal-table tbody tr:hover {
+  background: rgba(153, 43, 43, 0.035);
+}
+
+.portal-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+/* Summary Key-Value Rows */
+.summary-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+  padding: 10px 0;
+  font-size: 0.92rem;
+  border-bottom: 1px dashed rgba(26, 24, 22, 0.16);
+  color: var(--ink-muted);
+}
+
+.summary-row strong {
+  color: var(--ink-black);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  word-break: break-word;
+}
+
+.summary-row.total {
+  border-bottom: none;
+  padding-top: 16px;
+  font-family: var(--font-display);
+  font-size: 1.28rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  color: var(--crimson);
+}
+
+/* Toast Notification */
+.portal-toast {
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  background: var(--ink-black);
+  border: 1px solid var(--gold);
+  color: var(--paper-cream);
+  padding: 13px 20px;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  box-shadow: 0 14px 36px rgba(0, 0, 0, 0.55);
+  z-index: 9999;
+}
+
+@media (max-width: 900px) {
+  .portal-two-col,
+  .form-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .portal-panel {
+    padding: 18px 16px;
+    min-width: 0;
+  }
+  .portal-two-col > * {
+    min-width: 0;
+  }
+}
+
+@media (max-width: 540px) {
+  .ticket-grid {
+    grid-template-columns: 1fr;
+  }
+  .ticket-meta {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+  }
+}

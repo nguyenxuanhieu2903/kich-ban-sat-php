@@ -328,10 +328,10 @@ class V16StandardP2PerfectionTest extends TestCase
         $this->pdo->exec("INSERT INTO `dm_assignments` (`game_room_id`, `dm_user_id`, `assigned_by`, `status`, `assigned_at`, `created_at`, `updated_at`) VALUES ({$roomB}, 2, 1, 'ACCEPTED', NOW(), NOW(), NOW())");
         $assignB = (int) $this->pdo->lastInsertId();
 
-        $this->pdo->exec("INSERT INTO `physical_rooms` (`venue_id`, `name`, `capacity`, `status`, `created_at`, `updated_at`) VALUES (2, 'Phòng Confl B " . uniqid() . "', 10, 'ACTIVE', NOW(), NOW())");
+        $this->pdo->exec("INSERT INTO `physical_rooms` (`venue_id`, `name`, `capacity`, `status`, `created_at`, `updated_at`) VALUES (1, 'Phòng Confl B " . uniqid() . "', 10, 'ACTIVE', NOW(), NOW())");
         $pRoomB = (int) $this->pdo->lastInsertId();
 
-        $this->pdo->exec("INSERT INTO `sessions` (`game_room_id`, `schedule_proposal_id`, `dm_assignment_id`, `venue_id`, `physical_room_id`, `start_at`, `end_at`, `status`, `created_at`, `updated_at`) VALUES ({$roomB}, {$propB}, {$assignB}, 2, {$pRoomB}, '2026-12-10 16:00:00', '2026-12-10 20:00:00', 'SCHEDULED', NOW(), NOW())");
+        $this->pdo->exec("INSERT INTO `sessions` (`game_room_id`, `schedule_proposal_id`, `dm_assignment_id`, `venue_id`, `physical_room_id`, `start_at`, `end_at`, `status`, `created_at`, `updated_at`) VALUES ({$roomB}, {$propB}, {$assignB}, 1, {$pRoomB}, '2026-12-10 16:00:00', '2026-12-10 20:00:00', 'SCHEDULED', NOW(), NOW())");
 
         // Thử tham gia phòng B -> Chặn xung đột giờ
         $joinReq = new Request(

@@ -1,7 +1,7 @@
 // src/pages-js/auth.page.js
 import { initChrome } from '../logic/layout.js';
 import { store } from '../logic/store.js';
-import { apiClient } from '../api/api-client.js';
+import { api } from '../logic/api.js';
 
 initChrome('auth');
 document.addEventListener('DOMContentLoaded', () => {
@@ -97,52 +97,71 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   });
 
-  // 1. XỬ LÝ ĐĂNG NHẬP (Nối trực tiếp Backend /api/v1/auth/login)
+  // Nút điền nhanh tài khoản Demo
+  document.querySelectorAll('.demo-fill-btn').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const email = btn.getAttribute('data-demo-email') || '';
+      const pass = btn.getAttribute('data-demo-pass') || '';
+      const accInput = document.getElementById('login-account');
+      const passInput = document.getElementById('login-password');
+      if (accInput) accInput.value = email;
+      if (passInput) passInput.value = pass;
+      clearAlerts();
+    });
+  });
+
+  // 1. XỬ LÝ ĐĂNG NHẬP THẬT QUA BACKEND API (/api/v1/auth/login)
   forms.login?.addEventListener('submit', async (e) => {
     e.preventDefault();
-    const account = document.getElementById('login-account').value.trim();
+    const email = document.getElementById('login-account').value.trim().toLowerCase();
     const password = document.getElementById('login-password').value;
 
-    if (!account || !password) {
-      showAlert('alert-login', 'error', 'Vui lòng nhập đầy đủ tài khoản và mật khẩu.');
+    if (!email || !password) {
+      showAlert('alert-login', 'error', 'Vui lòng nhập đầy đủ email và mật khẩu.');
       return;
     }
 
     try {
-      const res = await apiClient.post('/auth/login', { email: account, password });
-      const user = res?.data?.user || {};
-      const role = String(user.role_code || user.role || 'PLAYER').toUpperCase();
+      const data = await api.post('/auth/login', { email, password });
+      const u = data?.user || data;
+      const userRole = String(u?.role || u?.role_code || 'PLAYER').toLowerCase();
 
       store.state.currentUser = {
         ...store.state.currentUser,
-        id: user.id,
-        name: user.full_name || account,
-        phone: user.phone || '',
-        email: user.email || account,
-        avatar: String(user.full_name || account).slice(0, 2).toUpperCase(),
-        studentStatus: user.student_verified ? 'approved' : 'none'
+        id: u.id,
+        name: u.full_name || u.name || u.email,
+        phone: u.phone || '',
+        email: u.email || email,
+        avatar: String(u.full_name || u.email || 'US').slice(0, 2).toUpperCase()
       };
-      store.setRole(role.toLowerCase());
-      localStorage.setItem('kbs_user', JSON.stringify(user));
-      localStorage.setItem('kbs_demo_role', role.toLowerCase());
+      store.setRole(userRole);
 
-      showAlert('alert-login', 'success', `Đăng nhập thành công! Chào mừng ${user.full_name || account}...`);
+      const redirectMap = {
+        admin: './admin-portal.html',
+        dm: './dm-portal.html',
+        player: './lobby.html'
+      };
+      const roleNameMap = {
+        admin: 'Quản Trị Viên (Admin)',
+        dm: 'Quản Trò (DM)',
+        player: 'Người Chơi (Player)'
+      };
+
+      showAlert('alert-login', 'success', `Đăng nhập thành công (${roleNameMap[userRole] || userRole})! Đang chuyển hướng...`);
       setTimeout(() => {
-        if (role === 'ADMIN') window.location.href = './admin-portal.html';
-        else if (role === 'DM') window.location.href = './dm-portal.html';
-        else window.location.href = './lobby.html';
-      }, 600);
+        window.location.href = redirectMap[userRole] || '../index.html';
+      }, 500);
     } catch (err) {
       showAlert('alert-login', 'error', err.message || 'Email hoặc mật khẩu không chính xác.');
     }
   });
 
-  // 2. XỬ LÝ ĐĂNG KÝ (Nối trực tiếp Backend /api/v1/auth/register)
+  // 2. XỬ LÝ ĐĂNG KÝ THẬT QUA BACKEND API (/api/v1/auth/register)
   forms.register?.addEventListener('submit', async (e) => {
     e.preventDefault();
     const name = document.getElementById('reg-name').value.trim();
     const phone = document.getElementById('reg-phone').value.trim();
-    const email = document.getElementById('reg-email').value.trim();
+    const email = document.getElementById('reg-email').value.trim().toLowerCase();
     const password = document.getElementById('reg-password').value;
     const confirm = document.getElementById('reg-confirm').value;
 
@@ -160,33 +179,23 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     try {
-      const res = await apiClient.post('/auth/register', {
-        full_name: name,
-        email,
-        password,
-        phone
-      });
-      const user = res?.data?.user || { full_name: name, email, phone, role_code: 'PLAYER' };
-
+      const data = await api.post('/auth/register', { full_name: name, phone, email, password });
+      const u = data?.user || data;
       store.state.currentUser = {
         ...store.state.currentUser,
-        id: user.id,
-        name: user.full_name || name,
-        phone: user.phone || phone,
-        email: user.email || email,
-        avatar: name.slice(0, 2).toUpperCase(),
-        studentStatus: 'none'
+        id: u?.id || 'NEW',
+        name: u?.full_name || name,
+        phone: u?.phone || phone,
+        email: u?.email || email,
+        avatar: name.slice(0, 2).toUpperCase()
       };
       store.setRole('player');
-      localStorage.setItem('kbs_user', JSON.stringify(user));
-      localStorage.setItem('kbs_demo_role', 'player');
-
-      showAlert('alert-register', 'success', 'Đăng ký thành công! Đang chuyển vào Sảnh phòng...');
+      showAlert('alert-register', 'success', 'Đăng ký tài khoản thành công! Đang chuyển vào Sảnh Ghép Phòng...');
       setTimeout(() => {
         window.location.href = './lobby.html';
-      }, 700);
+      }, 650);
     } catch (err) {
-      showAlert('alert-register', 'error', err.message || 'Không thể đăng ký tài khoản.');
+      showAlert('alert-register', 'error', err.message || 'Đăng ký thất bại. Vui lòng thử lại.');
     }
   });
 

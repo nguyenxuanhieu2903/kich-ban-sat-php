@@ -1,4 +1,9 @@
 import { store } from './store.js';
+import { api } from './api.js';
+
+function escHtml(s) {
+  return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
 
 export function initChrome(activeKey = '') {
   const isRoot = !window.location.pathname.includes('/pages/');
@@ -24,25 +29,108 @@ export function initChrome(activeKey = '') {
             <a href="${prefix}index.html" class="${activeKey === 'home' ? 'active' : ''}">Trang chủ</a>
             <a href="${homeAnchorPrefix}#phong-dang-tuyen" class="${activeKey === 'lobby' ? 'active' : ''}">Phòng đang tuyển</a>
             <a href="${homeAnchorPrefix}#kho-kich-ban" class="${activeKey === 'scenarios' ? 'active' : ''}">Kho kịch bản</a>
-            <a href="${homeAnchorPrefix}#quy-dinh" class="${activeKey === 'policies' ? 'active' : ''}">Quy định &amp; Giá vé</a>
-            <a href="${homeAnchorPrefix}#lien-he" class="${activeKey === 'contact' ? 'active' : ''}">Liên hệ</a>
-            ${role === 'dm' ? `<a href="${pagesPrefix}dm-portal.html" class="nav-special ${activeKey === 'dm' ? 'active' : ''}">Cổng Quản Trò</a>` : ''}
-            ${role === 'admin' ? `<a href="${pagesPrefix}admin-portal.html" class="nav-special ${activeKey === 'admin' ? 'active' : ''}">Quản Trị Viên</a>` : ''}
+            <a href="${pagesPrefix}info.html" class="${activeKey === 'policies' || activeKey === 'info' ? 'active' : ''}">Quy định &amp; Giá vé</a>
+            <a href="#app-footer" class="${activeKey === 'contact' ? 'active' : ''}">Liên hệ</a>
+            ${role === 'dm' || role === 'admin' ? `<a href="${pagesPrefix}dm-portal.html" class="nav-special ${activeKey === 'dm' ? 'active' : ''}">DM Portal</a>` : ''}
+            ${role === 'admin' ? `<a href="${pagesPrefix}admin-portal.html" class="nav-special ${activeKey === 'admin' ? 'active' : ''}">Admin Portal</a>` : ''}
+            ${role !== 'guest' ? `
+              ${role === 'player' ? `<a href="${pagesPrefix}create-room.html" class="mobile-only-nav nav-special">+ Tạo phòng mới</a>` : ''}
+              <a href="${pagesPrefix}profile.html" class="mobile-only-nav">Hồ sơ: ${escHtml(store.state.currentUser.name)}</a>
+              <a href="#" id="kbs-mobile-logout" class="mobile-only-nav">Đăng xuất</a>
+            ` : `
+              <a href="${pagesPrefix}auth.html#login" class="mobile-only-nav">Đăng nhập</a>
+              <a href="${pagesPrefix}auth.html#register" class="mobile-only-nav nav-special">Đăng ký tài khoản</a>
+            `}
           </nav>
 
           <div class="header-actions">
             ${role === 'guest' ? `
-              <a href="${pagesPrefix}auth.html#login" class="btn btn-ghost btn-sm">Đăng nhập</a>
+              <a href="${pagesPrefix}auth.html#login" class="btn btn-ghost btn-sm header-desktop-only">Đăng nhập</a>
               <a href="${pagesPrefix}auth.html#register" class="btn btn-gold btn-sm">Đăng ký</a>
             ` : `
-              <a href="${pagesPrefix}create-room.html" class="btn btn-gold btn-sm">+ Tạo phòng</a>
-              <a href="${pagesPrefix}profile.html" class="btn btn-ghost btn-sm">${store.state.currentUser.name}</a>
+              ${role === 'player' ? `<a href="${pagesPrefix}create-room.html" class="btn btn-gold btn-sm header-desktop-only">+ Tạo phòng</a>` : ''}
+              <button type="button" class="btn btn-ghost btn-sm" id="kbs-notif-link" title="Xem thông báo">Thông báo <span id="kbs-notif-badge" style="display:none;background:#8B1E1E;color:#fff;border-radius:999px;padding:1px 6px;font-size:11px;margin-left:4px;">0</span></button>
+              <a href="${pagesPrefix}profile.html" class="btn btn-ghost btn-sm header-desktop-only">${escHtml(store.state.currentUser.name)}</a>
+              <button type="button" id="kbs-logout-btn" class="btn btn-ghost btn-sm header-desktop-only">Đăng xuất</button>
             `}
             <button class="mobile-menu-btn" id="mobile-menu-btn" aria-label="Menu">☰</button>
           </div>
         </div>
       </header>
     `;
+
+    const logoutBtn = document.getElementById('kbs-logout-btn');
+    if (logoutBtn) {
+      let cachedNotifs = [];
+      const badge = document.getElementById('kbs-notif-badge');
+      const refreshNotifs = async () => {
+        try {
+          const res = await api.get('/notifications');
+          cachedNotifs = Array.isArray(res) ? res : (res?.notifications || res?.items || []);
+          const unread = cachedNotifs.filter((n) => !n.is_read).length;
+          if (badge) {
+            badge.textContent = String(unread);
+            badge.style.display = unread > 0 ? 'inline-block' : 'none';
+          }
+        } catch { /* ignore */ }
+      };
+      refreshNotifs();
+
+      const notifBtn = document.getElementById('kbs-notif-link');
+      if (notifBtn) {
+        notifBtn.addEventListener('click', async () => {
+          await refreshNotifs();
+          let modal = document.getElementById('kbs-notif-modal');
+          if (!modal) {
+            modal = document.createElement('div');
+            modal.id = 'kbs-notif-modal';
+            modal.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.55);display:flex;align-items:center;justify-content:center;padding:16px;';
+            document.body.appendChild(modal);
+          }
+          modal.innerHTML = `
+            <div style="background:#FAF6EE;color:#1C1917;max-width:520px;width:100%;max-height:75vh;overflow:auto;border-radius:12px;padding:20px;border:1px solid #C5A059;box-shadow:0 18px 40px rgba(0,0,0,0.35);">
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;border-bottom:1px solid rgba(0,0,0,0.1);padding-bottom:10px;">
+                <strong style="font-size:1.1rem;color:#8B1E1E;">Thông Báo Hệ Thống</strong>
+                <button type="button" id="kbs-notif-close" class="btn btn-ghost btn-sm">Đóng</button>
+              </div>
+              ${cachedNotifs.length ? cachedNotifs.slice(0, 15).map((n) => `
+                <div style="padding:10px 0;border-bottom:1px dashed rgba(0,0,0,0.12);display:flex;justify-content:space-between;gap:10px;align-items:flex-start;">
+                  <div>
+                    <div style="font-weight:700;font-size:0.92rem;">${escHtml(n.title || 'Thông báo')}</div>
+                    <div style="font-size:0.85rem;color:#524B42;margin-top:2px;">${escHtml(n.content || n.message || '')}</div>
+                  </div>
+                  ${!n.is_read ? `<button type="button" class="btn btn-gold btn-sm" data-read-notif="${n.id}" style="white-space:nowrap;">Đã đọc</button>` : `<span style="font-size:0.75rem;color:#78716C;white-space:nowrap;">Đã đọc</span>`}
+                </div>
+              `).join('') : '<p style="color:#524B42;text-align:center;padding:16px 0;">Hiện chưa có thông báo mới nào.</p>'}
+            </div>
+          `;
+          modal.style.display = 'flex';
+          modal.querySelector('#kbs-notif-close')?.addEventListener('click', () => { modal.style.display = 'none'; });
+          modal.addEventListener('click', (ev) => { if (ev.target === modal) modal.style.display = 'none'; });
+          modal.querySelectorAll('[data-read-notif]').forEach((b) => {
+            b.addEventListener('click', async () => {
+              try { await api.post(`/notifications/${b.getAttribute('data-read-notif')}/read`, {}); } catch { /* ignore */ }
+              await refreshNotifs();
+              notifBtn.click();
+            });
+          });
+        });
+      }
+
+      const doLogout = async (ev) => {
+        if (ev) ev.preventDefault();
+        try { await api.post('/auth/logout', {}); } catch { /* ignore */ }
+        if (typeof store.setRole === 'function') {
+          store.setRole('guest');
+        } else {
+          store.state.currentRole = 'guest';
+          try { localStorage.setItem('KBS_V16_STATE_V1', JSON.stringify(store.state)); } catch { /* ignore */ }
+        }
+        window.location.href = `${prefix}index.html`;
+      };
+      logoutBtn.addEventListener('click', doLogout);
+      document.getElementById('kbs-mobile-logout')?.addEventListener('click', doLogout);
+    }
 
     const mobileBtn = document.getElementById('mobile-menu-btn');
     const nav = document.getElementById('main-nav');
@@ -205,7 +293,8 @@ export function initChrome(activeKey = '') {
                 <li><a href="${prefix}index.html">Trang chủ</a></li>
                 <li><a href="${homeAnchorPrefix}#phong-dang-tuyen">Phòng đang tuyển</a></li>
                 <li><a href="${homeAnchorPrefix}#kho-kich-ban">Kho kịch bản</a></li>
-                <li><a href="${homeAnchorPrefix}#quy-dinh">Quy định &amp; Giá vé</a></li>
+                <li><a href="${pagesPrefix}info.html">Quy định &amp; Giá vé</a></li>
+                <li><a href="${pagesPrefix}profile.html">Hồ sơ cá nhân</a></li>
               </ul>
             </div>
 

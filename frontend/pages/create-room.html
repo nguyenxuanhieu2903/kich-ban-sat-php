@@ -1,20 +1,278 @@
 <!DOCTYPE html>
 <html lang="vi">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Tạo phòng — Kịch Bản Sát</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="../src/styles/tokens.css">
-  <link rel="stylesheet" href="../src/styles/components.css">
-  <link rel="stylesheet" href="../src/styles/player.css">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Tạo Phòng Chơi Mới — Kịch Bản Sát V16</title>
+  <link rel="stylesheet" href="../src/styles/components.css" />
+  <link rel="stylesheet" href="../src/styles/portals-vintage.css" />
 </head>
 <body>
-  <div id="player-header"></div>
-  <main class="player-main" id="player-root"></main>
-  <div id="player-footer"></div>
-  <script type="module" src="../src/pages/player/create-room-page.js"></script>
+  <div id="app-header"></div>
+
+  <main class="portal-main">
+    <div class="container">
+      <div class="portal-hero">
+        <div>
+          <div class="portal-eyebrow">PLAYER PORTAL — ĐẶT LỊCH &amp; TẠO PHÒNG</div>
+          <h1 class="portal-title">Khởi Tạo Phòng Chơi Mới</h1>
+          <p class="portal-subtitle">Chọn kịch bản, chi nhánh và ca chơi cố định. Chi phí và tiền cọc được tính minh bạch theo hình thức ghép bàn hoặc đặt riêng.</p>
+        </div>
+        <div class="portal-actions">
+          <a href="./lobby.html" class="btn btn-ghost">Quay lại Sảnh Ghép Phòng</a>
+        </div>
+      </div>
+
+      <div class="portal-two-col">
+        <form class="portal-panel" id="create-room-form">
+          <h2 class="portal-panel-title">Thông Tin Đặt Phòng</h2>
+          <div class="form-grid">
+            <div class="form-field full">
+              <label for="cr-scenario">Chọn kịch bản</label>
+              <select id="cr-scenario" class="portal-select" required></select>
+            </div>
+            <div class="form-field full">
+              <label for="cr-venue">Chọn chi nhánh</label>
+              <select id="cr-venue" class="portal-select" required></select>
+            </div>
+            <div class="form-field">
+              <label for="cr-date">Ngày chơi dự kiến</label>
+              <input id="cr-date" type="date" class="portal-input" required />
+            </div>
+            <div class="form-field">
+              <label for="cr-time">Giờ bắt đầu (09:00 – 21:00)</label>
+              <input id="cr-time" type="time" min="09:00" max="21:00" step="1800" value="14:00" class="portal-input" required />
+            </div>
+            <div class="form-field full">
+              <label for="cr-players">Số người tham gia</label>
+              <select id="cr-players" class="portal-select" required></select>
+            </div>
+            <div class="form-field full">
+              <div style="padding:10px 12px;border-radius:8px;background:rgba(139,30,30,0.06);border-left:3px solid #8B1E1E;font-size:0.86rem;color:#3D372F;">
+                <strong>Cơ chế tiếp nhận khung giờ tự do:</strong> Nếu khung giờ bạn chọn còn trống phòng vật lý và có Quản trò (DM) rảnh, hệ thống sẽ <strong>tự động giao thẳng cho 1 DM tiếp nhận</strong> (không cần qua Admin). Nếu khung giờ đang bận, phòng sẽ chuyển <strong>Admin xem xét điều phối hoặc đề xuất dời lịch</strong>.
+              </div>
+            </div>
+            <div class="form-field full">
+              <div id="cr-hssv-status" style="padding:10px 12px;border-radius:8px;background:rgba(197,160,89,0.12);font-size:0.88rem;color:#3D372F;"></div>
+            </div>
+            <div class="form-field full" id="cr-18-wrap" style="display:none;padding:12px;border:1px solid #8B1E1E;border-radius:8px;background:rgba(139,30,30,0.08);">
+              <label style="display:flex;gap:8px;align-items:center;cursor:pointer;font-size:0.9rem;">
+                <input type="checkbox" id="cr-18-check" />
+                <span><strong>Xác nhận 18+:</strong> Tôi xác nhận tất cả thành viên tham gia đều từ đủ 18 tuổi trở lên.</span>
+              </label>
+            </div>
+            <div class="form-field full">
+              <label for="cr-notes">Ghi chú cho Quản trò (DM)</label>
+              <textarea id="cr-notes" rows="3" class="portal-textarea" placeholder="Ví dụ: Nhóm có người mới chơi lần đầu, cần DM hướng dẫn kỹ luật..."></textarea>
+            </div>
+          </div>
+          <div style="margin-top:18px;display:flex;gap:10px;justify-content:flex-end;">
+            <a href="./lobby.html" class="btn btn-ghost">Hủy</a>
+            <button type="submit" class="btn btn-gold">Tạo Phòng Ngay</button>
+          </div>
+        </form>
+
+        <aside class="portal-panel">
+          <h2 class="portal-panel-title">Ước Tính Chi Phí</h2>
+          <div id="quote-box">Đang tải bảng giá...</div>
+        </aside>
+      </div>
+    </div>
+  </main>
+
+  <div id="app-footer"></div>
+
+  <script type="module">
+    import { initChrome } from '../src/logic/layout.js';
+    import { api } from '../src/logic/api.js';
+    import { requireAuthRole, formatVND, showToast } from '../src/logic/portal-mock.js';
+
+    (async () => {
+      const auth = await requireAuthRole(['player'], 'Tạo Phòng Chơi Mới');
+      initChrome('lobby');
+      if (!auth.allowed) return;
+
+      const isStudentVerified = Boolean(auth.user?.student_verified);
+      const hssvBox = document.getElementById('cr-hssv-status');
+      hssvBox.innerHTML = isStudentVerified
+        ? '<strong>Ưu đãi HSSV:</strong> Tài khoản của bạn đã được duyệt thẻ HSSV (hệ thống tự động áp dụng giảm 20.000đ/người khung T2–T5 ban ngày nếu không trùng ưu đãi cao hơn).'
+        : '<strong>Ưu đãi HSSV:</strong> Tài khoản chưa xác minh thẻ HSSV. Bạn có thể tải ảnh thẻ trong mục <a href="./profile.html" style="text-decoration:underline;color:#8B1E1E;">Hồ sơ cá nhân</a> để được Admin duyệt.';
+
+      const scenarioSelect = document.getElementById('cr-scenario');
+      const venueSelect = document.getElementById('cr-venue');
+      const playersSelect = document.getElementById('cr-players');
+      const ageWrap = document.getElementById('cr-18-wrap');
+      const dateInput = document.getElementById('cr-date');
+
+      // Tự động gán min = hôm nay, mặc định = ngày mai (không gán cứng ngày Thứ Ba)
+      const fmtLocalDate = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+      const todayObj = new Date();
+      const tomorrowObj = new Date(todayObj.getTime() + 24 * 60 * 60 * 1000);
+      if (dateInput) {
+        dateInput.min = fmtLocalDate(todayObj);
+        if (!dateInput.value) dateInput.value = fmtLocalDate(tomorrowObj);
+      }
+
+      let games = [];
+      let venues = [];
+      try {
+        const [gData, vData] = await Promise.all([
+          api.get('/games?limit=50'),
+          api.get('/venues').catch(() => ({ venues: [] })),
+        ]);
+        games = gData?.games || gData?.items || (Array.isArray(gData) ? gData : []);
+        venues = vData?.venues || vData?.items || (Array.isArray(vData) ? vData : []);
+      } catch (err) {
+        showToast('Lỗi tải dữ liệu đặt phòng: ' + err.message);
+      }
+
+      scenarioSelect.innerHTML = games.map((g) => `<option value="${g.id}">${g.name || g.title} (${g.min_players || 4}–${g.max_players || 8} người)${(g.is_18_plus || Number(g.age_restriction || 0) >= 18) ? ' [18+]' : ''}</option>`).join('');
+      venueSelect.innerHTML = venues.length
+        ? venues.map((v) => `<option value="${v.id}">${v.name}${v.address ? ' — ' + v.address : ''}</option>`).join('')
+        : '<option value="1">Cơ sở chính — 36/52 Nguyễn Gia Trí, Bình Thạnh</option>';
+
+      const urlParams = new URLSearchParams(window.location.search);
+      const preselectTitle = (urlParams.get('title') || '').trim().toLowerCase();
+      const preselectParam = urlParams.get('game_id') || urlParams.get('scriptId') || '';
+      if (preselectTitle) {
+        const matched = games.find((g) => String(g.name || g.title || '').trim().toLowerCase() === preselectTitle);
+        if (matched) scenarioSelect.value = String(matched.id);
+      } else if (preselectParam) {
+        const numId = Number(preselectParam.replace(/^SCR-0*/i, ''));
+        if (games.some((g) => Number(g.id) === numId)) {
+          scenarioSelect.value = String(numId);
+        }
+      }
+
+      function getSelectedGame() {
+        return games.find((x) => Number(x.id) === Number(scenarioSelect.value)) || {};
+      }
+
+      function syncFormConstraints() {
+        const g = getSelectedGame();
+        const minP = Number(g.min_players || 4);
+        const maxP = Number(g.max_players || 8);
+
+        const prevVal = Number(playersSelect.value);
+        const opts = [];
+        for (let n = 1; n <= maxP; n++) {
+          const remaining = maxP - n;
+          const note = remaining > 0 ? ` — Còn ${remaining} chỗ mở ghép` : ' — Trọn phòng (không ghép thêm)';
+          opts.push(`<option value="${n}">${n} người (Cọc ${formatVND(n * 50000)})${note}</option>`);
+        }
+        playersSelect.innerHTML = opts.join('');
+        if (prevVal >= 1 && prevVal <= maxP) {
+          playersSelect.value = String(prevVal);
+        } else {
+          playersSelect.value = '1';
+        }
+
+        const is18 = Boolean(g.is_18_plus) || Number(g.age_restriction || 0) >= 18 || String(g.name || '').includes('18+');
+        ageWrap.style.display = is18 ? 'block' : 'none';
+        if (!is18) {
+          const chk = document.getElementById('cr-18-check');
+          if (chk) chk.checked = false;
+        }
+        const selectedPlayers = Number(playersSelect.value) || 1;
+        return { g, minP, maxP, selectedPlayers, guestSlots: Math.max(0, maxP - selectedPlayers), is18 };
+      }
+
+      async function updateQuote() {
+        const { g, maxP, selectedPlayers, guestSlots } = syncFormConstraints();
+        const gameId = Number(scenarioSelect.value);
+        if (!gameId) return;
+        const playDate = document.getElementById('cr-date').value;
+        const playTime = document.getElementById('cr-time').value;
+
+        try {
+          const q = await api.post('/rooms/quote', {
+            game_id: gameId,
+            player_count: selectedPlayers,
+            session_start_time: `${playDate}T${playTime}:00`,
+            is_student_verified: isStudentVerified,
+          });
+          const unitPrice = Number(q.base_price_per_player || 0);
+          const rawTotal = Number(q.raw_total_vnd ?? (unitPrice * selectedPlayers));
+          const discountAmt = Number(q.total_discount_vnd ?? q.discount_amount ?? 0);
+          const finalTotal = Number(q.final_total_vnd ?? Math.max(0, rawTotal - discountAmt));
+          const depAmt = Number(q.total_deposit_vnd ?? Math.min(finalTotal, selectedPlayers * 50000));
+          const remainingAmt = Number(q.remaining_vnd ?? Math.max(0, finalTotal - depAmt));
+          const promoName = q.applied_promotion?.name || '';
+          const promoNote = q.promotion_note || '';
+
+          document.getElementById('quote-box').innerHTML = `
+            <div class="summary-row"><span>Kịch bản</span><strong>${q.game_name || g.name || ''}</strong></div>
+            <div class="summary-row"><span>Khung giờ</span><strong>${q.time_window || q.time_slot}</strong></div>
+            <div class="summary-row"><span>Số chỗ bạn giữ</span><strong>${selectedPlayers} / ${maxP} chỗ${guestSlots > 0 ? ` (mở ghép ${guestSlots} chỗ)` : ' (trọn phòng)'}</strong></div>
+            <div class="summary-row"><span>Đơn giá gốc / người</span><strong>${formatVND(unitPrice)}</strong></div>
+            ${discountAmt > 0 ? `
+              <div class="summary-row"><span>Tạm tính gốc (${selectedPlayers} người)</span><strong>${formatVND(rawTotal)}</strong></div>
+              <div class="summary-row"><span>${promoName || 'Ưu đãi áp dụng'}</span><strong style="color:#1A5936;">-${formatVND(discountAmt)}</strong></div>
+            ` : ''}
+            <div class="summary-row total"><span>Tổng thanh toán (${selectedPlayers} người)</span><span>${formatVND(finalTotal)}</span></div>
+            <div class="summary-row"><span>Tiền cọc giữ chỗ (${selectedPlayers} × 50.000đ)</span><strong class="text-gold">${formatVND(depAmt)}</strong></div>
+            <div class="summary-row"><span>Còn lại thanh toán tại quán</span><strong>${formatVND(remainingAmt)}</strong></div>
+            ${promoNote ? `<p class="text-muted" style="margin-top:10px;font-size:0.82rem;line-height:1.45;">${promoNote}</p>` : ''}
+          `;
+        } catch (err) {
+          document.getElementById('quote-box').innerHTML = `<p class="text-muted">Không tính được báo giá: ${err.message}</p>`;
+        }
+      }
+
+      ['cr-scenario', 'cr-venue', 'cr-date', 'cr-time', 'cr-players'].forEach((id) => {
+        document.getElementById(id).addEventListener('change', updateQuote);
+      });
+
+      document.getElementById('create-room-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const { g, maxP, selectedPlayers, guestSlots, is18 } = syncFormConstraints();
+        const ack18 = Boolean(document.getElementById('cr-18-check')?.checked);
+        if (is18 && !ack18) {
+          showToast('Kịch bản 18+ bắt buộc tích xác nhận độ tuổi trước khi tạo phòng.');
+          return;
+        }
+        const playDate = document.getElementById('cr-date').value;
+        const playTime = document.getElementById('cr-time').value;
+        if (!playTime || playTime < '09:00' || playTime > '21:00') {
+          showToast('Vui lòng chọn giờ bắt đầu trong khung giờ mở cửa từ 09:00 đến 21:00.');
+          return;
+        }
+        const gameId = Number(scenarioSelect.value);
+        try {
+          const res = await api.post('/rooms', {
+            game_id: gameId,
+            target_venue_id: Number(venueSelect.value) || 1,
+            title: `${g.name || 'Kịch Bản Sát'} (${playDate} ${playTime})`,
+            description: document.getElementById('cr-notes').value.trim(),
+            booking_type: guestSlots === 0 ? 'PRIVATE' : 'PUBLIC',
+            guest_slots: guestSlots,
+            total_players: selectedPlayers,
+            max_players: maxP,
+            target_time_slot: `${playDate} ${playTime}`,
+            is_18_plus_acknowledged: is18 ? ack18 : true,
+          });
+          const newId = res?.room?.id || res?.id;
+          if (newId && playDate && playTime) {
+            const propRes = await api.post(`/rooms/${newId}/proposals`, {
+              proposed_start_at: `${playDate} ${playTime}:00`,
+            }).catch(() => null);
+            const propId = propRes?.proposal_id || propRes?.proposal?.id || propRes?.id;
+            if (propId) {
+              // Tự động xác nhận khung giờ đã chọn để chuyển thẳng sang SCHEDULED và giao DM rảnh
+              await api.post(`/proposals/${propId}/vote`, { response: 'ACCEPTED' }).catch(() => {});
+            }
+          }
+          showToast(`Đã tạo phòng #${newId} và chốt lịch thành công.`);
+          window.setTimeout(() => {
+            window.location.href = `./room-detail.html?id=${encodeURIComponent(newId)}`;
+          }, 500);
+        } catch (err) {
+          showToast(err.message || 'Không thể tạo phòng.');
+        }
+      });
+
+      updateQuote();
+    })();
+  </script>
 </body>
 </html>

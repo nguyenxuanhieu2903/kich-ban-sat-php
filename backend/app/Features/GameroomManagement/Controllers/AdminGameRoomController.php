@@ -138,9 +138,22 @@ class AdminGameRoomController
                 ? ($forceRefund && ($hoursUntilSession !== null && $hoursUntilSession < 24) ? 'Được duyệt hoàn cọc đặc biệt theo chỉ đạo của Quản trị viên' : 'Đủ điều kiện hoàn cọc (hủy trước mốc 24h so với giờ chơi)')
                 : 'Không đủ điều kiện hoàn cọc (hủy muộn hơn mốc 24h trước giờ chơi)';
 
+            $chkDupRef = $this->pdo->prepare(
+                "SELECT `id` FROM `refunds`
+                 WHERE `player_payment_id` = :pid AND `status` IN ('PENDING', 'APPROVED', 'PROCESSING', 'COMPLETED')
+                 LIMIT 1"
+            );
+
             foreach ($paidList as $payment) {
                 $payId = (int) $payment['id'];
                 $amount = (int) $payment['paid_amount'];
+
+                // Chống hoàn tiền trùng 2 lần nếu khoản thanh toán này đã có yêu cầu hoàn tiền đang xử lý hoặc đã hoàn tất
+                $chkDupRef->bindValue(':pid', $payId, PDO::PARAM_INT);
+                $chkDupRef->execute();
+                if ($chkDupRef->fetchColumn() !== false) {
+                    continue;
+                }
 
                 $insRef->bindValue(':payment_id', $payId, PDO::PARAM_INT);
                 $insRef->bindValue(':amount', $amount, PDO::PARAM_INT);
@@ -169,11 +182,29 @@ class AdminGameRoomController
                 );
             }
 
-            // Thông báo cho Quản trò (DM) được phân công nếu có
+            // Thông báo và thu hồi (REVOKED) phân công của Quản trò (DM) nếu có
             $dmStmt = $this->pdo->prepare('SELECT DISTINCT `dm_user_id` FROM `dm_assignments` WHERE `game_room_id` = :room_id AND `status` IN (\'PENDING\', \'ACCEPTED\')');
             $dmStmt->bindValue(':room_id', $roomId, PDO::PARAM_INT);
             $dmStmt->execute();
             $assignedDmIds = array_map('intval', $dmStmt->fetchAll(PDO::FETCH_COLUMN));
+
+            $revDmStmt = $this->pdo->prepare(
+                'UPDATE `dm_assignments`
+                 SET `status` = \'REVOKED\', `reason` = :reason, `revoked_at` = NOW(), `updated_at` = NOW()
+                 WHERE `game_room_id` = :room_id AND `status` IN (\'PENDING\', \'ACCEPTED\')'
+            );
+            $revDmStmt->bindValue(':reason', 'Phòng chơi đã bị Quản trị viên hủy: ' . $reason, PDO::PARAM_STR);
+            $revDmStmt->bindValue(':room_id', $roomId, PDO::PARAM_INT);
+            $revDmStmt->execute();
+
+            // Hủy các đề xuất lịch đang mở (PROPOSED)
+            $cancelPropStmt = $this->pdo->prepare(
+                'UPDATE `schedule_proposals`
+                 SET `status` = \'CANCELLED\'
+                 WHERE `game_room_id` = :room_id AND `status` = \'PROPOSED\''
+            );
+            $cancelPropStmt->bindValue(':room_id', $roomId, PDO::PARAM_INT);
+            $cancelPropStmt->execute();
 
             if (!empty($assignedDmIds)) {
                 $this->notiRepo->createNotification(

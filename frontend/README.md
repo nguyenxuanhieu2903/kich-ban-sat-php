@@ -1,5 +1,5 @@
 ```markdown
-#  KỊCH BẢN SÁT V16 — Murder Mystery Booking Platform
+# 🎭 KỊCH BẢN SÁT V16 — Murder Mystery Booking Platform
 
 Frontend web đặt phòng, ghép nhóm và điều phối trò chơi nhập vai phá án (**Murder Mystery / TTRPG**) thực tế tại TP.HCM.
 
@@ -11,7 +11,7 @@ Frontend web đặt phòng, ghép nhóm và điều phối trò chơi nhập vai
 
 ---
 
-##  Phân Công Thành Viên (Nhóm 3 Người)
+## 👥 Phân Công Thành Viên (Nhóm 3 Người)
 
 | Thành viên | GitHub | Nhánh làm việc | Nhiệm vụ chính |
 | :--- | :--- | :--- | :--- |
@@ -21,7 +21,7 @@ Frontend web đặt phòng, ghép nhóm và điều phối trò chơi nhập vai
 
 ---
 
-##  Cấu Trúc Thư Mục Dự Án
+## 📁 Cấu Trúc Thư Mục Dự Án
 
 ```text
 FE_kich_ban_sat/

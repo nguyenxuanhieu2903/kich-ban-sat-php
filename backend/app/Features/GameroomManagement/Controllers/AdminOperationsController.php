@@ -52,6 +52,9 @@ class AdminOperationsController
         if ($room === false) {
             return Response::fail('Không tìm thấy phòng chơi yêu cầu', 'ROOM_NOT_FOUND', 404);
         }
+        if (in_array(strtoupper((string) ($room['status'] ?? '')), ['CANCELLED', 'COMPLETED'], true)) {
+            return Response::fail('Không thể phân công Quản trò cho phòng đã hủy hoặc đã hoàn tất', 'INVALID_ROOM_STATUS', 400);
+        }
 
         $body = $request->getBodyParams();
         $dmUserId = (int) ($body['dm_user_id'] ?? 0);
@@ -73,9 +76,57 @@ class AdminOperationsController
         if ($dm === false || strtoupper((string) ($dm['role_code'] ?? '')) !== 'DM') {
             return Response::fail('Người dùng được chỉ định không phải là Quản trò (DM) hợp lệ', 'INVALID_DM', 422);
         }
+        if (strtoupper((string) ($dm['status'] ?? '')) !== 'ACTIVE') {
+            return Response::fail('Tài khoản Quản trò (DM) này đang bị khóa hoặc chưa kích hoạt', 'DM_INACTIVE', 422);
+        }
+
+        // Kiểm tra trùng lịch ca chơi (kèm đệm 30 phút) nếu phòng này đã có Session SCHEDULED
+        $roomSessStmt = $this->pdo->prepare('SELECT `id`, `start_at`, `end_at` FROM `sessions` WHERE `game_room_id` = :rid AND `status` IN (\'SCHEDULED\', \'IN_PROGRESS\') ORDER BY `id` DESC LIMIT 1');
+        $roomSessStmt->execute([':rid' => $roomId]);
+        $roomSess = $roomSessStmt->fetch(PDO::FETCH_ASSOC);
+        if ($roomSess !== false && !empty($roomSess['start_at']) && !empty($roomSess['end_at'])) {
+            $dmConfStmt = $this->pdo->prepare(
+                'SELECT COUNT(*) FROM `sessions` s
+                 INNER JOIN `dm_assignments` da ON da.`id` = s.`dm_assignment_id`
+                 WHERE da.`dm_user_id` = :dm_uid
+                   AND da.`status` IN (\'PENDING\', \'ACCEPTED\')
+                   AND s.`id` != :sid
+                   AND s.`status` IN (\'SCHEDULED\', \'IN_PROGRESS\')
+                   AND s.`start_at` < DATE_ADD(:end_at, INTERVAL 30 MINUTE)
+                   AND s.`end_at` > DATE_SUB(:start_at, INTERVAL 30 MINUTE)'
+            );
+            $dmConfStmt->execute([
+                ':dm_uid' => $dmUserId,
+                ':sid' => (int) $roomSess['id'],
+                ':start_at' => $roomSess['start_at'],
+                ':end_at' => $roomSess['end_at'],
+            ]);
+            if ((int) $dmConfStmt->fetchColumn() > 0) {
+                return Response::fail('Quản trò này đã có lịch dẫn ca chơi khác trùng khung giờ (hoặc sát giờ dưới 30 phút)', 'DM_SCHEDULE_CONFLICT', 409);
+            }
+        }
 
         $reason = isset($body['reason']) ? trim((string) $body['reason']) : null;
+
+        // Thu hồi các phân công DM cũ đang PENDING/ACCEPTED của phòng này
+        $revOld = $this->pdo->prepare(
+            "UPDATE `dm_assignments`
+             SET `status` = 'REVOKED', `reason` = 'Admin phân công Quản trò mới', `revoked_at` = NOW(), `updated_at` = NOW()
+             WHERE `game_room_id` = :rid AND `status` IN ('PENDING', 'ACCEPTED')"
+        );
+        $revOld->bindValue(':rid', $roomId, PDO::PARAM_INT);
+        $revOld->execute();
+
         $assignmentId = $this->dmRepo->assignToRoom($roomId, $dmUserId, $reason, (int) $auth['id']);
+
+        // Đồng bộ dm_assignment_id vào session SCHEDULED hiện có (nếu phòng đã xếp lịch)
+        $updSess = $this->pdo->prepare(
+            "UPDATE `sessions` SET `dm_assignment_id` = :daid, `updated_at` = NOW()
+             WHERE `game_room_id` = :rid AND `status` = 'SCHEDULED'"
+        );
+        $updSess->bindValue(':daid', $assignmentId, PDO::PARAM_INT);
+        $updSess->bindValue(':rid', $roomId, PDO::PARAM_INT);
+        $updSess->execute();
 
         $this->auditService->log(
             (int) $auth['id'],
@@ -205,13 +256,16 @@ class AdminOperationsController
         if ($room === false) {
             return Response::fail('Không tìm thấy phòng chơi yêu cầu', 'ROOM_NOT_FOUND', 404);
         }
+        if (in_array(strtoupper((string) ($room['status'] ?? '')), ['CANCELLED', 'COMPLETED'], true)) {
+            return Response::fail('Không thể gán phòng vật lý cho phòng đã hủy hoặc đã hoàn tất', 'INVALID_ROOM_STATUS', 400);
+        }
 
         $body = $request->getBodyParams();
         $venueId = isset($body['venue_id']) && (int) $body['venue_id'] > 0 ? (int) $body['venue_id'] : null;
         $physicalRoomId = isset($body['physical_room_id']) && (int) $body['physical_room_id'] > 0 ? (int) $body['physical_room_id'] : null;
 
         if ($physicalRoomId !== null) {
-            $pStmt = $this->pdo->prepare('SELECT `id`, `venue_id`, `capacity`, `status` FROM `physical_rooms` WHERE `id` = :id LIMIT 1');
+            $pStmt = $this->pdo->prepare('SELECT `id`, `venue_id`, `capacity`, `status`, `is_maintenance` FROM `physical_rooms` WHERE `id` = :id LIMIT 1');
             $pStmt->bindValue(':id', $physicalRoomId, PDO::PARAM_INT);
             $pStmt->execute();
             $pRoom = $pStmt->fetch(PDO::FETCH_ASSOC);
@@ -219,7 +273,52 @@ class AdminOperationsController
             if ($pRoom === false) {
                 return Response::fail('Không tìm thấy phòng vật lý yêu cầu', 'PHYSICAL_ROOM_NOT_FOUND', 404);
             }
+            if (strtoupper((string) ($pRoom['status'] ?? '')) !== 'ACTIVE' || !empty($pRoom['is_maintenance'])) {
+                return Response::fail('Phòng vật lý đang bảo trì hoặc không khả dụng', 'PHYSICAL_ROOM_UNAVAILABLE', 422);
+            }
             $venueId = (int) $pRoom['venue_id'];
+        }
+
+        // Kiểm tra xung đột lịch (kèm khoảng đệm 30 phút) nếu phòng chơi đã có session
+        $sessStmt = $this->pdo->prepare('SELECT `id`, `start_at`, `end_at` FROM `sessions` WHERE `game_room_id` = :room_id LIMIT 1');
+        $sessStmt->bindValue(':room_id', $roomId, PDO::PARAM_INT);
+        $sessStmt->execute();
+        $sessionRow = $sessStmt->fetch(PDO::FETCH_ASSOC);
+        $sessionId = $sessionRow ? (int) $sessionRow['id'] : false;
+
+        if ($sessionRow !== false && $physicalRoomId !== null && !empty($sessionRow['start_at']) && !empty($sessionRow['end_at'])) {
+            $cStmt = $this->pdo->prepare(
+                'SELECT COUNT(*) FROM `sessions`
+                 WHERE `physical_room_id` = :pr_id
+                   AND `id` != :sess_id
+                   AND `status` IN (\'SCHEDULED\', \'IN_PROGRESS\')
+                   AND `start_at` < DATE_ADD(:end_at, INTERVAL 30 MINUTE)
+                   AND `end_at` > DATE_SUB(:start_at, INTERVAL 30 MINUTE)'
+            );
+            $cStmt->execute([
+                ':pr_id' => $physicalRoomId,
+                ':sess_id' => (int) $sessionRow['id'],
+                ':start_at' => $sessionRow['start_at'],
+                ':end_at' => $sessionRow['end_at'],
+            ]);
+            if ((int) $cStmt->fetchColumn() > 0) {
+                return Response::fail('Phòng vật lý bị trùng lịch hoặc vi phạm khoảng đệm dọn phòng 30 phút', 'PHYSICAL_ROOM_CONFLICT', 409);
+            }
+
+            $bStmt = $this->pdo->prepare(
+                'SELECT COUNT(*) FROM `offline_room_blocks`
+                 WHERE `physical_room_id` = :pr_id
+                   AND `start_at` < DATE_ADD(:end_at, INTERVAL 30 MINUTE)
+                   AND `end_at` > DATE_SUB(:start_at, INTERVAL 30 MINUTE)'
+            );
+            $bStmt->execute([
+                ':pr_id' => $physicalRoomId,
+                ':start_at' => $sessionRow['start_at'],
+                ':end_at' => $sessionRow['end_at'],
+            ]);
+            if ((int) $bStmt->fetchColumn() > 0) {
+                return Response::fail('Phòng vật lý đã bị khóa thủ công trong khung giờ này', 'OFFLINE_BLOCK_CONFLICT', 409);
+            }
         }
 
         if ($venueId !== null) {
@@ -233,12 +332,6 @@ class AdminOperationsController
             $upRoomVenue->bindValue(':room_id', $roomId, PDO::PARAM_INT);
             $upRoomVenue->execute();
         }
-
-        // Cập nhật session nếu phòng đã có session
-        $sessStmt = $this->pdo->prepare('SELECT `id` FROM `sessions` WHERE `game_room_id` = :room_id LIMIT 1');
-        $sessStmt->bindValue(':room_id', $roomId, PDO::PARAM_INT);
-        $sessStmt->execute();
-        $sessionId = $sessStmt->fetchColumn();
 
         if ($sessionId !== false) {
             $upSess = $this->pdo->prepare(
@@ -278,13 +371,18 @@ class AdminOperationsController
      */
     public function updateStudentVerification(Request $request, string $id): Response
     {
-        $auth = AuthMiddleware::authenticate($request, ['ADMIN', 'DM']);
+        $auth = AuthMiddleware::authenticate($request, ['ADMIN']);
         if ($auth instanceof Response) {
             return $auth;
         }
 
         $userId = (int) $id;
-        $userStmt = $this->pdo->prepare('SELECT `id`, `student_verified` FROM `users` WHERE `id` = :id LIMIT 1');
+        $userStmt = $this->pdo->prepare(
+            'SELECT u.`id`, u.`student_verified`, r.`code` AS `role_code`
+             FROM `users` u
+             INNER JOIN `roles` r ON r.`id` = u.`role_id`
+             WHERE u.`id` = :id LIMIT 1'
+        );
         $userStmt->bindValue(':id', $userId, PDO::PARAM_INT);
         $userStmt->execute();
         $user = $userStmt->fetch(PDO::FETCH_ASSOC);
@@ -293,16 +391,27 @@ class AdminOperationsController
             return Response::fail('Không tìm thấy người dùng yêu cầu', 'USER_NOT_FOUND', 404);
         }
 
+        if (strtoupper((string) ($user['role_code'] ?? 'PLAYER')) !== 'PLAYER') {
+            return Response::fail('Chỉ xét duyệt thẻ HSSV cho tài khoản Người chơi (Player), không áp dụng cho DM/Admin', 'INVALID_TARGET_ROLE', 422);
+        }
+
         $body = $request->getBodyParams();
         $studentVerified = filter_var($body['student_verified'] ?? true, FILTER_VALIDATE_BOOLEAN);
+        $rejectReason = isset($body['reason']) ? trim((string) $body['reason']) : null;
 
         $upStmt = $this->pdo->prepare(
             'UPDATE `users`
              SET `student_verified` = :verified,
+                 `student_card_status` = :card_status,
+                 `student_verified_at` = IF(:verified_at_flag = 1, NOW(), NULL),
+                 `student_reject_reason` = :reject_reason,
                  `updated_at` = NOW()
              WHERE `id` = :id'
         );
         $upStmt->bindValue(':verified', $studentVerified ? 1 : 0, PDO::PARAM_INT);
+        $upStmt->bindValue(':card_status', $studentVerified ? 'APPROVED' : 'REJECTED', PDO::PARAM_STR);
+        $upStmt->bindValue(':verified_at_flag', $studentVerified ? 1 : 0, PDO::PARAM_INT);
+        $upStmt->bindValue(':reject_reason', $studentVerified ? null : $rejectReason, $studentVerified || $rejectReason === null ? PDO::PARAM_NULL : PDO::PARAM_STR);
         $upStmt->bindValue(':id', $userId, PDO::PARAM_INT);
         $upStmt->execute();
 
@@ -341,32 +450,45 @@ class AdminOperationsController
         $customerName = trim((string) ($body['customer_name'] ?? ''));
         $customerPhone = trim((string) ($body['customer_phone'] ?? ''));
         $notes = isset($body['notes']) ? trim((string) $body['notes']) : null;
+        $rawReason = trim((string) ($body['reason'] ?? ''));
 
-        if ($venueId <= 0 || $physicalRoomId <= 0 || $startAt === '' || $endAt === '' || $customerName === '' || $customerPhone === '') {
-            return Response::fail('Vui lòng điền đầy đủ thông tin: chi nhánh, phòng vật lý, giờ bắt đầu, giờ kết thúc, tên và số điện thoại khách hàng', 'VALIDATION_ERROR', 422);
+        if ($physicalRoomId <= 0 || $startAt === '' || $endAt === '') {
+            return Response::fail('Vui lòng điền đầy đủ thông tin: phòng vật lý, giờ bắt đầu và giờ kết thúc', 'VALIDATION_ERROR', 422);
         }
 
-        if (strtotime($startAt) >= strtotime($endAt)) {
-            return Response::fail('Thời gian bắt đầu phải trước thời gian kết thúc', 'VALIDATION_ERROR', 422);
+        $startTs = strtotime($startAt);
+        $endTs = strtotime($endAt);
+        if ($startTs === false || $endTs === false || $startTs >= $endTs) {
+            return Response::fail('Thời gian bắt đầu phải hợp lệ và trước thời gian kết thúc', 'VALIDATION_ERROR', 422);
         }
 
-        // Kiểm tra phòng vật lý tồn tại và active
-        $prStmt = $this->pdo->prepare('SELECT `id`, `name`, `status` FROM `physical_rooms` WHERE `id` = :id AND `venue_id` = :vid LIMIT 1');
-        $prStmt->bindValue(':id', $physicalRoomId, PDO::PARAM_INT);
-        $prStmt->bindValue(':vid', $venueId, PDO::PARAM_INT);
+        // Kiểm tra phòng vật lý tồn tại, active và không bảo trì (tự suy ra venue_id nếu không truyền)
+        if ($venueId > 0) {
+            $prStmt = $this->pdo->prepare('SELECT `id`, `venue_id`, `name`, `status`, `is_maintenance` FROM `physical_rooms` WHERE `id` = :id AND `venue_id` = :vid LIMIT 1');
+            $prStmt->bindValue(':id', $physicalRoomId, PDO::PARAM_INT);
+            $prStmt->bindValue(':vid', $venueId, PDO::PARAM_INT);
+        } else {
+            $prStmt = $this->pdo->prepare('SELECT `id`, `venue_id`, `name`, `status`, `is_maintenance` FROM `physical_rooms` WHERE `id` = :id LIMIT 1');
+            $prStmt->bindValue(':id', $physicalRoomId, PDO::PARAM_INT);
+        }
         $prStmt->execute();
         $pr = $prStmt->fetch(PDO::FETCH_ASSOC);
 
         if ($pr === false) {
             return Response::fail('Phòng vật lý không tồn tại hoặc không thuộc chi nhánh đã chọn', 'PHYSICAL_ROOM_NOT_FOUND', 404);
         }
+        $venueId = (int) $pr['venue_id'];
+        if (strtoupper((string) ($pr['status'] ?? '')) !== 'ACTIVE' || !empty($pr['is_maintenance'])) {
+            return Response::fail('Phòng vật lý đang bảo trì hoặc không khả dụng', 'PHYSICAL_ROOM_UNAVAILABLE', 422);
+        }
 
-        // Kiểm tra xung đột với Session đã có
+        // Kiểm tra xung đột với Session đã có (kèm khoảng đệm 30 phút dọn phòng)
         $conflictStmt = $this->pdo->prepare(
             'SELECT COUNT(*) FROM `sessions`
              WHERE `physical_room_id` = :pr_id
                AND `status` IN (\'SCHEDULED\', \'IN_PROGRESS\')
-               AND `start_at` < :end_at AND `end_at` > :start_at'
+               AND `start_at` < DATE_ADD(:end_at, INTERVAL 30 MINUTE)
+               AND `end_at` > DATE_SUB(:start_at, INTERVAL 30 MINUTE)'
         );
         $conflictStmt->bindValue(':pr_id', $physicalRoomId, PDO::PARAM_INT);
         $conflictStmt->bindValue(':end_at', $endAt, PDO::PARAM_STR);
@@ -390,18 +512,23 @@ class AdminOperationsController
             return Response::fail('Phòng vật lý đã được khóa giữ chỗ thủ công trong khung giờ này', 'OFFLINE_BLOCK_CONFLICT', 409);
         }
 
+        if ($customerName !== '') {
+            $reasonText = $customerName . ($customerPhone !== '' ? " ({$customerPhone})" : '') . ($notes !== null && $notes !== '' ? " - {$notes}" : '');
+        } else {
+            $reasonText = $rawReason !== '' ? $rawReason : ($notes ?: 'Khóa giữ chỗ khách Hotline/Walk-in');
+            $customerName = 'Khách Hotline/Walk-in';
+        }
+        $reasonText = mb_substr($reasonText, 0, 250);
+
         $insStmt = $this->pdo->prepare(
-            'INSERT INTO `offline_room_blocks` (`venue_id`, `physical_room_id`, `start_at`, `end_at`, `customer_name`, `customer_phone`, `notes`, `created_by`, `created_at`)
-             VALUES (:vid, :prid, :start, :end, :cname, :cphone, :notes, :created_by, NOW())'
+            'INSERT INTO `offline_room_blocks` (`physical_room_id`, `blocked_by`, `start_at`, `end_at`, `reason`, `created_at`)
+             VALUES (:prid, :blocked_by, :start, :end, :reason, NOW())'
         );
-        $insStmt->bindValue(':vid', $venueId, PDO::PARAM_INT);
         $insStmt->bindValue(':prid', $physicalRoomId, PDO::PARAM_INT);
+        $insStmt->bindValue(':blocked_by', $adminId, PDO::PARAM_INT);
         $insStmt->bindValue(':start', $startAt, PDO::PARAM_STR);
         $insStmt->bindValue(':end', $endAt, PDO::PARAM_STR);
-        $insStmt->bindValue(':cname', $customerName, PDO::PARAM_STR);
-        $insStmt->bindValue(':cphone', $customerPhone, PDO::PARAM_STR);
-        $insStmt->bindValue(':notes', $notes, $notes === null ? PDO::PARAM_NULL : PDO::PARAM_STR);
-        $insStmt->bindValue(':created_by', $adminId, PDO::PARAM_INT);
+        $insStmt->bindValue(':reason', $reasonText, PDO::PARAM_STR);
         $insStmt->execute();
 
         $blockId = (int) $this->pdo->lastInsertId();
@@ -413,8 +540,10 @@ class AdminOperationsController
             entityId: $physicalRoomId,
             metadata: [
                 'block_id' => $blockId,
+                'venue_id' => $venueId,
                 'customer_name' => $customerName,
                 'customer_phone' => $customerPhone,
+                'reason' => $reasonText,
                 'start_at' => $startAt,
                 'end_at' => $endAt,
             ]
@@ -422,10 +551,12 @@ class AdminOperationsController
 
         return Response::success([
             'block_id' => $blockId,
+            'venue_id' => $venueId,
             'physical_room_id' => $physicalRoomId,
             'physical_room_name' => $pr['name'],
             'start_at' => $startAt,
             'end_at' => $endAt,
+            'reason' => $reasonText,
             'customer_name' => $customerName,
             'customer_phone' => $customerPhone,
         ], 'Đã khóa phòng vật lý thủ công thành công cho khách Hotline/Walk-in', null, 201);
