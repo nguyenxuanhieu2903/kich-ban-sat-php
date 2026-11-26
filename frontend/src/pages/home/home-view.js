@@ -1,4 +1,5 @@
 import { api } from '../../api/api-client.js';
+import { authState } from '../../api/auth-state.js';
 import { escapeHtml } from '../../utils/sanitize.js';
 import { ALL_SCRIPTS } from '../../data/scripts.data.js';
 import { HOME_TEMPLATE_HTML } from './home-template.js';
@@ -198,6 +199,16 @@ export class HomeView {
   async fetchOpenRooms() {
     const grid = document.getElementById('home-rooms-grid');
     if (!grid) return;
+    if (!authState.isAuthenticated()) {
+      grid.innerHTML = `
+        <div style="grid-column: 1 / -1; text-align: center; padding: 28px 20px; background: rgba(19,21,31,0.75); border: 1px dashed rgba(196,55,55,0.45); border-radius: 10px;">
+          <p style="margin: 0 0 12px; color: #CBD5E1; font-size: 0.94rem;">🔒 Sảnh phòng chơi chỉ hiển thị cho thành viên đã đăng nhập.</p>
+          <button type="button" id="btn-home-login-rooms" class="btn btn-sm btn-header-crimson">Đăng nhập để xem phòng đang tuyển &rarr;</button>
+        </div>
+      `;
+      document.getElementById('btn-home-login-rooms')?.addEventListener('click', () => this.onOpenAuth('PLAYER'));
+      return;
+    }
     try {
       const res = await api.get('/rooms');
       const rooms = (res?.data?.rooms || []).filter(r => ['FORMING', 'REPLACEMENT', 'SCHEDULED'].includes(r.status)).slice(0, 3);

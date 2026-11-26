@@ -226,7 +226,14 @@ class App {
     const user = authState.getUser();
 
     // Role-specific navigation guards
-    if (hash === 'dm') {
+    if (hash === 'rooms') {
+      if (!user) {
+        toast.warning('Vui lòng đăng nhập để xem Sảnh phòng chơi & ghép nhóm.');
+        this.navigateTo('home');
+        this.authModal.show(false, 'PLAYER');
+        return;
+      }
+    } else if (hash === 'dm') {
       if (!user || (user.role !== 'DM' && user.role !== 'ADMIN')) {
         toast.warning('Khu vực dành cho Quản Trò (DM). Vui lòng đăng nhập với vai trò DM.');
         this.navigateTo(user ? 'rooms' : 'home');

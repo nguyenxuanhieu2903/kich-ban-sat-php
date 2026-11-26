@@ -1426,7 +1426,7 @@ export class AdminView {
       const st = health.storage || {};
 
       container.innerHTML = `
-        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 16px; margin-bottom: 24px;">
+        <div style="display: none; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 16px; margin-bottom: 24px;">
           <div class="card" style="border: 1px solid var(--color-primary); padding: 16px;">
             <div style="font-size: 0.82rem; color: var(--color-text-muted);">Cơ sở dữ liệu (Database)</div>
             <div style="font-size: 1.35rem; color: var(--color-primary); font-weight: 700; margin: 4px 0;">

@@ -295,21 +295,25 @@ export class RoomsView {
             </div>
 
             <!-- Nút Hành động full-width -->
-            <button class="btn btn-gold btn-sm btn-action-room" data-id="${r.id}" style="width: 100%; margin-top: 14px; font-weight: 700; color: var(--ink-black); padding: 9px 14px;">
-              Xem chi tiết / Tham gia
-            </button>
+            ${filled >= max ? `
+              <button class="btn btn-ghost btn-sm" disabled style="width: 100%; margin-top: 14px; font-weight: 700; opacity: 0.6; cursor: not-allowed; padding: 9px 14px;">
+                🔒 Đã đủ người (Không thể vào)
+              </button>
+            ` : `
+              <button class="btn btn-sm btn-header-crimson btn-action-room" data-id="${r.id}" style="width: 100%; margin-top: 14px; font-weight: 700; padding: 9px 14px;">
+                Xem chi tiết / Tham gia
+              </button>
+            `}
           </div>
         </article>
       `;
     }).join('');
 
-    // Sự kiện click mở chi tiết phòng
-    grid.querySelectorAll('.room-card').forEach(card => {
-      card.onclick = (e) => {
-        // Tránh trigger 2 lần nếu click thẳng vào button
-        const btn = e.target.closest('.btn-action-room');
-        const roomId = btn ? btn.dataset.id : card.dataset.id;
-        this.showRoomDetail(roomId);
+    // Sự kiện click mở chi tiết phòng (chỉ cho phòng chưa đủ người)
+    grid.querySelectorAll('.btn-action-room').forEach(btn => {
+      btn.onclick = (e) => {
+        e.stopPropagation();
+        this.showRoomDetail(btn.dataset.id);
       };
     });
   }
@@ -984,33 +988,61 @@ export class RoomsView {
       max-width: 480px;
     `;
 
+    const tomorrow = new Date(Date.now() + 86400000).toISOString().split('T')[0];
+    const scriptOptionsHtml = (ALL_SCRIPTS || []).map((s, idx) => {
+      const pText = s.playersText || `${s.playersMin || 6}–${s.playersMax || 8} người`;
+      return `<option value="${idx + 1}" data-min="${s.playersMin || 6}" data-max="${s.playersMax || 8}">${escapeHtml(s.title)} (${escapeHtml(pText)})</option>`;
+    }).join('');
+
     modal.innerHTML = `
       <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
         <h3 style="margin: 0; font-size: 1.25rem;">Tạo phòng chơi mới</h3>
-        <button id="create-room-close" style="background: none; border: none; color: #94a3b8; font-size: 1.5rem; cursor: pointer;">&times;</button>
+        <button id="create-room-close" type="button" style="background: none; border: none; color: #94a3b8; font-size: 1.5rem; cursor: pointer;">&times;</button>
       </div>
 
-      <form id="create-room-form" style="display: flex; flex-direction: column; gap: 14px;">
+      <form id="create-room-form" style="display: flex; flex-direction: column; gap: 12px;">
         <div>
-          <label style="font-size: 0.85rem; color: #94a3b8; display: block; margin-bottom: 4px;">Kịch bản kịch bản sát</label>
-          <select name="game_id" class="form-input" required style="width: 100%;">
-            <option value="1">Đêm Đoạt Mệnh Tại Trang Viên (6 - 8 người)</option>
-            <option value="2">Kỳ Án Quán Trọ Vong Hồn (7 - 9 người)</option>
-            <option value="3">Vụ Mưu Sát Trên Du Thuyền Hoàng Gia (8 - 10 người)</option>
+          <label style="font-size: 0.85rem; color: #94a3b8; display: block; margin-bottom: 4px;">Kịch bản (số người cố định theo game)</label>
+          <select name="game_id" id="cr-game-select" class="form-input" required style="width: 100%;">
+            ${scriptOptionsHtml}
           </select>
         </div>
 
         <div>
-          <label style="font-size: 0.85rem; color: #94a3b8; display: block; margin-bottom: 4px;">Tên phòng chơi</label>
-          <input type="text" name="title" required placeholder="Ví dụ: Tìm đồng đội chơi tối thứ 7" class="form-input" style="width: 100%; box-sizing: border-box;">
+          <label style="font-size: 0.85rem; color: #94a3b8; display: block; margin-bottom: 4px;">Chi nhánh tổ chức</label>
+          <select name="venue_id" class="form-input" required style="width: 100%;">
+            <option value="1">Kịch Bản Sát — Bình Thạnh (36/52 Nguyễn Gia Trí)</option>
+          </select>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+          <div>
+            <label style="font-size: 0.85rem; color: #94a3b8; display: block; margin-bottom: 4px;">Ngày chơi dự kiến</label>
+            <input type="date" name="play_date" required value="${tomorrow}" class="form-input" style="width: 100%; box-sizing: border-box;">
+          </div>
+          <div>
+            <label style="font-size: 0.85rem; color: #94a3b8; display: block; margin-bottom: 4px;">Giờ chơi tự chọn</label>
+            <input type="time" name="play_time" required value="19:00" class="form-input" style="width: 100%; box-sizing: border-box;">
+          </div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1.4fr 1fr; gap: 10px;">
+          <div>
+            <label style="font-size: 0.85rem; color: #94a3b8; display: block; margin-bottom: 4px;">Tên phòng chơi</label>
+            <input type="text" name="title" required placeholder="VD: Phá án tối Thứ 7" class="form-input" style="width: 100%; box-sizing: border-box;">
+          </div>
+          <div>
+            <label style="font-size: 0.85rem; color: #94a3b8; display: block; margin-bottom: 4px;">Số chỗ đặt cùng lúc</label>
+            <input type="number" name="slots_count" min="1" max="8" value="1" required class="form-input" style="width: 100%; box-sizing: border-box;">
+          </div>
         </div>
 
         <div>
-          <label style="font-size: 0.85rem; color: #94a3b8; display: block; margin-bottom: 4px;">Mô tả / Lời nhắn</label>
-          <textarea name="description" placeholder="Yêu cầu roleplay nghiêm túc, không out giữa chừng..." class="form-input" rows="3" style="width: 100%; box-sizing: border-box;"></textarea>
+          <label style="font-size: 0.85rem; color: #94a3b8; display: block; margin-bottom: 4px;">Ghi chú cho Quản trò (DM)</label>
+          <textarea name="description" placeholder="VD: Nhóm có bạn chơi lần đầu, cần DM hướng dẫn kỹ..." class="form-input" rows="2" style="width: 100%; box-sizing: border-box;"></textarea>
         </div>
 
-        <button type="submit" id="btn-submit-create" class="btn btn-primary" style="margin-top: 10px;">
+        <button type="submit" id="btn-submit-create" class="btn btn-primary" style="margin-top: 6px;">
           Tạo phòng ngay
         </button>
       </form>
