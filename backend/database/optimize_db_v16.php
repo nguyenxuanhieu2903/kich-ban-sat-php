@@ -24,10 +24,11 @@ $pdo = new PDO(
     [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]
 );
 
-// 1. Drop completely unused empty tables
+// 1. Drop completely unused tables
+$pdo->exec('DROP TABLE IF EXISTS `schedule_responses`');
 $pdo->exec('DROP TABLE IF EXISTS `outbox_events`');
 $pdo->exec('DROP TABLE IF EXISTS `idempotency_records`');
-echo "[OK] Dropped unused tables: outbox_events, idempotency_records\n";
+echo "[OK] Dropped unused tables: schedule_responses, outbox_events, idempotency_records\n";
 
 // 2. Add poster_url, difficulty, synopsis to games if missing
 $cols = $pdo->query("SHOW COLUMNS FROM `games`")->fetchAll(PDO::FETCH_COLUMN);

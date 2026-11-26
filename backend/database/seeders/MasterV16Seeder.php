@@ -37,7 +37,7 @@ if (!is_array($scripts) || count($scripts) !== 42) {
 $pdo->exec('SET FOREIGN_KEY_CHECKS = 0');
 $tablesToTruncate = [
     'audit_logs', 'notifications', 'refunds', 'payment_transactions', 'player_payments',
-    'participant_price_snapshots', 'sessions', 'dm_assignments', 'schedule_responses',
+    'participant_price_snapshots', 'sessions', 'dm_assignments',
     'schedule_proposals', 'room_participants', 'game_rooms', 'promotions', 'game_prices',
     'game_configurations', 'games', 'physical_rooms', 'venues', 'users', 'roles'
 ];

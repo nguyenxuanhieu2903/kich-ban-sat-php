@@ -116,17 +116,7 @@ class SchedulingController
 
             $proposalId = (int) $this->pdo->lastInsertId();
 
-            // Tự động ghi nhận vote ACCEPTED của người đề xuất
-            $insVote = $this->pdo->prepare(
-                'INSERT INTO `schedule_responses` (`game_room_id`, `schedule_proposal_id`, `room_participant_id`, `response`, `responded_at`, `created_at`)
-                 VALUES (:room_id, :proposal_id, :part_id, \'ACCEPTED\', NOW(), NOW())'
-            );
-            $insVote->bindValue(':room_id', $roomId, PDO::PARAM_INT);
-            $insVote->bindValue(':proposal_id', $proposalId, PDO::PARAM_INT);
-            $insVote->bindValue(':part_id', (int) $participantId, PDO::PARAM_INT);
-            $insVote->execute();
-
-            // DEC-01 (Option B): Tạo hóa đơn cọc (50.000 VNĐ) cho các thành viên active khi phòng bước vào giai đoạn biểu quyết lịch
+            // DEC-01 (Option B): Tạo hóa đơn cọc (50.000 VNĐ) cho các thành viên active khi phòng có đề xuất lịch
             $depositDeadline = date('Y-m-d H:i:s', time() + (2 * 3600)); // 2 giờ theo V16 baseline
 
             $eligiblePartsStmt = $this->pdo->prepare(
@@ -218,18 +208,8 @@ class SchedulingController
             return Response::fail('Không tìm thấy đề xuất lịch chơi', 'PROPOSAL_NOT_FOUND', 404);
         }
 
-        // Lấy danh sách phiếu bầu
-        $vStmt = $this->pdo->prepare(
-            'SELECT sr.`id`, sr.`room_participant_id`, sr.`response`, sr.`responded_at`,
-                    u.`full_name` AS `participant_name`
-             FROM `schedule_responses` sr
-             INNER JOIN `room_participants` rp ON rp.`id` = sr.`room_participant_id`
-             INNER JOIN `users` u ON u.`id` = rp.`user_id`
-             WHERE sr.`schedule_proposal_id` = :pid'
-        );
-        $vStmt->bindValue(':pid', $proposalId, PDO::PARAM_INT);
-        $vStmt->execute();
-        $proposal['votes'] = $vStmt->fetchAll(PDO::FETCH_ASSOC);
+        // Tính năng biểu quyết lịch (schedule_responses) đã được lược bỏ
+        $proposal['votes'] = [];
 
         return Response::success([
             'proposal' => $proposal,
@@ -238,9 +218,15 @@ class SchedulingController
 
     /**
      * POST /api/v1/proposals/{id}/vote
-     * Thành viên biểu quyết đề xuất lịch
+     * Tính năng biểu quyết lịch đã được lược bỏ theo phạm vi V16 Clean
      */
     public function vote(Request $request, string $id): Response
+    {
+        return Response::fail('Tính năng biểu quyết lịch chơi đã được lược bỏ', 'FEATURE_DISABLED', 410);
+    }
+
+    /** @internal Legacy placeholder */
+    private function _unusedVoteLegacy(Request $request, string $id): Response
     {
         $userId = $this->resolveCurrentUserId($request);
         if ($userId === null) {
