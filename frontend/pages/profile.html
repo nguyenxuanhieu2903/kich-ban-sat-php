@@ -85,7 +85,7 @@
   <script type="module">
     import { initChrome } from '../src/logic/layout.js';
     import { api } from '../src/logic/api.js';
-    import { requireAuthRole, formatVND, escapeHtml, showToast, formatRoomStatus, formatRefundStatus } from '../src/logic/portal-mock.js';
+    import { requireAuthRole, formatVND, escapeHtml, showToast, openPromptModal, formatRoomStatus, formatRefundStatus } from '../src/logic/portal-mock.js';
 
     async function loadProfile() {
       const [meData, histData] = await Promise.all([
@@ -128,14 +128,16 @@
       tbody.querySelectorAll('[data-refund]').forEach((btn) => {
         btn.addEventListener('click', async () => {
           const rid = Number(btn.getAttribute('data-refund'));
-          const reason = window.prompt(`Nhập lý do yêu cầu hoàn tiền cọc cho phòng #${rid} (bắt buộc):`, '');
-          if (reason === null) return;
-          if (!reason.trim()) {
-            showToast('Vui lòng nhập rõ lý do yêu cầu hoàn tiền.');
-            return;
-          }
+          const reason = await openPromptModal({
+            eyebrow: 'YÊU CẦU HOÀN TIỀN CỌC',
+            title: `Gửi yêu cầu hoàn cọc phòng #${rid}`,
+            label: 'Lý do yêu cầu hoàn tiền cọc',
+            placeholder: 'VD: Có việc đột xuất trước giờ chơi >= 24 giờ...',
+            confirmText: 'Gửi yêu cầu hoàn cọc',
+          });
+          if (!reason) return;
           try {
-            await api.post('/payments/refund-request', { room_id: rid, reason: reason.trim() });
+            await api.post('/payments/refund-request', { room_id: rid, reason });
             showToast(`Đã gửi yêu cầu hoàn cọc cho phòng #${rid} tới Quản trị viên.`);
             loadProfile();
           } catch (e) { showToast(e.message); }

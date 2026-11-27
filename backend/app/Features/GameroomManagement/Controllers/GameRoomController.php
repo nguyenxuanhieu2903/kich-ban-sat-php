@@ -373,11 +373,40 @@ class GameRoomController
 
         $targetVenueId = isset($body['target_venue_id']) && (int) $body['target_venue_id'] > 0 ? (int) $body['target_venue_id'] : null;
         $targetTimeSlot = isset($body['target_time_slot']) ? trim((string) $body['target_time_slot']) : null;
+        if ($targetTimeSlot === '') {
+            $targetTimeSlot = null;
+        }
+
+        // Validate server-side cho khung giờ dự kiến (không đặt quá khứ và phải trong giờ mở cửa 09:00 - 21:00)
+        if ($targetTimeSlot !== null) {
+            $slotTs = strtotime($targetTimeSlot);
+            if ($slotTs === false) {
+                return Response::fail('Định dạng ngày giờ dự kiến (target_time_slot) không hợp lệ', 'VALIDATION_ERROR', 422);
+            }
+            if ($slotTs < time() - 300) {
+                return Response::fail('Không thể tạo phòng cho ngày hoặc khung giờ trong quá khứ', 'VALIDATION_ERROR', 422);
+            }
+            $slotMinutesOfDay = ((int) date('H', $slotTs)) * 60 + ((int) date('i', $slotTs));
+            if ($slotMinutesOfDay < (9 * 60) || $slotMinutesOfDay > (21 * 60)) {
+                return Response::fail('Giờ bắt đầu ca chơi phải nằm trong khung giờ mở cửa từ 09:00 đến 21:00', 'VALIDATION_ERROR', 422);
+            }
+        }
+
         $totalPlayers = isset($body['total_players']) && (int) $body['total_players'] > 0
             ? min($maxPlayers, (int) $body['total_players'])
             : 1;
         $guestSlots = max(0, $maxPlayers - $totalPlayers);
         $is18Plus = !empty($body['is_18_plus_acknowledged']) ? 1 : 0;
+
+        // Validate server-side cam kết độ tuổi 18+ cho kịch bản giới hạn tuổi
+        $requires18Plus = !empty($game['is_18_plus']) || (int) ($game['age_restriction'] ?? 0) >= 18;
+        if ($requires18Plus && $is18Plus !== 1) {
+            return Response::fail(
+                'Kịch bản này giới hạn độ tuổi 18+. Bạn bắt buộc phải xác nhận cam kết đủ 18 tuổi trước khi tạo phòng.',
+                'AGE_CONFIRMATION_REQUIRED',
+                422
+            );
+        }
 
         // Lấy configuration id v1
         $cfgStmt = $this->pdo->prepare('SELECT `id` FROM `game_configurations` WHERE `game_id` = :game_id ORDER BY `version` DESC LIMIT 1');
@@ -878,8 +907,11 @@ class GameRoomController
                 $upRoom->execute();
             }
 
-            // 3. Kiểm tra quá hạn gom đội nếu phòng FORMING
-            $roomStmt = $this->pdo->prepare('SELECT `status`, `min_players`, `total_players`, `formation_deadline_at` FROM `game_rooms` WHERE `id` = :id');
+            // 3. Kiểm tra quá hạn gom đội nếu phòng FORMING (dùng RoomSeatHelper để tính chính xác nhóm đặt nhiều ghế)
+            $roomStmt = $this->pdo->prepare(
+                'SELECT `creator_id`, `status`, `min_players`, `max_players`, `total_players`, `formation_deadline_at`, `price_details`
+                 FROM `game_rooms` WHERE `id` = :id'
+            );
             $roomStmt->bindValue(':id', $roomId, PDO::PARAM_INT);
             $roomStmt->execute();
             $rData = $roomStmt->fetch(PDO::FETCH_ASSOC);
@@ -887,13 +919,13 @@ class GameRoomController
             if ($rData && $rData['status'] === 'FORMING' && !empty($rData['formation_deadline_at'])) {
                 if (strtotime((string) $rData['formation_deadline_at']) <= time()) {
                     $cntStmt = $this->pdo->prepare(
-                        'SELECT COUNT(*) FROM `room_participants`
+                        'SELECT `user_id` FROM `room_participants`
                          WHERE `game_room_id` = :id AND `status` IN (\'PENDING_DEPOSIT\', \'DEPOSITED\', \'LEAVE_REQUESTED\')'
                     );
                     $cntStmt->bindValue(':id', $roomId, PDO::PARAM_INT);
                     $cntStmt->execute();
-                    $activeCount = (int) $cntStmt->fetchColumn();
-                    $occupiedSeats = $activeCount > 0 ? (max(1, (int) ($rData['total_players'] ?? 1)) + max(0, $activeCount - 1)) : 0;
+                    $activeUids = array_map('intval', $cntStmt->fetchAll(PDO::FETCH_COLUMN));
+                    $occupiedSeats = (int) \App\Shared\Services\RoomSeatHelper::computeSeats($rData, $activeUids)['occupied_seats'];
 
                     if ($occupiedSeats < (int) $rData['min_players']) {
                         $upExp = $this->pdo->prepare(

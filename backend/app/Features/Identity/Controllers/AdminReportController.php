@@ -31,11 +31,12 @@ class AdminReportController
 
         // 1. Tổng tiền thực thu từ người chơi (cọc + tất toán)
         $revStmt = $this->pdo->query(
-            "SELECT 
+            "SELECT
                 COALESCE(SUM(paid_amount), 0) AS total_collected,
                 COALESCE(SUM(CASE WHEN payment_type = 'DEPOSIT' THEN paid_amount ELSE 0 END), 0) AS deposit_collected,
                 COALESCE(SUM(CASE WHEN payment_type = 'REMAINING' THEN paid_amount ELSE 0 END), 0) AS remaining_collected
-             FROM player_payments"
+             FROM player_payments
+             WHERE paid_amount > 0"
         );
         $revData = $revStmt->fetch(PDO::FETCH_ASSOC) ?: [
             'total_collected' => 0,
@@ -43,11 +44,27 @@ class AdminReportController
             'remaining_collected' => 0,
         ];
 
-        // 2. Tổng tiền hoàn đã duyệt hoặc đã chi trả hoàn tất
+        // 2. Tổng tiền hoàn tách bạch rõ: đã chi trả (COMPLETED), đã duyệt/đang chuyển (APPROVED/PROCESSING) & chờ duyệt (PENDING)
         $refStmt = $this->pdo->query(
-            "SELECT COALESCE(SUM(amount), 0) AS total_refunded FROM refunds WHERE status IN ('APPROVED', 'COMPLETED')"
+            "SELECT
+                COALESCE(SUM(CASE WHEN r.`status` = 'COMPLETED' THEN r.`amount` ELSE 0 END), 0) AS refunded_completed,
+                COALESCE(SUM(CASE WHEN r.`status` IN ('APPROVED', 'PROCESSING') THEN r.`amount` ELSE 0 END), 0) AS refunded_pending_payout,
+                COALESCE(SUM(CASE WHEN r.`status` IN ('APPROVED', 'PROCESSING', 'COMPLETED') THEN r.`amount` ELSE 0 END), 0) AS total_refunded,
+                COALESCE(SUM(CASE WHEN r.`status` IN ('APPROVED', 'PROCESSING', 'COMPLETED') AND pp.`payment_type` = 'DEPOSIT' THEN r.`amount` ELSE 0 END), 0) AS deposit_refunded,
+                COALESCE(SUM(CASE WHEN r.`status` IN ('APPROVED', 'PROCESSING', 'COMPLETED') AND pp.`payment_type` = 'REMAINING' THEN r.`amount` ELSE 0 END), 0) AS remaining_refunded,
+                COALESCE(SUM(CASE WHEN r.`status` = 'PENDING' THEN 1 ELSE 0 END), 0) AS pending_refunds_count,
+                COUNT(*) AS total_refunds
+             FROM `refunds` r
+             LEFT JOIN `player_payments` pp ON pp.`id` = r.`player_payment_id`"
         );
-        $totalRefunded = (int) ($refStmt->fetchColumn() ?: 0);
+        $refData = $refStmt->fetch(PDO::FETCH_ASSOC) ?: [];
+        $refundedCompleted = (int) ($refData['refunded_completed'] ?? 0);
+        $refundedPendingPayout = (int) ($refData['refunded_pending_payout'] ?? 0);
+        $totalRefunded = (int) ($refData['total_refunded'] ?? 0);
+        $depositRefunded = (int) ($refData['deposit_refunded'] ?? 0);
+        $remainingRefunded = (int) ($refData['remaining_refunded'] ?? 0);
+        $pendingRefundsCount = (int) ($refData['pending_refunds_count'] ?? 0);
+        $totalRefundsCount = (int) ($refData['total_refunds'] ?? 0);
 
         // 3. Số giao dịch thành công
         $txStmt = $this->pdo->query(
@@ -61,24 +78,38 @@ class AdminReportController
         );
         $completedSessions = (int) ($sessStmt->fetchColumn() ?: 0);
 
-        // 5. Số phòng đang hoạt động
+        // 5. Số phòng đang hoạt động & tổng tài khoản hệ thống (không bị cắt bởi per_page)
         $roomStmt = $this->pdo->query(
             "SELECT COUNT(*) FROM game_rooms WHERE status NOT IN ('CANCELLED', 'COMPLETED')"
         );
         $activeRooms = (int) ($roomStmt->fetchColumn() ?: 0);
 
+        $usersStmt = $this->pdo->query("SELECT COUNT(*) FROM `users`");
+        $totalUsers = (int) ($usersStmt->fetchColumn() ?: 0);
+
         $totalCollected = (int) $revData['total_collected'];
+        $depositCollected = (int) $revData['deposit_collected'];
+        $remainingCollected = (int) $revData['remaining_collected'];
+        $netDepositCollected = max(0, $depositCollected - $depositRefunded);
+        $netRemainingCollected = max(0, $remainingCollected - $remainingRefunded);
         $netRevenue = max(0, $totalCollected - $totalRefunded);
 
-        // 6. Doanh thu theo ngày (10 mốc ngày có phát sinh gần nhất) phục vụ biểu đồ cột ngang/dọc trên Dashboard
+        // 6. Doanh thu thuần theo ngày (9 mốc ngày có phát sinh gần nhất, đã trừ khoản hoàn APPROVED/PROCESSING/COMPLETED)
         $dailyStmt = $this->pdo->query(
             "SELECT
                 DATE(COALESCE(pp.`paid_at`, pp.`created_at`)) AS `pay_date`,
-                COALESCE(SUM(CASE WHEN pp.`payment_type` = 'DEPOSIT' THEN pp.`paid_amount` ELSE 0 END), 0) AS `deposit_vnd`,
-                COALESCE(SUM(CASE WHEN pp.`payment_type` = 'REMAINING' THEN pp.`paid_amount` ELSE 0 END), 0) AS `remaining_vnd`,
-                COALESCE(SUM(pp.`paid_amount`), 0) AS `total_vnd`,
+                COALESCE(SUM(CASE WHEN pp.`payment_type` = 'DEPOSIT' THEN GREATEST(0, CAST(pp.`paid_amount` AS SIGNED) - COALESCE(rf.`refunded_amt`, 0)) ELSE 0 END), 0) AS `deposit_vnd`,
+                COALESCE(SUM(CASE WHEN pp.`payment_type` = 'REMAINING' THEN GREATEST(0, CAST(pp.`paid_amount` AS SIGNED) - COALESCE(rf.`refunded_amt`, 0)) ELSE 0 END), 0) AS `remaining_vnd`,
+                COALESCE(SUM(GREATEST(0, CAST(pp.`paid_amount` AS SIGNED) - COALESCE(rf.`refunded_amt`, 0))), 0) AS `total_vnd`,
+                COALESCE(SUM(COALESCE(rf.`refunded_amt`, 0)), 0) AS `refunded_vnd`,
                 COUNT(*) AS `tx_count`
              FROM `player_payments` pp
+             LEFT JOIN (
+                SELECT `player_payment_id`, SUM(`amount`) AS `refunded_amt`
+                FROM `refunds`
+                WHERE `status` IN ('APPROVED', 'PROCESSING', 'COMPLETED')
+                GROUP BY `player_payment_id`
+             ) rf ON rf.`player_payment_id` = pp.`id`
              WHERE pp.`paid_amount` > 0
              GROUP BY DATE(COALESCE(pp.`paid_at`, pp.`created_at`))
              ORDER BY `pay_date` DESC
@@ -93,21 +124,28 @@ class AdminReportController
                 'deposit_vnd' => (int) ($r['deposit_vnd'] ?? 0),
                 'remaining_vnd' => (int) ($r['remaining_vnd'] ?? 0),
                 'total_vnd' => (int) ($r['total_vnd'] ?? 0),
+                'refunded_vnd' => (int) ($r['refunded_vnd'] ?? 0),
                 'tx_count' => (int) ($r['tx_count'] ?? 0),
             ];
         }, $dailyRows);
 
-        // 7. Doanh thu & lượt phòng theo từng kịch bản (Top 6 kịch bản nổi bật)
+        // 7. Doanh thu thuần & lượt phòng theo từng kịch bản (Top 6 kịch bản nổi bật, đã trừ khoản hoàn)
         $topGameStmt = $this->pdo->query(
             "SELECT
                 g.`id` AS `game_id`,
                 g.`name` AS `game_name`,
                 COUNT(DISTINCT gr.`id`) AS `room_count`,
-                COALESCE(SUM(pp.`paid_amount`), 0) AS `revenue_vnd`
+                COALESCE(SUM(GREATEST(0, CAST(COALESCE(pp.`paid_amount`, 0) AS SIGNED) - COALESCE(rf.`refunded_amt`, 0))), 0) AS `revenue_vnd`
              FROM `game_rooms` gr
              INNER JOIN `games` g ON g.`id` = gr.`game_id`
              LEFT JOIN `room_participants` rp ON rp.`game_room_id` = gr.`id`
              LEFT JOIN `player_payments` pp ON pp.`room_participant_id` = rp.`id`
+             LEFT JOIN (
+                SELECT `player_payment_id`, SUM(`amount`) AS `refunded_amt`
+                FROM `refunds`
+                WHERE `status` IN ('APPROVED', 'PROCESSING', 'COMPLETED')
+                GROUP BY `player_payment_id`
+             ) rf ON rf.`player_payment_id` = pp.`id`
              GROUP BY g.`id`, g.`name`
              ORDER BY `revenue_vnd` DESC, `room_count` DESC
              LIMIT 6"
@@ -140,12 +178,18 @@ class AdminReportController
 
         return Response::success([
             'total_net_revenue' => $netRevenue,
-            'total_deposit' => (int) $revData['deposit_collected'],
+            'total_deposit' => $netDepositCollected,
             'completed_sessions' => $completedSessions,
             'revenue' => [
                 'total_collected' => $totalCollected,
-                'deposit_collected' => (int) $revData['deposit_collected'],
-                'remaining_collected' => (int) $revData['remaining_collected'],
+                'deposit_collected' => $depositCollected,
+                'remaining_collected' => $remainingCollected,
+                'net_deposit_collected' => $netDepositCollected,
+                'net_remaining_collected' => $netRemainingCollected,
+                'deposit_refunded' => $depositRefunded,
+                'remaining_refunded' => $remainingRefunded,
+                'refunded_completed' => $refundedCompleted,
+                'refunded_pending_payout' => $refundedPendingPayout,
                 'total_refunded' => $totalRefunded,
                 'net_revenue' => $netRevenue,
             ],
@@ -153,7 +197,11 @@ class AdminReportController
                 'successful_transactions' => $successTxCount,
                 'completed_sessions' => $completedSessions,
                 'active_rooms' => $activeRooms,
+                'total_users' => $totalUsers,
+                'total_refunds' => $totalRefundsCount,
+                'pending_refunds_count' => $pendingRefundsCount,
             ],
+            'daily_series_scope' => 'LAST_9_ACTIVE_DAYS',
             'daily_series' => $dailySeries,
             'top_scenarios' => $topScenarios,
             'room_status_counts' => $roomStatusCounts,

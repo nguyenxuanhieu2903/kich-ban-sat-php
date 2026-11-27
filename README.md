@@ -8,12 +8,22 @@ Hệ thống quản lý đặt phòng, ghép đội, xếp lịch, điều phố
 
 | Hạng mục | Đường dẫn / Giá trị | Ghi chú |
 | :--- | :--- | :--- |
-| **Bản Deploy trực tuyến (InfinityFree)** | `http://kichbansat.wuaze.com/` | Chạy trực tiếp trên Apache Shared Hosting + MariaDB |
+| **Bản Deploy trực tuyến (InfinityFree)** | http://kichbansat.wuaze.com/ | Chạy trực tiếp trên Apache Shared Hosting + MariaDB |
 | **Website Local (Docker / PHP Server)** | `http://localhost:8000` hoặc `http://127.0.0.1:8000` | Same-Origin Front Controller phục vụ cả Frontend + API |
-| **Tài liệu API tương tác (Swagger UI)** | `http://localhost:8000/docs` | Nạp trực tiếp từ `backend/public/openapi.json` (OpenAPI 3.0.3, `v16.1.0`, `73` endpoints) |
+| **Tài liệu API tương tác (Swagger UI)** | `http://localhost:8000/docs` | Nạp trực tiếp từ `backend/public/openapi.json` (OpenAPI 3.0.3, `v16.1.0`, `75` endpoints) |
 | **Kiểm tra sức khỏe hệ thống (Healthcheck)** | `http://localhost:8000/api/v1/health` | Kiểm tra kết nối MySQL/PDO, độ trễ truy vấn và runtime PHP |
 | **Nhánh Git chính thức** | `feat/truong-backend-stage3` | Repo `nguyenxuanhieu2903/kich-ban-sat-php` |
 | **Tài liệu vận hành (SOP) & Bảo vệ** | [CACH_VAN_HANH.md](CACH_VAN_HANH.md) · [TAI_LIEU_VAN_HANH_TOAN_DIEN_HE_THONG.md](docs/TAI_LIEU_VAN_HANH_TOAN_DIEN_HE_THONG.md) · [BO_CAU_HOI_PHAN_BIEN_VA_KICH_BAN_DEMO.md](docs/BO_CAU_HOI_PHAN_BIEN_VA_KICH_BAN_DEMO.md) | Quy trình chuẩn 4 vai trò và kịch bản thuyết trình |
+
+### Tài khoản đăng nhập nhanh (Bản Deploy & Local)
+
+| Vai trò | Họ tên | Email đăng nhập | Mật khẩu | Ghi chú |
+| :--- | :--- | :--- | :--- | :--- |
+| **Admin** | Nguyễn Xuân Hiếu | `nguyenxuanhieu@gmail.com` | `pass123456!` | Toàn quyền 7 tab `admin-portal.html` |
+| **Admin** | Lê Nguyễn Nhật Trường | `lenguyennhattruong@gmail.com` | `pass123456!` | Tài khoản quản trị thứ 2 |
+| **DM (Quản trò)** | Nguyễn Phạm Y Huỳnh | `nguyenphamyhuynh@gmail.com` | `pass123456@` | Cổng quản trò `dm-portal.html` |
+| **DM (Quản trò)** | Lê Hữu Châu | `lehuuchau@gmail.com` | `pass123456@` | Dùng chung mật khẩu với `nguyenanhthu@gmail.com`, `nguyenthithaonhu@gmail.com` |
+| **Player (Người chơi)** | Người chơi 01 | `nguoichoi01@gmail.com` | `pass123456#` | Có sẵn 50 tài khoản từ `nguoichoi01` đến `nguoichoi50` |
 
 ---
 
@@ -23,7 +33,7 @@ Hệ thống quản lý đặt phòng, ghép đội, xếp lịch, điều phố
 
 Hệ thống hoạt động theo mô hình **Front Controller hợp nhất** tại `backend/public/index.php`:
 - Mọi yêu cầu có tiền tố `/api/v1/*` (và tiền tố tương thích `/api/*`) được chuyển qua chuỗi Middleware (`CorsMiddleware` -> `RateLimitMiddleware` -> `CsrfMiddleware` -> `AuthMiddleware`) tới đúng Controller theo 9 phân hệ nghiệp vụ trong `backend/app/Features/`.
-- Mọi yêu cầu tới `/docs` và `/openapi.json` trả về tài liệu Swagger UI và đặc tả OpenAPI 3.0.3 (`73` endpoints).
+- Mọi yêu cầu tới `/docs` và `/openapi.json` trả về tài liệu Swagger UI và đặc tả OpenAPI 3.0.3 (`75` endpoints).
 - Mọi yêu cầu còn lại được định tuyến trực tiếp sang thư mục `frontend/` kèm cơ chế kiểm tra đường dẫn an toàn (chống Path Traversal) và trả đúng `Content-Type`. Nhờ chạy **Same-Origin**, cookie phiên `kbs_session_id` hoạt động ổn định, không bị trình duyệt chặn Cross-Site Cookie.
 - Hệ thống tích hợp **PSR-4 Fallback Autoloader** trong `backend/bootstrap/app.php`, giúp mã nguồn chạy được ngay bằng PHP thuần trên mọi môi trường (Docker, Laragon, XAMPP, InfinityFree) kể cả khi không cài `vendor/` của Composer.
 
@@ -273,7 +283,7 @@ SESSION_COOKIE_SAMESITE=Lax
 *(Lưu ý: nếu bật HTTPS/SSL cho domain, đổi `APP_URL` sang `https://...` và đặt `SESSION_COOKIE_SECURE=true`.)*
 
 ### Bước 4: Xác minh sau khi Deploy
-- Đảm bảo 3 thư mục có quyền ghi: `backend/storage/logs`, `backend/storage/rate_limits`, `backend/storage/uploads/student_cards`.
+- Đảm bảo 4 thư mục có quyền ghi: `backend/storage/logs`, `backend/storage/rate_limits`, `backend/storage/password_resets`, `backend/storage/uploads/student_cards`.
 - Kiểm tra `http://<domain>/api/v1/health` trả về `"status": "ok"` và `"database": {"status": "ok"}`.
 - Kiểm tra truy cập trực tiếp `http://<domain>/backend/.env` bị chặn với mã **403 Forbidden**.
 - Khi cập nhật mã nguồn lần sau, **không ghi đè** tệp `htdocs/backend/.env` trên server.
@@ -292,7 +302,9 @@ find backend/app -name "*.php" -exec php -l {} \;
 cd backend
 php vendor/bin/phpunit --testsuite Unit
 ```
-Kết quả chuẩn đã xác thực trên PHP 8.3.36: **`OK (49 tests, 168 assertions)`**.
+Kết quả chuẩn đã xác thực trên PHP 8.3.36:
+- Unit Suite (`php vendor/bin/phpunit --testsuite Unit`): **`OK (49 tests, 168 assertions)`**.
+- Toàn bộ Suite Unit + Integration + Feature (`php vendor/bin/phpunit`, gồm cả luồng Quên mật khẩu OTP, IDOR, Pricing 20:00, No-show & Hoàn cọc): **`OK (151 tests, 769 assertions)`**.
 
 *(Lưu ý khi chạy `--testsuite Feature` hoặc toàn bộ PHPUnit: các bài test tích hợp có thể tạo/sửa dữ liệu trong CSDL cấu hình tại `backend/.env`. Hãy sao lưu hoặc import lại `backend/database/kich_ban_sat_v3_clean.sql` sau khi chạy xong để khôi phục bộ dữ liệu demo sạch.)*
 
@@ -335,11 +347,12 @@ curl -s -b cookies.txt http://127.0.0.1:8000/api/v1/admin/dispatch-overview
 2. Vào `Kho kịch bản` (`/pages/scenarios.html`) -> kiểm tra đủ 42 kịch bản, thử lọc theo thể loại/số người/từ khóa.
 3. Chọn một kịch bản bất kỳ (`/pages/scenario-detail.html?id=...`) -> kiểm tra thông tin cấu trúc vai, bảng giá ngày/tối và nút mở phòng.
 
-#### Kịch bản B — Người chơi (`PLAYER`: `nguoichoi01@gmail.com` / `pass123456#`)
-1. Đăng nhập tại `/pages/auth.html` -> kiểm tra tự chuyển về giao diện người chơi và hiển thị đúng tên tài khoản.
-2. Vào `/pages/create-room.html` -> chọn kịch bản, chi nhánh, giờ chơi, số ghế (`seats >= 1`) -> kiểm tra bảng báo giá tự động cập nhật và tạo phòng mới thành công.
-3. Vào chi tiết phòng `/pages/room-detail.html?id=...` -> kiểm tra tạo đề xuất lịch (ô giờ kết thúc tự động khóa đúng `duration_minutes`), bỏ phiếu biểu quyết, bấm đóng cọc `50.000 đ/ghế`.
-4. Vào `/pages/profile.html` -> kiểm tra lịch sử phòng chơi, thử tải ảnh thẻ HSSV (`jpg/png/webp`), và kiểm tra hiển thị trạng thái hoàn cọc.
+#### Kịch bản B — Người chơi (`PLAYER`: `nguoichoi01@gmail.com` / `pass123456#`, SĐT `0903000001`)
+1. Đăng nhập tại `/pages/auth.html` bằng Email hoặc Số điện thoại (`0903000001`) -> kiểm tra tự chuyển về giao diện người chơi và hiển thị đúng tên tài khoản.
+2. Kiểm thử **Quên mật khẩu 2 bước OTP** trên `/pages/auth.html` -> bấm `Quên mật khẩu?` -> nhập Email + SĐT đã đăng ký (`POST /api/v1/auth/forgot-password`, hiệu lực 10 phút, tối đa 5 lần sai) -> nhập mã OTP 6 chữ số & mật khẩu mới (`POST /api/v1/auth/reset-password`) -> xác minh đăng nhập bằng mật khẩu mới thành công.
+3. Vào `/pages/create-room.html` -> chọn kịch bản, chi nhánh, giờ chơi (`09:00–21:00`), số ghế (`seats >= 1`) -> kiểm tra bảng báo giá tự động cập nhật và tạo phòng mới thành công.
+4. Vào chi tiết phòng `/pages/room-detail.html?id=...` -> kiểm tra tạo đề xuất lịch (ô giờ kết thúc tự động khóa đúng `duration_minutes`), bỏ phiếu biểu quyết, bấm đóng cọc `50.000 đ/ghế` và thanh toán phần còn lại.
+5. Vào `/pages/profile.html` -> kiểm tra lịch sử phòng chơi, thử tải ảnh thẻ HSSV (`jpg/png/webp`), và kiểm tra hiển thị trạng thái / gửi yêu cầu hoàn cọc qua Modal.
 
 #### Kịch bản C — Quản trò (`DM`: `nguyenphamyhuynh@gmail.com` / `pass123456@`)
 1. Đăng nhập tài khoản DM -> vào `/pages/dm-portal.html`.

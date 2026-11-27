@@ -111,6 +111,8 @@ HTML;
     $router->get($prefix . '/auth/me', [AuthController::class, 'me']);
     $router->get($prefix . '/auth/my-rooms', [AuthController::class, 'myRooms']);
     $router->post($prefix . '/auth/logout', [AuthController::class, 'logout']);
+    $router->post($prefix . '/auth/forgot-password', [AuthController::class, 'forgotPassword']);
+    $router->post($prefix . '/auth/reset-password', [AuthController::class, 'resetPassword']);
     $router->patch($prefix . '/auth/profile', [AuthController::class, 'updateProfile']);
     $router->post($prefix . '/auth/change-password', [AuthController::class, 'changePassword']);
     $router->post($prefix . '/auth/student-verification', [AuthController::class, 'requestStudentVerification']);

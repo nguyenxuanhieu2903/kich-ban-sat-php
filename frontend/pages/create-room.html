@@ -85,7 +85,7 @@
   <script type="module">
     import { initChrome } from '../src/logic/layout.js';
     import { api } from '../src/logic/api.js';
-    import { requireAuthRole, formatVND, showToast } from '../src/logic/portal-mock.js';
+    import { requireAuthRole, formatVND, escapeHtml, showToast } from '../src/logic/portal-mock.js';
 
     (async () => {
       const auth = await requireAuthRole(['player'], 'Tạo Phòng Chơi Mới');
@@ -126,9 +126,9 @@
         showToast('Lỗi tải dữ liệu đặt phòng: ' + err.message);
       }
 
-      scenarioSelect.innerHTML = games.map((g) => `<option value="${g.id}">${g.name || g.title} (${g.min_players || 4}–${g.max_players || 8} người)${(g.is_18_plus || Number(g.age_restriction || 0) >= 18) ? ' [18+]' : ''}</option>`).join('');
+      scenarioSelect.innerHTML = games.map((g) => `<option value="${escapeHtml(g.id)}">${escapeHtml(g.name || g.title)} (${Number(g.min_players || 4)}–${Number(g.max_players || 8)} người)${(g.is_18_plus || Number(g.age_restriction || 0) >= 18) ? ' [18+]' : ''}</option>`).join('');
       venueSelect.innerHTML = venues.length
-        ? venues.map((v) => `<option value="${v.id}">${v.name}${v.address ? ' — ' + v.address : ''}</option>`).join('')
+        ? venues.map((v) => `<option value="${escapeHtml(v.id)}">${escapeHtml(v.name)}${v.address ? ' — ' + escapeHtml(v.address) : ''}</option>`).join('')
         : '<option value="1">Cơ sở chính — 36/52 Nguyễn Gia Trí, Bình Thạnh</option>';
 
       const urlParams = new URLSearchParams(window.location.search);
@@ -201,21 +201,21 @@
           const promoNote = q.promotion_note || '';
 
           document.getElementById('quote-box').innerHTML = `
-            <div class="summary-row"><span>Kịch bản</span><strong>${q.game_name || g.name || ''}</strong></div>
-            <div class="summary-row"><span>Khung giờ</span><strong>${q.time_window || q.time_slot}</strong></div>
+            <div class="summary-row"><span>Kịch bản</span><strong>${escapeHtml(q.game_name || g.name || '')}</strong></div>
+            <div class="summary-row"><span>Khung giờ</span><strong>${escapeHtml(q.time_window || q.time_slot || '')}</strong></div>
             <div class="summary-row"><span>Số chỗ bạn giữ</span><strong>${selectedPlayers} / ${maxP} chỗ${guestSlots > 0 ? ` (còn ${guestSlots} chỗ trống)` : ' (đủ chỗ)'}</strong></div>
             <div class="summary-row"><span>Đơn giá gốc / người</span><strong>${formatVND(unitPrice)}</strong></div>
             ${discountAmt > 0 ? `
               <div class="summary-row"><span>Tạm tính gốc (${selectedPlayers} người)</span><strong>${formatVND(rawTotal)}</strong></div>
-              <div class="summary-row"><span>${promoName || 'Ưu đãi áp dụng'}</span><strong style="color:#1A5936;">-${formatVND(discountAmt)}</strong></div>
+              <div class="summary-row"><span>${escapeHtml(promoName || 'Ưu đãi áp dụng')}</span><strong style="color:#1A5936;">-${formatVND(discountAmt)}</strong></div>
             ` : ''}
             <div class="summary-row total"><span>Tổng thanh toán (${selectedPlayers} người)</span><span>${formatVND(finalTotal)}</span></div>
             <div class="summary-row"><span>Tiền cọc giữ chỗ (${selectedPlayers} × 50.000đ)</span><strong class="text-gold">${formatVND(depAmt)}</strong></div>
             <div class="summary-row"><span>Còn lại thanh toán tại quán</span><strong>${formatVND(remainingAmt)}</strong></div>
-            ${promoNote ? `<p class="text-muted" style="margin-top:10px;font-size:0.82rem;line-height:1.45;">${promoNote}</p>` : ''}
+            ${promoNote ? `<p class="text-muted" style="margin-top:10px;font-size:0.82rem;line-height:1.45;">${escapeHtml(promoNote)}</p>` : ''}
           `;
         } catch (err) {
-          document.getElementById('quote-box').innerHTML = `<p class="text-muted">Không tính được báo giá: ${err.message}</p>`;
+          document.getElementById('quote-box').innerHTML = `<p class="text-muted">Không tính được báo giá: ${escapeHtml(err.message)}</p>`;
         }
       }
 

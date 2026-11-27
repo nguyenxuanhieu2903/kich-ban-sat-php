@@ -97,19 +97,19 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   });
 
-  // 1. XỬ LÝ ĐĂNG NHẬP THẬT QUA BACKEND API (/api/v1/auth/login)
+  // 1. XỬ LÝ ĐĂNG NHẬP THẬT QUA BACKEND API (/api/v1/auth/login — hỗ trợ Email hoặc Số điện thoại)
   forms.login?.addEventListener('submit', async (e) => {
     e.preventDefault();
-    const email = document.getElementById('login-account').value.trim().toLowerCase();
+    const account = document.getElementById('login-account').value.trim();
     const password = document.getElementById('login-password').value;
 
-    if (!email || !password) {
-      showAlert('alert-login', 'error', 'Vui lòng nhập đầy đủ email và mật khẩu.');
+    if (!account || !password) {
+      showAlert('alert-login', 'error', 'Vui lòng nhập đầy đủ Email hoặc Số điện thoại và mật khẩu.');
       return;
     }
 
     try {
-      const data = await api.post('/auth/login', { email, password });
+      const data = await api.post('/auth/login', { email: account, password });
       const u = data?.user || data;
       const userRole = String(u?.role || u?.role_code || 'PLAYER').toLowerCase();
 
@@ -118,7 +118,7 @@ document.addEventListener('DOMContentLoaded', () => {
         id: u.id,
         name: u.full_name || u.name || u.email,
         phone: u.phone || '',
-        email: u.email || email,
+        email: u.email || account,
         avatar: String(u.full_name || u.email || 'US').slice(0, 2).toUpperCase()
       };
       store.setRole(userRole);
@@ -139,7 +139,7 @@ document.addEventListener('DOMContentLoaded', () => {
         window.location.href = redirectMap[userRole] || '../index.html';
       }, 500);
     } catch (err) {
-      showAlert('alert-login', 'error', err.message || 'Email hoặc mật khẩu không chính xác.');
+      showAlert('alert-login', 'error', err.message || 'Email/Số điện thoại hoặc mật khẩu không chính xác.');
     }
   });
 
@@ -186,53 +186,137 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  // 3. XỬ LÝ QUÊN MẬT KHẨU
-  let otpSent = false;
-  forms.forgot?.addEventListener('submit', (e) => {
+  // 3. KHÔI PHỤC MẬT KHẨU THẬT QUA BACKEND API (/auth/forgot-password -> /auth/reset-password)
+  const forgotStep1 = document.getElementById('forgot-step-1');
+  const forgotStep2 = document.getElementById('forgot-step-2');
+  const forgotOtpBox = document.getElementById('forgot-otp-box');
+  const btnForgotRequest = document.getElementById('btn-forgot-request');
+  const btnForgotReset = document.getElementById('btn-forgot-reset');
+  const btnForgotRestart = document.getElementById('btn-forgot-restart');
+  let verifiedForgotEmail = '';
+
+  function resetForgotSteps() {
+    verifiedForgotEmail = '';
+    if (forgotStep1) forgotStep1.style.display = 'flex';
+    if (forgotStep2) forgotStep2.style.display = 'none';
+    if (forgotOtpBox) {
+      forgotOtpBox.style.display = 'none';
+      forgotOtpBox.textContent = '';
+    }
+    const otpInput = document.getElementById('forgot-otp');
+    const newPassInput = document.getElementById('forgot-new-password');
+    const confirmInput = document.getElementById('forgot-confirm-password');
+    if (otpInput) otpInput.value = '';
+    if (newPassInput) newPassInput.value = '';
+    if (confirmInput) confirmInput.value = '';
+  }
+
+  document.getElementById('link-forgot')?.addEventListener('click', () => {
+    resetForgotSteps();
+  });
+
+  btnForgotRestart?.addEventListener('click', () => {
+    clearAlerts();
+    resetForgotSteps();
+  });
+
+  forms.forgot?.addEventListener('submit', async (e) => {
     e.preventDefault();
-    const recovery = document.getElementById('forgot-account').value.trim();
-    const otpStep = document.getElementById('otp-step');
-    const submitBtn = document.getElementById('btn-forgot-submit');
-
-    if (!recovery) {
-      showAlert('alert-forgot', 'error', 'Vui lòng nhập Email hoặc Số điện thoại của bạn.');
+    if (forgotStep2 && forgotStep2.style.display === 'flex') {
+      btnForgotReset?.click();
       return;
     }
 
-    if (!otpSent) {
-      otpSent = true;
-      otpStep.style.display = 'flex';
-      submitBtn.textContent = 'Xác nhận đổi mật khẩu';
-      showAlert('alert-forgot', 'success', `Đã gửi mã xác thực 6 số tới "${recovery}". (Demo: nhập 6 số bất kỳ để đặt lại mật khẩu)`);
+    const email = (document.getElementById('forgot-email')?.value || '').trim().toLowerCase();
+    const phone = (document.getElementById('forgot-phone')?.value || '').trim();
+
+    if (!email || !phone) {
+      showAlert('alert-forgot', 'error', 'Vui lòng nhập đầy đủ Email và Số điện thoại đã đăng ký.');
       return;
     }
 
-    const otp = document.getElementById('forgot-otp').value.trim();
-    const newPass = document.getElementById('forgot-new-pass').value;
+    if (btnForgotRequest) {
+      btnForgotRequest.disabled = true;
+      btnForgotRequest.textContent = 'Đang xác minh...';
+    }
 
-    if (otp.length < 4) {
-      showAlert('alert-forgot', 'error', 'Vui lòng nhập mã xác thực OTP.');
+    try {
+      const data = await api.post('/auth/forgot-password', { email, phone });
+      verifiedForgotEmail = data?.email || email;
+
+      if (forgotStep1) forgotStep1.style.display = 'none';
+      if (forgotStep2) forgotStep2.style.display = 'flex';
+
+      if (forgotOtpBox && data?.demo_otp) {
+        forgotOtpBox.style.display = 'block';
+        forgotOtpBox.innerHTML = '';
+        const titleNode = document.createElement('strong');
+        titleNode.style.color = '#8B1E1E';
+        titleNode.style.display = 'block';
+        titleNode.textContent = `Mã OTP xác thực cho ${verifiedForgotEmail}: ${data.demo_otp}`;
+        const noteNode = document.createElement('span');
+        noteNode.textContent = 'Mã có hiệu lực 10 phút (tối đa 5 lần nhập sai). Chế độ hiển thị OTP trực tiếp vì máy chủ demo chưa gắn SMTP.';
+        forgotOtpBox.appendChild(titleNode);
+        forgotOtpBox.appendChild(noteNode);
+      }
+
+      showAlert('alert-forgot', 'success', 'Xác minh thành công! Nhập mã OTP và mật khẩu mới để hoàn tất.');
+      document.getElementById('forgot-otp')?.focus();
+    } catch (err) {
+      showAlert('alert-forgot', 'error', err.message || 'Không thể xác minh Email và Số điện thoại.');
+    } finally {
+      if (btnForgotRequest) {
+        btnForgotRequest.disabled = false;
+        btnForgotRequest.textContent = 'Nhận Mã Xác Thực OTP';
+      }
+    }
+  });
+
+  btnForgotReset?.addEventListener('click', async () => {
+    const email = verifiedForgotEmail || (document.getElementById('forgot-email')?.value || '').trim().toLowerCase();
+    const otp = (document.getElementById('forgot-otp')?.value || '').trim();
+    const newPassword = document.getElementById('forgot-new-password')?.value || '';
+    const confirmPassword = document.getElementById('forgot-confirm-password')?.value || '';
+
+    if (!email || !otp || !newPassword) {
+      showAlert('alert-forgot', 'error', 'Vui lòng nhập đầy đủ mã OTP và mật khẩu mới.');
       return;
     }
-    if (newPass.length < 6) {
+    if (otp.length !== 6) {
+      showAlert('alert-forgot', 'error', 'Mã OTP phải gồm đúng 6 chữ số.');
+      return;
+    }
+    if (newPassword.length < 6) {
       showAlert('alert-forgot', 'error', 'Mật khẩu mới phải có ít nhất 6 ký tự.');
       return;
     }
-
-    const savedUsers = JSON.parse(localStorage.getItem('KBS_USERS') || '[]');
-    const idx = savedUsers.findIndex((u) => u.email === recovery || u.phone === recovery);
-    if (idx !== -1) {
-      savedUsers[idx].password = newPass;
-      localStorage.setItem('KBS_USERS', JSON.stringify(savedUsers));
+    if (newPassword !== confirmPassword) {
+      showAlert('alert-forgot', 'error', 'Mật khẩu xác nhận không khớp.');
+      return;
     }
 
-    otpSent = false;
-    otpStep.style.display = 'none';
-    submitBtn.textContent = 'Gửi mã xác thực';
-    forms.forgot.reset();
+    btnForgotReset.disabled = true;
+    btnForgotReset.textContent = 'Đang cập nhật...';
 
-    window.location.hash = 'login';
-    switchTab('login');
-    showAlert('alert-login', 'success', 'Đổi mật khẩu thành công! Vui lòng đăng nhập lại bằng mật khẩu mới.');
+    try {
+      await api.post('/auth/reset-password', {
+        email,
+        otp,
+        new_password: newPassword,
+        confirm_password: confirmPassword
+      });
+
+      resetForgotSteps();
+      window.location.hash = 'login';
+      switchTab('login');
+      const loginAccount = document.getElementById('login-account');
+      if (loginAccount) loginAccount.value = email;
+      showAlert('alert-login', 'success', 'Đặt lại mật khẩu thành công! Vui lòng đăng nhập bằng mật khẩu mới.');
+    } catch (err) {
+      showAlert('alert-forgot', 'error', err.message || 'Không thể đặt lại mật khẩu. Vui lòng kiểm tra mã OTP.');
+    } finally {
+      btnForgotReset.disabled = false;
+      btnForgotReset.textContent = 'Xác Nhận Đặt Lại Mật Khẩu';
+    }
   });
 });

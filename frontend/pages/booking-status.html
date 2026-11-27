@@ -22,12 +22,16 @@
     import { requireAuthRole, formatVND, escapeHtml, showToast, formatRoomStatus, formatPaymentStatus, formatPaymentType } from '../src/logic/portal-mock.js';
 
     const params = new URLSearchParams(window.location.search);
-    const roomId = params.get('id') || params.get('room_id') || '1';
+    const roomId = (params.get('id') || params.get('room_id') || '').trim();
     let currentAuthUser = null;
     let currentRole = 'guest';
 
     async function render() {
       const root = document.getElementById('booking-root');
+      if (!roomId) {
+        root.innerHTML = `<div class="portal-panel"><h2 class="portal-panel-title">Thiếu mã phòng đặt chỗ</h2><p class="text-muted" style="margin-bottom:14px;">Vui lòng mở vé từ trang Hồ sơ cá nhân hoặc Sảnh Ghép Phòng.</p><a href="./profile.html" class="btn btn-gold btn-sm">Xem Hồ Sơ Cá Nhân</a> <a href="./lobby.html" class="btn btn-ghost btn-sm">Sảnh Ghép Phòng</a></div>`;
+        return;
+      }
       try {
         const [roomData, payData] = await Promise.all([
           api.get(`/rooms/${encodeURIComponent(roomId)}`),
@@ -121,7 +125,7 @@
             <div>
               <div class="portal-eyebrow">VÉ ĐIỆN TỬ &amp; TRẠNG THÁI ĐẶT CHỖ</div>
               <h1 class="portal-title">Vé Điện Tử &amp; Trạng Thái Thanh Toán</h1>
-              <p class="portal-subtitle">Mã phòng: #${room.id} • Kịch bản: ${room.game?.name || room.title || ''}</p>
+              <p class="portal-subtitle">Mã phòng: #${room.id} • Kịch bản: ${escapeHtml(room.game?.name || room.title || '')}</p>
             </div>
             <div class="portal-actions">
               <a href="./room-detail.html?id=${encodeURIComponent(room.id)}" class="btn btn-ghost">Quay lại Phòng</a>

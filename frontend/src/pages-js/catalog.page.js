@@ -93,6 +93,10 @@ async function syncActiveScenariosFromApi() {
   }
 }
 
+function escHtml(s) {
+  return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
 function renderFilters() {
   const wrap = document.getElementById('catalog-genre-filters');
   if (!wrap) return;
@@ -100,8 +104,8 @@ function renderFilters() {
   const genres = ['Tất cả', ...new Set(ACTIVE_SCENARIOS.map((s) => s.genre).filter(Boolean))];
   if (!genres.includes(activeGenre)) activeGenre = 'Tất cả';
   wrap.innerHTML = genres.map((g) => `
-    <button type="button" class="btn btn-sm ${g === activeGenre ? 'btn-gold' : 'btn-ghost'}" data-genre="${g}">
-      ${g}
+    <button type="button" class="btn btn-sm ${g === activeGenre ? 'btn-gold' : 'btn-ghost'}" data-genre="${escHtml(g)}">
+      ${escHtml(g)}
     </button>
   `).join('');
 
@@ -132,22 +136,23 @@ function renderCatalog() {
   }
 
   grid.innerHTML = list.map((sc) => {
-    const title = sc.title || sc.name;
+    const title = String(sc.title || sc.name || '');
+    const safeTitle = escHtml(title);
     const posterFile = (sc.poster || '').split('/').pop();
-    const imgSrc = posterFile ? `../src/assets/images/${posterFile}` : '';
+    const imgSrc = posterFile ? `../src/assets/images/${encodeURIComponent(posterFile)}` : '';
     const fallbackUrl = `https://placehold.co/400x600/181512/D64545?text=${encodeURIComponent(title)}`;
 
     return `
-      <a href="./scenario-detail.html?id=${sc.id}"
+      <a href="./scenario-detail.html?id=${encodeURIComponent(sc.id)}"
          class="poster-card"
-         data-open-script="${sc.id}"
-         data-title="${title}"
+         data-open-script="${escHtml(sc.id)}"
+         data-title="${safeTitle}"
          data-18="${Boolean(sc.is18Plus)}">
         <div class="poster-thumb">
-          <img src="${imgSrc || fallbackUrl}" alt="${title}" loading="lazy" onerror="this.src='${fallbackUrl}'" />
+          <img src="${imgSrc || fallbackUrl}" alt="${safeTitle}" loading="lazy" onerror="this.src='${fallbackUrl}'" />
           ${sc.is18Plus ? '<span class="poster-tag">18+</span>' : ''}
         </div>
-        <h3 class="poster-title">${title}</h3>
+        <h3 class="poster-title">${safeTitle}</h3>
       </a>
     `;
   }).join('');

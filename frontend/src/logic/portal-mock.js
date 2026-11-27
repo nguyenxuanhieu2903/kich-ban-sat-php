@@ -160,6 +160,138 @@ export function showToast(message) {
   window.setTimeout(() => el.remove(), 3200);
 }
 
+/**
+ * Hộp thoại nhập liệu vintage dùng chung (thay thế hoàn toàn window.prompt của trình duyệt).
+ * Trả về Promise<string | null> (null nếu người dùng hủy).
+ */
+export function openPromptModal({
+  eyebrow = 'XÁC NHẬN THAO TÁC',
+  title = 'Nhập thông tin',
+  label = 'Nội dung / Lý do',
+  placeholder = '',
+  defaultValue = '',
+  confirmText = 'Xác nhận',
+  cancelText = 'Hủy bỏ',
+  required = true,
+  multiline = true,
+} = {}) {
+  return new Promise((resolve) => {
+    const existing = document.getElementById('kbs-shared-prompt-modal');
+    if (existing) existing.remove();
+
+    const overlay = document.createElement('div');
+    overlay.id = 'kbs-shared-prompt-modal';
+    overlay.setAttribute('role', 'dialog');
+    overlay.setAttribute('aria-modal', 'true');
+    overlay.style.cssText = 'position:fixed;inset:0;z-index:2200;background:rgba(15,12,10,0.72);display:flex;align-items:center;justify-content:center;padding:16px;';
+
+    const card = document.createElement('div');
+    card.style.cssText = 'background:#F7F3E7;color:#1F1C18;border:2px solid #8B1E1E;border-radius:10px;max-width:480px;width:100%;padding:22px 24px;box-shadow:0 24px 60px rgba(0,0,0,0.45);';
+
+    const head = document.createElement('div');
+    head.style.cssText = 'display:flex;justify-content:space-between;align-items:flex-start;gap:12px;border-bottom:1px solid rgba(139,30,30,0.2);padding-bottom:10px;margin-bottom:14px;';
+    const titleWrap = document.createElement('div');
+    const eyebrowEl = document.createElement('div');
+    eyebrowEl.style.cssText = 'font-size:0.72rem;font-weight:700;letter-spacing:0.08em;color:#8B1E1E;text-transform:uppercase;';
+    eyebrowEl.textContent = eyebrow;
+    const titleEl = document.createElement('h3');
+    titleEl.style.cssText = 'margin:4px 0 0;font-size:1.12rem;color:#1F1C18;line-height:1.3;';
+    titleEl.textContent = title;
+    titleWrap.appendChild(eyebrowEl);
+    titleWrap.appendChild(titleEl);
+
+    const closeBtn = document.createElement('button');
+    closeBtn.type = 'button';
+    closeBtn.className = 'btn btn-ghost btn-sm';
+    closeBtn.style.padding = '4px 10px';
+    closeBtn.textContent = 'Đóng';
+    head.appendChild(titleWrap);
+    head.appendChild(closeBtn);
+
+    const labelEl = document.createElement('label');
+    labelEl.style.cssText = 'display:block;font-size:0.82rem;font-weight:700;margin-bottom:6px;color:#4A4136;';
+    labelEl.textContent = label + (required ? ' *' : '');
+
+    const inputEl = multiline ? document.createElement('textarea') : document.createElement('input');
+    if (multiline) {
+      inputEl.rows = 3;
+      inputEl.style.cssText = 'width:100%;padding:10px 12px;border:1px solid #B5A894;border-radius:6px;background:#FFFDF7;color:#1F1C18;font-size:0.9rem;box-sizing:border-box;resize:vertical;font-family:inherit;line-height:1.45;';
+    } else {
+      inputEl.type = 'text';
+      inputEl.style.cssText = 'width:100%;padding:10px 12px;border:1px solid #B5A894;border-radius:6px;background:#FFFDF7;color:#1F1C18;font-size:0.9rem;box-sizing:border-box;font-family:inherit;';
+    }
+    inputEl.placeholder = placeholder;
+    inputEl.value = defaultValue;
+
+    const errEl = document.createElement('div');
+    errEl.style.cssText = 'display:none;margin-top:6px;font-size:0.8rem;color:#8B1E1E;font-weight:600;';
+
+    const footer = document.createElement('div');
+    footer.style.cssText = 'display:flex;justify-content:flex-end;gap:10px;margin-top:16px;';
+    const cancelBtn = document.createElement('button');
+    cancelBtn.type = 'button';
+    cancelBtn.className = 'btn btn-ghost btn-sm';
+    cancelBtn.textContent = cancelText;
+    const confirmBtn = document.createElement('button');
+    confirmBtn.type = 'button';
+    confirmBtn.className = 'btn btn-gold btn-sm';
+    confirmBtn.textContent = confirmText;
+    footer.appendChild(cancelBtn);
+    footer.appendChild(confirmBtn);
+
+    card.appendChild(head);
+    card.appendChild(labelEl);
+    card.appendChild(inputEl);
+    card.appendChild(errEl);
+    card.appendChild(footer);
+    overlay.appendChild(card);
+    document.body.appendChild(overlay);
+
+    let finished = false;
+    function cleanup(result) {
+      if (finished) return;
+      finished = true;
+      document.removeEventListener('keydown', onKeyDown);
+      overlay.remove();
+      resolve(result);
+    }
+
+    function submit() {
+      const val = String(inputEl.value || '').trim();
+      if (required && !val) {
+        errEl.textContent = 'Vui lòng nhập nội dung trước khi xác nhận.';
+        errEl.style.display = 'block';
+        inputEl.focus();
+        return;
+      }
+      cleanup(val);
+    }
+
+    function onKeyDown(ev) {
+      if (ev.key === 'Escape') {
+        ev.preventDefault();
+        cleanup(null);
+      } else if (ev.key === 'Enter' && (!multiline || ev.ctrlKey)) {
+        ev.preventDefault();
+        submit();
+      }
+    }
+
+    document.addEventListener('keydown', onKeyDown);
+    closeBtn.addEventListener('click', () => cleanup(null));
+    cancelBtn.addEventListener('click', () => cleanup(null));
+    confirmBtn.addEventListener('click', submit);
+    overlay.addEventListener('click', (ev) => {
+      if (ev.target === overlay) cleanup(null);
+    });
+
+    window.setTimeout(() => {
+      inputEl.focus();
+      if (defaultValue) inputEl.select();
+    }, 20);
+  });
+}
+
 function getScenarioByIndex(idx) {
   const s = ALL_SCENARIOS[idx] || ALL_SCENARIOS[0] || {};
   return {

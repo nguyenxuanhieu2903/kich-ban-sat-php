@@ -10,7 +10,7 @@ WORKDIR /var/www
 COPY backend /var/www/backend
 COPY frontend /var/www/frontend
 
-RUN mkdir -p /var/www/backend/storage/uploads/student_cards /var/www/backend/storage/logs /var/www/backend/storage/rate_limits \
+RUN mkdir -p /var/www/backend/storage/uploads/student_cards /var/www/backend/storage/logs /var/www/backend/storage/rate_limits /var/www/backend/storage/password_resets \
     && chmod -R 775 /var/www/backend/storage
 
 EXPOSE 8000

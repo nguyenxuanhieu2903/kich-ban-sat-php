@@ -37,6 +37,8 @@ backend/storage/uploads/*
 !backend/storage/uploads/.gitkeep
 backend/storage/rate_limits/*
 !backend/storage/rate_limits/.gitkeep
+backend/storage/password_resets/*
+!backend/storage/password_resets/.gitkeep
 
 # Local Scratch & Debug Dumps
 scratch/

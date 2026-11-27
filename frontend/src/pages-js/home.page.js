@@ -11,6 +11,10 @@ const SCENARIOS = ScriptData.SCENARIOS
   || [];
 const FORMAT_VND = ScriptData.FORMAT_VND || formatVND;
 
+function escHtml(s) {
+  return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
 initChrome('home');
 
 /* =========================================================
@@ -190,7 +194,7 @@ async function renderOpenRooms() {
 
   const isPlayerRole = userRole === 'PLAYER';
   if (!rooms.length) {
-    grid.innerHTML = `<p class="text-muted">${isPlayerRole ? 'Hiện chưa có phòng mở công khai. Hãy tự tạo phòng mới!' : 'Hiện chưa có phòng đang tuyển công khai.'}</p>`;
+    grid.innerHTML = `<p class="text-muted">${isPlayerRole ? 'Hiện chưa có phòng nào đang tuyển người chơi. Hãy tự tạo phòng mới!' : 'Hiện chưa có phòng nào đang tuyển người chơi.'}</p>`;
     return;
   }
 
@@ -202,14 +206,14 @@ async function renderOpenRooms() {
       <div class="paper-ticket" style="padding:20px; display:flex; flex-direction:column; justify-content:space-between; gap:14px;">
         <div>
           <div style="display:flex; justify-content:space-between; align-items:center; gap:8px; margin-bottom:10px;">
-            <span class="badge badge-18">PHÒNG #${r.id}</span>
+            <span class="badge badge-18">PHÒNG #${Number(r.id)}</span>
             <span class="badge ${missing > 0 ? 'badge-green' : 'badge-dark'}">${missing > 0 ? `Thiếu ${missing} người` : 'Đủ người'}</span>
           </div>
-          <h3 style="font-family:var(--font-display); font-size:1.25rem; margin-bottom:6px;">${r.game_name || r.title || 'Kịch bản bí ẩn'}</h3>
-          <p style="font-size:0.86rem; color:var(--ink-muted);">Khung giờ dự kiến: ${r.target_time_slot || 'Đang cập nhật'}</p>
+          <h3 style="font-family:var(--font-display); font-size:1.25rem; margin-bottom:6px;">${escHtml(r.game_name || r.title || 'Kịch bản bí ẩn')}</h3>
+          <p style="font-size:0.86rem; color:var(--ink-muted);">Khung giờ dự kiến: ${escHtml(r.target_time_slot || 'Đang cập nhật')}</p>
           <p style="font-size:0.86rem; color:var(--ink-muted);">Sĩ số: ${filledSlots}/${max} người chơi</p>
         </div>
-        <a href="./pages/room-detail.html?id=${r.id}" class="btn btn-crimson btn-sm">${isPlayerRole ? 'Xem chi tiết &amp; Vào ghế' : 'Xem chi tiết phòng'}</a>
+        <a href="./pages/room-detail.html?id=${encodeURIComponent(r.id)}" class="btn btn-crimson btn-sm">${isPlayerRole ? 'Xem chi tiết &amp; Vào ghế' : 'Xem chi tiết phòng'}</a>
       </div>
     `;
   }).join('');
@@ -303,8 +307,8 @@ function renderGenreFilters() {
   const genres = ['Tất cả', ...new Set(ACTIVE_SCENARIOS.map((s) => s.genre).filter(Boolean))];
   if (!genres.includes(activeGenre)) activeGenre = 'Tất cả';
   wrap.innerHTML = genres.map((g) => `
-    <button type="button" class="btn btn-sm ${g === activeGenre ? 'btn-gold' : 'btn-ghost'}" data-genre="${g}">
-      ${g}
+    <button type="button" class="btn btn-sm ${g === activeGenre ? 'btn-gold' : 'btn-ghost'}" data-genre="${escHtml(g)}">
+      ${escHtml(g)}
     </button>
   `).join('');
 
@@ -358,24 +362,26 @@ function renderFeaturedScripts() {
   }
 
   grid.innerHTML = list.map((sc) => {
-    const title = sc.title || sc.name;
+    const title = String(sc.title || sc.name || '');
+    const safeTitle = escHtml(title);
     const posterFile = (sc.poster || '').split('/').pop();
-    const imgSrc = posterFile ? `./src/assets/images/${posterFile}` : '';
+    const imgSrc = posterFile ? `./src/assets/images/${encodeURIComponent(posterFile)}` : '';
+    const fallback = `https://placehold.co/400x600/181512/D64545?text=${encodeURIComponent(title)}`;
 
     return `
-      <a href="./pages/scenario-detail.html?id=${sc.id}"
+      <a href="./pages/scenario-detail.html?id=${encodeURIComponent(sc.id)}"
          class="poster-card"
-         data-open-script="${sc.id}"
-         data-title="${title}"
+         data-open-script="${escHtml(sc.id)}"
+         data-title="${safeTitle}"
          data-18="${Boolean(sc.is18Plus)}">
-        <div class="poster-thumb" style="background:${sc.coverGrad || '#181512'};">
+        <div class="poster-thumb" style="background:${escHtml(sc.coverGrad || '#181512')};">
           ${imgSrc
-            ? `<img src="${imgSrc}" alt="${title}" loading="lazy" onerror="this.src='https://placehold.co/400x600/181512/D64545?text=${encodeURIComponent(title)}'" />`
-            : `<img src="https://placehold.co/400x600/181512/D64545?text=${encodeURIComponent(title)}" alt="${title}" loading="lazy" />`
+            ? `<img src="${imgSrc}" alt="${safeTitle}" loading="lazy" onerror="this.src='${fallback}'" />`
+            : `<img src="${fallback}" alt="${safeTitle}" loading="lazy" />`
           }
           ${sc.is18Plus ? '<span class="poster-tag">18+</span>' : ''}
         </div>
-        <h3 class="poster-title">${title}</h3>
+        <h3 class="poster-title">${safeTitle}</h3>
       </a>
     `;
   }).join('');

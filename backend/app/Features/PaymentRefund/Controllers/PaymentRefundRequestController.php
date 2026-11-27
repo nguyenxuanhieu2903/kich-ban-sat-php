@@ -53,72 +53,108 @@ class PaymentRefundRequestController
             return Response::fail('Khoản thanh toán chưa có tiền đã nộp để hoàn lại', 'NO_PAID_AMOUNT', 400);
         }
 
-        // Chặn gửi lại nếu khoản thanh toán này đã từng có yêu cầu hoàn tiền (kể cả chờ duyệt, đã duyệt, hoàn tất hay bị từ chối)
-        $dupStmt = $this->pdo->prepare(
-            'SELECT `id`, `status` FROM `refunds`
-             WHERE `player_payment_id` = :pid
-               AND `status` IN (\'PENDING\', \'APPROVED\', \'PROCESSING\', \'COMPLETED\', \'REJECTED\')
-             ORDER BY `id` DESC LIMIT 1'
-        );
-        $dupStmt->bindValue(':pid', $paymentId, PDO::PARAM_INT);
-        $dupStmt->execute();
-        $existingRef = $dupStmt->fetch(PDO::FETCH_ASSOC);
-        if ($existingRef !== false) {
-            $exStatus = strtoupper((string) ($existingRef['status'] ?? ''));
-            $errMsg = match ($exStatus) {
-                'REJECTED' => 'Yêu cầu hoàn tiền cho khoản này đã bị Quản trị viên từ chối trước đó, không thể gửi lại.',
-                'APPROVED', 'PROCESSING' => 'Yêu cầu hoàn tiền cho khoản này đã được Quản trị viên phê duyệt, không thể gửi thêm.',
-                'COMPLETED' => 'Khoản thanh toán này đã được hoàn tiền hoàn tất.',
-                default => 'Đã tồn tại yêu cầu hoàn tiền đang chờ Quản trị viên xét duyệt cho khoản này.',
-            };
-            return Response::fail($errMsg, 'DUPLICATE_REFUND_REQUEST', 409);
-        }
-
         $body = $request->getBodyParams();
         $reason = trim((string) ($body['reason'] ?? ''));
         if ($reason === '') {
             return Response::fail('Vui lòng nhập rõ lý do yêu cầu hoàn tiền.', 'VALIDATION_ERROR', 422);
         }
 
-        // Kiểm tra mốc 24h trước giờ chơi nếu có session (chặn hoàn cọc nếu buổi chơi đã COMPLETED)
-        $roomId = (int) $payment['game_room_id'];
-        $sessStmt = $this->pdo->prepare(
-            'SELECT `start_at`, `status` FROM `sessions` WHERE `game_room_id` = :rid AND `status` IN (\'SCHEDULED\', \'IN_PROGRESS\', \'COMPLETED\') ORDER BY `id` DESC LIMIT 1'
-        );
-        $sessStmt->bindValue(':rid', $roomId, PDO::PARAM_INT);
-        $sessStmt->execute();
-        $sessRow = $sessStmt->fetch(PDO::FETCH_ASSOC);
-
-        if ($sessRow !== false) {
-            $allowForceRefund = ($roleCode === 'ADMIN' && !empty($body['force_refund']));
-            if (strtoupper((string) ($sessRow['status'] ?? '')) === 'COMPLETED' && !$allowForceRefund) {
-                return Response::fail(
-                    'Không thể yêu cầu hoàn tiền cho buổi chơi đã hoàn tất',
-                    'SESSION_ALREADY_COMPLETED',
-                    422
-                );
+        // Bọc Transaction + SELECT ... FOR UPDATE trên player_payments để triệt tiêu Race Condition bấm đúp tạo trùng đơn hoàn
+        $startedTx = !$this->pdo->inTransaction();
+        if ($startedTx) {
+            $this->pdo->beginTransaction();
+        }
+        try {
+            $lockPay = $this->pdo->prepare('SELECT `id`, `status`, `paid_amount` FROM `player_payments` WHERE `id` = :pid LIMIT 1 FOR UPDATE');
+            $lockPay->bindValue(':pid', $paymentId, PDO::PARAM_INT);
+            $lockPay->execute();
+            $lockedRow = $lockPay->fetch(PDO::FETCH_ASSOC);
+            if ($lockedRow === false || strtoupper((string) ($lockedRow['status'] ?? '')) === 'CANCELLED') {
+                if ($startedTx && $this->pdo->inTransaction()) {
+                    $this->pdo->rollBack();
+                }
+                return Response::fail('Khoản thanh toán này đã được hủy hoặc hoàn tiền trước đó', 'PAYMENT_ALREADY_CANCELLED', 409);
             }
-            $startAt = $sessRow['start_at'] ?? null;
-            if ($startAt !== null) {
-                $diffHours = (strtotime((string) $startAt) - time()) / 3600;
-                if ($diffHours < 24 && !$allowForceRefund) {
+
+            // Chặn gửi lại nếu khoản thanh toán này đã từng có yêu cầu hoàn tiền
+            $dupStmt = $this->pdo->prepare(
+                'SELECT `id`, `status` FROM `refunds`
+                 WHERE `player_payment_id` = :pid
+                   AND `status` IN (\'PENDING\', \'APPROVED\', \'PROCESSING\', \'COMPLETED\', \'REJECTED\')
+                 ORDER BY `id` DESC LIMIT 1'
+            );
+            $dupStmt->bindValue(':pid', $paymentId, PDO::PARAM_INT);
+            $dupStmt->execute();
+            $existingRef = $dupStmt->fetch(PDO::FETCH_ASSOC);
+            if ($existingRef !== false) {
+                if ($startedTx && $this->pdo->inTransaction()) {
+                    $this->pdo->rollBack();
+                }
+                $exStatus = strtoupper((string) ($existingRef['status'] ?? ''));
+                $errMsg = match ($exStatus) {
+                    'REJECTED' => 'Yêu cầu hoàn tiền cho khoản này đã bị Quản trị viên từ chối trước đó, không thể gửi lại.',
+                    'APPROVED', 'PROCESSING' => 'Yêu cầu hoàn tiền cho khoản này đã được Quản trị viên phê duyệt, không thể gửi thêm.',
+                    'COMPLETED' => 'Khoản thanh toán này đã được hoàn tiền hoàn tất.',
+                    default => 'Đã tồn tại yêu cầu hoàn tiền đang chờ Quản trị viên xét duyệt cho khoản này.',
+                };
+                return Response::fail($errMsg, 'DUPLICATE_REFUND_REQUEST', 409);
+            }
+
+            // Kiểm tra mốc 24h trước giờ chơi nếu có session (chặn hoàn cọc nếu buổi chơi đã COMPLETED)
+            $roomId = (int) $payment['game_room_id'];
+            $sessStmt = $this->pdo->prepare(
+                'SELECT `start_at`, `status` FROM `sessions` WHERE `game_room_id` = :rid AND `status` IN (\'SCHEDULED\', \'IN_PROGRESS\', \'COMPLETED\') ORDER BY `id` DESC LIMIT 1'
+            );
+            $sessStmt->bindValue(':rid', $roomId, PDO::PARAM_INT);
+            $sessStmt->execute();
+            $sessRow = $sessStmt->fetch(PDO::FETCH_ASSOC);
+
+            if ($sessRow !== false) {
+                $allowForceRefund = ($roleCode === 'ADMIN' && !empty($body['force_refund']));
+                if (strtoupper((string) ($sessRow['status'] ?? '')) === 'COMPLETED' && !$allowForceRefund) {
+                    if ($startedTx && $this->pdo->inTransaction()) {
+                        $this->pdo->rollBack();
+                    }
                     return Response::fail(
-                        'Chỉ có thể yêu cầu hoàn tiền trước giờ chơi ít nhất 24 giờ',
-                        'REFUND_WINDOW_EXPIRED',
+                        'Không thể yêu cầu hoàn tiền cho buổi chơi đã hoàn tất',
+                        'SESSION_ALREADY_COMPLETED',
                         422
                     );
                 }
+                $startAt = $sessRow['start_at'] ?? null;
+                if ($startAt !== null) {
+                    $diffHours = (strtotime((string) $startAt) - time()) / 3600;
+                    if ($diffHours < 24 && !$allowForceRefund) {
+                        if ($startedTx && $this->pdo->inTransaction()) {
+                            $this->pdo->rollBack();
+                        }
+                        return Response::fail(
+                            'Chỉ có thể yêu cầu hoàn tiền trước giờ chơi ít nhất 24 giờ',
+                            'REFUND_WINDOW_EXPIRED',
+                            422
+                        );
+                    }
+                }
             }
-        }
 
-        $refundId = $this->paymentRepo->createRefund(
-            $paymentId,
-            (int) $payment['room_participant_id'],
-            $paidAmount,
-            $reason,
-            'FULL',
-            (int) $auth['id']
-        );
+            $refundId = $this->paymentRepo->createRefund(
+                $paymentId,
+                (int) $payment['room_participant_id'],
+                $paidAmount,
+                $reason,
+                'FULL',
+                (int) $auth['id']
+            );
+
+            if ($startedTx && $this->pdo->inTransaction()) {
+                $this->pdo->commit();
+            }
+        } catch (\Throwable $e) {
+            if ($startedTx && $this->pdo->inTransaction()) {
+                $this->pdo->rollBack();
+            }
+            throw $e;
+        }
 
         // Gửi thông báo ngay tới tất cả Quản trị viên kèm rõ lý do hoàn tiền từ phía người chơi
         try {
@@ -177,7 +213,8 @@ class PaymentRefundRequestController
             $stmt = $this->pdo->prepare('SELECT p.`id` FROM `player_payments` p
                 INNER JOIN `room_participants` rp ON rp.`id` = p.`room_participant_id`
                 WHERE rp.`game_room_id` = :room_id AND rp.`user_id` = :user_id
-                  AND rp.`status` IN (\'PENDING_DEPOSIT\', \'DEPOSITED\', \'LEAVE_REQUESTED\')
+                  AND rp.`status` IN (\'PENDING_DEPOSIT\', \'DEPOSITED\', \'LEAVE_REQUESTED\', \'LEFT\', \'CANCELLED_BY_ADMIN\', \'CANCELLED_UNPAID\')
+                  AND p.`status` != \'CANCELLED\'
                   AND p.`paid_amount` > 0
                   AND NOT EXISTS (
                       SELECT 1 FROM `refunds` r

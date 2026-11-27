@@ -348,7 +348,7 @@
         <span class="hero-kicker">36/52 NGUYỄN GIA TRÍ • BÌNH THẠNH</span>
         <h1 class="hero-title">KỊCH BẢN <span class="text-crimson">SÁT</span></h1>
         <p class="hero-desc">
-          Chọn kịch bản, ghép đủ 5–8 người, giữ chỗ trong 4 giờ. Hung thủ đang ngồi ngay trong phòng.
+          Chọn kịch bản, ghép đủ 5–8 người, giữ chỗ trong 2 giờ. Hung thủ đang ngồi ngay trong phòng.
         </p>
         <div class="hero-cta-row">
           <a href="./pages/scenarios.html" class="btn btn-gold">Khám phá kịch bản</a>
@@ -729,14 +729,16 @@
           <h2 class="section-title">Kịch bản nổi bật</h2>
         </div>
         <div class="script-search-box">
-          <span class="search-icon">🔍</span>
+          <span class="search-icon" aria-hidden="true">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+          </span>
           <input
             type="text"
             id="script-search-input"
             placeholder="Tìm tên kịch bản..."
             autocomplete="off"
           />
-          <button type="button" id="script-search-clear" title="Xóa tìm kiếm" style="display:none;">✕</button>
+          <button type="button" id="script-search-clear" title="Xóa tìm kiếm" style="display:none;">x</button>
         </div>
       </div>
       <div class="filter-pills" id="home-genre-filters"></div>
@@ -768,8 +770,8 @@
         </div>
         <div class="step-card">
           <div class="step-num">3</div>
-          <h3 style="margin-bottom:6px;">Cọc 50.000đ/người trong 4 giờ</h3>
-          <p class="text-muted" style="font-size:0.9rem;">Hệ thống giữ chỗ 4 giờ để hoàn tất chuyển khoản cọc và nhận mã QR.</p>
+          <h3 style="margin-bottom:6px;">Cọc 50.000đ/người trong 2 giờ</h3>
+          <p class="text-muted" style="font-size:0.9rem;">Hệ thống giữ chỗ 2 giờ sau khi chốt lịch để hoàn tất đặt cọc và xác nhận vé điện tử.</p>
         </div>
         <div class="step-card">
           <div class="step-num">4</div>
@@ -783,12 +785,12 @@
         <div class="paper-ticket policy-ticket">
           <span class="badge badge-18">CỌC CỐ ĐỊNH</span>
           <h3 style="font-family:var(--font-display);font-size:1.4rem;margin:10px 0 6px;">Cọc 50.000đ / người</h3>
-          <p style="font-size:0.9rem;color:var(--ink-muted);">Khấu trừ trực tiếp vào tiền vé khi thanh toán phần còn lại tại quán. Mã QR mở khóa ngay sau khi cọc.</p>
+          <p style="font-size:0.9rem;color:var(--ink-muted);">Khấu trừ trực tiếp vào tiền vé khi thanh toán phần còn lại tại quán. Vé điện tử xác nhận ngay sau khi cọc.</p>
         </div>
         <div class="paper-ticket policy-ticket">
           <span class="badge badge-18">THỜI HẠN GIỮ GHẾ</span>
-          <h3 style="font-family:var(--font-display);font-size:1.4rem;margin:10px 0 6px;">Giữ chỗ 4 giờ</h3>
-          <p style="font-size:0.9rem;color:var(--ink-muted);">Đồng hồ đếm ngược 4 giờ kích hoạt ngay khi tạo hoặc giữ ghế. Quá 4 giờ chưa cọc ghế sẽ tự động mở lại.</p>
+          <h3 style="font-family:var(--font-display);font-size:1.4rem;margin:10px 0 6px;">Giữ chỗ 2 giờ</h3>
+          <p style="font-size:0.9rem;color:var(--ink-muted);">Đồng hồ đếm ngược 2 giờ kích hoạt sau khi chốt lịch. Quá 2 giờ chưa cọc ghế sẽ tự động mở lại.</p>
         </div>
         <div class="paper-ticket policy-ticket">
           <span class="badge badge-18">BẢO VỆ NGƯỜI CHƠI</span>

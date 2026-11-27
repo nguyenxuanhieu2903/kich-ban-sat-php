@@ -23,7 +23,7 @@
     import { requireAuthRole, escapeHtml, showToast, formatRoomStatus, formatParticipantStatus } from '../src/logic/portal-mock.js';
 
     const params = new URLSearchParams(window.location.search);
-    const roomId = params.get('id') || '1';
+    const roomId = (params.get('id') || '').trim();
     let sessionInfo = { user: null, role: 'guest' };
 
     function ensureLogin() {
@@ -37,6 +37,10 @@
 
     async function render() {
       const root = document.getElementById('room-detail-root');
+      if (!roomId) {
+        root.innerHTML = `<div class="portal-panel"><h2 class="portal-panel-title">Thiếu mã phòng chơi</h2><p class="text-muted" style="margin-bottom:14px;">Đường dẫn hiện tại không có tham số <code>?id=</code>. Vui lòng chọn phòng từ Sảnh Ghép Phòng.</p><a href="./lobby.html" class="btn btn-gold btn-sm">Về Sảnh Ghép Phòng</a></div>`;
+        return;
+      }
       try {
         const data = await api.get(`/rooms/${encodeURIComponent(roomId)}`);
         const room = data?.room || data;
@@ -47,6 +51,14 @@
         const myPart = participants.find((p) => Number(p.user_id) === myId && !['LEFT', 'CANCELLED', 'CANCELLED_UNPAID', 'CANCELLED_BY_ADMIN'].includes(String(p.status)));
         const activeParts = participants.filter((p) => !['LEFT', 'CANCELLED', 'CANCELLED_UNPAID', 'CANCELLED_BY_ADMIN'].includes(String(p.status)));
         const isPlayer = sessionInfo?.role === 'player';
+        let reviews = [];
+        if (room.status === 'COMPLETED' && room.session?.id) {
+          try {
+            const rvRes = await api.get(`/sessions/${encodeURIComponent(room.session.id)}/reviews`);
+            reviews = rvRes?.reviews || rvRes?.items || (Array.isArray(rvRes) ? rvRes : []);
+          } catch { reviews = []; }
+        }
+        const alreadyReviewed = reviews.some((rv) => Number(rv.user_id || rv.reviewer_id || rv.actor_id) === myId);
         const mySeatCount = Number(myPart?.seats || 1);
         const myDepAmt = mySeatCount * 50000;
         const occupiedSeats = Number(room.current_players ?? activeParts.length);
@@ -141,20 +153,40 @@
                 })()}
               </section>
 
-              ${isPlayer && myPart && room.status === 'COMPLETED' && room.session?.id ? `
+              ${room.status === 'COMPLETED' && room.session?.id ? `
                 <section class="portal-panel">
-                  <h2 class="portal-panel-title">Đánh Giá Sau Buổi Chơi</h2>
-                  <form id="review-form" style="display:flex;flex-direction:column;gap:10px;">
-                    <select id="review-rating" class="portal-select">
-                      <option value="5">5 sao — Xuất sắc</option>
-                      <option value="4">4 sao — Rất tốt</option>
-                      <option value="3">3 sao — Khá ổn</option>
-                      <option value="2">2 sao — Cần cải thiện</option>
-                      <option value="1">1 sao — Chưa hài lòng</option>
-                    </select>
-                    <textarea id="review-comment" class="portal-input" rows="2" placeholder="Chia sẻ cảm nhận của bạn về kịch bản và Quản trò..."></textarea>
-                    <button type="submit" class="btn btn-gold btn-sm" style="align-self:flex-start;">Gửi đánh giá</button>
-                  </form>
+                  <h2 class="portal-panel-title">Đánh Giá Sau Buổi Chơi (${reviews.length})</h2>
+                  ${isPlayer && myPart && !alreadyReviewed ? `
+                    <form id="review-form" style="display:flex;flex-direction:column;gap:10px;margin-bottom:16px;">
+                      <select id="review-rating" class="portal-select">
+                        <option value="5">5 sao — Xuất sắc</option>
+                        <option value="4">4 sao — Rất tốt</option>
+                        <option value="3">3 sao — Khá ổn</option>
+                        <option value="2">2 sao — Cần cải thiện</option>
+                        <option value="1">1 sao — Chưa hài lòng</option>
+                      </select>
+                      <textarea id="review-comment" class="portal-input" rows="2" placeholder="Chia sẻ cảm nhận của bạn về kịch bản và Quản trò..."></textarea>
+                      <button type="submit" class="btn btn-gold btn-sm" style="align-self:flex-start;">Gửi đánh giá</button>
+                    </form>
+                  ` : (isPlayer && myPart && alreadyReviewed ? `<p class="v-badge v-badge-green" style="margin-bottom:14px;">Bạn đã gửi đánh giá cho buổi chơi này.</p>` : '')}
+                  ${reviews.length ? `
+                    <div style="display:flex;flex-direction:column;gap:10px;">
+                      ${reviews.map((rv) => {
+                        const stars = Number(rv.scenario_rating || rv.dm_rating || rv.rating || 5);
+                        const author = rv.user_name || rv.full_name || rv.reviewer_name || ('Thành viên #' + (rv.user_id || rv.actor_id || ''));
+                        const txt = rv.review_text || rv.comment || '';
+                        return `
+                          <div class="sub-card" style="padding:12px;">
+                            <div style="display:flex;justify-content:space-between;gap:8px;margin-bottom:4px;">
+                              <strong>${escapeHtml(author)}</strong>
+                              <span style="color:#B45309;font-weight:700;">${stars}/5 sao</span>
+                            </div>
+                            <p class="text-muted" style="font-size:0.86rem;margin:0;">${escapeHtml(txt || 'Không có nhận xét thêm.')}</p>
+                          </div>
+                        `;
+                      }).join('')}
+                    </div>
+                  ` : '<p class="text-muted" style="font-size:0.86rem;">Chưa có đánh giá nào cho buổi chơi này.</p>'}
                 </section>
               ` : ''}
             </div>
@@ -164,10 +196,10 @@
                 <h2 class="portal-panel-title">Thông Tin Phòng &amp; Ca Chơi</h2>
                 <div class="summary-row"><span>Mã phòng</span><strong>#${room.id}</strong></div>
                 <div class="summary-row"><span>Trạng thái</span><strong>${escapeHtml(formatRoomStatus(room.status))}</strong></div>
-                <div class="summary-row"><span>Chi nhánh</span><strong>${room.session?.venue_name || room.venue?.name || room.target_venue_name || 'Chưa gán'}</strong></div>
-                ${room.session?.physical_room_name ? `<div class="summary-row"><span>Phòng vật lý</span><strong>${room.session.physical_room_name}</strong></div>` : ''}
-                ${room.session?.dm_name ? `<div class="summary-row"><span>Quản trò</span><strong>${room.session.dm_name}</strong></div>` : ''}
-                ${room.session?.start_at ? `<div class="summary-row"><span>Giờ bắt đầu</span><strong>${room.session.start_at}</strong></div>` : ''}
+                <div class="summary-row"><span>Chi nhánh</span><strong>${escapeHtml(room.session?.venue_name || room.venue?.name || room.target_venue_name || 'Chưa gán')}</strong></div>
+                ${room.session?.physical_room_name ? `<div class="summary-row"><span>Phòng vật lý</span><strong>${escapeHtml(room.session.physical_room_name)}</strong></div>` : ''}
+                ${room.session?.dm_name ? `<div class="summary-row"><span>Quản trò</span><strong>${escapeHtml(room.session.dm_name)}</strong></div>` : ''}
+                ${room.session?.start_at ? `<div class="summary-row"><span>Giờ bắt đầu</span><strong>${escapeHtml(room.session.start_at)}</strong></div>` : ''}
                 <div class="summary-row"><span>Số người tối thiểu</span><strong>${room.min_players || game.min_players || 4} người</strong></div>
                 <p class="text-muted" style="margin-top:12px;font-size:0.86rem;">${escapeHtml(room.description || 'Không có mô tả thêm.')}</p>
               </section>
@@ -202,16 +234,22 @@
         document.getElementById('review-form')?.addEventListener('submit', async (e) => {
           e.preventDefault();
           if (!ensureLogin()) return;
+          const ratingVal = Number(document.getElementById('review-rating').value);
+          const commentVal = document.getElementById('review-comment').value.trim();
           try {
             await api.post(`/sessions/${room.session.id}/reviews`, {
-              rating: Number(document.getElementById('review-rating').value),
-              comment: document.getElementById('review-comment').value.trim(),
+              rating: ratingVal,
+              dm_rating: ratingVal,
+              scenario_rating: ratingVal,
+              comment: commentVal,
+              review_text: commentVal,
             });
             showToast('Cảm ơn bạn đã gửi đánh giá buổi chơi.');
+            render();
           } catch (err) { showToast(err.message); }
         });
       } catch (err) {
-        root.innerHTML = `<div class="portal-panel">Không tìm thấy phòng chơi #${roomId}: ${err.message}</div>`;
+        root.innerHTML = `<div class="portal-panel">Không tìm thấy phòng chơi #${escapeHtml(roomId)}: ${escapeHtml(err.message)}</div>`;
       }
     }
 

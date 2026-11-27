@@ -470,34 +470,61 @@
               <button type="submit" class="ticket-submit">Cấp Thẻ Điều Tra Viên</button>
             </form>
 
-            <!-- 3. FORM QUÊN MẬT KHẨU -->
+            <!-- 3. KHÔI PHỤC MẬT KHẨU (2 BƯỚC: XÁC MINH EMAIL + SĐT -> NHẬP OTP & MẬT KHẨU MỚI) -->
             <form class="auth-form" id="form-forgot" novalidate>
-              <p class="ticket-hint">
-                Nhập <strong>Thư điện tử</strong> hoặc <strong>Số điện thoại</strong> đã đăng ký để nhận mã xác thực khôi phục vé.
-              </p>
-
               <div class="auth-alert" id="alert-forgot"></div>
 
-              <div class="ticket-field">
-                <label for="forgot-account">Thư điện tử hoặc Số điện thoại *</label>
-                <input type="text" id="forgot-account" placeholder="Nhập thư điện tử hoặc số điện thoại..." required />
+              <div id="forgot-step-1" style="display:flex;flex-direction:column;gap:12px;">
+                <p class="ticket-hint">
+                  Nhập <strong>Email</strong> và <strong>Số điện thoại</strong> đã đăng ký để xác minh chủ tài khoản và nhận mã OTP 6 chữ số.
+                </p>
+
+                <div class="ticket-field">
+                  <label for="forgot-email">Thư điện tử đã đăng ký *</label>
+                  <input type="email" id="forgot-email" placeholder="ten@vidu.vn" required />
+                </div>
+
+                <div class="ticket-field">
+                  <label for="forgot-phone">Số điện thoại đã đăng ký *</label>
+                  <input type="tel" id="forgot-phone" placeholder="0901234567" required />
+                </div>
+
+                <button type="submit" class="ticket-submit" id="btn-forgot-request">Nhận Mã Xác Thực OTP</button>
               </div>
 
-              <div id="otp-step" style="display:none;flex-direction:column;gap:10px;">
+              <div id="forgot-step-2" style="display:none;flex-direction:column;gap:12px;">
+                <div id="forgot-otp-box" style="display:none;background:#FAF6EE;border:1px dashed #8B1E1E;border-radius:4px;padding:10px 12px;font-size:0.78rem;line-height:1.5;color:#1F1C18;"></div>
+
                 <div class="ticket-field">
-                  <label for="forgot-otp">Mã xác thực *</label>
-                  <input type="text" id="forgot-otp" placeholder="VD: 123456" maxlength="6" />
+                  <label for="forgot-otp">Mã xác thực OTP (6 chữ số) *</label>
+                  <input type="text" id="forgot-otp" inputmode="numeric" maxlength="6" placeholder="Nhập 6 chữ số OTP" autocomplete="one-time-code" />
                 </div>
+
                 <div class="ticket-field">
-                  <label for="forgot-new-pass">Mật mã mới *</label>
-                  <input type="password" id="forgot-new-pass" placeholder="Tối thiểu 6 ký tự" />
+                  <label for="forgot-new-password">Mật khẩu mới (tối thiểu 6 ký tự) *</label>
+                  <div class="ticket-input-wrap">
+                    <input type="password" id="forgot-new-password" placeholder="••••••" />
+                    <button type="button" class="toggle-pass" data-target="forgot-new-password">Hiện</button>
+                  </div>
+                </div>
+
+                <div class="ticket-field">
+                  <label for="forgot-confirm-password">Xác nhận mật khẩu mới *</label>
+                  <div class="ticket-input-wrap">
+                    <input type="password" id="forgot-confirm-password" placeholder="••••••" />
+                    <button type="button" class="toggle-pass" data-target="forgot-confirm-password">Hiện</button>
+                  </div>
+                </div>
+
+                <button type="button" class="ticket-submit" id="btn-forgot-reset">Xác Nhận Đặt Lại Mật Khẩu</button>
+
+                <div style="text-align:center;">
+                  <button type="button" class="auth-link" id="btn-forgot-restart">Gửi lại mã / Nhập lại thông tin</button>
                 </div>
               </div>
 
-              <button type="submit" class="ticket-submit" id="btn-forgot-submit">Gửi Mã Xác Thực</button>
-
-              <div style="text-align:center;">
-                <button type="button" class="auth-link" id="link-back-login">← Quay lại đăng nhập</button>
+              <div style="text-align:center;margin-top:8px;">
+                <button type="button" class="auth-link" id="link-back-login">Quay lại đăng nhập</button>
               </div>
             </form>
           </div>

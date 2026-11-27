@@ -357,35 +357,41 @@ class PaymentRepository extends BaseRepository
                 $upStmt->bindValue(':id', $paymentId, PDO::PARAM_INT);
                 $upStmt->execute();
 
-                // 5. Update participant status to DEPOSITED + deposited_at
-                $partId = (int) $lockedPayment['room_participant_id'];
-                $partUp = $this->pdo->prepare(
-                    'UPDATE `room_participants`
-                     SET `status` = \'DEPOSITED\',
-                         `deposited_at` = COALESCE(`deposited_at`, NOW()),
-                         `updated_at` = NOW()
-                     WHERE `id` = :part_id AND `status` = \'PENDING_DEPOSIT\''
-                );
-                $partUp->bindValue(':part_id', $partId, PDO::PARAM_INT);
-                $partUp->execute();
-
-                // 6. Tự động chuyển phòng từ SCHEDULED -> CONFIRMED nếu 100% thành viên active đã nộp cọc
-                $roomLookup = $this->pdo->prepare('SELECT `game_room_id` FROM `room_participants` WHERE `id` = :part_id LIMIT 1');
-                $roomLookup->bindValue(':part_id', $partId, PDO::PARAM_INT);
-                $roomLookup->execute();
-                $targetRoomId = $roomLookup->fetchColumn();
-                if ($targetRoomId !== false) {
-                    $pendingCntStmt = $this->pdo->prepare(
-                        'SELECT COUNT(*) FROM `room_participants` WHERE `game_room_id` = :rid AND `status` = \'PENDING_DEPOSIT\''
+                // 5. Chỉ chuyển thành viên sang DEPOSITED khi khoản thanh toán đã thanh toán ĐỦ (PAID)
+                if ($newStatus === 'PAID') {
+                    $partId = (int) $lockedPayment['room_participant_id'];
+                    $partUp = $this->pdo->prepare(
+                        'UPDATE `room_participants`
+                         SET `status` = \'DEPOSITED\',
+                             `deposited_at` = COALESCE(`deposited_at`, NOW()),
+                             `updated_at` = NOW()
+                         WHERE `id` = :part_id AND `status` = \'PENDING_DEPOSIT\''
                     );
-                    $pendingCntStmt->bindValue(':rid', (int) $targetRoomId, PDO::PARAM_INT);
-                    $pendingCntStmt->execute();
-                    if ((int) $pendingCntStmt->fetchColumn() === 0) {
-                        $promoteRoom = $this->pdo->prepare(
-                            'UPDATE `game_rooms` SET `status` = \'CONFIRMED\', `updated_at` = NOW() WHERE `id` = :rid AND `status` = \'SCHEDULED\''
+                    $partUp->bindValue(':part_id', $partId, PDO::PARAM_INT);
+                    $partUp->execute();
+
+                    // 6. Tự động đồng bộ confirmed_players và nâng phòng SCHEDULED -> CONFIRMED nếu 100% thành viên đã nộp cọc
+                    $roomLookup = $this->pdo->prepare('SELECT `game_room_id` FROM `room_participants` WHERE `id` = :part_id LIMIT 1');
+                    $roomLookup->bindValue(':part_id', $partId, PDO::PARAM_INT);
+                    $roomLookup->execute();
+                    $targetRoomId = $roomLookup->fetchColumn();
+                    if ($targetRoomId !== false) {
+                        $this->pdo->prepare(
+                            'UPDATE `game_rooms` SET `confirmed_players` = (SELECT COUNT(*) FROM `room_participants` WHERE `game_room_id` = :rid1 AND `status` = \'DEPOSITED\'), `updated_at` = NOW() WHERE `id` = :rid2'
+                        )->execute([':rid1' => (int) $targetRoomId, ':rid2' => (int) $targetRoomId]);
+
+                        $pendingCntStmt = $this->pdo->prepare(
+                            'SELECT COUNT(*) FROM `room_participants` WHERE `game_room_id` = :rid AND `status` = \'PENDING_DEPOSIT\''
                         );
-                        $promoteRoom->bindValue(':rid', (int) $targetRoomId, PDO::PARAM_INT);
-                        $promoteRoom->execute();
+                        $pendingCntStmt->bindValue(':rid', (int) $targetRoomId, PDO::PARAM_INT);
+                        $pendingCntStmt->execute();
+                        if ((int) $pendingCntStmt->fetchColumn() === 0) {
+                            $promoteRoom = $this->pdo->prepare(
+                                'UPDATE `game_rooms` SET `status` = \'CONFIRMED\', `updated_at` = NOW() WHERE `id` = :rid AND `status` = \'SCHEDULED\''
+                            );
+                            $promoteRoom->bindValue(':rid', (int) $targetRoomId, PDO::PARAM_INT);
+                            $promoteRoom->execute();
+                        }
                     }
                 }
 

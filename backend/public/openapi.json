@@ -116,11 +116,11 @@
                                 "properties": {
                                     "email": {
                                         "type": "string",
-                                        "example": "admin@kichbansat.vn"
+                                        "example": "nguyenxuanhieu@gmail.com"
                                     },
                                     "password": {
                                         "type": "string",
-                                        "example": "password123"
+                                        "example": "pass123456!"
                                     }
                                 }
                             }
@@ -173,6 +173,108 @@
                 "responses": {
                     "200": {
                         "description": "Đăng xuất thành công"
+                    }
+                },
+                "tags": [
+                    "Auth & Identity"
+                ]
+            }
+        },
+        "/auth/forgot-password": {
+            "post": {
+                "summary": "Yêu cầu mã OTP khôi phục mật khẩu bằng Email + Số điện thoại đã đăng ký",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "required": [
+                                    "email",
+                                    "phone"
+                                ],
+                                "properties": {
+                                    "email": {
+                                        "type": "string",
+                                        "format": "email",
+                                        "example": "nguoichoi01@gmail.com"
+                                    },
+                                    "phone": {
+                                        "type": "string",
+                                        "example": "0903000001"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Cấp mã OTP thành công (hiệu lực 10 phút)"
+                    },
+                    "400": {
+                        "description": "Email hoặc số điện thoại không khớp"
+                    },
+                    "422": {
+                        "description": "Dữ liệu không hợp lệ"
+                    }
+                },
+                "tags": [
+                    "Auth & Identity"
+                ]
+            }
+        },
+        "/auth/reset-password": {
+            "post": {
+                "summary": "Xác thực mã OTP và đặt lại mật khẩu mới (cập nhật hash BCRYPT trong MySQL)",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "required": [
+                                    "email",
+                                    "otp",
+                                    "new_password"
+                                ],
+                                "properties": {
+                                    "email": {
+                                        "type": "string",
+                                        "format": "email",
+                                        "example": "nguoichoi01@gmail.com"
+                                    },
+                                    "otp": {
+                                        "type": "string",
+                                        "example": "123456"
+                                    },
+                                    "new_password": {
+                                        "type": "string",
+                                        "minLength": 6,
+                                        "example": "passNew123#"
+                                    },
+                                    "confirm_password": {
+                                        "type": "string",
+                                        "minLength": 6,
+                                        "example": "passNew123#"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Đặt lại mật khẩu thành công"
+                    },
+                    "400": {
+                        "description": "OTP hết hạn hoặc không tồn tại"
+                    },
+                    "422": {
+                        "description": "OTP sai hoặc dữ liệu không hợp lệ"
+                    },
+                    "429": {
+                        "description": "Nhập sai OTP quá 5 lần"
                     }
                 },
                 "tags": [

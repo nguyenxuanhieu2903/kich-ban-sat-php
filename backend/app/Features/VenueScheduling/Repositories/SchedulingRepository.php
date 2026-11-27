@@ -272,13 +272,8 @@ class SchedulingRepository extends BaseRepository
                 return (int) $id;
             }
 
-            // Fallback: bất kỳ DM ACTIVE nào nếu tất cả đều bận (để Admin điều phối lại)
-            $fallback = $this->pdo->query(
-                'SELECT u.`id` FROM `users` u INNER JOIN `roles` r ON r.`id` = u.`role_id`
-                 WHERE r.`code` = \'DM\' AND u.`status` = \'ACTIVE\' ORDER BY u.`id` ASC LIMIT 1'
-            );
-            $fallbackId = $fallback !== false ? $fallback->fetchColumn() : false;
-            return $fallbackId !== false && $fallbackId !== null ? (int) $fallbackId : null;
+            // Không gán chồng lịch Quản trò đang bận: trả về null để caller xử lý (409 DM_UNAVAILABLE)
+            return null;
         });
     }
 }

@@ -11,6 +11,7 @@ use App\Features\PaymentRefund\Repositories\PaymentRepository;
 use App\Features\Pricing\Services\PricingService;
 use App\Features\VenueScheduling\Repositories\SchedulingRepository;
 use App\Infrastructure\Database\DatabaseConnection;
+use App\Shared\Services\RoomSeatHelper;
 use PDO;
 
 class SchedulingController
@@ -239,6 +240,26 @@ class SchedulingController
             return Response::fail('Không tìm thấy đề xuất lịch chơi', 'PROPOSAL_NOT_FOUND', 404);
         }
 
+        // Chống IDOR: Player chỉ được xem đề xuất lịch của phòng mình tham gia hoặc làm chủ phòng
+        $callerRole = strtoupper((string) ($auth['role_code'] ?? $auth['role'] ?? 'PLAYER'));
+        $callerId = (int) ($auth['id'] ?? 0);
+        if (!in_array($callerRole, ['ADMIN', 'DM'], true)) {
+            $ownStmt = $this->pdo->prepare(
+                'SELECT 1 FROM `game_rooms` gr
+                 LEFT JOIN `room_participants` rp ON rp.`game_room_id` = gr.`id` AND rp.`user_id` = :uid1
+                 WHERE gr.`id` = :rid AND (gr.`creator_id` = :uid2 OR rp.`id` IS NOT NULL)
+                 LIMIT 1'
+            );
+            $ownStmt->execute([
+                ':rid' => (int) $proposal['game_room_id'],
+                ':uid1' => $callerId,
+                ':uid2' => $callerId,
+            ]);
+            if ($ownStmt->fetchColumn() === false) {
+                return Response::fail('Bạn không có quyền xem đề xuất lịch của phòng chơi này', 'FORBIDDEN', 403);
+            }
+        }
+
         $vStmt = $this->pdo->prepare(
             'SELECT sr.`id`, sr.`room_participant_id`, sr.`response`, sr.`responded_at`,
                     u.`full_name` AS `participant_name`
@@ -354,13 +375,15 @@ class SchedulingController
 
             // Đếm số active participants và số phiếu ACCEPTED / REJECTED
             $allPartsStmt = $this->pdo->prepare(
-                'SELECT `id` FROM `room_participants`
+                'SELECT `id`, `user_id` FROM `room_participants`
                  WHERE `game_room_id` = :room_id
                    AND `status` IN (\'PENDING_DEPOSIT\', \'DEPOSITED\', \'LEAVE_REQUESTED\')'
             );
             $allPartsStmt->bindValue(':room_id', $roomId, PDO::PARAM_INT);
             $allPartsStmt->execute();
-            $activeParticipantIds = $allPartsStmt->fetchAll(PDO::FETCH_COLUMN);
+            $activePartRows = $allPartsStmt->fetchAll(PDO::FETCH_ASSOC);
+            $activeParticipantIds = array_map(static fn (array $row): int => (int) $row['id'], $activePartRows);
+            $activeUserIds = array_map(static fn (array $row): int => (int) $row['user_id'], $activePartRows);
 
             $acceptStmt = $this->pdo->prepare(
                 'SELECT COUNT(*) FROM `schedule_responses`
@@ -411,17 +434,18 @@ class SchedulingController
             $assignedVenueId = null;
             $proposalConfirmed = false;
 
-            // Kiểm tra số người tối thiểu cho phòng PUBLIC (tính cả nhóm Chủ phòng + khách ghép)
+            // Kiểm tra số người tối thiểu cho phòng PUBLIC (đồng bộ RoomSeatHelper để tính chính xác nhóm đặt nhiều ghế)
             $roomMetaStmt = $this->pdo->prepare(
-                'SELECT `booking_type`, `min_players`, `total_players`, `creator_id` FROM `game_rooms` WHERE `id` = :rid LIMIT 1'
+                'SELECT `booking_type`, `min_players`, `max_players`, `total_players`, `creator_id`, `price_details`
+                 FROM `game_rooms` WHERE `id` = :rid LIMIT 1'
             );
             $roomMetaStmt->bindValue(':rid', $roomId, PDO::PARAM_INT);
             $roomMetaStmt->execute();
-            $roomMeta = $roomMetaStmt->fetch(PDO::FETCH_ASSOC);
+            $roomMeta = $roomMetaStmt->fetch(PDO::FETCH_ASSOC) ?: [];
             $minPlayers = (int) ($roomMeta['min_players'] ?? 1);
             $roomType = strtoupper((string) ($roomMeta['booking_type'] ?? 'PUBLIC'));
-            $creatorSeats = max(1, (int) ($roomMeta['total_players'] ?? 1));
-            $occupiedSeats = $creatorSeats + max(0, $totalActive - 1);
+            $seatSummary = RoomSeatHelper::computeSeats($roomMeta, $activeUserIds);
+            $occupiedSeats = (int) $seatSummary['occupied_seats'];
             $hasEnoughPlayers = ($roomType === 'PRIVATE') || ($occupiedSeats >= $minPlayers);
 
             // Nếu đạt Quorum >= 80% thành viên ACCEPTED và đủ số người tối thiểu -> Chốt session
@@ -437,7 +461,7 @@ class SchedulingController
                 $existingSess = $sessCheck->fetch(PDO::FETCH_ASSOC);
 
                 if ($existingSess === false) {
-                    // Tìm phòng vật lý trống đủ sức chứa (ưu tiên target_venue_id nếu có)
+                    // Tìm phòng vật lý trống đủ sức chứa thực tế theo tổng số ghế (ưu tiên target_venue_id nếu có)
                     $targetVenueId = null;
                     $rVenueStmt = $this->pdo->prepare('SELECT `target_venue_id` FROM `game_rooms` WHERE `id` = :room_id LIMIT 1');
                     $rVenueStmt->bindValue(':room_id', $roomId, PDO::PARAM_INT);
@@ -445,11 +469,12 @@ class SchedulingController
                     $tVid = (int) $rVenueStmt->fetchColumn();
                     $targetVenueId = $tVid > 0 ? $tVid : null;
 
+                    $requiredCapacity = max(1, $occupiedSeats);
                     $availableRoom = $targetVenueId !== null
-                        ? $this->schedRepo->findAvailablePhysicalRoom(count($activeParticipantIds), $startAt, $endAt, 30, $targetVenueId)
+                        ? $this->schedRepo->findAvailablePhysicalRoom($requiredCapacity, $startAt, $endAt, 30, $targetVenueId)
                         : null;
                     if ($availableRoom === null) {
-                        $availableRoom = $this->schedRepo->findAvailablePhysicalRoom(count($activeParticipantIds), $startAt, $endAt, 30);
+                        $availableRoom = $this->schedRepo->findAvailablePhysicalRoom($requiredCapacity, $startAt, $endAt, 30);
                     }
 
                     if ($availableRoom === null) {
@@ -580,6 +605,18 @@ class SchedulingController
                 WHERE 1=1';
 
         $params = [];
+        $callerRole = strtoupper((string) ($auth['role_code'] ?? $auth['role'] ?? 'PLAYER'));
+        $callerId = (int) ($auth['id'] ?? 0);
+        // Chống IDOR: Player chỉ xem được đề xuất lịch của các phòng mình tham gia hoặc làm chủ phòng
+        if (!in_array($callerRole, ['ADMIN', 'DM'], true)) {
+            $sql .= ' AND (gr.`creator_id` = :caller_uid1 OR EXISTS (
+                SELECT 1 FROM `room_participants` rp_own
+                WHERE rp_own.`game_room_id` = gr.`id`
+                  AND rp_own.`user_id` = :caller_uid2
+            ))';
+            $params[':caller_uid1'] = $callerId;
+            $params[':caller_uid2'] = $callerId;
+        }
         if ($status !== '') {
             $sql .= ' AND sp.`status` = :status';
             $params[':status'] = $status;
@@ -647,7 +684,10 @@ class SchedulingController
             $endAt = (string) $proposal['proposed_end_at'];
 
             // Khóa game_room FOR UPDATE
-            $rStmt = $this->pdo->prepare('SELECT `id`, `title`, `status` FROM `game_rooms` WHERE `id` = :room_id FOR UPDATE');
+            $rStmt = $this->pdo->prepare(
+                'SELECT `id`, `title`, `status`, `creator_id`, `max_players`, `total_players`, `price_details`
+                 FROM `game_rooms` WHERE `id` = :room_id FOR UPDATE'
+            );
             $rStmt->bindValue(':room_id', $roomId, PDO::PARAM_INT);
             $rStmt->execute();
             $room = $rStmt->fetch(PDO::FETCH_ASSOC);
@@ -657,15 +697,16 @@ class SchedulingController
                 return Response::fail('Không tìm thấy phòng chơi liên kết', 'ROOM_NOT_FOUND', 404);
             }
 
-            // Đếm số người chơi active trong phòng
+            // Đếm tổng sĩ số thực tế (gồm cả nhóm đặt nhiều ghế) bằng RoomSeatHelper
             $partStmt = $this->pdo->prepare(
-                'SELECT COUNT(*) FROM `room_participants`
+                'SELECT `user_id` FROM `room_participants`
                  WHERE `game_room_id` = :room_id
                    AND `status` IN (\'PENDING_DEPOSIT\', \'DEPOSITED\', \'LEAVE_REQUESTED\')'
             );
             $partStmt->bindValue(':room_id', $roomId, PDO::PARAM_INT);
             $partStmt->execute();
-            $participantCount = (int) $partStmt->fetchColumn();
+            $activeUserIds = array_map('intval', $partStmt->fetchAll(PDO::FETCH_COLUMN));
+            $occupiedSeats = max(1, (int) RoomSeatHelper::computeSeats($room, $activeUserIds)['occupied_seats']);
 
             // 1. Xác định hoặc tự động xếp phòng chơi vật lý
             $physicalRoomId = (int) ($body['physical_room_id'] ?? 0);
@@ -686,10 +727,10 @@ class SchedulingController
                 $targetVenueId = $tVid > 0 ? $tVid : null;
 
                 $availableRoom = $targetVenueId !== null
-                    ? $this->schedRepo->findAvailablePhysicalRoom(max(1, $participantCount), $startAt, $endAt, 30, $targetVenueId)
+                    ? $this->schedRepo->findAvailablePhysicalRoom($occupiedSeats, $startAt, $endAt, 30, $targetVenueId)
                     : null;
                 if ($availableRoom === null) {
-                    $availableRoom = $this->schedRepo->findAvailablePhysicalRoom(max(1, $participantCount), $startAt, $endAt, 30);
+                    $availableRoom = $this->schedRepo->findAvailablePhysicalRoom($occupiedSeats, $startAt, $endAt, 30);
                 }
                 if ($availableRoom === null) {
                     $this->pdo->rollBack();
@@ -720,13 +761,15 @@ class SchedulingController
                         $dmUserId = (int) $existingDmId;
                     } else {
                         $autoDm = $this->schedRepo->findAvailableDmUserId($startAt, $endAt, 30);
-                        if ($autoDm !== null) {
-                            $dmUserId = $autoDm;
-                        } else {
-                            $fallbackDmStmt = $this->pdo->query('SELECT u.`id` FROM `users` u INNER JOIN `roles` r ON r.`id` = u.`role_id` WHERE r.`code` = \'DM\' AND u.`status` = \'ACTIVE\' LIMIT 1');
-                            $fallbackDmId = $fallbackDmStmt->fetchColumn();
-                            $dmUserId = $fallbackDmId !== false ? (int) $fallbackDmId : (int) $auth['id'];
+                        if ($autoDm === null) {
+                            $this->pdo->rollBack();
+                            return Response::fail(
+                                'Hiện không có Quản trò (DM) nào rảnh trong khung giờ này. Vui lòng chọn khung giờ khác hoặc điều phối DM thủ công.',
+                                'DM_UNAVAILABLE',
+                                409
+                            );
                         }
+                        $dmUserId = $autoDm;
                     }
                 }
             }

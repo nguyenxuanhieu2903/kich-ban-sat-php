@@ -76,13 +76,13 @@ class GameApiTest extends TestCase
         $data = json_decode($response->getContent(), true);
 
         $this->assertTrue($data['success']);
-        $this->assertSame('Cô Gái Bên Cửa Sổ', $data['data']['game']['name']);
+        $this->assertSame('2/12', $data['data']['game']['name']);
         $this->assertNotEmpty($data['data']['game']['prices']);
     }
 
     public function testCanGetGameDetailBySlug(): void
     {
-        $request = new Request('GET', '/api/games/co-gai-ben-cua-so');
+        $request = new Request('GET', '/api/games/kbs-212');
         $response = $this->app->dispatch($request);
 
         $this->assertSame(200, $response->getStatusCode());

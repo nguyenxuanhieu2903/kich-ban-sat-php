@@ -10,6 +10,7 @@ use App\Core\Request;
 use App\Core\Response;
 use App\Features\Identity\Repositories\UserRepository;
 use App\Infrastructure\Database\DatabaseConnection;
+use App\Shared\Services\RoomSeatHelper;
 use PDO;
 
 class AuthController
@@ -105,16 +106,20 @@ class AuthController
     {
         $body = $request->getBodyParams();
 
-        $email = trim(strtolower((string) ($body['email'] ?? '')));
+        $rawIdentifier = trim((string) ($body['email'] ?? $body['identifier'] ?? $body['phone'] ?? ''));
         $password = (string) ($body['password'] ?? '');
 
-        if ($email === '' || $password === '') {
-            return Response::fail('Vui lòng nhập đầy đủ email và mật khẩu', 'VALIDATION_ERROR', 422);
+        if ($rawIdentifier === '' || $password === '') {
+            return Response::fail('Vui lòng nhập đầy đủ email hoặc số điện thoại và mật khẩu', 'VALIDATION_ERROR', 422);
         }
 
-        $user = $this->userRepo->findByEmail($email);
+        if (str_contains($rawIdentifier, '@')) {
+            $user = $this->userRepo->findByEmail(strtolower($rawIdentifier));
+        } else {
+            $user = $this->userRepo->findByPhone($rawIdentifier) ?? $this->userRepo->findByEmail(strtolower($rawIdentifier));
+        }
         if ($user === null) {
-            return Response::fail('Email hoặc mật khẩu không chính xác', 'INVALID_CREDENTIALS', 401);
+            return Response::fail('Tài khoản hoặc mật khẩu không chính xác', 'INVALID_CREDENTIALS', 401);
         }
 
         if (($user['status'] ?? '') !== 'ACTIVE') {
@@ -122,7 +127,7 @@ class AuthController
         }
 
         if (!password_verify($password, (string) $user['password_hash'])) {
-            return Response::fail('Email hoặc mật khẩu không chính xác', 'INVALID_CREDENTIALS', 401);
+            return Response::fail('Tài khoản hoặc mật khẩu không chính xác', 'INVALID_CREDENTIALS', 401);
         }
 
         // Update last login
@@ -390,6 +395,7 @@ class AuthController
 
         $sql = 'SELECT 
                     gr.`id` AS `room_id`,
+                    gr.`creator_id`,
                     gr.`title` AS `room_title`,
                     gr.`status` AS `room_status`,
                     gr.`booking_type`,
@@ -408,7 +414,7 @@ class AuthController
                        AND p2.`status` IN (\'PENDING_DEPOSIT\', \'DEPOSITED\', \'LEAVE_REQUESTED\')
                     ) AS `current_players`,
                     (SELECT pp.`id` FROM `player_payments` pp WHERE pp.`room_participant_id` = rp.`id` ORDER BY pp.`id` DESC LIMIT 1) AS `payment_id`,
-                    (SELECT COALESCE(SUM(pp.`paid_amount`), 0) FROM `player_payments` pp WHERE pp.`room_participant_id` = rp.`id`) AS `paid_amount`,
+                    (SELECT COALESCE(SUM(CASE WHEN pp.`status` != \'CANCELLED\' THEN pp.`paid_amount` ELSE 0 END), 0) FROM `player_payments` pp WHERE pp.`room_participant_id` = rp.`id`) AS `paid_amount`,
                     (SELECT pp.`status` FROM `player_payments` pp WHERE pp.`room_participant_id` = rp.`id` ORDER BY pp.`id` DESC LIMIT 1) AS `payment_status`,
                     (SELECT ref.`id` FROM `refunds` ref 
                      INNER JOIN `player_payments` pp2 ON pp2.`id` = ref.`player_payment_id` 
@@ -447,11 +453,31 @@ class AuthController
         $stmt->bindValue(':user_id', $userId, PDO::PARAM_INT);
         $stmt->execute();
         $rooms = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        // Đồng bộ sĩ số thực tế cho tất cả phòng bằng RoomSeatHelper (1 truy vấn batch, tránh cộng đúp / thiếu ghế)
+        $roomIds = array_values(array_unique(array_filter(array_map(static fn (array $row): int => (int) ($row['room_id'] ?? 0), $rooms))));
+        $activeUidsByRoom = [];
+        if (!empty($roomIds)) {
+            $placeholders = implode(',', array_fill(0, count($roomIds), '?'));
+            $actStmt = $this->pdo->prepare(
+                "SELECT `game_room_id`, `user_id`
+                 FROM `room_participants`
+                 WHERE `game_room_id` IN ({$placeholders})
+                   AND `status` IN ('PENDING_DEPOSIT', 'DEPOSITED', 'LEAVE_REQUESTED')"
+            );
+            foreach ($roomIds as $idx => $rid) {
+                $actStmt->bindValue($idx + 1, $rid, PDO::PARAM_INT);
+            }
+            $actStmt->execute();
+            foreach ($actStmt->fetchAll(PDO::FETCH_ASSOC) as $ar) {
+                $ridKey = (int) $ar['game_room_id'];
+                $activeUidsByRoom[$ridKey][] = (int) $ar['user_id'];
+            }
+        }
+
         foreach ($rooms as &$mr) {
-            $rawCur = (int) ($mr['current_players'] ?? 0);
-            $cSeats = max(1, (int) ($mr['total_players'] ?? 1));
-            $maxP = (int) ($mr['max_players'] ?? 8);
-            $mr['current_players'] = $rawCur > 0 ? min($maxP, $cSeats + max(0, $rawCur - 1)) : 0;
+            $ridKey = (int) ($mr['room_id'] ?? 0);
+            $mr['current_players'] = (int) RoomSeatHelper::computeSeats($mr, $activeUidsByRoom[$ridKey] ?? [])['occupied_seats'];
         }
         unset($mr);
 
@@ -465,13 +491,13 @@ class AuthController
             $canRefund = false;
             $refundHint = '';
 
-            if ($paid > 0) {
+            if ($refStatus === 'COMPLETED') {
+                $refundHint = 'Đã hoàn tất chuyển tiền cọc về tài khoản';
+            } elseif ($paid > 0) {
                 if ($refStatus === 'PENDING') {
                     $refundHint = 'Đang chờ Quản trị viên phê duyệt hoàn tiền';
                 } elseif ($refStatus === 'APPROVED') {
                     $refundHint = 'Đã được duyệt hoàn cọc — không thể gửi thêm yêu cầu';
-                } elseif ($refStatus === 'COMPLETED') {
-                    $refundHint = 'Đã hoàn tất chuyển tiền cọc về tài khoản';
                 } elseif ($refStatus === 'REJECTED') {
                     $revReason = trim((string) ($r['refund_review_reason'] ?? ''));
                     $refundHint = 'Yêu cầu hoàn tiền đã bị từ chối' . ($revReason !== '' ? " ({$revReason})" : '') . ' — không thể gửi lại';
@@ -503,10 +529,202 @@ class AuthController
             $r['refund_hint'] = $refundHint;
             $r['diff_hours_to_session'] = $diffHours !== null ? round($diffHours, 1) : null;
         }
+        unset($r);
 
         return Response::success([
             'rooms' => $rooms,
             'total' => count($rooms),
         ], 'Lịch sử phòng chơi và tình trạng cọc');
+    }
+
+    /**
+     * POST /api/v1/auth/forgot-password
+     * Xác minh Email + Số điện thoại đã đăng ký và cấp mã OTP 6 chữ số (lưu hash trên file, hiệu lực 10 phút, tối đa 5 lần thử)
+     */
+    public function forgotPassword(Request $request): Response
+    {
+        $body = $request->getBodyParams();
+        $email = trim(strtolower((string) ($body['email'] ?? '')));
+        $phone = trim((string) ($body['phone'] ?? ''));
+
+        $errors = [];
+        if ($email === '' || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            $errors['email'] = ['Vui lòng nhập email đúng định dạng'];
+        }
+        $normalizedInputPhone = $this->normalizeVietnamesePhone($phone);
+        if ($normalizedInputPhone === '' || strlen($normalizedInputPhone) < 9) {
+            $errors['phone'] = ['Vui lòng nhập số điện thoại đã đăng ký hợp lệ'];
+        }
+        if (!empty($errors)) {
+            return Response::fail('Vui lòng nhập đầy đủ Email và Số điện thoại đã đăng ký', 'VALIDATION_ERROR', 422, $errors);
+        }
+
+        $user = $this->userRepo->findByEmail($email);
+        if ($user === null || strtoupper((string) ($user['status'] ?? '')) !== 'ACTIVE') {
+            return Response::fail(
+                'Email hoặc số điện thoại không khớp với tài khoản đang hoạt động trên hệ thống',
+                'ACCOUNT_VERIFY_FAILED',
+                400
+            );
+        }
+
+        $storedPhone = $this->normalizeVietnamesePhone((string) ($user['phone'] ?? ''));
+        if ($storedPhone === '' || !hash_equals($storedPhone, $normalizedInputPhone)) {
+            return Response::fail(
+                'Email hoặc số điện thoại không khớp với tài khoản đang hoạt động trên hệ thống',
+                'ACCOUNT_VERIFY_FAILED',
+                400
+            );
+        }
+
+        $otp = str_pad((string) random_int(0, 999999), 6, '0', STR_PAD_LEFT);
+        $salt = bin2hex(random_bytes(16));
+        $ttlSeconds = 600; // 10 phút
+        $expiresAt = time() + $ttlSeconds;
+
+        $resetDir = $this->getPasswordResetDir();
+        if (!is_dir($resetDir)) {
+            @mkdir($resetDir, 0755, true);
+        }
+
+        $tokenFile = $resetDir . DIRECTORY_SEPARATOR . hash('sha256', $email) . '.json';
+        $record = [
+            'user_id' => (int) $user['id'],
+            'email' => $email,
+            'otp_hash' => hash('sha256', $email . '|' . $otp . '|' . $salt),
+            'salt' => $salt,
+            'expires_at' => $expiresAt,
+            'attempts' => 0,
+            'created_at' => date('Y-m-d H:i:s'),
+        ];
+
+        if (@file_put_contents($tokenFile, json_encode($record, JSON_UNESCAPED_UNICODE), LOCK_EX) === false) {
+            return Response::fail('Không thể khởi tạo phiên cấp lại mật khẩu, vui lòng thử lại sau', 'STORAGE_ERROR', 500);
+        }
+
+        try {
+            $audit = new \App\Shared\Services\AuditLogService($this->pdo);
+            $audit->log((int) $user['id'], 'PASSWORD_RESET_REQUESTED', 'USER', (int) $user['id'], [
+                'email' => $email,
+                'expires_at' => date('Y-m-d H:i:s', $expiresAt),
+            ]);
+        } catch (\Throwable) {
+            // Không gián đoạn luồng chính nếu ghi audit gặp lỗi phụ
+        }
+
+        return Response::success([
+            'email' => $email,
+            'expires_in_seconds' => $ttlSeconds,
+            'delivery_mode' => 'OTP_LOCAL_DEMO',
+            'demo_otp' => $otp,
+        ], 'Đã xác minh tài khoản và cấp mã OTP khôi phục mật khẩu (hiệu lực 10 phút).');
+    }
+
+    /**
+     * POST /api/v1/auth/reset-password
+     * Xác thực OTP và cập nhật users.password_hash (BCRYPT) thật trong MySQL
+     */
+    public function resetPassword(Request $request): Response
+    {
+        $body = $request->getBodyParams();
+        $email = trim(strtolower((string) ($body['email'] ?? '')));
+        $otp = preg_replace('/\D+/', '', trim((string) ($body['otp'] ?? ''))) ?? '';
+        $newPassword = (string) ($body['new_password'] ?? $body['password'] ?? '');
+        $confirmPassword = isset($body['confirm_password']) ? (string) $body['confirm_password'] : null;
+
+        $errors = [];
+        if ($email === '' || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            $errors['email'] = ['Email không hợp lệ'];
+        }
+        if (strlen($otp) !== 6) {
+            $errors['otp'] = ['Mã OTP phải gồm đúng 6 chữ số'];
+        }
+        if (strlen($newPassword) < 6) {
+            $errors['new_password'] = ['Mật khẩu mới phải có ít nhất 6 ký tự'];
+        }
+        if ($confirmPassword !== null && $confirmPassword !== $newPassword) {
+            $errors['confirm_password'] = ['Mật khẩu xác nhận không khớp'];
+        }
+        if (!empty($errors)) {
+            return Response::fail('Dữ liệu đặt lại mật khẩu không hợp lệ', 'VALIDATION_ERROR', 422, $errors);
+        }
+
+        $tokenFile = $this->getPasswordResetDir() . DIRECTORY_SEPARATOR . hash('sha256', $email) . '.json';
+        if (!is_file($tokenFile)) {
+            return Response::fail('Không tìm thấy mã OTP hoặc mã đã hết hạn. Vui lòng yêu cầu cấp mã mới.', 'OTP_EXPIRED', 400);
+        }
+
+        $raw = @file_get_contents($tokenFile);
+        $record = is_string($raw) ? json_decode($raw, true) : null;
+        if (!is_array($record) || empty($record['otp_hash']) || empty($record['salt']) || empty($record['user_id'])) {
+            @unlink($tokenFile);
+            return Response::fail('Phiên khôi phục mật khẩu không hợp lệ. Vui lòng yêu cầu cấp mã mới.', 'OTP_INVALID', 400);
+        }
+
+        if (time() > (int) ($record['expires_at'] ?? 0)) {
+            @unlink($tokenFile);
+            return Response::fail('Mã OTP đã hết hạn (quá 10 phút). Vui lòng yêu cầu cấp mã mới.', 'OTP_EXPIRED', 400);
+        }
+
+        $maxAttempts = 5;
+        $attempts = (int) ($record['attempts'] ?? 0);
+        if ($attempts >= $maxAttempts) {
+            @unlink($tokenFile);
+            return Response::fail('Bạn đã nhập sai mã OTP quá 5 lần. Vui lòng yêu cầu cấp mã mới.', 'OTP_LOCKED', 429);
+        }
+
+        $expectedHash = (string) $record['otp_hash'];
+        $submittedHash = hash('sha256', $email . '|' . $otp . '|' . (string) $record['salt']);
+        if (!hash_equals($expectedHash, $submittedHash)) {
+            $attempts++;
+            if ($attempts >= $maxAttempts) {
+                @unlink($tokenFile);
+                return Response::fail('Bạn đã nhập sai mã OTP quá 5 lần. Mã đã bị hủy, vui lòng yêu cầu cấp mã mới.', 'OTP_LOCKED', 429);
+            }
+            $record['attempts'] = $attempts;
+            @file_put_contents($tokenFile, json_encode($record, JSON_UNESCAPED_UNICODE), LOCK_EX);
+            $remaining = $maxAttempts - $attempts;
+            return Response::fail("Mã OTP không chính xác (còn {$remaining} lần thử).", 'INVALID_OTP', 422);
+        }
+
+        $userId = (int) $record['user_id'];
+        $user = $this->userRepo->findById($userId);
+        if ($user === null || strtoupper((string) ($user['status'] ?? '')) !== 'ACTIVE') {
+            @unlink($tokenFile);
+            return Response::fail('Tài khoản không tồn tại hoặc đang bị tạm khóa', 'ACCOUNT_INACTIVE', 403);
+        }
+
+        $this->userRepo->update($userId, [
+            'password_hash' => password_hash($newPassword, PASSWORD_BCRYPT),
+        ]);
+        @unlink($tokenFile);
+
+        try {
+            $audit = new \App\Shared\Services\AuditLogService($this->pdo);
+            $audit->log($userId, 'PASSWORD_RESET_COMPLETED', 'USER', $userId, [
+                'email' => $email,
+            ]);
+        } catch (\Throwable) {
+            // Không gián đoạn luồng chính
+        }
+
+        return Response::success([
+            'reset' => true,
+            'email' => $email,
+        ], 'Đặt lại mật khẩu thành công! Bạn có thể đăng nhập ngay bằng mật khẩu mới.');
+    }
+
+    protected function getPasswordResetDir(): string
+    {
+        return dirname(__DIR__, 4) . DIRECTORY_SEPARATOR . 'storage' . DIRECTORY_SEPARATOR . 'password_resets';
+    }
+
+    protected function normalizeVietnamesePhone(string $rawPhone): string
+    {
+        $digits = preg_replace('/\D+/', '', $rawPhone) ?? '';
+        if (str_starts_with($digits, '84') && strlen($digits) >= 10) {
+            $digits = '0' . substr($digits, 2);
+        }
+        return $digits;
     }
 }

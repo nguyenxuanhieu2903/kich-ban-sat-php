@@ -29,9 +29,10 @@ class PricingService
         ?string $playTime = null,
         ?string $promotionCode = null
     ): array {
-        // 1. Lấy thông tin phòng và game
+        // 1. Lấy thông tin phòng và game (bao gồm cột ghế để giữ nguyên participant_seats)
         $rStmt = $this->pdo->prepare(
             'SELECT gr.`id`, gr.`game_id`, gr.`title`, gr.`min_players`, gr.`max_players`, gr.`status`,
+                    gr.`creator_id`, gr.`booking_type`, gr.`total_players`, gr.`guest_slots`, gr.`target_time_slot`, gr.`price_details`,
                     g.`name` AS `game_name`, COALESCE(g.`duration_minutes`, 240) AS `duration_minutes`
              FROM `game_rooms` gr
              INNER JOIN `games` g ON g.`id` = gr.`game_id`
@@ -46,7 +47,9 @@ class PricingService
             throw new InvalidArgumentException('Phòng chơi không tồn tại');
         }
 
-        // 2. Lấy danh sách thành viên active
+        $existingDetails = !empty($room['price_details']) ? (json_decode((string) $room['price_details'], true) ?: []) : [];
+
+        // 2. Lấy danh sách thành viên active & tính sĩ số chuẩn theo RoomSeatHelper (bao gồm đại diện nhiều ghế)
         $pStmt = $this->pdo->prepare(
             'SELECT `id`, `user_id` FROM `room_participants`
              WHERE `game_room_id` = :room_id
@@ -56,16 +59,18 @@ class PricingService
         $pStmt->execute();
         $participants = $pStmt->fetchAll(PDO::FETCH_ASSOC);
 
-        $totalParticipants = count($participants);
+        $activeUserIds = array_map(static fn (array $p): int => (int) $p['user_id'], $participants);
+        $seatCalc = \App\Shared\Services\RoomSeatHelper::computeSeats($room, $activeUserIds);
+        $totalParticipants = (int) ($seatCalc['occupied_seats'] ?? count($participants));
         if ($totalParticipants === 0) {
-            $totalParticipants = (int) $room['min_players'];
+            $totalParticipants = max(1, (int) $room['min_players']);
         }
 
         // 3. Xác định mốc thời gian chơi
         $playDateTime = $playTime;
         $endDateTime = null;
         if ($playDateTime === null || trim($playDateTime) === '') {
-            // Thử lấy từ session hoặc confirmed proposal
+            // Thử lấy từ session -> confirmed proposal -> target_time_slot
             $sessStmt = $this->pdo->prepare('SELECT `start_at`, `end_at` FROM `sessions` WHERE `game_room_id` = :room_id LIMIT 1');
             $sessStmt->bindValue(':room_id', $roomId, PDO::PARAM_INT);
             $sessStmt->execute();
@@ -83,8 +88,11 @@ class PricingService
                 if ($propRow !== false && !empty($propRow['proposed_start_at'])) {
                     $playDateTime = (string) $propRow['proposed_start_at'];
                     $endDateTime = !empty($propRow['proposed_end_at']) ? (string) $propRow['proposed_end_at'] : null;
+                } elseif (!empty($room['target_time_slot'])) {
+                    $tsTarget = strtotime(str_replace('T', ' ', (string) $room['target_time_slot']));
+                    $playDateTime = $tsTarget !== false ? date('Y-m-d H:i:s', $tsTarget) : date('Y-m-d 14:00:00');
                 } else {
-                    $playDateTime = date('Y-m-d 18:00:00');
+                    $playDateTime = date('Y-m-d 14:00:00');
                 }
             }
         }
@@ -181,6 +189,13 @@ class PricingService
                 }
             }
 
+            if ($isEligible && !empty($rules['min_advance_hours'])) {
+                $advanceHours = (strtotime($playDateTime) - time()) / 3600.0;
+                if ($advanceHours < (float) $rules['min_advance_hours']) {
+                    $isEligible = false;
+                }
+            }
+
             $eligibleParticipantsCount = $totalParticipants;
             $requiresStudent = !empty($rules['requires_student_verification']);
             if ($isEligible && $requiresStudent) {
@@ -231,7 +246,7 @@ class PricingService
         $perPlayerRemaining = (int) round($remainingTotal / $totalParticipants);
         $perPlayerDiscount = (int) round($discountAmount / $totalParticipants);
 
-        $detailsJson = json_encode([
+        $detailsPayload = [
             'room_id' => $roomId,
             'game_id' => (int) $room['game_id'],
             'game_name' => $room['game_name'],
@@ -241,7 +256,7 @@ class PricingService
             'time_of_day' => $timeOfDay,
             'pricing_rule' => $pricingRuleApplied,
             'tier_overlaps' => $tierOverlaps,
-            'is_peak_hours' => strtotime($timeOfDay) >= strtotime('18:00:00'),
+            'is_peak_hours' => strtotime($timeOfDay) >= strtotime('20:00:00'),
             'base_price_per_person' => $basePricePerPerson,
             'deposit_per_person' => $depositPerPerson,
             'per_player_discount' => $perPlayerDiscount,
@@ -249,7 +264,12 @@ class PricingService
             'per_player_remaining' => $perPlayerRemaining,
             'applied_promotion' => $appliedPromotion,
             'calculated_at' => date('Y-m-d H:i:s'),
-        ]);
+        ];
+        // Bảo toàn participant_seats đã đăng ký nhiều chỗ trên phòng chơi (fix P0-3)
+        if (!empty($existingDetails['participant_seats']) && is_array($existingDetails['participant_seats'])) {
+            $detailsPayload['participant_seats'] = $existingDetails['participant_seats'];
+        }
+        $detailsJson = json_encode($detailsPayload, JSON_UNESCAPED_UNICODE);
 
         $this->pdo->beginTransaction();
         try {
@@ -440,7 +460,7 @@ class PricingService
             $fbStmt->execute();
             $fbPrice = $fbStmt->fetchColumn();
 
-            $basePrice = ($fbPrice !== false && $fbPrice !== null) ? (int) $fbPrice : 250000;
+            $basePrice = ($fbPrice !== false && $fbPrice !== null) ? (int) $fbPrice : 199000;
             $pricingRule = 'DEFAULT_FALLBACK';
         } elseif (count($tierOverlaps) === 1) {
             $basePrice = $tierOverlaps[0]['price_per_person'];

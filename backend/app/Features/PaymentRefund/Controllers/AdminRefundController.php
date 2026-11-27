@@ -100,7 +100,7 @@ class AdminRefundController
         try {
             $stmt = $this->pdo->prepare(
                 'SELECT r.`id`, r.`player_payment_id`, r.`amount`, r.`status`,
-                        rp.`user_id`, gr.`title` AS `room_title`
+                        p.`room_participant_id`, rp.`game_room_id`, rp.`user_id`, gr.`title` AS `room_title`
                  FROM `refunds` r
                  INNER JOIN `player_payments` p ON p.`id` = r.`player_payment_id`
                  INNER JOIN `room_participants` rp ON rp.`id` = p.`room_participant_id`
@@ -264,7 +264,7 @@ class AdminRefundController
         try {
             $stmt = $this->pdo->prepare(
                 'SELECT r.`id`, r.`player_payment_id`, r.`amount`, r.`status`,
-                        rp.`user_id`, gr.`title` AS `room_title`
+                        p.`room_participant_id`, rp.`game_room_id`, rp.`user_id`, gr.`title` AS `room_title`
                  FROM `refunds` r
                  INNER JOIN `player_payments` p ON p.`id` = r.`player_payment_id`
                  INNER JOIN `room_participants` rp ON rp.`id` = p.`room_participant_id`
@@ -295,10 +295,24 @@ class AdminRefundController
             $upStmt->bindValue(':id', $refundId, PDO::PARAM_INT);
             $upStmt->execute();
 
-            // Cập nhật trạng thái player_payments sang CANCELLED (hoàn tiền hoàn tất)
+            // Cập nhật trạng thái player_payments sang CANCELLED và nhả ghế thành viên (tránh ghế ma đã hoàn tiền vẫn chiếm chỗ)
             $upPay = $this->pdo->prepare('UPDATE `player_payments` SET `status` = \'CANCELLED\', `updated_at` = NOW() WHERE `id` = :pid');
             $upPay->bindValue(':pid', (int) $refund['player_payment_id'], PDO::PARAM_INT);
             $upPay->execute();
+
+            $upPart = $this->pdo->prepare(
+                'UPDATE `room_participants`
+                 SET `status` = \'LEFT\', `left_at` = COALESCE(`left_at`, NOW()), `updated_at` = NOW()
+                 WHERE `id` = :rpid AND `status` IN (\'PENDING_DEPOSIT\', \'DEPOSITED\', \'LEAVE_REQUESTED\')'
+            );
+            $upPart->execute([':rpid' => (int) $refund['room_participant_id']]);
+
+            $this->pdo->prepare(
+                'UPDATE `game_rooms`
+                 SET `confirmed_players` = (SELECT COUNT(*) FROM `room_participants` WHERE `game_room_id` = :rid1 AND `status` = \'DEPOSITED\'),
+                     `updated_at` = NOW()
+                 WHERE `id` = :rid2'
+            )->execute([':rid1' => (int) $refund['game_room_id'], ':rid2' => (int) $refund['game_room_id']]);
 
             $auditService = new \App\Shared\Services\AuditLogService($this->pdo);
             $auditService->log((int) $auth['id'], 'COMPLETE_REFUND', 'REFUND', $refundId, [

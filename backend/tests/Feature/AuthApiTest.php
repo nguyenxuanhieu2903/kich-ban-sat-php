@@ -61,7 +61,7 @@ class AuthApiTest extends TestCase
             queryParams: [],
             bodyParams: [
                 'full_name' => 'Trùng Email',
-                'email' => 'admin@kichbansat.vn',
+                'email' => 'nguyenxuanhieu@gmail.com',
                 'password' => 'password123',
             ]
         );
@@ -71,6 +71,67 @@ class AuthApiTest extends TestCase
 
         $data = json_decode($response->getContent(), true);
         $this->assertFalse($data['success']);
+    }
+
+    public function testForgotAndResetPasswordFlow(): void
+    {
+        $email = 'forgot_' . uniqid() . '@test.vn';
+        $phone = '0908' . random_int(100000, 999999);
+
+        $regRes = $this->app->dispatch(new Request('POST', '/api/v1/auth/register', [], [
+            'full_name' => 'Forgot Password Tester',
+            'email' => $email,
+            'password' => 'oldpass123',
+            'phone' => $phone,
+        ]));
+        $this->assertSame(201, $regRes->getStatusCode());
+
+        // Sai SĐT -> 400
+        $wrongPhoneRes = $this->app->dispatch(new Request('POST', '/api/v1/auth/forgot-password', [], [
+            'email' => $email,
+            'phone' => '0999999999',
+        ]));
+        $this->assertSame(400, $wrongPhoneRes->getStatusCode());
+
+        // Đúng Email + SĐT -> 200 kèm OTP 6 chữ số
+        $fpRes = $this->app->dispatch(new Request('POST', '/api/v1/auth/forgot-password', [], [
+            'email' => $email,
+            'phone' => $phone,
+        ]));
+        $this->assertSame(200, $fpRes->getStatusCode());
+        $fpData = json_decode($fpRes->getContent(), true);
+        $otp = (string) ($fpData['data']['demo_otp'] ?? '');
+        $this->assertSame(6, strlen($otp));
+
+        // Sai OTP -> 422
+        $badOtpRes = $this->app->dispatch(new Request('POST', '/api/v1/auth/reset-password', [], [
+            'email' => $email,
+            'otp' => '000000',
+            'new_password' => 'newpass456',
+            'confirm_password' => 'newpass456',
+        ]));
+        $this->assertSame(422, $badOtpRes->getStatusCode());
+
+        // Đúng OTP -> 200 & mật khẩu cũ bị từ chối (401), mật khẩu mới đăng nhập thành công (200)
+        $resetRes = $this->app->dispatch(new Request('POST', '/api/v1/auth/reset-password', [], [
+            'email' => $email,
+            'otp' => $otp,
+            'new_password' => 'newpass456',
+            'confirm_password' => 'newpass456',
+        ]));
+        $this->assertSame(200, $resetRes->getStatusCode());
+
+        $oldLogin = $this->app->dispatch(new Request('POST', '/api/v1/auth/login', [], [
+            'email' => $email,
+            'password' => 'oldpass123',
+        ]));
+        $this->assertSame(401, $oldLogin->getStatusCode());
+
+        $newLogin = $this->app->dispatch(new Request('POST', '/api/v1/auth/login', [], [
+            'email' => $email,
+            'password' => 'newpass456',
+        ]));
+        $this->assertSame(200, $newLogin->getStatusCode());
     }
 
     public function testCanLoginWithRegisteredUser(): void

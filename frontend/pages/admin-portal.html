@@ -83,14 +83,42 @@
   <script type="module">
     import { initChrome } from '../src/logic/layout.js';
     import { api } from '../src/logic/api.js';
-    import { requireAuthRole, formatVND, escapeHtml, showToast, formatRoomStatus, formatRefundStatus, formatPaymentStatus, formatPaymentType } from '../src/logic/portal-mock.js';
+    import { requireAuthRole, formatVND, escapeHtml, showToast, openPromptModal, formatRoomStatus, formatRefundStatus, formatPaymentStatus, formatPaymentType } from '../src/logic/portal-mock.js';
 
     let activeTab = 'dashboard';
     let dispatchFilter = 'ALL';
     let auditSearch = '';
     let auditActionFilter = '';
+    let payPage = 1;
+    let payStatusFilter = '';
+    let payTypeFilter = '';
     let currentAdminId = 0;
     let currentAdminName = 'Quản trị viên';
+
+    function openStudentCardModal(cardUrl, playerName) {
+      let modal = document.getElementById('kbs-card-preview-modal');
+      if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'kbs-card-preview-modal';
+        modal.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.72);display:flex;align-items:center;justify-content:center;padding:20px;';
+        modal.addEventListener('click', (ev) => { if (ev.target === modal) modal.style.display = 'none'; });
+        document.body.appendChild(modal);
+      }
+      modal.innerHTML = `
+        <div style="background:#FAF6EE;color:#1C1917;max-width:680px;width:100%;max-height:88vh;overflow:auto;border-radius:12px;padding:20px;border:1px solid #C5A059;box-shadow:0 20px 50px rgba(0,0,0,0.45);">
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:12px;border-bottom:1px solid rgba(0,0,0,0.1);padding-bottom:10px;">
+            <strong style="font-size:1.05rem;color:#8B1E1E;">Ảnh Thẻ HSSV — ${escapeHtml(playerName || 'Người chơi')}</strong>
+            <button type="button" id="kbs-card-preview-close" class="btn btn-ghost btn-sm">Đóng</button>
+          </div>
+          <div style="text-align:center;background:#111;border-radius:8px;padding:12px;">
+            <img src="${escapeHtml(cardUrl)}" alt="Ảnh thẻ HSSV" style="max-width:100%;max-height:66vh;object-fit:contain;border-radius:6px;" />
+          </div>
+          <div style="margin-top:10px;font-size:0.78rem;color:#57534E;">Đường dẫn bảo vệ phiên: <code>${escapeHtml(cardUrl)}</code></div>
+        </div>
+      `;
+      modal.style.display = 'flex';
+      modal.querySelector('#kbs-card-preview-close')?.addEventListener('click', () => { modal.style.display = 'none'; });
+    }
 
     const TAB_META = {
       dashboard: ['Bảng điều khiển', 'Tổng quan doanh thu, trạng thái phòng chơi & vận hành'],
@@ -184,14 +212,21 @@
         const dms = users.filter((u) => String(u.role_code || u.role || '').toUpperCase() === 'DM');
 
         const revObj = revData?.revenue || {};
+        const revStats = revData?.statistics || {};
         const netRev = Number(revData?.total_net_revenue ?? revObj.net_revenue ?? 0);
         const totalCollected = Number(revObj.total_collected ?? netRev);
-        const depositCollected = Number(revObj.deposit_collected ?? revData?.total_deposit ?? 0);
+        const depositCollected = Number(revObj.deposit_collected ?? 0);
         const remainingCollected = Number(revObj.remaining_collected ?? Math.max(0, totalCollected - depositCollected));
+        const netDepositCollected = Number(revObj.net_deposit_collected ?? depositCollected);
+        const netRemainingCollected = Number(revObj.net_remaining_collected ?? remainingCollected);
+        const refundedCompleted = Number(revObj.refunded_completed ?? 0);
+        const refundedPendingPayout = Number(revObj.refunded_pending_payout ?? 0);
         const totalRefunded = Number(revObj.total_refunded ?? 0);
-        const pendingRefunds = refunds.filter((r) => r.status === 'PENDING').length;
+        const pendingRefunds = Number(revStats.pending_refunds_count ?? refunds.filter((r) => r.status === 'PENDING').length);
+        const totalRefundsCount = Number(revStats.total_refunds ?? refunds.length);
+        const totalUsersCount = Number(revStats.total_users ?? users.length);
         const pendingHssv = users.filter((u) => String(u.student_card_status || '').toUpperCase() === 'PENDING' && !u.student_verified).length;
-        const activeRoomsCount = rooms.filter((r) => !['CANCELLED', 'COMPLETED'].includes(String(r.status || '').toUpperCase())).length;
+        const activeRoomsCount = Number(revStats.active_rooms ?? rooms.filter((r) => !['CANCELLED', 'COMPLETED'].includes(String(r.status || '').toUpperCase())).length);
 
         const setNavBadge = (id, count) => {
           const el = document.getElementById(id);
@@ -252,15 +287,15 @@
             return out;
           }).join('');
 
-          // Grouped Bar Chart (Doanh thu Cọc vs Tất toán theo ngày thật từ CSDL)
+          // Grouped Bar Chart (Doanh thu thuần Cọc vs Tất toán theo 9 mốc ngày gần nhất từ CSDL)
           const rawDaily = Array.isArray(revData?.daily_series) && revData.daily_series.length
             ? revData.daily_series
-            : [{ label: 'Hiện tại', deposit_vnd: depositCollected, remaining_vnd: remainingCollected, total_vnd: totalCollected, tx_count: 1 }];
+            : [{ label: 'Hiện tại', deposit_vnd: netDepositCollected, remaining_vnd: netRemainingCollected, total_vnd: netRev, tx_count: 0 }];
           const maxBarVal = Math.max(100000, ...rawDaily.map((d) => Math.max(Number(d.deposit_vnd || 0), Number(d.remaining_vnd || 0))));
           const yTicks = [maxBarVal, Math.round(maxBarVal * 0.75), Math.round(maxBarVal * 0.5), Math.round(maxBarVal * 0.25), 0];
 
-          const depPct = totalCollected > 0 ? Math.round((depositCollected / totalCollected) * 100) : 0;
-          const remPct = totalCollected > 0 ? Math.round((remainingCollected / totalCollected) * 100) : 0;
+          const depPct = netRev > 0 ? Math.round((netDepositCollected / netRev) * 100) : 0;
+          const remPct = netRev > 0 ? Math.round((netRemainingCollected / netRev) * 100) : 0;
           const netPct = totalCollected > 0 ? Math.round((netRev / totalCollected) * 100) : 100;
 
           const topScenarios = Array.isArray(revData?.top_scenarios) ? revData.top_scenarios : [];
@@ -277,9 +312,12 @@
 
           const sparkTotals = rawDaily.map((d) => Number(d.total_vnd || 0));
           const sparkDeposits = rawDaily.map((d) => Number(d.deposit_vnd || 0));
-          const sparkTx = rawDaily.map((d) => Number(d.tx_count || 0));
-          const eqBars = (sparkTx.length >= 5 ? sparkTx.slice(-8) : [3, 5, 4, 6, 5, 7, 4, 6]);
-          const eqMax = Math.max(1, ...eqBars);
+          const playerRoleCnt = users.filter((u) => String(u.role_code || u.role || '').toUpperCase() === 'PLAYER').length;
+          const adminRoleCnt = users.filter((u) => String(u.role_code || u.role || '').toUpperCase() === 'ADMIN').length;
+          const roleBarTotal = Math.max(1, playerRoleCnt + dms.length + adminRoleCnt);
+          const refCompletedCnt = refunds.filter((r) => r.status === 'COMPLETED' || r.status === 'APPROVED').length;
+          const refRejectedCnt = refunds.filter((r) => r.status === 'REJECTED').length;
+          const refBarTotal = Math.max(1, pendingRefunds + refCompletedCnt + refRejectedCnt);
 
           dashStage.innerHTML = `
             <div class="portal-section-stack" style="gap:18px;">
@@ -290,7 +328,7 @@
                     <div class="ecom-hero-greet">Xin chào, ${escapeHtml(currentAdminName)}</div>
                     <div class="ecom-hero-sub">Doanh thu thuần thực thu toàn hệ thống</div>
                     <div class="ecom-hero-value">${formatVND(netRev)}</div>
-                    <div class="ecom-hero-meta" style="margin-top:4px;">Tổng thu ${formatVND(totalCollected)} • Đã hoàn ${formatVND(totalRefunded)} (${netPct}% giữ lại)</div>
+                    <div class="ecom-hero-meta" style="margin-top:4px;">Tổng thu ${formatVND(totalCollected)} • Đã chi hoàn ${formatVND(refundedCompleted)}${refundedPendingPayout > 0 ? ` • Chờ CK hoàn ${formatVND(refundedPendingPayout)}` : ''} (${netPct}% giữ lại)</div>
                   </div>
                   <div style="margin-top:6px;">
                     <button type="button" class="btn btn-gold btn-sm" data-jump-tab="payments">Xem chi tiết doanh thu</button>
@@ -303,7 +341,7 @@
                     <span class="ecom-delta up">${activeRatioPct}%</span>
                   </div>
                   <div>
-                    <div class="ecom-metric-val">${roomsData?.meta?.total ?? rooms.length}</div>
+                    <div class="ecom-metric-val">${totalAllRooms}</div>
                     <div class="ecom-metric-lbl">Tổng phòng chơi (${completedCnt} hoàn tất)</div>
                   </div>
                   ${buildSparklineSvg(sparkTotals, '#38BDF8', 'rgba(56, 189, 248, 0.14)')}
@@ -315,8 +353,8 @@
                     <span class="ecom-delta up">${depPct}%</span>
                   </div>
                   <div>
-                    <div class="ecom-metric-val">${fmtShortVnd(depositCollected)} đ</div>
-                    <div class="ecom-metric-lbl">Tiền cọc giữ chỗ đã thu</div>
+                    <div class="ecom-metric-val">${fmtShortVnd(netDepositCollected)} đ</div>
+                    <div class="ecom-metric-lbl">Tiền cọc giữ chỗ thuần</div>
                   </div>
                   ${buildSparklineSvg(sparkDeposits, '#4ADE80', 'rgba(74, 222, 128, 0.14)')}
                 </article>
@@ -327,10 +365,19 @@
                     <span class="ecom-delta warn">${dms.length} QT</span>
                   </div>
                   <div>
-                    <div class="ecom-metric-val">${users.length}</div>
+                    <div class="ecom-metric-val">${totalUsersCount}</div>
                     <div class="ecom-metric-lbl">Tài khoản (${pendingHssv} thẻ HSSV chờ)</div>
                   </div>
-                  ${buildSparklineSvg(sparkTx, '#F472B6', 'rgba(244, 114, 182, 0.14)')}
+                  <div style="margin-top:8px;">
+                    <div style="display:flex;height:8px;border-radius:999px;overflow:hidden;background:rgba(255,255,255,0.08);gap:2px;">
+                      <span title="Người chơi: ${playerRoleCnt}" style="width:${Math.round((playerRoleCnt / roleBarTotal) * 100)}%;background:#38BDF8;"></span>
+                      <span title="Quản trò: ${dms.length}" style="width:${Math.max(4, Math.round((dms.length / roleBarTotal) * 100))}%;background:#F59E0B;"></span>
+                      <span title="Quản trị: ${adminRoleCnt}" style="width:${Math.max(4, Math.round((adminRoleCnt / roleBarTotal) * 100))}%;background:#F472B6;"></span>
+                    </div>
+                    <div style="display:flex;justify-content:space-between;font-size:0.72rem;color:#94A3B8;margin-top:6px;">
+                      <span>${playerRoleCnt} Khách</span><span>${dms.length} QT</span><span>${adminRoleCnt} Admin</span>
+                    </div>
+                  </div>
                 </article>
 
                 <article class="ecom-card">
@@ -339,11 +386,18 @@
                     <span class="ecom-delta ${pendingRefunds > 0 ? 'down' : 'up'}">${pendingRefunds > 0 ? pendingRefunds + ' chờ' : 'Ổn định'}</span>
                   </div>
                   <div>
-                    <div class="ecom-metric-val">${pendingRefunds} / ${refunds.length}</div>
+                    <div class="ecom-metric-val">${pendingRefunds} / ${totalRefundsCount}</div>
                     <div class="ecom-metric-lbl">Hoàn tiền chờ duyệt</div>
                   </div>
-                  <div style="display:flex;align-items:flex-end;justify-content:space-between;gap:4px;height:42px;padding-top:4px;">
-                    ${eqBars.map((v) => `<span style="flex:1;height:${Math.max(16, Math.round((v / eqMax) * 100))}%;border-radius:4px;background:linear-gradient(180deg,#FACC15,#D97706);"></span>`).join('')}
+                  <div style="margin-top:8px;">
+                    <div style="display:flex;height:8px;border-radius:999px;overflow:hidden;background:rgba(255,255,255,0.08);gap:2px;">
+                      <span title="Chờ duyệt: ${pendingRefunds}" style="width:${Math.round((pendingRefunds / refBarTotal) * 100)}%;background:#FACC15;"></span>
+                      <span title="Đã duyệt/Hoàn tất: ${refCompletedCnt}" style="width:${Math.round((refCompletedCnt / refBarTotal) * 100)}%;background:#22C55E;"></span>
+                      <span title="Từ chối: ${refRejectedCnt}" style="width:${Math.round((refRejectedCnt / refBarTotal) * 100)}%;background:#EF4444;"></span>
+                    </div>
+                    <div style="display:flex;justify-content:space-between;font-size:0.72rem;color:#94A3B8;margin-top:6px;">
+                      <span>${pendingRefunds} Chờ</span><span>${refCompletedCnt} Duyệt</span><span>${refRejectedCnt} Từ chối</span>
+                    </div>
                   </div>
                 </article>
               </div>
@@ -379,8 +433,8 @@
                 <article class="ecom-card">
                   <div class="ecom-card-head">
                     <div>
-                      <h2 class="ecom-card-title">Doanh Thu &amp; Cơ Cấu Thu Theo Ngày</h2>
-                      <div class="ecom-card-hint">So sánh Tiền cọc giữ chỗ và Tất toán phần còn lại (dữ liệu trực tiếp)</div>
+                      <h2 class="ecom-card-title">Doanh Thu Thuần &amp; Cơ Cấu Thu Theo Ngày</h2>
+                      <div class="ecom-card-hint">9 mốc ngày phát sinh gần nhất (đã trừ hoàn tiền) • 2 vòng dưới tính toàn thời gian</div>
                     </div>
                     <button type="button" class="btn btn-ghost btn-sm" data-jump-tab="payments">Lịch sử thu</button>
                   </div>
@@ -397,8 +451,8 @@
                           return `
                             <div class="ecom-bar-group">
                               <div class="ecom-bar-pair">
-                                <div class="ecom-bar gold" style="height:${Number(d.deposit_vnd || 0) > 0 ? depH : 2}%;" title="${escapeHtml(d.label)} — Tiền cọc: ${formatVND(d.deposit_vnd || 0)}"></div>
-                                <div class="ecom-bar blue" style="height:${Number(d.remaining_vnd || 0) > 0 ? remH : 2}%;" title="${escapeHtml(d.label)} — Tất toán: ${formatVND(d.remaining_vnd || 0)}"></div>
+                                <div class="ecom-bar gold" style="height:${Number(d.deposit_vnd || 0) > 0 ? depH : 2}%;" title="${escapeHtml(d.label)} — Tiền cọc thuần: ${formatVND(d.deposit_vnd || 0)}"></div>
+                                <div class="ecom-bar blue" style="height:${Number(d.remaining_vnd || 0) > 0 ? remH : 2}%;" title="${escapeHtml(d.label)} — Tất toán thuần: ${formatVND(d.remaining_vnd || 0)}"></div>
                               </div>
                               <span class="ecom-bar-label">${escapeHtml(d.label)}</span>
                             </div>
@@ -416,17 +470,17 @@
                     <div class="ecom-ring-item">
                       ${buildMiniRingSvg(depPct, '#F59E0B')}
                       <div>
-                        <div class="ecom-ring-lbl">Tổng Tiền Cọc Đã Thu</div>
-                        <div class="ecom-ring-val">${formatVND(depositCollected)}</div>
-                        <div class="ecom-ring-sub">Chiếm ${depPct}% tổng thực thu</div>
+                        <div class="ecom-ring-lbl">Tiền Cọc Thuần Toàn Thời Gian</div>
+                        <div class="ecom-ring-val">${formatVND(netDepositCollected)}</div>
+                        <div class="ecom-ring-sub">Chiếm ${depPct}% doanh thu thuần</div>
                       </div>
                     </div>
                     <div class="ecom-ring-item">
                       ${buildMiniRingSvg(remPct, '#38BDF8')}
                       <div>
-                        <div class="ecom-ring-lbl">Tổng Tất Toán Còn Lại</div>
-                        <div class="ecom-ring-val">${formatVND(remainingCollected)}</div>
-                        <div class="ecom-ring-sub" style="color:#38BDF8;">Chiếm ${remPct}% tổng thực thu</div>
+                        <div class="ecom-ring-lbl">Tất Toán Thuần Toàn Thời Gian</div>
+                        <div class="ecom-ring-val">${formatVND(netRemainingCollected)}</div>
+                        <div class="ecom-ring-sub" style="color:#38BDF8;">Chiếm ${remPct}% doanh thu thuần</div>
                       </div>
                     </div>
                   </div>
@@ -437,7 +491,7 @@
               <div class="ecom-bottom-grid">
                 <article class="ecom-card">
                   <div class="ecom-card-head">
-                    <h2 class="ecom-card-title">Kịch Bản Đóng Góp Doanh Thu Cao Nhất</h2>
+                    <h2 class="ecom-card-title">Kịch Bản Đóng Góp Doanh Thu Thuần Cao Nhất</h2>
                     <button type="button" class="btn btn-ghost btn-sm" data-jump-tab="games">Quản lý kịch bản</button>
                   </div>
                   <div class="ecom-dark-list">
@@ -451,7 +505,7 @@
                           </div>
                           <div style="display:flex;justify-content:space-between;font-size:0.76rem;color:#8B96AA;">
                             <span>${sc.room_count} phòng đã mở</span>
-                            <span>${Math.round((Number(sc.revenue_vnd || 0) / Math.max(1, totalCollected)) * 100)}% tổng thu</span>
+                            <span>${Math.round((Number(sc.revenue_vnd || 0) / Math.max(1, netRev)) * 100)}% doanh thu thuần</span>
                           </div>
                           <div class="ecom-hbar-track"><div class="ecom-hbar-fill" style="width:${pct}%;"></div></div>
                         </div>
@@ -729,11 +783,11 @@
                   </div>
                   <div class="inline-form-field">
                     <label for="ob-start">Từ thời điểm</label>
-                    <input type="datetime-local" id="ob-start" class="portal-input" value="2026-12-15T14:00" />
+                    <input type="datetime-local" id="ob-start" class="portal-input" value="${(() => { const d = new Date(Date.now() + 86400000); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}T14:00`; })()}" />
                   </div>
                   <div class="inline-form-field">
                     <label for="ob-end">Đến thời điểm</label>
-                    <input type="datetime-local" id="ob-end" class="portal-input" value="2026-12-15T17:00" />
+                    <input type="datetime-local" id="ob-end" class="portal-input" value="${(() => { const d = new Date(Date.now() + 86400000); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}T17:00`; })()}" />
                   </div>
                   <div class="inline-form-field">
                     <label for="ob-reason">Lý do khóa phòng</label>
@@ -793,10 +847,17 @@
 
           panel.querySelectorAll('[data-revoke-dm]').forEach((btn) => btn.addEventListener('click', async () => {
             const rid = btn.getAttribute('data-revoke-dm');
-            const reason = window.prompt(`Nhập lý do thu hồi ca Quản trò phòng #${rid}:`, 'Quản trị viên điều phối lại nhân sự');
-            if (!reason || !reason.trim()) return;
+            const reason = await openPromptModal({
+              eyebrow: 'ĐIỀU PHỐI QUẢN TRÒ',
+              title: `Thu hồi ca Quản trò phòng #${rid}`,
+              label: 'Lý do thu hồi ca trực',
+              defaultValue: 'Quản trị viên điều phối lại nhân sự',
+              placeholder: 'Nhập lý do thu hồi để gửi thông báo tới Quản trò...',
+              confirmText: 'Xác nhận thu hồi',
+            });
+            if (!reason) return;
             try {
-              await api.post(`/admin/rooms/${rid}/revoke-dm`, { reason: reason.trim() });
+              await api.post(`/admin/rooms/${rid}/revoke-dm`, { reason });
               showToast(`Đã thu hồi ca Quản trò của phòng #${rid} và gửi thông báo.`);
               render();
             } catch (e) { showToast(e.message); }
@@ -804,7 +865,14 @@
 
           panel.querySelectorAll('[data-disband]').forEach((btn) => btn.addEventListener('click', async () => {
             const rid = btn.getAttribute('data-disband');
-            const reason = window.prompt(`Nhập lý do giải tán phòng #${rid}:`, 'Điều phối lại lịch vận hành');
+            const reason = await openPromptModal({
+              eyebrow: 'GIẢI TÁN PHÒNG CHƠI',
+              title: `Xác nhận giải tán phòng #${rid}`,
+              label: 'Lý do giải tán phòng',
+              defaultValue: 'Điều phối lại lịch vận hành',
+              placeholder: 'Nhập lý do giải tán để gửi thông báo tới các thành viên...',
+              confirmText: 'Xác nhận giải tán',
+            });
             if (!reason) return;
             try { await api.post(`/admin/rooms/${rid}/disband`, { reason }); showToast(`Đã giải tán phòng #${rid}.`); render(); } catch (e) { showToast(e.message); }
           }));
@@ -1107,37 +1175,100 @@
           }));
           panel.querySelectorAll('[data-rf-rej]').forEach((b) => b.addEventListener('click', async () => {
             const rfId = b.getAttribute('data-rf-rej');
-            const reason = window.prompt(`Nhập lý do từ chối yêu cầu hoàn tiền #${rfId}:`, 'Không đủ điều kiện hoàn cọc theo quy chế 24h');
-            if (reason === null || !reason.trim()) return;
-            try { await api.post(`/admin/refunds/${rfId}/reject`, { reason: reason.trim() }); showToast('Đã từ chối hoàn tiền.'); render(); } catch (e) { showToast(e.message); }
+            const reason = await openPromptModal({
+              eyebrow: 'XÉT DUYỆT HOÀN TIỀN',
+              title: `Từ chối yêu cầu hoàn tiền #${rfId}`,
+              label: 'Lý do từ chối hoàn cọc',
+              defaultValue: 'Không đủ điều kiện hoàn cọc theo quy chế 24h',
+              placeholder: 'Nhập lý do từ chối gửi tới người chơi...',
+              confirmText: 'Xác nhận từ chối',
+            });
+            if (!reason) return;
+            try { await api.post(`/admin/refunds/${rfId}/reject`, { reason }); showToast('Đã từ chối hoàn tiền.'); render(); } catch (e) { showToast(e.message); }
           }));
           panel.querySelectorAll('[data-rf-comp]').forEach((b) => b.addEventListener('click', async () => {
             try { await api.post(`/admin/refunds/${b.getAttribute('data-rf-comp')}/complete`, { bank_reference_code: 'CK_' + Date.now() }); showToast('Đã hoàn tất chuyển khoản hoàn tiền.'); render(); } catch (e) { showToast(e.message); }
           }));
         } else if (activeTab === 'payments') {
-          const payData = await api.get('/admin/payments?per_page=30').catch(() => []);
-          const payments = Array.isArray(payData) ? payData : (payData?.payments || payData?.items || []);
+          const payParams = new URLSearchParams({ page: String(payPage), per_page: '20' });
+          if (payStatusFilter) payParams.set('status', payStatusFilter);
+          if (payTypeFilter) payParams.set('type', payTypeFilter);
+          let payments = [];
+          let payMeta = { page: payPage, per_page: 20, total: 0, total_pages: 1 };
+          try {
+            const rawRes = await fetch(`/api/v1/admin/payments?${payParams.toString()}`, { credentials: 'include' });
+            const rawJson = await rawRes.json();
+            payments = Array.isArray(rawJson?.data) ? rawJson.data : (rawJson?.data?.payments || rawJson?.data?.items || []);
+            const pg = rawJson?.meta?.pagination || rawJson?.meta || null;
+            if (pg) {
+              payMeta = {
+                page: Number(pg.page || payPage),
+                per_page: Number(pg.per_page || 20),
+                total: Number(pg.total ?? payments.length),
+                total_pages: Math.max(1, Number(pg.total_pages || Math.ceil(Number(pg.total ?? payments.length) / 20))),
+              };
+            }
+          } catch { /* fallback empty */ }
+
           panel.innerHTML = `
-            <h2 class="portal-panel-title">Danh Sách Giao Dịch Thanh Toán Hệ Thống</h2>
+            <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:14px;">
+              <h2 class="portal-panel-title" style="margin:0;">Danh Sách Giao Dịch Thanh Toán Hệ Thống (${payMeta.total} bản ghi)</h2>
+              <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+                <select id="pay-type-sel" class="portal-select" style="min-width:150px;">
+                  <option value="">Tất cả loại</option>
+                  <option value="DEPOSIT" ${payTypeFilter === 'DEPOSIT' ? 'selected' : ''}>Tiền cọc giữ chỗ</option>
+                  <option value="REMAINING" ${payTypeFilter === 'REMAINING' ? 'selected' : ''}>Tất toán phần còn lại</option>
+                </select>
+                <select id="pay-status-sel" class="portal-select" style="min-width:150px;">
+                  <option value="">Tất cả trạng thái</option>
+                  <option value="PAID" ${payStatusFilter === 'PAID' ? 'selected' : ''}>Đã thanh toán</option>
+                  <option value="PENDING" ${payStatusFilter === 'PENDING' ? 'selected' : ''}>Chờ thanh toán</option>
+                  <option value="CANCELLED" ${payStatusFilter === 'CANCELLED' ? 'selected' : ''}>Đã hủy / Hoàn</option>
+                </select>
+              </div>
+            </div>
             <div class="portal-table-wrap">
               <table class="portal-table">
                 <thead><tr><th>Mã</th><th>Người chơi</th><th>Phòng</th><th>Loại</th><th>Số tiền</th><th>Đã thu</th><th>Trạng thái</th></tr></thead>
                 <tbody>
                   ${payments.length ? payments.map((p) => `
                     <tr>
-                      <td><strong>#${p.id}</strong></td>
-                      <td>${p.player_name || p.player_email || ''}</td>
-                      <td>#${p.game_room_id || ''} ${p.room_title || ''}</td>
+                      <td><strong>#${Number(p.id)}</strong></td>
+                      <td>${escapeHtml(p.player_name || p.player_email || '')}</td>
+                      <td>#${Number(p.game_room_id || 0)} ${escapeHtml(p.room_title || '')}</td>
                       <td>${escapeHtml(formatPaymentType(p.payment_type))}</td>
                       <td>${formatVND(p.amount)}</td>
                       <td><strong>${formatVND(p.paid_amount)}</strong></td>
-                      <td><span class="v-badge ${p.status === 'PAID' ? 'v-badge-green' : 'v-badge-gold'}">${escapeHtml(formatPaymentStatus(p.status))}</span></td>
+                      <td><span class="v-badge ${p.status === 'PAID' ? 'v-badge-green' : p.status === 'CANCELLED' ? 'v-badge-crimson' : 'v-badge-gold'}">${escapeHtml(formatPaymentStatus(p.status))}</span></td>
                     </tr>
-                  `).join('') : '<tr><td colspan="7" class="text-muted">Chưa có giao dịch thanh toán nào.</td></tr>'}
+                  `).join('') : '<tr><td colspan="7" class="text-muted">Không có giao dịch thanh toán nào khớp bộ lọc.</td></tr>'}
                 </tbody>
               </table>
             </div>
+            <div style="margin-top:14px;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;">
+              <span class="text-muted" style="font-size:0.84rem;">Trang <strong>${payMeta.page}</strong> / ${payMeta.total_pages} (Tổng ${payMeta.total} giao dịch)</span>
+              <div style="display:flex;gap:8px;">
+                <button type="button" class="btn btn-ghost btn-sm" id="pay-prev-btn" ${payMeta.page <= 1 ? 'disabled style="opacity:0.45;"' : ''}>Trang trước</button>
+                <button type="button" class="btn btn-gold btn-sm" id="pay-next-btn" ${payMeta.page >= payMeta.total_pages ? 'disabled style="opacity:0.45;"' : ''}>Trang sau</button>
+              </div>
+            </div>
           `;
+          document.getElementById('pay-type-sel')?.addEventListener('change', (e) => {
+            payTypeFilter = e.target.value || '';
+            payPage = 1;
+            render();
+          });
+          document.getElementById('pay-status-sel')?.addEventListener('change', (e) => {
+            payStatusFilter = e.target.value || '';
+            payPage = 1;
+            render();
+          });
+          document.getElementById('pay-prev-btn')?.addEventListener('click', () => {
+            if (payPage > 1) { payPage -= 1; render(); }
+          });
+          document.getElementById('pay-next-btn')?.addEventListener('click', () => {
+            if (payPage < payMeta.total_pages) { payPage += 1; render(); }
+          });
         } else if (activeTab === 'hssv') {
           const roleViLabel = (rc) => ({ PLAYER: 'Người chơi', DM: 'Quản trò', ADMIN: 'Quản trị viên' }[String(rc || '').toUpperCase()] || 'Người chơi');
           panel.innerHTML = `
@@ -1166,7 +1297,7 @@
                       <td>
                         ${isPlayerAcc ? `
                           <span class="v-badge ${u.student_verified ? 'v-badge-green' : u.student_card_status === 'PENDING' ? 'v-badge-gold' : 'v-badge-muted'}">${u.student_verified ? 'ĐÃ DUYỆT' : u.student_card_status === 'PENDING' ? 'CHỜ DUYỆT' : 'CHƯA NỘP'}</span>
-                          ${u.student_card_url ? `<div style="font-size:0.75rem;margin-top:3px;"><span class="text-muted">Đã nộp ảnh thẻ</span></div>` : ''}
+                          ${u.student_card_url ? `<div style="margin-top:4px;"><button type="button" class="btn btn-ghost btn-sm" data-view-card="${escapeHtml(u.student_card_url)}" data-view-card-name="${escapeHtml(u.full_name || u.email || '')}" style="padding:2px 8px;font-size:0.73rem;">Xem ảnh thẻ</button></div>` : ''}
                         ` : `<span class="text-muted" style="font-size:0.82rem;">Nội bộ (${escapeHtml(roleViLabel(roleCode))})</span>`}
                       </td>
                       <td style="display:flex;gap:6px;flex-wrap:wrap;">
@@ -1182,6 +1313,9 @@
               </table>
             </div>
           `;
+          panel.querySelectorAll('[data-view-card]').forEach((b) => b.addEventListener('click', () => {
+            openStudentCardModal(b.getAttribute('data-view-card') || '', b.getAttribute('data-view-card-name') || '');
+          }));
           panel.querySelectorAll('[data-sv-toggle]').forEach((b) => b.addEventListener('click', async () => {
             const uid = b.getAttribute('data-sv-toggle');
             const val = Number(b.getAttribute('data-sv-val')) === 1;
@@ -1218,10 +1352,14 @@
                   <option value="REJECT_DM_ASSIGNMENT" ${auditActionFilter === 'REJECT_DM_ASSIGNMENT' ? 'selected' : ''}>Quản trò từ chối ca</option>
                   <option value="ASSIGN_VENUE" ${auditActionFilter === 'ASSIGN_VENUE' ? 'selected' : ''}>Gán phòng vật lý</option>
                   <option value="START_SESSION" ${auditActionFilter === 'START_SESSION' ? 'selected' : ''}>Bắt đầu buổi chơi</option>
+                  <option value="FINISH_GAMEPLAY" ${auditActionFilter === 'FINISH_GAMEPLAY' ? 'selected' : ''}>Kết thúc nội dung buổi chơi</option>
+                  <option value="SETTLE_PAYMENT_AT_COUNTER" ${auditActionFilter === 'SETTLE_PAYMENT_AT_COUNTER' ? 'selected' : ''}>Tất toán phần còn lại tại quầy</option>
                   <option value="COMPLETE_SESSION" ${auditActionFilter === 'COMPLETE_SESSION' ? 'selected' : ''}>Hoàn tất buổi chơi</option>
                   <option value="ADMIN_UPDATE_GAME" ${auditActionFilter === 'ADMIN_UPDATE_GAME' ? 'selected' : ''}>Ẩn/Hiện &amp; Sửa giá kịch bản</option>
                   <option value="APPROVE_REFUND" ${auditActionFilter === 'APPROVE_REFUND' ? 'selected' : ''}>Duyệt hoàn tiền</option>
-                  <option value="VERIFY_STUDENT" ${auditActionFilter === 'VERIFY_STUDENT' ? 'selected' : ''}>Xét duyệt thẻ HSSV</option>
+                  <option value="REJECT_REFUND" ${auditActionFilter === 'REJECT_REFUND' ? 'selected' : ''}>Từ chối hoàn tiền</option>
+                  <option value="COMPLETE_REFUND" ${auditActionFilter === 'COMPLETE_REFUND' ? 'selected' : ''}>Hoàn tất chuyển khoản hoàn</option>
+                  <option value="UPDATE_STUDENT_VERIFICATION" ${auditActionFilter === 'UPDATE_STUDENT_VERIFICATION' ? 'selected' : ''}>Xét duyệt thẻ HSSV</option>
                 </select>
                 <button class="btn btn-gold btn-sm" id="btn-audit-filter">Lọc nhật ký</button>
               </div>
@@ -1277,7 +1415,7 @@
           });
         }
       } catch (err) {
-        panel.innerHTML = `<p class="text-muted">Lỗi tải dữ liệu quản trị: ${err.message}</p>`;
+        panel.innerHTML = `<p class="text-muted">Lỗi tải dữ liệu quản trị: ${escapeHtml(err.message)}</p>`;
       }
     }
 

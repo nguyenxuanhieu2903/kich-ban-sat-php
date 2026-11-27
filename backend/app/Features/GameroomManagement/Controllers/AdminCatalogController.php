@@ -135,12 +135,26 @@ class AdminCatalogController
         $gameId = (int) $id;
         $body = $request->getBodyParams();
         $status = isset($body['status']) ? strtoupper(trim((string) $body['status'])) : null;
-        $dayPrice = isset($body['day_price']) ? (int) $body['day_price'] : null;
-        $nightPrice = isset($body['night_price']) ? (int) $body['night_price'] : null;
+        $dayPrice = array_key_exists('day_price', $body) && $body['day_price'] !== '' && $body['day_price'] !== null ? (int) $body['day_price'] : null;
+        $nightPrice = array_key_exists('night_price', $body) && $body['night_price'] !== '' && $body['night_price'] !== null ? (int) $body['night_price'] : null;
 
         $gameNameStmt = $this->pdo->prepare('SELECT `name` FROM `games` WHERE `id` = :id LIMIT 1');
         $gameNameStmt->execute([':id' => $gameId]);
-        $gameName = (string) ($gameNameStmt->fetchColumn() ?: ('Kịch bản #' . $gameId));
+        $foundName = $gameNameStmt->fetchColumn();
+        if ($foundName === false) {
+            return Response::fail('Không tìm thấy kịch bản yêu cầu', 'GAME_NOT_FOUND', 404);
+        }
+        $gameName = (string) $foundName;
+
+        if ($status !== null && !in_array($status, ['ACTIVE', 'INACTIVE'], true)) {
+            return Response::fail('Trạng thái kịch bản chỉ chấp nhận ACTIVE hoặc INACTIVE', 'VALIDATION_ERROR', 422);
+        }
+        if ($dayPrice !== null && $dayPrice < 50000) {
+            return Response::fail('Giá vé khung giờ ban ngày phải từ 50.000 VNĐ trở lên', 'VALIDATION_ERROR', 422);
+        }
+        if ($nightPrice !== null && $nightPrice < 50000) {
+            return Response::fail('Giá vé khung giờ buổi tối phải từ 50.000 VNĐ trở lên', 'VALIDATION_ERROR', 422);
+        }
 
         if ($status !== null && in_array($status, ['ACTIVE', 'INACTIVE'], true)) {
             $st = $this->pdo->prepare('UPDATE `games` SET `status` = :st, `updated_at` = NOW() WHERE `id` = :id');

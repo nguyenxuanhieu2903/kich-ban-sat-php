@@ -25,6 +25,50 @@ if ($path === '/docs') {
     exit;
 }
 
+// Serve uploaded student card images with strict session RBAC (Admin, DM, or owning Player only)
+if (preg_match('#^/storage/uploads/student_cards/([a-zA-Z0-9._-]+)$#', $path, $cardMatch)) {
+    require_once __DIR__ . '/../bootstrap/app.php';
+    if (session_status() === PHP_SESSION_NONE) {
+        @session_start();
+    }
+    $sessionUserId = (int) ($_SESSION['user_id'] ?? 0);
+    $sessionRole = strtoupper((string) ($_SESSION['role_code'] ?? ''));
+    if ($sessionUserId <= 0) {
+        http_response_code(401);
+        header('Content-Type: application/json; charset=utf-8');
+        echo json_encode(['success' => false, 'message' => 'Yêu cầu đăng nhập để xem ảnh thẻ HSSV', 'error_code' => 'UNAUTHORIZED'], JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+
+    $cardFileName = basename($cardMatch[1]);
+    $isStaff = in_array($sessionRole, ['ADMIN', 'DM'], true);
+    $isOwner = str_starts_with($cardFileName, 'hssv_' . $sessionUserId . '_');
+    if (!$isStaff && !$isOwner) {
+        http_response_code(403);
+        header('Content-Type: application/json; charset=utf-8');
+        echo json_encode(['success' => false, 'message' => 'Bạn không có quyền xem ảnh thẻ HSSV này', 'error_code' => 'FORBIDDEN'], JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+
+    $cardsDir = realpath(dirname(__DIR__) . '/storage/uploads/student_cards');
+    $cardFilePath = $cardsDir ? realpath($cardsDir . DIRECTORY_SEPARATOR . $cardFileName) : false;
+    $cardExt = strtolower(pathinfo($cardFileName, PATHINFO_EXTENSION));
+    $cardMimes = ['jpg' => 'image/jpeg', 'jpeg' => 'image/jpeg', 'png' => 'image/png', 'webp' => 'image/webp'];
+
+    if ($cardFilePath && $cardsDir && str_starts_with($cardFilePath, $cardsDir) && is_file($cardFilePath) && isset($cardMimes[$cardExt])) {
+        header('Content-Type: ' . $cardMimes[$cardExt]);
+        header('X-Content-Type-Options: nosniff');
+        header('Cache-Control: private, max-age=300');
+        readfile($cardFilePath);
+        exit;
+    }
+
+    http_response_code(404);
+    header('Content-Type: application/json; charset=utf-8');
+    echo json_encode(['success' => false, 'message' => 'Không tìm thấy ảnh thẻ HSSV', 'error_code' => 'NOT_FOUND'], JSON_UNESCAPED_UNICODE);
+    exit;
+}
+
 // Serve frontend static files if request is not an API call
 if (!str_starts_with($path, '/api')) {
     $projectRoot = dirname(__DIR__, 2);
@@ -72,6 +116,10 @@ if (!str_starts_with($path, '/api')) {
 // Delegate API requests to application router
 $app = require_once __DIR__ . '/../bootstrap/app.php';
 
-$request = App\Core\Request::capture();
-$response = $app->dispatch($request);
+try {
+    $request = App\Core\Request::capture();
+    $response = $app->dispatch($request);
+} catch (\Throwable $e) {
+    $response = App\Core\Exceptions\ExceptionHandler::handle($e);
+}
 $response->send();

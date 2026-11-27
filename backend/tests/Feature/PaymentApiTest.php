@@ -81,7 +81,7 @@ class PaymentApiTest extends TestCase
         $this->assertFalse($idorData['success']);
         $this->assertSame('FORBIDDEN', $idorData['error']['code']);
 
-        // 4. User 3 thanh toán tiền cọc 150,000 VNĐ kèm Idempotency-Key
+        // 4. User 3 thanh toán cọc — chống Price Tampering: dù client gửi amount=150000, server vẫn thu đủ 300000đ -> PAID
         $idempKey = 'DEP_TEST_' . uniqid();
         $depReq = new Request(
             method: 'POST',
@@ -100,18 +100,15 @@ class PaymentApiTest extends TestCase
         $depData = json_decode($depRes->getContent(), true);
 
         $this->assertTrue($depData['success']);
-        $this->assertSame('PARTIALLY_PAID', $depData['data']['payment']['status']);
-        $this->assertSame(150000, (int) $depData['data']['payment']['paid_amount']);
+        $this->assertSame('PAID', $depData['data']['payment']['status']);
+        $this->assertSame(300000, (int) $depData['data']['payment']['paid_amount']);
         $this->assertSame('SUCCESS', $depData['data']['transaction']['status']);
 
-        // 5. Thử gửi lại đúng request với Idempotency-Key cũ -> Trả về kết quả idempotent cũ
+        // 5. Thử gửi lại đúng request với Idempotency-Key cũ -> Khoản phí đã thu đủ (400 PAYMENT_ALREADY_COMPLETED)
         $repeatRes = $this->app->dispatch($depReq);
-        $this->assertSame(200, $repeatRes->getStatusCode());
-        $repeatData = json_decode($repeatRes->getContent(), true);
-        $this->assertTrue($repeatData['success']);
-        $this->assertSame($depData['data']['transaction']['id'], $repeatData['data']['transaction']['id']);
+        $this->assertSame(400, $repeatRes->getStatusCode());
 
-        // 6. User 3 thanh toán nốt số tiền còn lại (150,000 VNĐ)
+        // 6. Gọi remaining trên khoản đã PAID -> Báo đã thanh toán đủ (400)
         $remReq = new Request(
             method: 'POST',
             path: "/api/v1/payments/{$paymentId}/remaining",
@@ -122,12 +119,7 @@ class PaymentApiTest extends TestCase
             ]
         );
         $remRes = $this->app->dispatch($remReq);
-        $this->assertSame(200, $remRes->getStatusCode());
-        $remData = json_decode($remRes->getContent(), true);
-
-        $this->assertTrue($remData['success']);
-        $this->assertSame('PAID', $remData['data']['payment']['status']);
-        $this->assertSame(300000, (int) $remData['data']['payment']['paid_amount']);
+        $this->assertSame(400, $remRes->getStatusCode());
 
         // 7. Cố tình thanh toán tiếp khi đã thanh toán đủ -> Báo lỗi 400
         $extraRes = $this->app->dispatch($remReq);

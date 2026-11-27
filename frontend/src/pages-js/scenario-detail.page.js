@@ -27,26 +27,34 @@ function normalizeText(str) {
     .trim();
 }
 
+function escHtml(s) {
+  return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+let lastDetailState = null;
+
 function renderDetail(script, isHidden = false) {
+  lastDetailState = { script, isHidden };
   if (!script) {
     container.innerHTML = `<p class="text-muted">Không tìm thấy thông tin kịch bản.</p>`;
     return;
   }
 
-  const title = script.title || script.name || 'Kịch bản bí ẩn';
+  const title = String(script.title || script.name || 'Kịch bản bí ẩn');
+  const safeTitle = escHtml(title);
   document.title = `${title} | Kịch Bản Sát`;
 
   // Xử lý đường dẫn ảnh tương đối từ thư mục pages/
   const posterFile = (script.poster || script.image || '').split('/').pop();
   const posterUrl = posterFile
-    ? `../src/assets/images/${posterFile}`
+    ? `../src/assets/images/${encodeURIComponent(posterFile)}`
     : `https://placehold.co/400x600/181512/d4af37?text=${encodeURIComponent(title)}`;
 
   // Định dạng giá vé 2 khung giờ
   const rawDay = script.priceDay ?? script.price ?? 159000;
   const rawNight = script.priceNight ?? 199000;
-  const dayPrice = typeof rawDay === 'number' ? FORMAT_VND(rawDay) : rawDay;
-  const nightPrice = typeof rawNight === 'number' ? FORMAT_VND(rawNight) : rawNight;
+  const dayPrice = typeof rawDay === 'number' ? FORMAT_VND(rawDay) : String(rawDay);
+  const nightPrice = typeof rawNight === 'number' ? FORMAT_VND(rawNight) : String(rawNight);
 
   // Định dạng số lượng người chơi (hỗ trợ cả dạng chuỗi lẫn object { total, male, female })
   const playersDisplay = script.playersText
@@ -54,21 +62,21 @@ function renderDetail(script, isHidden = false) {
       ? `${script.players.total || 6} người`
       : (script.players || '6 người'));
 
-  // Tô vàng riêng các ký tự ngôi sao ★
-  const rawDifficulty = script.difficulty || '★★★ (Trung bình)';
+  // Tô vàng riêng các ký tự ngôi sao ★ sau khi đã escapeHtml
+  const rawDifficulty = escHtml(script.difficulty || '★★★ (Trung bình)');
   const formattedDifficulty = rawDifficulty.replace(
     /(★+)/g,
     '<span class="difficulty-stars">$1</span>'
   );
 
   // Lấy nội dung cốt truyện
-  const storyText = script.synopsis || script.description || script.summary || 'Nội dung vụ án đang được cập nhật...';
+  const storyText = String(script.synopsis || script.description || script.summary || 'Nội dung vụ án đang được cập nhật...');
 
   container.innerHTML = `
     ${isHidden ? `
       <div id="hidden-script-notice" style="margin-bottom:20px;padding:16px 20px;border-radius:10px;background:rgba(139,30,30,0.16);border:1px solid #8B1E1E;color:#F5F2EB;">
         <strong style="color:#E8B955;display:block;margin-bottom:4px;">THÔNG BÁO: KỊCH BẢN ĐANG TẠM ẨN</strong>
-        <span>Kịch bản <strong>${title}</strong> hiện đã được Quản trị viên tạm ẩn khỏi danh mục công khai và tạm ngừng nhận đặt phòng mới. Vui lòng chọn kịch bản khác trong kho kịch bản.</span>
+        <span>Kịch bản <strong>${safeTitle}</strong> hiện đã được Quản trị viên tạm ẩn khỏi danh mục công khai và tạm ngừng nhận đặt phòng mới. Vui lòng chọn kịch bản khác trong kho kịch bản.</span>
       </div>
     ` : ''}
 
@@ -77,7 +85,7 @@ function renderDetail(script, isHidden = false) {
       <div class="detail-poster-box">
         <img
           src="${posterUrl}"
-          alt="${title}"
+          alt="${safeTitle}"
           onerror="this.src='https://placehold.co/400x600/181512/d4af37?text=${encodeURIComponent(title)}'"
         />
         ${script.isBestSeller ? `<span class="poster-badge">BÁN CHẠY NHẤT</span>` : ''}
@@ -87,22 +95,22 @@ function renderDetail(script, isHidden = false) {
       <div class="detail-info-box">
         <div class="section-kicker">KỊCH BẢN SUY LUẬN PHÁ ÁN</div>
         <h1 class="detail-title">
-          ${title}
+          ${safeTitle}
           ${script.isBestSeller ? `<span class="detail-subtitle">(Bán chạy nhất)</span>` : ''}
         </h1>
 
         <ul class="detail-meta-list">
-          <li><strong>Thể loại:</strong> ${script.genre || 'Trinh thám, Tâm lý'}</li>
+          <li><strong>Thể loại:</strong> ${escHtml(script.genre || 'Trinh thám, Tâm lý')}</li>
           <li><strong>Độ khó:</strong> <span>${formattedDifficulty}</span></li>
-          <li><strong>Số lượng:</strong> ${playersDisplay}</li>
-          <li><strong>Thời gian:</strong> ${script.duration || '~ 3 tiếng'}</li>
+          <li><strong>Số lượng:</strong> ${escHtml(playersDisplay)}</li>
+          <li><strong>Thời gian:</strong> ${escHtml(script.duration || '~ 3 tiếng')}</li>
         </ul>
 
         <div class="detail-price-box">
           <div class="detail-price-title">Giá vé tham gia:</div>
           <ul>
-            <li>Khung giờ 9h00 – 19h59: <strong>${dayPrice} / 1 người</strong></li>
-            <li>Khung giờ từ 20h00: <strong>${nightPrice} / 1 người</strong></li>
+            <li>Khung giờ 9h00 – 19h59: <strong>${escHtml(dayPrice)} / 1 người</strong></li>
+            <li>Khung giờ từ 20h00: <strong>${escHtml(nightPrice)} / 1 người</strong></li>
           </ul>
         </div>
 
@@ -123,12 +131,18 @@ function renderDetail(script, isHidden = false) {
         ${storyText
           .split('\n')
           .filter((line) => line.trim())
-          .map((p) => `<p>${p}</p>`)
+          .map((p) => `<p>${escHtml(p)}</p>`)
           .join('')}
       </div>
     </div>
   `;
 }
+
+window.addEventListener('kbs:session-synced', () => {
+  if (lastDetailState?.script) {
+    renderDetail(lastDetailState.script, lastDetailState.isHidden);
+  }
+});
 
 function renderHiddenUnavailable() {
   document.title = 'Kịch bản không khả dụng | Kịch Bản Sát';

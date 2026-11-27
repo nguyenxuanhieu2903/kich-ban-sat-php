@@ -67,9 +67,6 @@ class GameRepository extends BaseRepository
                 $result['is_18_plus'] = (int) $result['is_18_plus'];
                 return $result;
             }
-            if ($slug === 'dem-doat-menh-tai-trang-vien') {
-                return $this->findById(1);
-            }
             return null;
         });
     }

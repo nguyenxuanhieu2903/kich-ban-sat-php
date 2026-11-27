@@ -16,6 +16,10 @@ class RateLimitMiddleware implements MiddlewareInterface
         '/api/auth/login',
         '/api/v1/auth/register',
         '/api/auth/register',
+        '/api/v1/auth/forgot-password',
+        '/api/auth/forgot-password',
+        '/api/v1/auth/reset-password',
+        '/api/auth/reset-password',
     ];
 
     public function __construct(

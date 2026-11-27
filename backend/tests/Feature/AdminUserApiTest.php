@@ -147,10 +147,10 @@ class AdminUserApiTest extends TestCase
 
     public function testAdminCanAssignRoleToUser(): void
     {
-        // Gán role DM cho User 3 (Nguyễn Xuân Hiếu)
+        // Gán role DM cho Player 7 (nguoichoi01)
         $request = new Request(
             method: 'PUT',
-            path: '/api/v1/admin/users/3/role',
+            path: '/api/v1/admin/users/7/role',
             queryParams: [],
             bodyParams: [
                 'role_code' => 'DM',
@@ -167,10 +167,10 @@ class AdminUserApiTest extends TestCase
         $this->assertTrue($data['success']);
         $this->assertSame('DM', $data['data']['user']['role_code']);
 
-        // Khôi phục lại role PLAYER cho User 3
+        // Khôi phục lại role PLAYER cho Player 7
         $revert = new Request(
             method: 'PUT',
-            path: '/api/v1/admin/users/3/role',
+            path: '/api/v1/admin/users/7/role',
             queryParams: [],
             bodyParams: [
                 'role_code' => 'PLAYER',

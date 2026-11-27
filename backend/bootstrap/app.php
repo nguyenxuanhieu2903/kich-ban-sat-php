@@ -27,6 +27,36 @@ if (file_exists($autoloader)) {
 App\Infrastructure\Config\Config::load($basePath);
 date_default_timezone_set((string) App\Infrastructure\Config\Config::get('APP_TIMEZONE', 'Asia/Ho_Chi_Minh'));
 
+// Apply hardened session cookie flags from .env before any session_start()
+if (session_status() === PHP_SESSION_NONE && !headers_sent()) {
+    $sessionLifetime = max(300, (int) App\Infrastructure\Config\Config::get('SESSION_LIFETIME', 7200));
+    $sessionName = trim((string) App\Infrastructure\Config\Config::get('SESSION_COOKIE_NAME', 'kbs_session_id'));
+    $isHttps = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
+        || ((int) ($_SERVER['SERVER_PORT'] ?? 0) === 443)
+        || (strtolower((string) ($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '')) === 'https');
+    $cookieSecure = (bool) App\Infrastructure\Config\Config::get('SESSION_COOKIE_SECURE', false) || $isHttps;
+    $cookieHttpOnly = (bool) App\Infrastructure\Config\Config::get('SESSION_COOKIE_HTTPONLY', true);
+    $cookieSameSite = trim((string) App\Infrastructure\Config\Config::get('SESSION_COOKIE_SAMESITE', 'Lax'));
+    if (!in_array($cookieSameSite, ['Lax', 'Strict', 'None'], true)) {
+        $cookieSameSite = 'Lax';
+    }
+
+    if ($sessionName !== '' && preg_match('/^[A-Za-z0-9_-]+$/', $sessionName) === 1) {
+        @session_name($sessionName);
+    }
+    @ini_set('session.use_only_cookies', '1');
+    @ini_set('session.use_strict_mode', '1');
+    @ini_set('session.gc_maxlifetime', (string) $sessionLifetime);
+    @session_set_cookie_params([
+        'lifetime' => $sessionLifetime,
+        'path' => '/',
+        'domain' => '',
+        'secure' => $cookieSecure,
+        'httponly' => $cookieHttpOnly,
+        'samesite' => $cookieSameSite,
+    ]);
+}
+
 // Instantiate application
 $app = new App\Core\Application($basePath);
 

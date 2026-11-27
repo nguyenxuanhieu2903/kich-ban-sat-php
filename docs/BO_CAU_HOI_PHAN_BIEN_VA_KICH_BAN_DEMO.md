@@ -8,14 +8,14 @@ Tài liệu này được biên soạn nhằm phục vụ trực tiếp cho bu�
 
 ## 1. THÔNG TIN ĐĂNG NHẬP HỆ THỐNG MẪU (DEMO CREDENTIALS)
 
-Toàn bộ tài khoản mẫu được kích hoạt sẵn trong cơ sở dữ liệu với mật khẩu chuẩn hóa: `password123`.
+Toàn bộ tài khoản mẫu trong CSDL `kich_ban_sat_v3_clean.sql` đã được mã hóa mật khẩu bằng `password_hash()` (BCRYPT):
 
 | Vai trò (Role) | Email đăng nhập | Mật khẩu | Mục đích thao diễn |
 |:---|:---|:---|:---|
-| **Khách chơi (Player / Host)** | `player1@kichbansat.vn` | `password123` | Tạo phòng, chọn kịch bản, biểu quyết giờ chơi, nộp cọc QR, đánh giá sau chơi. |
-| **Khách chơi thành viên** | `player2@kichbansat.vn` | `password123` | Tham gia phòng ghép, bỏ phiếu biểu quyết lịch, nộp cọc cá nhân 50.000 VNĐ. |
-| **Quản trò (DM)** | `dm1@kichbansat.vn` | `password123` | Tiếp nhận ca trực, check-in khách, bắt đầu buổi chơi, lưu biên bản, tất toán quầy. |
-| **Quản trị viên (Admin)** | `admin@kichbansat.vn` | `password123` | Dashboard doanh thu, khóa phòng offline, bảo trì điều chuyển phòng, duyệt hoàn cọc. |
+| **Khách chơi (Player / Host)** | `nguoichoi01@gmail.com` | `pass123456#` | Tạo phòng, chọn kịch bản, biểu quyết giờ chơi, nộp cọc QR, đánh giá sau chơi. |
+| **Khách chơi thành viên** | `nguoichoi02@gmail.com` | `pass123456#` | Tham gia phòng ghép, bỏ phiếu biểu quyết lịch, nộp cọc cá nhân 50.000 VNĐ. |
+| **Quản trò (DM)** | `nguyenphamyhuynh@gmail.com` | `pass123456@` | Tiếp nhận ca trực, check-in khách, bắt đầu buổi chơi, lưu biên bản, tất toán quầy. |
+| **Quản trị viên (Admin)** | `nguyenxuanhieu@gmail.com` | `pass123456!` | Dashboard doanh thu, khóa phòng offline, bảo trì điều chuyển phòng, duyệt hoàn cọc. |
 
 - Địa chỉ máy chủ cục bộ: `http://127.0.0.1:8000/`
 - Tài liệu API tương tác Swagger UI: `http://127.0.0.1:8000/api/v1/docs`
@@ -28,7 +28,7 @@ Toàn bộ tài khoản mẫu được kích hoạt sẵn trong cơ sở dữ li
 Khi trình bày trước hội đồng, sinh viên mở trình duyệt tại `http://127.0.0.1:8000/` và thao tác theo 5 bước tuần tự sau:
 
 ### Bước 1: Khám phá kịch bản & Tạo phòng (1 phút)
-- **Hành động:** Đăng nhập tài khoản `player1@kichbansat.vn`, mở trang **"Kho Kịch Bản"** (`scenarios.html`).
+- **Hành động:** Đăng nhập tài khoản `nguoichoi01@gmail.com`, mở trang **"Kho Kịch Bản"** (`scenarios.html`).
 - **Thao tác:**
   - Lọc theo thể loại: Chọn thẻ "Kinh Dị 18+" hoặc "Trinh Thám Cổ Trang".
   - Mở chi tiết kịch bản: Giới thiệu thông tin thời lượng 240 phút, số lượng người chơi (6-8 người), độ tuổi 18+, và bảng giá linh hoạt theo 3 khung giờ (Sáng: 180k, Chiều: 220k, Tối: 250k).
@@ -52,7 +52,7 @@ Khi trình bày trước hội đồng, sinh viên mở trình duyệt tại `ht
 - **Điểm nhấn thuyết minh:** "Hệ thống hỗ trợ cả nộp cọc cá nhân cho khách lẻ và nộp cọc gộp cho Host đại diện nhóm bạn, với thời hạn thanh toán (SLA) 2 giờ rõ ràng."
 
 ### Bước 4: Quản trò tiếp nhận & Điều phối buổi chơi (1.5 phút)
-- **Hành động:** Chuyển sang trình duyệt đăng nhập vai trò DM (`dm1@kichbansat.vn`) tại Cổng Quản Trò (`dm-portal.html`).
+- **Hành động:** Chuyển sang trình duyệt đăng nhập vai trò DM (`nguyenphamyhuynh@gmail.com`) tại Cổng Quản Trò (`dm-portal.html`).
 - **Thao tác:**
   - Bấm **"Chấp Nhận Ca"** trong vòng 2 giờ.
   - Khi khách đến quán, DM bấm **"Bắt Đầu Buổi Chơi"** (`IN_PROGRESS`): Đồng hồ đếm ngược 240 phút kích hoạt, chia thành 6 giai đoạn rõ ràng.
@@ -61,7 +61,7 @@ Khi trình bày trước hội đồng, sinh viên mở trình duyệt tại `ht
 - **Điểm nhấn thuyết minh:** "Cổng Quản trò hỗ trợ đầy đủ công cụ số hóa cho DM tại hiện trường, từ đồng hồ đếm ngược, phân vai, ghi chú hư hao đạo cụ đến quy trình tất toán."
 
 ### Bước 5: Bảng điều khiển Quản trị viên & Xử lý ngoại lệ (1 phút)
-- **Hành động:** Đăng nhập vai trò Admin (`admin@kichbansat.vn`) tại Cổng Quản Trị (`admin-portal.html`).
+- **Hành động:** Đăng nhập vai trò Admin (`nguyenxuanhieu@gmail.com`) tại Cổng Quản Trị (`admin-portal.html`).
 - **Thao tác:**
   - Trình chiếu 4 chỉ số KPI thời gian thực: Doanh thu thuần, Tiền cọc đã thu, Ca đang chơi và Phân công DM.
   - Thao diễn tính năng **Bảo trì phòng vật lý**: Bật bảo trì một phòng, hệ thống tự động kích hoạt Dynamic Rerouting chuyển ca chơi sang phòng trống khác và tự động phát thông báo tới khách hàng.
@@ -86,16 +86,13 @@ Khi trình bày trước hội đồng, sinh viên mở trình duyệt tại `ht
     1. **Tầng ứng dụng (Service Layer):** Trong hàm `findAvailablePhysicalRoom()`, hệ thống áp dụng khoảng đệm dọn phòng cứng 30 phút (`BUFFER_MINUTES = 30`). Một phòng vật lý chỉ được xem là khả dụng nếu không có ca chơi nào khác giao thoa trong khoảng từ `start_at - 30 phút` đến `end_at + 30 phút`.
     2. **Tầng cơ sở dữ liệu (Database Constraint):** Ràng buộc khóa ngoại kép `fk_sessions_physical_room (venue_id, physical_room_id)` kết hợp chỉ mục `idx_sessions_physical_time (physical_room_id, status, start_at, end_at)` và kiểm tra khóa giữ chỗ ngoại tuyến trong bảng `offline_room_blocks`. Khi có xung đột, giao dịch cơ sở dữ liệu sẽ bị chặn ngay lập tức, bảo đảm tính toàn vẹn tuyệt đối."
 
-### Câu hỏi 3: Nếu một ca chơi kéo dài 4 tiếng từ 16:30 đến 20:30, vắt qua cả Ca Chiều (220k) và Ca Tối (250k) thì hệ thống tính giá vé thế nào?
+### Câu hỏi 3: Nếu một ca chơi kéo dài 4 tiếng từ 17:30 đến 21:30, vắt qua cả Ca Ngày (trước 20:00) và Ca Tối (từ 20:00) thì hệ thống tính giá vé thế nào?
 - **Trả lời phản biện:**
-  - "Dạ thưa Thầy/Cô, hệ thống giải quyết bằng thuật toán **Majority Time Block Rule (Quy tắc thời lượng chiếm đa số)** được cài đặt tại `PricingService.php`:
-    - Ca Chiều kết thúc lúc 18:00, Ca Tối bắt đầu từ 18:00.
-    - Ca chơi từ 16:30 đến 20:30 có tổng thời lượng 240 phút:
-      - Đoạn trong Ca Chiều (16:30 - 18:00): 90 phút (chiếm 37.5%).
-      - Đoạn trong Ca Tối (18:00 - 20:30): 150 phút (chiếm 62.5%).
-    - Vì Ca Tối chiếm đa số (`>= 50%`), hệ thống tự động áp dụng mức giá Ca Tối là **250.000 VNĐ / vé**.
-    - Trong trường hợp đặc biệt ca chơi chia đều chính xác 50% - 50% (ví dụ 16:00 - 20:00: Ca Chiều 120 phút và Ca Tối 120 phút), hệ thống áp dụng **Split 50-50 Tie Rule**: Tính giá vé theo trung bình cộng `(220.000 + 250.000) / 2 = 235.000 VNĐ / vé`.
-    - Toàn bộ kết quả tính toán chi tiết từng phút được lưu vết bất biến trong snapshot `game_rooms.price_details` để đối soát minh bạch."
+  - "Dạ thưa Thầy/Cô, hệ thống giải quyết bằng thuật toán **Majority Time Block Rule (Quy tắc thời lượng chiếm đa số)** được cài đặt đồng nhất trong `PricingService.php` (cả `calculateQuote()` và `calculateAndSnapshot()`):
+    - Khung giá Ca Ngày áp dụng cho thời lượng trước **20:00**, khung giá Ca Tối áp dụng cho thời lượng từ **20:00** trở đi (mốc chia chuẩn 20:00:00).
+    - Nếu tỷ lệ thời lượng thuộc một khung giờ lớn hơn 50%, hệ thống áp dụng đơn giá của khung giờ chiếm đa số đó.
+    - Trong trường hợp đặc biệt ca chơi chia đều chính xác 50% - 50% (ví dụ 18:00 - 22:00: 120 phút trước 20:00 và 120 phút sau 20:00), hệ thống áp dụng **Split 50-50 Tie Rule**: Tính giá vé theo trung bình cộng giữa giá Ngày và giá Tối.
+    - Toàn bộ kết quả tính toán chi tiết từng phút được lưu vết bất biến trong snapshot `game_rooms.price_details` (bảo toàn đồng thời bản đồ ghế `participant_seats`) để đối soát minh bạch."
 
 ### Câu hỏi 4: Trong trường hợp Quản trò (DM) được giao ca nhưng bận hoặc bỏ quên không nhận thì hệ thống xử lý ra sao?
 - **Trả lời phản biện:**

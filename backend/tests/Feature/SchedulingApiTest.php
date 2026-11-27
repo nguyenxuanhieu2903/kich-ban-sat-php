@@ -60,9 +60,11 @@ class SchedulingApiTest extends TestCase
             bodyParams: [
                 'game_id' => 1,
                 'title' => 'Phòng test biểu quyết lịch',
+                'min_players' => 2,
+                'max_players' => 6,
             ],
             headers: [
-                'Authorization' => 'Bearer 3',
+                'Authorization' => 'Bearer 7',
             ]
         );
         $createRes = $this->app->dispatch($createReq);
@@ -70,20 +72,20 @@ class SchedulingApiTest extends TestCase
         $createData = json_decode($createRes->getContent(), true);
         $roomId = (int) $createData['data']['room']['id'];
 
-        // 2. User 4 (Trần Minh Anh) tham gia phòng
+        // 2. Player 8 tham gia phòng
         $joinReq = new Request(
             method: 'POST',
             path: "/api/rooms/{$roomId}/join",
             queryParams: [],
             bodyParams: [],
             headers: [
-                'Authorization' => 'Bearer 4',
+                'Authorization' => 'Bearer 8',
             ]
         );
         $joinRes = $this->app->dispatch($joinReq);
         $this->assertSame(200, $joinRes->getStatusCode());
 
-        // 3. User 3 tạo đề xuất lịch
+        // 3. Player 7 tạo đề xuất lịch
         $start = date('Y-m-d H:i:s', strtotime('+30 days 10:00:00'));
         $end = date('Y-m-d H:i:s', strtotime('+30 days 12:00:00'));
 
@@ -96,7 +98,7 @@ class SchedulingApiTest extends TestCase
                 'proposed_end_at' => $end,
             ],
             headers: [
-                'Authorization' => 'Bearer 3',
+                'Authorization' => 'Bearer 7',
             ]
         );
         $propRes = $this->app->dispatch($propReq);
@@ -104,15 +106,15 @@ class SchedulingApiTest extends TestCase
         $propData = json_decode($propRes->getContent(), true);
         $proposalId = (int) $propData['data']['proposal_id'];
 
-        // 4. Xem chi tiết đề xuất lịch
-        $showReq = new Request('GET', "/api/proposals/{$proposalId}");
+        // 4. Thành viên phòng xem chi tiết đề xuất lịch (đã bật chống IDOR)
+        $showReq = new Request('GET', "/api/proposals/{$proposalId}", [], [], ['Authorization' => 'Bearer 7']);
         $showRes = $this->app->dispatch($showReq);
         $this->assertSame(200, $showRes->getStatusCode());
         $showData = json_decode($showRes->getContent(), true);
         $this->assertSame('PROPOSED', $showData['data']['proposal']['status']);
-        $this->assertCount(1, $showData['data']['proposal']['votes']); // User 3 tự động vote ACCEPTED
+        $this->assertCount(1, $showData['data']['proposal']['votes']); // Player 7 tự động vote ACCEPTED
 
-        // 5. User 4 vote ACCEPTED -> Đủ 2/2 phiếu -> Tự động chốt Session!
+        // 5. Player 8 vote ACCEPTED -> Đủ 2/2 phiếu -> Tự động chốt Session!
         $voteReq = new Request(
             method: 'POST',
             path: "/api/proposals/{$proposalId}/vote",
@@ -121,7 +123,7 @@ class SchedulingApiTest extends TestCase
                 'response' => 'ACCEPTED',
             ],
             headers: [
-                'Authorization' => 'Bearer 4',
+                'Authorization' => 'Bearer 8',
             ]
         );
         $voteRes = $this->app->dispatch($voteReq);
@@ -134,7 +136,7 @@ class SchedulingApiTest extends TestCase
 
     public function testAdminAndDmCanManageAndApproveProposals(): void
     {
-        // 1. Tạo phòng mới với User 3 (Player)
+        // 1. Tạo phòng mới với Player 7
         $createReq = new Request(
             method: 'POST',
             path: '/api/rooms',
@@ -144,14 +146,14 @@ class SchedulingApiTest extends TestCase
                 'title' => 'Phòng test admin & dm duyệt đề xuất',
             ],
             headers: [
-                'Authorization' => 'Bearer 3',
+                'Authorization' => 'Bearer 7',
             ]
         );
         $createRes = $this->app->dispatch($createReq);
         $createData = json_decode($createRes->getContent(), true);
         $roomId = (int) $createData['data']['room']['id'];
 
-        // 2. User 3 tạo đề xuất lịch
+        // 2. Player 7 tạo đề xuất lịch
         $start = date('Y-m-d H:i:s', strtotime('+35 days 14:00:00'));
         $end = date('Y-m-d H:i:s', strtotime('+35 days 18:00:00'));
 
@@ -164,21 +166,21 @@ class SchedulingApiTest extends TestCase
                 'proposed_end_at' => $end,
             ],
             headers: [
-                'Authorization' => 'Bearer 3',
+                'Authorization' => 'Bearer 7',
             ]
         );
         $propRes = $this->app->dispatch($propReq);
         $propData = json_decode($propRes->getContent(), true);
         $proposalId = (int) $propData['data']['proposal_id'];
 
-        // 3. User thường (User 4) không có quyền duyệt đề xuất -> 403 Forbidden
+        // 3. Player thường (Player 8) không có quyền duyệt đề xuất -> 403 Forbidden
         $unauthApprove = new Request(
             method: 'POST',
             path: "/api/admin/proposals/{$proposalId}/approve",
             queryParams: [],
             bodyParams: [],
             headers: [
-                'Authorization' => 'Bearer 4',
+                'Authorization' => 'Bearer 8',
             ]
         );
         $unauthRes = $this->app->dispatch($unauthApprove);
@@ -228,7 +230,7 @@ class SchedulingApiTest extends TestCase
                 'game_id' => 1,
                 'title' => 'Phòng test DM từ chối đề xuất',
             ],
-            headers: ['Authorization' => 'Bearer 3']
+            headers: ['Authorization' => 'Bearer 7']
         );
         $roomId2 = (int) json_decode($this->app->dispatch($createReq2)->getContent(), true)['data']['room']['id'];
 
@@ -240,17 +242,17 @@ class SchedulingApiTest extends TestCase
                 'proposed_start_at' => $start2,
                 'proposed_end_at' => $end2,
             ],
-            headers: ['Authorization' => 'Bearer 3']
+            headers: ['Authorization' => 'Bearer 7']
         );
         $propId2 = (int) json_decode($this->app->dispatch($propReq2)->getContent(), true)['data']['proposal_id'];
 
-        // DM (User 2) từ chối đề xuất
+        // DM (User 3) từ chối đề xuất
         $rejectReq = new Request(
             method: 'POST',
             path: "/api/proposals/{$propId2}/reject",
             queryParams: [],
             bodyParams: ['reason' => 'Trùng lịch phòng và kịch bản'],
-            headers: ['Authorization' => 'Bearer 2']
+            headers: ['Authorization' => 'Bearer 3']
         );
         $rejectRes = $this->app->dispatch($rejectReq);
         $this->assertSame(200, $rejectRes->getStatusCode());

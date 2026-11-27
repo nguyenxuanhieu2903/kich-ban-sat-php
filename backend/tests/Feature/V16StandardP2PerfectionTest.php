@@ -85,19 +85,21 @@ class V16StandardP2PerfectionTest extends TestCase
 
     public function testSettlementWithExtraFeeAtCounter(): void
     {
-        $this->pdo->exec("INSERT INTO `game_rooms` (`game_id`, `game_configuration_id`, `creator_id`, `title`, `min_players`, `max_players`, `status`, `formation_deadline_at`, `created_at`, `updated_at`) VALUES (1, 1, 3, 'Phòng Test Extra Fee', 6, 8, 'CONFIRMED', DATE_ADD(NOW(), INTERVAL 3 DAY), NOW(), NOW())");
+        $this->pdo->exec("INSERT INTO `game_rooms` (`game_id`, `game_configuration_id`, `creator_id`, `title`, `min_players`, `max_players`, `status`, `formation_deadline_at`, `created_at`, `updated_at`) VALUES (1, 1, 7, 'Phòng Test Extra Fee', 6, 8, 'IN_PROGRESS', DATE_ADD(NOW(), INTERVAL 3 DAY), NOW(), NOW())");
         $roomId = (int) $this->pdo->lastInsertId();
 
-        $this->pdo->exec("INSERT INTO `schedule_proposals` (`game_room_id`, `proposed_by`, `proposed_start_at`, `proposed_end_at`, `status`, `expires_at`, `created_at`) VALUES ({$roomId}, 3, NOW(), DATE_ADD(NOW(), INTERVAL 4 HOUR), 'CONFIRMED', DATE_ADD(NOW(), INTERVAL 24 HOUR), NOW())");
+        $this->pdo->exec("INSERT INTO `room_participants` (`game_room_id`, `user_id`, `status`, `joined_at`, `created_at`, `updated_at`) VALUES ({$roomId}, 7, 'DEPOSITED', NOW(), NOW(), NOW())");
+
+        $this->pdo->exec("INSERT INTO `schedule_proposals` (`game_room_id`, `proposed_by`, `proposed_start_at`, `proposed_end_at`, `status`, `expires_at`, `created_at`) VALUES ({$roomId}, 7, NOW(), DATE_ADD(NOW(), INTERVAL 4 HOUR), 'CONFIRMED', DATE_ADD(NOW(), INTERVAL 24 HOUR), NOW())");
         $propId = (int) $this->pdo->lastInsertId();
 
-        $this->pdo->exec("INSERT INTO `dm_assignments` (`game_room_id`, `dm_user_id`, `assigned_by`, `status`, `assigned_at`, `created_at`, `updated_at`) VALUES ({$roomId}, 2, 1, 'ACCEPTED', NOW(), NOW(), NOW())");
+        $this->pdo->exec("INSERT INTO `dm_assignments` (`game_room_id`, `dm_user_id`, `assigned_by`, `status`, `assigned_at`, `created_at`, `updated_at`) VALUES ({$roomId}, 3, 1, 'ACCEPTED', NOW(), NOW(), NOW())");
         $assignId = (int) $this->pdo->lastInsertId();
 
         $this->pdo->exec("INSERT INTO `physical_rooms` (`venue_id`, `name`, `capacity`, `status`, `created_at`, `updated_at`) VALUES (1, 'Phòng Test Fee " . uniqid() . "', 10, 'ACTIVE', NOW(), NOW())");
         $pRoomId = (int) $this->pdo->lastInsertId();
 
-        $this->pdo->exec("INSERT INTO `sessions` (`game_room_id`, `schedule_proposal_id`, `dm_assignment_id`, `venue_id`, `physical_room_id`, `start_at`, `end_at`, `status`, `created_at`, `updated_at`) VALUES ({$roomId}, {$propId}, {$assignId}, 1, {$pRoomId}, NOW(), DATE_ADD(NOW(), INTERVAL 4 HOUR), 'COMPLETED', NOW(), NOW())");
+        $this->pdo->exec("INSERT INTO `sessions` (`game_room_id`, `schedule_proposal_id`, `dm_assignment_id`, `venue_id`, `physical_room_id`, `start_at`, `end_at`, `status`, `started_at`, `completed_at`, `created_at`, `updated_at`) VALUES ({$roomId}, {$propId}, {$assignId}, 1, {$pRoomId}, NOW(), DATE_ADD(NOW(), INTERVAL 4 HOUR), 'IN_PROGRESS', NOW(), NOW(), NOW(), NOW())");
         $sessionId = (int) $this->pdo->lastInsertId();
 
         $request = new Request(
@@ -110,7 +112,7 @@ class V16StandardP2PerfectionTest extends TestCase
                 'extra_fee_reason' => 'Đền bù rách trang phục hóa trang',
             ],
             headers: [
-                'Authorization' => 'Bearer 2',
+                'Authorization' => 'Bearer 3',
             ]
         );
 
@@ -526,23 +528,23 @@ class V16StandardP2PerfectionTest extends TestCase
     }
 
     /**
-     * Test 12: Quy tắc tính giá Majority Time Block khi ca chơi vắt qua 2 khung giờ
+     * Test 12: Quy tắc tính giá Majority Time Block khi ca chơi vắt qua 2 khung giờ (Ngày 09:00-19:59 / Tối 20:00-23:00)
      */
     public function testMajorityTimeBlockPricingRule(): void
     {
         $pricingService = new \App\Features\Pricing\Services\PricingService($this->pdo);
 
-        // Ca chơi từ 11:30 đến 15:30 (tổng 240 phút):
-        // Ca sáng (11:30 - 13:00): 90 phút (37.5%)
-        // Ca chiều (13:00 - 15:30): 150 phút (62.5% -> Đa số)
-        $res = $pricingService->calculateBasePriceForGame(1, '2026-12-01 11:30:00', '2026-12-01 15:30:00', 240);
+        // Ca chơi từ 19:00 đến 23:00 (tổng 240 phút):
+        // Ca ngày (19:00 - 19:59:59): 60 phút (25%) - 199.000đ
+        // Ca tối (20:00 - 23:00): 180 phút (75% -> Đa số) - 239.000đ
+        $res = $pricingService->calculateBasePriceForGame(1, '2026-12-01 19:00:00', '2026-12-01 23:00:00', 240);
 
         $this->assertSame('MAJORITY_TIME_BLOCK', $res['pricing_rule']);
-        $this->assertSame(220000, $res['base_price_per_person']);
+        $this->assertSame(239000, $res['base_price_per_person']);
         $this->assertSame(240, $res['duration_minutes']);
         $this->assertCount(2, $res['tier_overlaps']);
-        $this->assertSame(150, $res['tier_overlaps'][0]['overlap_minutes']);
-        $this->assertSame(90, $res['tier_overlaps'][1]['overlap_minutes']);
+        $this->assertSame(180, $res['tier_overlaps'][0]['overlap_minutes']);
+        $this->assertSame(60, $res['tier_overlaps'][1]['overlap_minutes']);
     }
 
     /**
@@ -552,14 +554,14 @@ class V16StandardP2PerfectionTest extends TestCase
     {
         $pricingService = new \App\Features\Pricing\Services\PricingService($this->pdo);
 
-        // Ca chơi từ 16:00 đến 20:00 (tổng 240 phút):
-        // Ca chiều (16:00 - 18:00): 120 phút (50% giá 220.000)
-        // Ca tối (18:00 - 20:00): 120 phút (50% giá 250.000)
-        // Trung bình cộng: (220.000 + 250.000) / 2 = 235.000
-        $res = $pricingService->calculateBasePriceForGame(1, '2026-12-01 16:00:00', '2026-12-01 20:00:00', 240);
+        // Ca chơi từ 18:00 đến 22:00 (tổng 240 phút):
+        // Ca ngày (18:00 - 19:59:59): 120 phút (50% giá 199.000)
+        // Ca tối (20:00 - 22:00): 120 phút (50% giá 239.000)
+        // Trung bình cộng: (199.000 + 239.000) / 2 = 219.000
+        $res = $pricingService->calculateBasePriceForGame(1, '2026-12-01 18:00:00', '2026-12-01 22:00:00', 240);
 
         $this->assertSame('SPLIT_50_50_AVERAGE', $res['pricing_rule']);
-        $this->assertSame(235000, $res['base_price_per_person']);
+        $this->assertSame(219000, $res['base_price_per_person']);
         $this->assertSame(240, $res['duration_minutes']);
         $this->assertCount(2, $res['tier_overlaps']);
         $this->assertSame(120, $res['tier_overlaps'][0]['overlap_minutes']);
@@ -573,7 +575,7 @@ class V16StandardP2PerfectionTest extends TestCase
     {
         $pricingService = new \App\Features\Pricing\Services\PricingService($this->pdo);
 
-        $this->pdo->exec("INSERT INTO `game_rooms` (`game_id`, `game_configuration_id`, `creator_id`, `title`, `min_players`, `max_players`, `total_players`, `status`, `formation_deadline_at`, `created_at`, `updated_at`) VALUES (1, 1, 1, 'Phòng Snapshot Pricing Test', 6, 8, 6, 'FORMING', DATE_ADD(NOW(), INTERVAL 2 DAY), NOW(), NOW())");
+        $this->pdo->exec("INSERT INTO `game_rooms` (`game_id`, `game_configuration_id`, `creator_id`, `title`, `min_players`, `max_players`, `total_players`, `status`, `formation_deadline_at`, `created_at`, `updated_at`) VALUES (1, 1, 7, 'Phòng Snapshot Pricing Test', 6, 8, 6, 'FORMING', DATE_ADD(NOW(), INTERVAL 2 DAY), NOW(), NOW())");
         $grId = (int) $this->pdo->lastInsertId();
 
         for ($i = 1; $i <= 6; $i++) {
@@ -581,24 +583,24 @@ class V16StandardP2PerfectionTest extends TestCase
             $this->pdo->exec("INSERT INTO `room_participants` (`game_room_id`, `user_id`, `status`, `joined_at`, `created_at`, `updated_at`) VALUES ({$grId}, {$uId}, 'DEPOSITED', NOW(), NOW(), NOW())");
         }
 
-        // Chạy calculateAndSnapshot với thời gian 11:30 - 15:30 (240 phút)
-        $snapshot = $pricingService->calculateAndSnapshot($grId, '2026-12-01 11:30:00');
+        // Chạy calculateAndSnapshot với thời gian 19:00 (270 phút: 60p Ca ngày, 180p Ca tối -> 239.000đ)
+        $snapshot = $pricingService->calculateAndSnapshot($grId, '2026-12-01 19:00:00');
 
         $this->assertSame(6, $snapshot['total_participants']);
-        $this->assertSame(220000, $snapshot['base_price_per_person']);
+        $this->assertSame(239000, $snapshot['base_price_per_person']);
         $this->assertSame('MAJORITY_TIME_BLOCK', $snapshot['pricing_rule']);
-        $this->assertSame(220000 * 6, $snapshot['subtotal']);
+        $this->assertSame(239000 * 6, $snapshot['subtotal']);
         $this->assertSame(50000, $snapshot['deposit_per_person']);
         $this->assertSame(300000, $snapshot['deposit_total']);
-        $this->assertSame((220000 * 6) - 300000, $snapshot['remaining_total']);
+        $this->assertSame((239000 * 6) - 300000, $snapshot['remaining_total']);
 
         // Kiểm tra snapshot được lưu vào database game_rooms
         $roomRow = $this->pdo->query("SELECT `price_subtotal`, `price_deposit_total`, `price_remaining_total`, `price_details` FROM `game_rooms` WHERE `id` = {$grId}")->fetch(PDO::FETCH_ASSOC);
-        $this->assertSame(220000 * 6, (int) $roomRow['price_subtotal']);
+        $this->assertSame(239000 * 6, (int) $roomRow['price_subtotal']);
         $this->assertSame(300000, (int) $roomRow['price_deposit_total']);
         $details = json_decode((string) $roomRow['price_details'], true);
         $this->assertSame('MAJORITY_TIME_BLOCK', $details['pricing_rule']);
-        $this->assertSame(220000, $details['base_price_per_person']);
+        $this->assertSame(239000, $details['base_price_per_person']);
     }
 
     /**

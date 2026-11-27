@@ -145,7 +145,7 @@ Bảng kiểm kê toàn bộ Actor phát hiện trong hệ thống:
    - Nếu người chơi cố tình chuyển hash URL vào `#admin` hoặc `#dm`, Component View (`AdminView.js`, `DmView.js`) sẽ chặn lại và hiển thị màn hình cảnh báo 403.
 4. **Bản chất của Multi-Role Selector trong Auth Modal:**
    - Tại `frontend/src/pages/auth/auth-modal.js` (line 14–60), có thanh tab chọn 3 vai trò (Player / DM / Admin).
-   - **Bằng chứng mã nguồn:** Đây không phải là cơ chế cho phép 1 user chọn nhiều role khi đăng nhập, mà là **công cụ Demo Switcher** giúp người chấm bài/developer nhanh chóng tự động điền (autofill) thông tin của 3 tài khoản mẫu được seed sẵn trong CSDL (`player.hieu@kichbansat.vn`, `dm.nam@kichbansat.vn`, `admin@kichbansat.vn`).
+   - **Bằng chứng mã nguồn:** Đây không phải là cơ chế cho phép 1 user chọn nhiều role khi đăng nhập, mà là ghi nhận lịch sử từ phiên bản đầu về công cụ điền nhanh tài khoản mẫu (trong bản V16.1 đã loại bỏ hoàn toàn Demo Switcher; bộ tài khoản chuẩn trong `kich_ban_sat_v3_clean.sql` là `nguoichoi01@gmail.com`..`nguoichoi50@gmail.com`, `nguyenphamyhuynh@gmail.com`, `nguyenxuanhieu@gmail.com`).
 
 ---
 

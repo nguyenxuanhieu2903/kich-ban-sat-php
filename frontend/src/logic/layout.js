@@ -5,13 +5,47 @@ function escHtml(s) {
   return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
-export function initChrome(activeKey = '') {
+export function initChrome(activeKey = '', skipSessionSync = false) {
   const isRoot = !window.location.pathname.includes('/pages/');
   const prefix = isRoot ? './' : '../';
   const pagesPrefix = isRoot ? './pages/' : './';
   const homeAnchorPrefix = isRoot ? '' : `${prefix}index.html`;
 
   const role = store.state.currentRole;
+
+  if (!skipSessionSync && !window.__kbsSessionSyncStarted) {
+    window.__kbsSessionSyncStarted = true;
+    api.get('/auth/me').then((res) => {
+      const u = res?.user || res;
+      if (!u || !u.id) return;
+      const serverRole = String(u.role || u.role_code || 'PLAYER').toLowerCase();
+      const prevRole = store.state.currentRole;
+      const prevId = store.state.currentUser?.id;
+      store.state.currentUser = {
+        ...store.state.currentUser,
+        id: u.id,
+        name: u.full_name || u.name || u.email,
+        phone: u.phone || '',
+        email: u.email || '',
+        avatar: String(u.full_name || u.email || 'US').slice(0, 2).toUpperCase(),
+      };
+      if (prevRole !== serverRole || String(prevId) !== String(u.id)) {
+        store.setRole(serverRole);
+        initChrome(activeKey, true);
+      } else {
+        try { localStorage.setItem('KBS_V16_STATE_V1', JSON.stringify(store.state)); } catch { /* ignore */ }
+      }
+      window.dispatchEvent(new CustomEvent('kbs:session-synced', { detail: { role: serverRole, user: u } }));
+    }).catch((err) => {
+      if (err && (err.status === 401 || err.status === 403)) {
+        if (store.state.currentRole !== 'guest') {
+          store.setRole('guest');
+          initChrome(activeKey, true);
+        }
+        window.dispatchEvent(new CustomEvent('kbs:session-synced', { detail: { role: 'guest', user: null } }));
+      }
+    });
+  }
 
   /* =========================================================
      1. HEADER CHÍNH
@@ -99,6 +133,7 @@ export function initChrome(activeKey = '') {
             modal = document.createElement('div');
             modal.id = 'kbs-notif-modal';
             modal.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.55);display:flex;align-items:center;justify-content:center;padding:16px;';
+            modal.addEventListener('click', (ev) => { if (ev.target === modal) modal.style.display = 'none'; });
             document.body.appendChild(modal);
           }
           const unreadCount = cachedNotifs.filter((n) => !n.is_read).length;
@@ -135,7 +170,6 @@ export function initChrome(activeKey = '') {
             try { await api.post('/notifications/read-all', {}); } catch { /* ignore */ }
             await openNotifModal();
           });
-          modal.addEventListener('click', (ev) => { if (ev.target === modal) modal.style.display = 'none'; });
 
           modal.querySelectorAll('[data-read-notif]').forEach((b) => {
             b.addEventListener('click', async (ev) => {

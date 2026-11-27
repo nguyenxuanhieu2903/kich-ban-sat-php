@@ -78,6 +78,30 @@ class PricingController
             return $auth;
         }
 
+        // Chống IDOR: chỉ Admin, DM hoặc thành viên/chủ phòng mới được phép tính và chốt snapshot giá phòng
+        $roomStmt = $this->pdo->prepare('SELECT `id`, `creator_id` FROM `game_rooms` WHERE `id` = :rid LIMIT 1');
+        $roomStmt->bindValue(':rid', $roomId, PDO::PARAM_INT);
+        $roomStmt->execute();
+        $roomRow = $roomStmt->fetch(PDO::FETCH_ASSOC);
+        if ($roomRow === false) {
+            return Response::fail('Không tìm thấy phòng chơi', 'NOT_FOUND', 404);
+        }
+
+        $callerId = (int) ($auth['id'] ?? 0);
+        $callerRole = strtoupper((string) ($auth['role_code'] ?? $auth['role'] ?? 'PLAYER'));
+        if (!in_array($callerRole, ['ADMIN', 'DM'], true) && (int) $roomRow['creator_id'] !== $callerId) {
+            $memberStmt = $this->pdo->prepare(
+                'SELECT 1 FROM `room_participants`
+                 WHERE `game_room_id` = :rid AND `user_id` = :uid
+                   AND `status` IN (\'PENDING_DEPOSIT\', \'DEPOSITED\', \'LEAVE_REQUESTED\')
+                 LIMIT 1'
+            );
+            $memberStmt->execute([':rid' => $roomId, ':uid' => $callerId]);
+            if ($memberStmt->fetchColumn() === false) {
+                return Response::fail('Bạn không phải thành viên của phòng chơi này nên không có quyền chốt bảng giá', 'FORBIDDEN', 403);
+            }
+        }
+
         $body = $request->getBodyParams();
 
         $playTime = isset($body['play_time']) ? trim((string) $body['play_time']) : null;

@@ -41,10 +41,39 @@
 
   <div id="app-footer"></div>
 
+  <!-- MODAL BÁO VẮNG MẶT (NO-SHOW) CHỌN NGƯỜI CHƠI TRỰC QUAN -->
+  <div id="noshow-modal" style="display:none;position:fixed;inset:0;z-index:2000;background:rgba(15,12,10,0.72);align-items:center;justify-content:center;padding:16px;">
+    <div style="background:#F7F3E7;color:#1F1C18;border:2px solid #8B1E1E;border-radius:10px;max-width:520px;width:100%;padding:22px 24px;box-shadow:0 24px 60px rgba(0,0,0,0.45);max-height:90vh;overflow-y:auto;">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;border-bottom:1px solid rgba(139,30,30,0.2);padding-bottom:10px;margin-bottom:14px;">
+        <div>
+          <div style="font-size:0.72rem;font-weight:700;letter-spacing:0.08em;color:#8B1E1E;text-transform:uppercase;">GHI NHẬN VẮNG MẶT (NO-SHOW)</div>
+          <h3 id="noshow-modal-title" style="margin:4px 0 0;font-size:1.15rem;color:#1F1C18;">Chọn thành viên vắng mặt</h3>
+        </div>
+        <button type="button" id="noshow-close-btn" class="btn btn-ghost btn-sm" style="padding:4px 10px;">Đóng</button>
+      </div>
+
+      <div id="noshow-participants-list" style="display:flex;flex-direction:column;gap:8px;margin-bottom:14px;">
+        <div class="text-muted">Đang tải danh sách thành viên phòng...</div>
+      </div>
+
+      <div id="noshow-policy-preview" style="display:none;margin-bottom:12px;padding:10px 12px;border-radius:6px;background:rgba(139,30,30,0.08);border-left:3px solid #8B1E1E;font-size:0.84rem;line-height:1.45;color:#1F1C18;"></div>
+
+      <div style="margin-bottom:16px;">
+        <label for="noshow-reason" style="display:block;font-size:0.8rem;font-weight:700;margin-bottom:6px;color:#4A4136;">Ghi chú lý do vắng mặt</label>
+        <input type="text" id="noshow-reason" value="Khách không có mặt tại quầy khi bắt đầu ca" style="width:100%;padding:9px 11px;border:1px solid #B5A894;border-radius:6px;background:#FFFDF7;color:#1F1C18;font-size:0.88rem;box-sizing:border-box;" />
+      </div>
+
+      <div style="display:flex;justify-content:flex-end;gap:10px;">
+        <button type="button" id="noshow-cancel-btn" class="btn btn-ghost btn-sm">Hủy bỏ</button>
+        <button type="button" id="noshow-confirm-btn" class="btn btn-gold btn-sm">Xác nhận báo vắng mặt</button>
+      </div>
+    </div>
+  </div>
+
   <script type="module">
     import { initChrome } from '../src/logic/layout.js';
     import { api } from '../src/logic/api.js';
-    import { requireAuthRole, escapeHtml, showToast, formatRoomStatus, formatDmAssignmentStatus } from '../src/logic/portal-mock.js';
+    import { requireAuthRole, escapeHtml, showToast, openPromptModal, formatRoomStatus, formatDmAssignmentStatus } from '../src/logic/portal-mock.js';
 
     async function render() {
       const tbody = document.getElementById('dm-table-body');
@@ -57,7 +86,7 @@
 
         document.getElementById('dm-kpi').innerHTML = `
           <div class="kpi-card"><div class="kpi-label">Tổng ca phân công</div><div class="kpi-value">${list.length}</div><div class="kpi-meta">Cập nhật trực tiếp</div></div>
-          <div class="kpi-card"><div class="kpi-label">Chờ xác nhận</div><div class="kpi-value">${pending}</div><div class="kpi-meta">Phản hồi trong 4 giờ</div></div>
+          <div class="kpi-card"><div class="kpi-label">Chờ xác nhận</div><div class="kpi-value">${pending}</div><div class="kpi-meta">Phản hồi trong 2 giờ</div></div>
           <div class="kpi-card"><div class="kpi-label">Đã nhận ca</div><div class="kpi-value">${accepted}</div><div class="kpi-meta">Sẵn sàng điều hành</div></div>
           <div class="kpi-card"><div class="kpi-label">Đã hoàn tất</div><div class="kpi-value">${completed}</div><div class="kpi-meta">Hoàn thành buổi chơi</div></div>
         `;
@@ -111,14 +140,14 @@
                   <button class="btn btn-gold btn-sm" data-accept="${a.id}">Nhận ca ngay</button>
                 ` : ''}
                 ${a.status === 'ACCEPTED' && sessStatus !== 'IN_PROGRESS' && !isClosedRoom ? `
-                  <button class="btn btn-ghost btn-sm" data-noshow="${sessId}">Báo vắng mặt</button>
+                  <button class="btn btn-ghost btn-sm" data-noshow="${sessId}" data-noshow-room="${a.game_room_id}" data-noshow-title="${escapeHtml(a.room_title || a.game_name || '')}">Báo vắng mặt</button>
                   ${enoughPlayers
                     ? `<button class="btn btn-gold btn-sm" data-start="${sessId}">Bắt đầu buổi chơi</button>`
                     : `<button class="btn btn-ghost btn-sm" disabled title="Chưa đủ người chơi tối thiểu (${curP}/${minP})" style="opacity:0.55;cursor:not-allowed;">Chưa đủ người (${curP}/${minP})</button>`}
                 ` : ''}
                 ${a.status === 'ACCEPTED' && sessStatus === 'IN_PROGRESS' && !isClosedRoom && !isGameplayFinished ? `
                   <button class="btn btn-ghost btn-sm" data-notes="${sessId}">Ghi chú / Sự cố</button>
-                  <button class="btn btn-ghost btn-sm" data-noshow="${sessId}">Báo vắng mặt</button>
+                  <button class="btn btn-ghost btn-sm" data-noshow="${sessId}" data-noshow-room="${a.game_room_id}" data-noshow-title="${escapeHtml(a.room_title || a.game_name || '')}">Báo vắng mặt</button>
                   <button class="btn btn-gold btn-sm" data-complete="${sessId}">Hoàn tất buổi chơi</button>
                 ` : ''}
                 ${a.status === 'ACCEPTED' && sessStatus === 'IN_PROGRESS' && !isClosedRoom && isGameplayFinished ? `
@@ -134,9 +163,17 @@
           try { await api.post(`/dm/assignments/${b.getAttribute('data-accept')}/accept`, {}); showToast('Đã nhận ca trực thành công.'); render(); } catch (e) { showToast(e.message); }
         }));
         tbody.querySelectorAll('[data-reject]').forEach((b) => b.addEventListener('click', async () => {
-          const reason = window.prompt('Nhập lý do từ chối ca trực:', 'Quản trò bận lịch đột xuất');
-          if (!reason || !reason.trim()) return;
-          try { await api.post(`/dm/assignments/${b.getAttribute('data-reject')}/reject`, { reason: reason.trim() }); showToast('Đã từ chối ca trực và tự động xoay tua.'); render(); } catch (e) { showToast(e.message); }
+          const assignId = b.getAttribute('data-reject');
+          const reason = await openPromptModal({
+            eyebrow: 'TỪ CHỐI CA TRỰC',
+            title: `Từ chối phân công ca #${assignId}`,
+            label: 'Lý do từ chối ca trực',
+            defaultValue: 'Quản trò bận lịch đột xuất',
+            placeholder: 'Nhập lý do để hệ thống xoay tua Quản trò khác...',
+            confirmText: 'Xác nhận từ chối',
+          });
+          if (!reason) return;
+          try { await api.post(`/dm/assignments/${assignId}/reject`, { reason }); showToast('Đã từ chối ca trực và tự động xoay tua.'); render(); } catch (e) { showToast(e.message); }
         }));
         tbody.querySelectorAll('[data-start]').forEach((b) => b.addEventListener('click', async () => {
           try { await api.post(`/dm/sessions/${b.getAttribute('data-start')}/start`, {}); showToast('Đã bắt đầu buổi chơi.'); render(); } catch (e) { showToast(e.message); }
@@ -145,20 +182,23 @@
           try { await api.post(`/dm/sessions/${b.getAttribute('data-settle')}/settle`, { notes: 'Tất toán đầy đủ tại quầy' }); showToast('Đã tất toán tại quầy và chuyển ca sang trạng thái Hoàn tất.'); render(); } catch (e) { showToast(e.message); }
         }));
         tbody.querySelectorAll('[data-notes]').forEach((b) => b.addEventListener('click', async () => {
-          const text = window.prompt('Nhập ghi chú hiện trường cho ca chơi:');
-          if (!text || !text.trim()) return;
-          try { await api.post(`/dm/sessions/${b.getAttribute('data-notes')}/notes`, { notes: text.trim() }); showToast('Đã lưu ghi chú hiện trường.'); render(); } catch (e) { showToast(e.message); }
+          const sessId = b.getAttribute('data-notes');
+          const text = await openPromptModal({
+            eyebrow: 'BIÊN BẢN HIỆN TRƯỜNG',
+            title: `Ghi chú / Sự cố ca chơi #${sessId}`,
+            label: 'Nội dung ghi chú hiện trường',
+            placeholder: 'Nhập ghi chú về tiến độ, đạo cụ hoặc sự cố phát sinh...',
+            confirmText: 'Lưu ghi chú',
+          });
+          if (!text) return;
+          try { await api.post(`/dm/sessions/${sessId}/notes`, { notes: text }); showToast('Đã lưu ghi chú hiện trường.'); render(); } catch (e) { showToast(e.message); }
         }));
-        tbody.querySelectorAll('[data-noshow]').forEach((b) => b.addEventListener('click', async () => {
-          const uid = window.prompt('Nhập ID người chơi vắng mặt (hoặc để trống để đánh dấu chung):');
-          try {
-            await api.post(`/dm/sessions/${b.getAttribute('data-noshow')}/no-show`, {
-              absent_user_id: uid ? Number(uid) : undefined,
-              reason: 'Khách không có mặt tại quầy khi bắt đầu ca',
-            });
-            showToast('Đã ghi nhận trường hợp khách vắng mặt.');
-            render();
-          } catch (e) { showToast(e.message); }
+        tbody.querySelectorAll('[data-noshow]').forEach((b) => b.addEventListener('click', () => {
+          openNoShowModal(
+            b.getAttribute('data-noshow'),
+            b.getAttribute('data-noshow-room'),
+            b.getAttribute('data-noshow-title') || ''
+          );
         }));
         tbody.querySelectorAll('[data-complete]').forEach((b) => b.addEventListener('click', async () => {
           try { await api.post(`/dm/sessions/${b.getAttribute('data-complete')}/complete`, {}); showToast('Đã hoàn tất buổi chơi — hãy bấm Tất toán tại quầy để chốt hoàn tất ca.'); render(); } catch (e) { showToast(e.message); }
@@ -204,6 +244,131 @@
         }
       }
     }
+
+    // Modal chọn người chơi vắng mặt (thay thế hoàn toàn window.prompt nhập ID thủ công)
+    let activeNoShowSessionId = null;
+    const noShowModal = document.getElementById('noshow-modal');
+    const noShowTitleEl = document.getElementById('noshow-modal-title');
+    const noShowListEl = document.getElementById('noshow-participants-list');
+    const noShowPolicyEl = document.getElementById('noshow-policy-preview');
+    const noShowReasonEl = document.getElementById('noshow-reason');
+    const noShowConfirmBtn = document.getElementById('noshow-confirm-btn');
+
+    function closeNoShowModal() {
+      activeNoShowSessionId = null;
+      if (noShowModal) noShowModal.style.display = 'none';
+    }
+
+    function updateNoShowPolicyPreview() {
+      if (!noShowListEl || !noShowPolicyEl) return;
+      const checkedCount = noShowListEl.querySelectorAll('input[name="noshow_uid"]:checked').length;
+      if (checkedCount === 0) {
+        noShowPolicyEl.style.display = 'none';
+        noShowPolicyEl.textContent = '';
+      } else if (checkedCount === 1) {
+        noShowPolicyEl.style.display = 'block';
+        noShowPolicyEl.textContent = 'Đang chọn 1 thành viên vắng mặt: Tiền cọc của người vắng bị tịch thu (FORFEITED). Ca chơi tiếp tục bình thường và Quản trò hỗ trợ đóng thế vai NPC.';
+      } else {
+        noShowPolicyEl.style.display = 'block';
+        noShowPolicyEl.textContent = `Đang chọn ${checkedCount} thành viên vắng mặt (>= 2 người): Ca chơi sẽ bị hủy tại chỗ (CANCELLED_ON_SITE), tịch thu cọc người vắng mặt và tự động duyệt hoàn cọc 100% cho người đến đúng giờ.`;
+      }
+    }
+
+    async function openNoShowModal(sessId, roomId, roomTitle) {
+      activeNoShowSessionId = sessId;
+      if (noShowTitleEl) {
+        noShowTitleEl.textContent = roomTitle ? `Phòng #${roomId} — ${roomTitle}` : `Chọn thành viên vắng mặt (Phòng #${roomId})`;
+      }
+      if (noShowReasonEl) {
+        noShowReasonEl.value = 'Khách không có mặt tại quầy khi bắt đầu ca';
+      }
+      if (noShowPolicyEl) {
+        noShowPolicyEl.style.display = 'none';
+        noShowPolicyEl.textContent = '';
+      }
+      if (noShowListEl) {
+        noShowListEl.innerHTML = '<div class="text-muted">Đang tải danh sách thành viên phòng...</div>';
+      }
+      if (noShowModal) {
+        noShowModal.style.display = 'flex';
+      }
+
+      try {
+        const res = await api.get(`/rooms/${encodeURIComponent(roomId)}`);
+        const room = res?.room || res;
+        const participants = Array.isArray(room?.participants) ? room.participants : [];
+        const activeParts = participants.filter((p) => ['PENDING_DEPOSIT', 'DEPOSITED', 'LEAVE_REQUESTED'].includes(String(p.status || '').toUpperCase()));
+
+        if (!activeParts.length) {
+          noShowListEl.innerHTML = '<div class="sub-card text-muted">Không có thành viên nào đang ở trạng thái tham gia trong phòng này.</div>';
+          return;
+        }
+
+        noShowListEl.innerHTML = activeParts.map((p) => {
+          const seats = Number(p.seats || 1);
+          const statusLabel = p.status === 'DEPOSITED' ? 'Đã cọc' : p.status === 'LEAVE_REQUESTED' ? 'Xin rời phòng' : 'Chờ cọc';
+          const badgeClass = p.status === 'DEPOSITED' ? 'v-badge-green' : 'v-badge-gold';
+          return `
+            <label style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 12px;border:1px solid rgba(139,30,30,0.22);border-radius:6px;background:#FFFDF7;cursor:pointer;">
+              <span style="display:flex;align-items:center;gap:10px;">
+                <input type="checkbox" name="noshow_uid" value="${Number(p.user_id)}" style="width:18px;height:18px;accent-color:#8B1E1E;cursor:pointer;" />
+                <span>
+                  <strong style="display:block;font-size:0.92rem;color:#1F1C18;">${escapeHtml(p.full_name || p.email || `Người chơi #${p.user_id}`)}</strong>
+                  <span style="font-size:0.78rem;color:#5C5449;">${seats} ghế${p.phone ? ` • ${escapeHtml(p.phone)}` : ''}</span>
+                </span>
+              </span>
+              <span class="v-badge ${badgeClass}">${escapeHtml(statusLabel)}</span>
+            </label>
+          `;
+        }).join('');
+
+        noShowListEl.querySelectorAll('input[name="noshow_uid"]').forEach((cb) => {
+          cb.addEventListener('change', updateNoShowPolicyPreview);
+        });
+      } catch (err) {
+        if (noShowListEl) {
+          noShowListEl.innerHTML = `<div class="sub-card text-muted">Không tải được danh sách thành viên: ${escapeHtml(err.message)}</div>`;
+        }
+      }
+    }
+
+    document.getElementById('noshow-close-btn')?.addEventListener('click', closeNoShowModal);
+    document.getElementById('noshow-cancel-btn')?.addEventListener('click', closeNoShowModal);
+    noShowModal?.addEventListener('click', (e) => {
+      if (e.target === noShowModal) closeNoShowModal();
+    });
+
+    noShowConfirmBtn?.addEventListener('click', async () => {
+      if (!activeNoShowSessionId || !noShowListEl) return;
+      const selectedIds = Array.from(noShowListEl.querySelectorAll('input[name="noshow_uid"]:checked'))
+        .map((el) => Number(el.value))
+        .filter((n) => Number.isInteger(n) && n > 0);
+
+      if (!selectedIds.length) {
+        showToast('Vui lòng tick chọn ít nhất 01 thành viên vắng mặt.');
+        return;
+      }
+
+      const reason = (noShowReasonEl?.value || '').trim() || 'Khách không có mặt tại quầy khi bắt đầu ca';
+      noShowConfirmBtn.disabled = true;
+      noShowConfirmBtn.textContent = 'Đang xử lý...';
+      try {
+        const result = await api.post(`/dm/sessions/${encodeURIComponent(activeNoShowSessionId)}/no-show`, {
+          absent_user_ids: selectedIds,
+          reason,
+        });
+        closeNoShowModal();
+        showToast(result?.action === 'CANCELLED_ON_SITE'
+          ? 'Đã hủy ca chơi tại chỗ do vắng từ 2 người trở lên và duyệt hoàn cọc 100% cho người đến đúng giờ.'
+          : 'Đã ghi nhận 01 khách vắng mặt (tịch thu cọc) và tiếp tục ca chơi.');
+        render();
+      } catch (err) {
+        showToast(err.message || 'Không thể ghi nhận vắng mặt.');
+      } finally {
+        noShowConfirmBtn.disabled = false;
+        noShowConfirmBtn.textContent = 'Xác nhận báo vắng mặt';
+      }
+    });
 
     (async () => {
       const auth = await requireAuthRole(['dm'], 'Cổng Điều Hành Quản Trò');

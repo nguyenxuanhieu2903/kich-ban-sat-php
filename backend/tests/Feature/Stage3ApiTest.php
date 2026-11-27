@@ -29,11 +29,19 @@ class Stage3ApiTest extends TestCase
 
     public function testAdminAssignAndRevokeDmAndListAuditLogs(): void
     {
+        $pdo = DatabaseConnection::getInstance();
+        $pd = json_encode(['participant_seats' => ['7' => 4]]);
+        $st = $pdo->prepare("INSERT INTO `game_rooms` (`game_id`, `game_configuration_id`, `creator_id`, `title`, `min_players`, `max_players`, `total_players`, `status`, `price_details`, `formation_deadline_at`, `created_at`, `updated_at`) VALUES (1, 1, 7, 'Phòng Test Stage3 DM', 4, 8, 4, 'FORMING', :pd, DATE_ADD(NOW(), INTERVAL 3 DAY), NOW(), NOW())");
+        $st->execute([':pd' => $pd]);
+        $roomId = (int) $pdo->lastInsertId();
+        $pdo->exec("INSERT INTO `room_participants` (`game_room_id`, `user_id`, `status`, `joined_at`, `created_at`, `updated_at`) VALUES ({$roomId}, 7, 'DEPOSITED', NOW(), NOW(), NOW())");
+        $pdo->exec("INSERT INTO `dm_assignments` (`game_room_id`, `dm_user_id`, `assigned_by`, `status`, `assigned_at`, `created_at`, `updated_at`) VALUES ({$roomId}, 3, 1, 'ACCEPTED', NOW(), NOW(), NOW())");
+
         $assignReq = new Request(
             method: 'POST',
-            path: '/api/v1/admin/rooms/1/assign-dm',
+            path: "/api/v1/admin/rooms/{$roomId}/assign-dm",
             queryParams: [],
-            bodyParams: ['dm_user_id' => 2],
+            bodyParams: ['dm_user_id' => 3],
             headers: ['Authorization' => 'Bearer 1']
         );
         $assignRes = $this->app->dispatch($assignReq);
@@ -69,7 +77,7 @@ class Stage3ApiTest extends TestCase
     {
         $verifyReq = new Request(
             method: 'PUT',
-            path: '/api/v1/admin/users/3/student-verification',
+            path: '/api/v1/admin/users/7/student-verification',
             queryParams: [],
             bodyParams: ['student_verified' => true],
             headers: ['Authorization' => 'Bearer 1']
@@ -79,7 +87,7 @@ class Stage3ApiTest extends TestCase
         $this->assertTrue(json_decode($verifyRes->getContent(), true)['data']['student_verified']);
 
         $pdo = DatabaseConnection::getInstance();
-        $user = $pdo->query('SELECT `student_verified` FROM `users` WHERE `id` = 3')->fetch();
+        $user = $pdo->query('SELECT `student_verified` FROM `users` WHERE `id` = 7')->fetch();
         $this->assertSame(1, (int) $user['student_verified']);
 
         $readAllReq = new Request(
@@ -87,7 +95,7 @@ class Stage3ApiTest extends TestCase
             path: '/api/v1/notifications/read-all',
             queryParams: [],
             bodyParams: [],
-            headers: ['Authorization' => 'Bearer 3']
+            headers: ['Authorization' => 'Bearer 7']
         );
         $readAllRes = $this->app->dispatch($readAllReq);
         $this->assertSame(200, $readAllRes->getStatusCode());
@@ -95,13 +103,27 @@ class Stage3ApiTest extends TestCase
 
     public function testAdminAssignVenue(): void
     {
+        $pdo = DatabaseConnection::getInstance();
+        $pr = $pdo->query("SELECT `id`, `venue_id` FROM `physical_rooms` WHERE `status` = 'ACTIVE' AND COALESCE(`is_maintenance`, 0) = 0 AND `capacity` >= 4 ORDER BY `id` ASC LIMIT 1")->fetch(\PDO::FETCH_ASSOC);
+        $this->assertNotFalse($pr);
+        $targetPrId = (int) $pr['id'];
+        $targetVenueId = (int) $pr['venue_id'];
+
+        $pd = json_encode(['participant_seats' => ['7' => 4]]);
+        $futureSlot = date('Y-m-d 10:00:00', strtotime('+45 days'));
+        $st = $pdo->prepare("INSERT INTO `game_rooms` (`game_id`, `game_configuration_id`, `creator_id`, `title`, `min_players`, `max_players`, `total_players`, `status`, `target_time_slot`, `price_details`, `formation_deadline_at`, `created_at`, `updated_at`) VALUES (1, 1, 7, 'Phòng Test Stage3 Venue', 4, 8, 4, 'FORMING', :slot, :pd, DATE_ADD(NOW(), INTERVAL 3 DAY), NOW(), NOW())");
+        $st->execute([':slot' => $futureSlot, ':pd' => $pd]);
+        $roomId = (int) $pdo->lastInsertId();
+        $pdo->exec("INSERT INTO `room_participants` (`game_room_id`, `user_id`, `status`, `joined_at`, `created_at`, `updated_at`) VALUES ({$roomId}, 7, 'DEPOSITED', NOW(), NOW(), NOW())");
+        $pdo->exec("INSERT INTO `dm_assignments` (`game_room_id`, `dm_user_id`, `assigned_by`, `status`, `assigned_at`, `created_at`, `updated_at`) VALUES ({$roomId}, 3, 1, 'ACCEPTED', NOW(), NOW(), NOW())");
+
         $venueReq = new Request(
             method: 'POST',
-            path: '/api/v1/admin/rooms/1/assign-venue',
+            path: "/api/v1/admin/rooms/{$roomId}/assign-venue",
             queryParams: [],
             bodyParams: [
-                'venue_id' => 1,
-                'physical_room_id' => 2,
+                'venue_id' => $targetVenueId,
+                'physical_room_id' => $targetPrId,
             ],
             headers: ['Authorization' => 'Bearer 1']
         );
@@ -109,8 +131,8 @@ class Stage3ApiTest extends TestCase
         $this->assertSame(200, $venueRes->getStatusCode());
         $venueData = json_decode($venueRes->getContent(), true);
         $this->assertTrue($venueData['success']);
-        $this->assertSame(1, (int) $venueData['data']['venue_id']);
-        $this->assertSame(2, (int) $venueData['data']['physical_room_id']);
+        $this->assertSame($targetVenueId, (int) $venueData['data']['venue_id']);
+        $this->assertSame($targetPrId, (int) $venueData['data']['physical_room_id']);
     }
 
     public function testCanGetSessionDetail(): void

@@ -62,6 +62,37 @@ class UserRepository extends BaseRepository
     }
 
     /**
+     * Find user by normalized phone number.
+     *
+     * @return array<string, mixed>|null
+     */
+    public function findByPhone(string $phone): ?array
+    {
+        $normalized = preg_replace('/[\s\.\-\(\)]+/', '', trim($phone)) ?? '';
+        if ($normalized === '') {
+            return null;
+        }
+
+        return $this->executeQuery(function () use ($normalized): ?array {
+            $stmt = $this->pdo->prepare(
+                "SELECT u.`id`, u.`role_id`, r.`code` AS `role_code`, r.`name` AS `role_name`,
+                        u.`full_name` AS `name`, u.`full_name`, u.`email`, u.`password_hash`,
+                        u.`phone`, u.`avatar_url`, u.`status`, u.`student_verified`, u.`email_verified_at`, u.`last_login_at`,
+                        u.`created_at`, u.`updated_at`
+                 FROM `users` u
+                 LEFT JOIN `roles` r ON r.`id` = u.`role_id`
+                 WHERE REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(COALESCE(u.`phone`, ''), ' ', ''), '-', ''), '.', ''), '(', ''), ')', '') = :phone
+                 LIMIT 1"
+            );
+            $stmt->bindValue(':phone', $normalized, PDO::PARAM_STR);
+            $stmt->execute();
+
+            $result = $stmt->fetch(PDO::FETCH_ASSOC);
+            return $result !== false ? $result : null;
+        });
+    }
+
+    /**
      * Create a new user record.
      *
      * @param array{

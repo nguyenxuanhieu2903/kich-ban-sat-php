@@ -726,8 +726,31 @@ class AdminOperationsController
             'UPDATE_STUDENT_VERIFICATION',
             'USER',
             $userId,
-            ['student_verified' => $studentVerified]
+            ['student_verified' => $studentVerified, 'reason' => $rejectReason]
         );
+
+        try {
+            $notiRepo = new \App\Features\Notification\Repositories\NotificationRepository($this->pdo);
+            if ($studentVerified) {
+                $notiRepo->createNotification(
+                    'Thẻ HSSV đã được phê duyệt',
+                    'Thẻ Học sinh - Sinh viên của bạn đã được Quản trị viên xác minh hợp lệ. Bạn sẽ tự động được giảm 20.000đ/vé khi đặt lịch chơi (trừ khung ưu đãi Thứ Ba).',
+                    'SYSTEM',
+                    (int) $auth['id'],
+                    [$userId]
+                );
+            } else {
+                $reasonSuffix = ($rejectReason !== null && $rejectReason !== '') ? " Lý do: {$rejectReason}." : '';
+                $notiRepo->createNotification(
+                    'Thẻ HSSV chưa được phê duyệt',
+                    "Yêu cầu xác minh thẻ Học sinh - Sinh viên của bạn chưa được chấp nhận.{$reasonSuffix} Bạn có thể tải lại ảnh thẻ rõ nét trong trang Hồ sơ cá nhân.",
+                    'SYSTEM',
+                    (int) $auth['id'],
+                    [$userId]
+                );
+            }
+        } catch (\Throwable) {
+        }
 
         return Response::success([
             'user_id' => $userId,
@@ -1298,8 +1321,8 @@ class AdminOperationsController
                                 }
                                 $obStart = strtotime((string) $ob['start_at']);
                                 $obEnd = strtotime((string) $ob['end_at']);
-                                if ($obStart !== false && $obEnd !== false && $overlaps($slotStart, $slotEnd, $obStart, $obEnd, 0)) {
-                                    $busyReason = 'Đã khóa trực tiếp (' . date('d/m H:i', $obStart) . ')';
+                                if ($obStart !== false && $obEnd !== false && $overlaps($slotStart, $slotEnd, $obStart, $obEnd, 1800)) {
+                                    $busyReason = 'Đã khóa trực tiếp (' . date('d/m H:i', $obStart) . ', +30p dọn)';
                                     break;
                                 }
                             }
@@ -1481,7 +1504,7 @@ class AdminOperationsController
                 $sessStmt = $this->pdo->prepare(
                     'SELECT s.`id`, s.`game_room_id`, s.`start_at`, s.`end_at`, s.`dm_assignment_id`,
                             dma.`dm_user_id`, gr.`title` AS `room_title`, gr.`creator_id`,
-                            COALESCE(gr.`total_players`, gr.`min_players`, 6) AS `total_players`
+                            gr.`min_players`, gr.`max_players`, gr.`total_players`, gr.`price_details`
                      FROM `sessions` s
                      INNER JOIN `game_rooms` gr ON gr.`id` = s.`game_room_id`
                      LEFT JOIN `dm_assignments` dma ON dma.`id` = s.`dm_assignment_id`
@@ -1496,12 +1519,23 @@ class AdminOperationsController
 
                 $schedRepo = new \App\Features\VenueScheduling\Repositories\SchedulingRepository($this->pdo);
                 $notiRepo = new \App\Features\Notification\Repositories\NotificationRepository($this->pdo);
+                $partUidStmt = $this->pdo->prepare(
+                    'SELECT `user_id` FROM `room_participants`
+                     WHERE `game_room_id` = :rid AND `status` IN (\'PENDING_DEPOSIT\', \'DEPOSITED\', \'LEAVE_REQUESTED\')'
+                );
 
                 foreach ($upcoming as $sess) {
+                    $partUidStmt->execute([':rid' => (int) $sess['game_room_id']]);
+                    $activeUids = array_map('intval', $partUidStmt->fetchAll(PDO::FETCH_COLUMN));
+                    $computedSeats = (int) \App\Shared\Services\RoomSeatHelper::computeSeats($sess, $activeUids)['occupied_seats'];
+                    $requiredCapacity = $computedSeats > 0
+                        ? $computedSeats
+                        : max(1, (int) ($sess['total_players'] ?? $sess['min_players'] ?? 6));
+
                     $altRoom = $schedRepo->findAlternativePhysicalRoom(
                         (int) $pr['venue_id'],
                         $roomId,
-                        (int) $sess['total_players'],
+                        $requiredCapacity,
                         $sess['start_at'],
                         $sess['end_at'],
                         30
