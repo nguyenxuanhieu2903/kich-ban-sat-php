@@ -1,4 +1,66 @@
-# KỊCH BẢN SÁT V16 - BÁO CÁO CẬP NHẬT, NÂNG CẤP VÀ ĐỐI CHIẾU TOÀN DIỆN
+# KỊCH BẢN SÁT V16 — HƯỚNG DẪN CHẠY DỰ ÁN (DOCKER) & TÀI LIỆU KỸ THUẬT
+
+## CHẠY NHANH DỰ ÁN BẰNG DOCKER (1 LỆNH DUY NHẤT)
+
+Thành viên chỉ cần cài và mở **[Docker Desktop](https://www.docker.com/products/docker-desktop/)** (không cần cài PHP, MySQL, XAMPP, Laragon hay Composer):
+
+```bash
+# 1. Tải mã nguồn từ GitHub
+git clone -b feat/truong-backend-stage3 https://github.com/nguyenxuanhieu2903/kich-ban-sat-php.git
+cd kich-ban-sat-php
+
+# 2. Dựng tự động PHP 8.3 + MySQL 8.4 + tự nạp sẵn CSDL mẫu
+docker compose up -d --build
+```
+
+Sau khoảng **10–15 giây** để MySQL 8.4 nạp xong dữ liệu (`kich_ban_sat_v3_clean.sql`), mở trình duyệt truy cập:
+- **Website chính:** `http://localhost:8000`
+- **Tài liệu API (Swagger UI):** `http://localhost:8000/docs`
+- **Kiểm tra trạng thái API & CSDL:** `http://localhost:8000/api/v1/health`
+
+### Tài Khoản Đăng Nhập Mẫu (Nạp sẵn trong Docker)
+
+| Vai trò | Email đăng nhập | Mật khẩu | Ghi chú |
+| :--- | :--- | :--- | :--- |
+| **Quản trị viên (Admin)** | `nguyenxuanhieu@gmail.com` | `pass123456!` | Truy cập đầy đủ 7 tab Admin Portal |
+| **Quản trò (DM)** | `nguyenphamyhuynh@gmail.com` | `pass123456@` | Truy cập DM Portal (`lehuuchau@gmail.com` dùng chung mật khẩu) |
+| **Người chơi (Player)** | `nguoichoi01@gmail.com` | `pass123456#` | Có sẵn `nguoichoi01` đến `nguoichoi50` |
+
+### Các Lệnh Docker Thường Dùng
+
+```bash
+# Kiểm tra trạng thái 2 container (kbs_mysql phải ở trạng thái healthy, kbs_app Up)
+docker compose ps
+
+# Xem nhật ký chạy nếu cần kiểm tra lỗi
+docker compose logs -f
+
+# Dừng hệ thống (giữ nguyên dữ liệu CSDL và ảnh thẻ HSSV đã tải lên)
+docker compose down
+
+# Xóa dữ liệu cũ và nạp lại CSDL mẫu sạch từ đầu
+docker compose down -v && docker compose up -d --build
+```
+
+**Kết nối MySQL từ công cụ ngoài (DBeaver / HeidiSQL / MySQL Workbench):**
+- **Host:** `127.0.0.1` | **Port:** `3307` *(tách khỏi cổng `3306` để không đụng XAMPP/Laragon)*
+- **Database:** `kich_ban_sat_v3` | **User:** `root` | **Password:** `root`
+
+---
+
+### Chạy Thay Thế Không Dùng Docker (Laragon / XAMPP)
+
+1. Mở **MySQL 8.x** trên Laragon/XAMPP, tạo CSDL `kich_ban_sat_v3` (`utf8mb4_unicode_ci`) và import tệp `backend/database/kich_ban_sat_v3_clean.sql`.
+2. Đảm bảo `backend/.env` trỏ đúng `DB_HOST=127.0.0.1`, `DB_PORT=3306`, `DB_DATABASE=kich_ban_sat_v3`, `DB_USERNAME=root`, `DB_PASSWORD=` (mật khẩu MySQL cục bộ).
+3. Chạy máy chủ PHP tại thư mục gốc dự án (không bắt buộc cài Composer nhờ PSR-4 fallback autoloader tại `backend/bootstrap/app.php`):
+   ```bash
+   php -S 127.0.0.1:8000 -t backend/public backend/public/index.php
+   ```
+4. Mở trình duyệt truy cập **`http://127.0.0.1:8000`**.
+
+---
+
+## BÁO CÁO CẬP NHẬT, NÂNG CẤP VÀ ĐỐI CHIẾU TOÀN DIỆN
 
 Tài liệu này được biên soạn chi tiết, minh bạch, sử dụng ngôn ngữ tiếng Việt chuẩn mực có dấu đầy đủ, có cấu trúc học thuật và kỹ thuật hoàn chỉnh nhằm phục vụ công tác nghiệm thu, báo cáo đồ án tốt nghiệp và đối chiếu kỹ thuật. Văn bản trình bày toàn bộ các nội dung đã được sửa lỗi, nâng cấp, thêm mới, cùng bảng so sánh chi tiết giữa phiên bản hoàn thiện kichbansattruong và phiên bản ban đầu feature/Dev-Hieu trên kho mã nguồn Git.
 

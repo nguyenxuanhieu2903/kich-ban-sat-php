@@ -1,0 +1,13 @@
+.git
+.env
+.env.*
+backend/.env
+backend/.env.*
+backend/vendor
+backend/storage/logs/*
+backend/storage/uploads/*
+backend/.phpunit.cache
+node_modules
+*.log
+backend.txt
+frontend.txt

@@ -42,7 +42,10 @@ class Config
                             $value = substr($value, 1, -1);
                         }
 
-                        if (array_key_exists($name, $_ENV)) {
+                        $osEnv = getenv($name);
+                        if ($osEnv !== false) {
+                            self::$repository[$name] = $osEnv;
+                        } elseif (array_key_exists($name, $_ENV)) {
                             self::$repository[$name] = $_ENV[$name];
                         } else {
                             self::$repository[$name] = $value;
