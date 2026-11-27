@@ -25,7 +25,7 @@ class NotificationRepository extends BaseRepository
     ): int {
         return $this->executeQuery(function () use ($title, $message, $notificationType, $senderId, $recipientUserIds, $referenceType, $referenceId): int {
             $lastId = 0;
-            $targets = !empty($recipientUserIds) ? $recipientUserIds : ($senderId !== null ? [$senderId] : []);
+            $targets = !empty($recipientUserIds) ? array_values(array_unique(array_map('intval', $recipientUserIds))) : ($senderId !== null ? [$senderId] : []);
 
             $stmt = $this->pdo->prepare(
                 'INSERT INTO `notifications` (`user_id`, `type`, `title`, `content`, `reference_type`, `reference_id`, `is_read`, `created_at`)
@@ -57,10 +57,10 @@ class NotificationRepository extends BaseRepository
         return $this->executeQuery(function () use ($userId, $limit): array {
             $stmt = $this->pdo->prepare(
                 'SELECT `id`, `user_id`, `type` AS `notification_type`, `type`, `title`,
-                        `content` AS `message`, `content`, `is_read`, `read_at`, `created_at`
+                        `content` AS `message`, `content`, `reference_type`, `reference_id`, `is_read`, `read_at`, `created_at`
                  FROM `notifications`
                  WHERE `user_id` = :user_id AND `is_read` = 0
-                 ORDER BY `created_at` DESC
+                 ORDER BY `created_at` DESC, `id` DESC
                  LIMIT :limit'
             );
             $stmt->bindValue(':user_id', $userId, PDO::PARAM_INT);
@@ -72,22 +72,34 @@ class NotificationRepository extends BaseRepository
     }
 
     /**
-     * Get all notifications for user (with option to filter unread only).
+     * Get all notifications for user (strictly scoped by user_id and role visibility rules).
      *
      * @return array<int, array<string, mixed>>
      */
-    public function listByUserId(int $userId, int $limit = 50, bool $unreadOnly = false): array
+    public function listByUserId(int $userId, int $limit = 50, bool $unreadOnly = false, ?string $roleCode = null): array
     {
-        return $this->executeQuery(function () use ($userId, $limit, $unreadOnly): array {
+        return $this->executeQuery(function () use ($userId, $limit, $unreadOnly, $roleCode): array {
             $sql = 'SELECT `id`, `user_id`, `type`, `title`, `content`, `reference_type`, `reference_id`, `is_read`, `read_at`, `created_at`
                     FROM `notifications`
                     WHERE `user_id` = :user_id';
+
+            $role = strtoupper(trim((string) ($roleCode ?? '')));
+            if ($role === 'PLAYER') {
+                // Người chơi chỉ thấy thông báo của chính mình, thông báo chung (BROADCAST_ALL) và quyền lợi người chơi (BROADCAST_PLAYER / PROMOTION)
+                $sql .= " AND UPPER(`type`) NOT IN ('DM_ASSIGNMENT', 'ADMIN', 'BROADCAST_DM')";
+            } elseif ($role === 'DM') {
+                // Quản trò chỉ thấy thông báo ca trực của chính mình, thông báo chung (BROADCAST_ALL) và thông báo chung cho Quản trò (BROADCAST_DM)
+                $sql .= " AND UPPER(`type`) NOT IN ('ADMIN', 'PROMOTION', 'BROADCAST_PLAYER', 'REFUND', 'HSSV')";
+            } elseif ($role === 'ADMIN') {
+                // Quản trị viên chỉ thấy thông báo điều hành/hệ thống của mình và thông báo chung
+                $sql .= " AND UPPER(`type`) NOT IN ('DM_ASSIGNMENT', 'BROADCAST_DM')";
+            }
 
             if ($unreadOnly) {
                 $sql .= ' AND `is_read` = 0';
             }
 
-            $sql .= ' ORDER BY `created_at` DESC LIMIT :limit';
+            $sql .= ' ORDER BY `created_at` DESC, `id` DESC LIMIT :limit';
 
             $stmt = $this->pdo->prepare($sql);
             $stmt->bindValue(':user_id', $userId, PDO::PARAM_INT);
@@ -95,6 +107,44 @@ class NotificationRepository extends BaseRepository
             $stmt->execute();
 
             return $stmt->fetchAll(PDO::FETCH_ASSOC);
+        });
+    }
+
+    /**
+     * Broadcast a notification to ALL users, all PLAYERs, or all DMs.
+     *
+     * @return array{type: string, recipient_count: int}
+     */
+    public function broadcastToAudience(
+        string $audience,
+        string $title,
+        string $message,
+        int $senderId,
+        ?string $referenceType = null,
+        ?int $referenceId = null
+    ): array {
+        return $this->executeQuery(function () use ($audience, $title, $message, $senderId, $referenceType, $referenceId): array {
+            $aud = strtoupper(trim($audience));
+            if ($aud === 'PLAYER') {
+                $type = 'BROADCAST_PLAYER';
+                $stmt = $this->pdo->query("SELECT u.`id` FROM `users` u INNER JOIN `roles` r ON r.`id` = u.`role_id` WHERE r.`code` = 'PLAYER' AND u.`status` = 'ACTIVE'");
+            } elseif ($aud === 'DM') {
+                $type = 'BROADCAST_DM';
+                $stmt = $this->pdo->query("SELECT u.`id` FROM `users` u INNER JOIN `roles` r ON r.`id` = u.`role_id` WHERE r.`code` = 'DM' AND u.`status` = 'ACTIVE'");
+            } else {
+                $type = 'BROADCAST_ALL';
+                $stmt = $this->pdo->query("SELECT `id` FROM `users` WHERE `status` = 'ACTIVE'");
+            }
+
+            $recipientIds = array_values(array_unique(array_map('intval', $stmt->fetchAll(PDO::FETCH_COLUMN))));
+            if (!empty($recipientIds)) {
+                $this->createNotification($title, $message, $type, $senderId, $recipientIds, $referenceType, $referenceId);
+            }
+
+            return [
+                'type' => $type,
+                'recipient_count' => count($recipientIds),
+            ];
         });
     }
 

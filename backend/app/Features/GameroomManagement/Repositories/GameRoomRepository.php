@@ -26,7 +26,7 @@ class GameRoomRepository extends BaseRepository
                         `formation_deadline_at` AS `formation_deadline`, `formation_deadline_at`,
                         `description` AS `notes`, `cancel_reason`, `cancelled_at`,
                         `replacement_opened_by`, `replacement_status`, `replacement_deadline_at`,
-                        `price_final_amount`, `price_deposit_total`, `price_remaining_total`,
+                        `price_final_amount`, `price_deposit_total`, `price_remaining_total`, `price_details`,
                         `created_at`, `updated_at`
                  FROM `game_rooms`
                  WHERE `id` = :id

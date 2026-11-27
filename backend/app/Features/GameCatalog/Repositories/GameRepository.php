@@ -129,6 +129,8 @@ class GameRepository extends BaseRepository
                            1 AS `is_active`, g.`display_order`, g.`created_at`, g.`updated_at`,
                            MIN(gp.`price_per_person`) AS `min_price`,
                            MAX(gp.`price_per_person`) AS `max_price`,
+                           MAX(CASE WHEN gp.`start_time` < \'20:00:00\' THEN gp.`price_per_person` END) AS `day_price`,
+                           MAX(CASE WHEN gp.`start_time` >= \'20:00:00\' THEN gp.`price_per_person` END) AS `night_price`,
                            (SELECT gc.`configuration` FROM `game_configurations` gc
                             WHERE gc.`game_id` = g.`id` AND gc.`is_active` = 1
                             ORDER BY gc.`version` DESC LIMIT 1) AS `raw_configuration`
@@ -152,6 +154,8 @@ class GameRepository extends BaseRepository
             foreach ($rows as &$row) {
                 $row['min_price'] = $row['min_price'] !== null ? (int) $row['min_price'] : null;
                 $row['max_price'] = $row['max_price'] !== null ? (int) $row['max_price'] : null;
+                $row['day_price'] = $row['day_price'] !== null ? (int) $row['day_price'] : $row['min_price'];
+                $row['night_price'] = $row['night_price'] !== null ? (int) $row['night_price'] : $row['max_price'];
                 $row['is_18_plus'] = (int) ($row['is_18_plus'] ?? 0);
                 $cfg = !empty($row['raw_configuration']) ? json_decode((string) $row['raw_configuration'], true) : null;
                 unset($row['raw_configuration']);

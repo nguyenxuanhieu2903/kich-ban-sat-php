@@ -137,6 +137,7 @@ HTML;
     $router->post($prefix . '/admin/rooms/{id}/assign-physical-room', [AdminOperationsController::class, 'assignVenue']);
     $router->post($prefix . '/admin/rooms/offline-block', [AdminOperationsController::class, 'offlineBlock']);
     $router->get($prefix . '/admin/physical-rooms', [AdminOperationsController::class, 'listPhysicalRooms']);
+    $router->get($prefix . '/admin/dispatch-overview', [AdminOperationsController::class, 'dispatchOverview']);
     $router->post($prefix . '/admin/physical-rooms/{id}/maintenance', [AdminOperationsController::class, 'togglePhysicalRoomMaintenance']);
     $router->patch($prefix . '/admin/physical-rooms/{id}/maintenance', [AdminOperationsController::class, 'togglePhysicalRoomMaintenance']);
     $router->post($prefix . '/admin/rooms/{id}/disband', [AdminGameRoomController::class, 'cancel']);
@@ -181,7 +182,6 @@ HTML;
     $router->post($prefix . '/rooms/{id}/join', [GameRoomController::class, 'join']);
     $router->post($prefix . '/rooms/{id}/leave', [GameRoomController::class, 'leave']);
     $router->post($prefix . '/rooms/{id}/leave-requests', [GameRoomController::class, 'leave']);
-    $router->post($prefix . '/rooms/{id}/kick', [GameRoomController::class, 'kick']);
 
     // Pricing calculation & snapshot
     $router->post($prefix . '/rooms/{id}/calculate-price', [PricingController::class, 'calculate']);
@@ -235,6 +235,7 @@ HTML;
     $router->get($prefix . '/notifications', [NotificationController::class, 'index']);
     $router->post($prefix . '/notifications/{id}/read', [NotificationController::class, 'markAsRead']);
     $router->post($prefix . '/notifications/read-all', [NotificationController::class, 'markAllAsRead']);
+    $router->post($prefix . '/admin/notifications/broadcast', [NotificationController::class, 'broadcast']);
 
     // =============================================================
     // DOMAIN 9: ADMIN CATALOG, PRICING, PROMOTIONS & VENUES

@@ -28,3 +28,17 @@ desktop.ini
 # Temporary & Cache Files
 *.tmp
 *.cache
+
+# Deployment Artifacts & Sensitive Production Configs
+deploy_infinityfree/
+
+# Runtime Storage (Uploads & Rate Limits)
+backend/storage/uploads/*
+!backend/storage/uploads/.gitkeep
+backend/storage/rate_limits/*
+!backend/storage/rate_limits/.gitkeep
+
+# Local Scratch & Debug Dumps
+scratch/
+backend.txt
+frontend.txt

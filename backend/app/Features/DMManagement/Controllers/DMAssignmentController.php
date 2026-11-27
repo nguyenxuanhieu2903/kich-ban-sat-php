@@ -70,7 +70,7 @@ class DMAssignmentController
      */
     public function accept(Request $request, string $id): Response
     {
-        $auth = AuthMiddleware::authenticate($request, ['DM', 'ADMIN']);
+        $auth = AuthMiddleware::authenticate($request, ['DM']);
         if ($auth instanceof Response) {
             return $auth;
         }
@@ -82,10 +82,8 @@ class DMAssignmentController
             return Response::fail('Không tìm thấy ca làm việc yêu cầu', 'ASSIGNMENT_NOT_FOUND', 404);
         }
 
-        $userRole = strtoupper((string) ($auth['role_code'] ?? ''));
-
-        // Chống IDOR: Chỉ DM được gán cho ca này hoặc Admin mới có quyền accept
-        if ($userRole !== 'ADMIN' && (int) $assignment['dm_user_id'] !== (int) $auth['id']) {
+        // Chống IDOR: Chỉ đúng Quản trò (DM) được phân công mới có quyền nhận ca
+        if ((int) $assignment['dm_user_id'] !== (int) $auth['id']) {
             return Response::fail('Bạn không có quyền phản hồi ca làm việc của người khác', 'FORBIDDEN', 403);
         }
 
@@ -93,28 +91,67 @@ class DMAssignmentController
             return Response::fail('Ca làm việc này đã được xử lý trước đó (Trạng thái: ' . $assignment['status'] . ')', 'INVALID_STATUS', 400);
         }
 
+        $roomStatus = strtoupper((string) ($assignment['room_status'] ?? ''));
+        if (in_array($roomStatus, ['CANCELLED', 'COMPLETED'], true)) {
+            return Response::fail('Phòng chơi đã bị hủy hoặc đã hoàn tất, không thể nhận ca', 'INVALID_ROOM_STATUS', 409);
+        }
+
         $this->dmRepo->respondAssignment($assignmentId, 'ACCEPTED');
 
-        // Audit log & thông báo
+        // Khi DM chấp nhận ca, chuyển phòng sang CONFIRMED và đồng bộ dm_assignment_id vào session SCHEDULED nếu có
+        $roomId = (int) ($assignment['game_room_id'] ?? 0);
+        if ($roomId > 0) {
+            $this->pdo->prepare(
+                "UPDATE `game_rooms`
+                 SET `status` = 'CONFIRMED', `updated_at` = NOW()
+                 WHERE `id` = :rid AND `status` IN ('FORMING', 'SCHEDULED')"
+            )->execute([':rid' => $roomId]);
+
+            $this->pdo->prepare(
+                "UPDATE `sessions`
+                 SET `dm_assignment_id` = :daid, `updated_at` = NOW()
+                 WHERE `game_room_id` = :rid AND `status` = 'SCHEDULED'"
+            )->execute([':daid' => $assignmentId, ':rid' => $roomId]);
+        }
+
+        // Audit log & thông báo hai chiều (người chơi + Quản trị viên)
         $this->auditService->log((int) $auth['id'], 'ACCEPT_DM_ASSIGNMENT', 'DM_ASSIGNMENT', $assignmentId, [
             'game_room_id' => $assignment['game_room_id'] ?? null,
         ]);
 
+        $dmName = $auth['full_name'] ?? $auth['name'] ?? 'Quản trò';
+
         $partsStmt = $this->pdo->prepare(
             'SELECT `user_id` FROM `room_participants` WHERE `game_room_id` = :room_id AND `status` IN (\'PENDING_DEPOSIT\', \'DEPOSITED\', \'LEAVE_REQUESTED\')'
         );
-        $partsStmt->bindValue(':room_id', (int) $assignment['game_room_id'], PDO::PARAM_INT);
+        $partsStmt->bindValue(':room_id', $roomId, PDO::PARAM_INT);
         $partsStmt->execute();
         $targetUserIds = array_map('intval', $partsStmt->fetchAll(PDO::FETCH_COLUMN));
 
         if (!empty($targetUserIds)) {
-            $dmName = $auth['full_name'] ?? $auth['name'] ?? 'Quản trò';
             $this->notiRepo->createNotification(
                 'Quản trò đã tiếp nhận phòng',
-                "Quản trò {$dmName} đã chính thức tiếp nhận điều phối phiên chơi cho phòng '{$assignment['room_title']}'.",
+                "Quản trò {$dmName} đã chính thức tiếp nhận điều phối phiên chơi cho phòng #{$roomId} ('{$assignment['room_title']}').",
                 'ROOM',
                 (int) $auth['id'],
-                $targetUserIds
+                $targetUserIds,
+                'ROOM',
+                $roomId
+            );
+        }
+
+        // Thông báo ngược lại cho Admin biết DM đã xác nhận nhận ca
+        $adminStmt = $this->pdo->query('SELECT u.`id` FROM `users` u JOIN `roles` r ON r.`id` = u.`role_id` WHERE r.`code` = \'ADMIN\' AND u.`status` = \'ACTIVE\'');
+        $adminIds = array_map('intval', $adminStmt->fetchAll(PDO::FETCH_COLUMN));
+        if (!empty($adminIds)) {
+            $this->notiRepo->createNotification(
+                'Quản trò đã chấp nhận ca trực',
+                "Quản trò {$dmName} đã chấp nhận ca trực tại phòng #{$roomId} ('{$assignment['room_title']}'). Phòng đã chuyển sang trạng thái Đã chốt ca.",
+                'ADMIN',
+                (int) $auth['id'],
+                $adminIds,
+                'ROOM',
+                $roomId
             );
         }
 
@@ -131,7 +168,7 @@ class DMAssignmentController
      */
     public function reject(Request $request, string $id): Response
     {
-        $auth = AuthMiddleware::authenticate($request, ['DM', 'ADMIN']);
+        $auth = AuthMiddleware::authenticate($request, ['DM']);
         if ($auth instanceof Response) {
             return $auth;
         }
@@ -143,10 +180,8 @@ class DMAssignmentController
             return Response::fail('Không tìm thấy ca làm việc yêu cầu', 'ASSIGNMENT_NOT_FOUND', 404);
         }
 
-        $userRole = strtoupper((string) ($auth['role_code'] ?? ''));
-
-        // Chống IDOR: Chỉ DM được gán hoặc Admin mới có quyền reject
-        if ($userRole !== 'ADMIN' && (int) $assignment['dm_user_id'] !== (int) $auth['id']) {
+        // Chống IDOR: Chỉ đúng Quản trò (DM) được phân công mới có quyền từ chối ca
+        if ((int) $assignment['dm_user_id'] !== (int) $auth['id']) {
             return Response::fail('Bạn không có quyền từ chối ca làm việc của người khác', 'FORBIDDEN', 403);
         }
 
@@ -174,64 +209,129 @@ class DMAssignmentController
 
         $this->dmRepo->respondAssignment($assignmentId, 'REJECTED', $reason);
 
-        // Tự động xoay tua sang Quản trò (DM) rảnh tiếp theo chưa từ chối phòng này và không trùng lịch ca khác
+        // Tự động xoay tua sang Quản trò (DM) rảnh tiếp theo chưa từ chối phòng này và không trùng lịch ca khác (cả sessions lẫn target_time_slot)
         $rotatedAssignmentId = null;
         $rotatedDmId = null;
         $roomId = (int) ($assignment['game_room_id'] ?? 0);
         if ($roomId > 0) {
             $sessTimeStmt = $this->pdo->prepare(
-                "SELECT `start_at`, `end_at` FROM `sessions`
-                 WHERE `game_room_id` = :rid AND `status` = 'SCHEDULED'
-                 ORDER BY `id` DESC LIMIT 1"
+                "SELECT s.`start_at`, s.`end_at`, gr.`target_time_slot`, COALESCE(g.`duration_minutes`, 210) AS `duration_minutes`
+                 FROM `game_rooms` gr
+                 INNER JOIN `games` g ON g.`id` = gr.`game_id`
+                 LEFT JOIN `sessions` s ON s.`game_room_id` = gr.`id` AND s.`status` = 'SCHEDULED'
+                 WHERE gr.`id` = :rid
+                 ORDER BY s.`id` DESC LIMIT 1"
             );
             $sessTimeStmt->execute([':rid' => $roomId]);
             $sessTime = $sessTimeStmt->fetch(PDO::FETCH_ASSOC);
 
-            if ($sessTime !== false && !empty($sessTime['start_at']) && !empty($sessTime['end_at'])) {
-                $nextDmStmt = $this->pdo->prepare(
-                    "SELECT u.`id`
-                     FROM `users` u
-                     INNER JOIN `roles` r ON r.`id` = u.`role_id`
-                     WHERE r.`code` = 'DM'
-                       AND u.`status` = 'ACTIVE'
-                       AND u.`id` NOT IN (
-                           SELECT da.`dm_user_id` FROM `dm_assignments` da
-                           WHERE da.`game_room_id` = :rid AND da.`status` IN ('REJECTED', 'PENDING', 'ACCEPTED')
-                       )
-                       AND NOT EXISTS (
-                           SELECT 1 FROM `sessions` s2
-                           INNER JOIN `dm_assignments` da2 ON da2.`id` = s2.`dm_assignment_id`
-                           WHERE da2.`dm_user_id` = u.`id`
-                             AND da2.`status` IN ('PENDING', 'ACCEPTED')
-                             AND s2.`status` IN ('SCHEDULED', 'IN_PROGRESS')
-                             AND s2.`start_at` < DATE_ADD(:end_at, INTERVAL 30 MINUTE)
-                             AND s2.`end_at` > DATE_SUB(:start_at, INTERVAL 30 MINUTE)
-                       )
-                     ORDER BY u.`id` ASC
-                     LIMIT 1"
-                );
-                $nextDmStmt->execute([
-                    ':rid' => $roomId,
-                    ':start_at' => $sessTime['start_at'],
-                    ':end_at' => $sessTime['end_at'],
-                ]);
-            } else {
-                $nextDmStmt = $this->pdo->prepare(
-                    "SELECT u.`id`
-                     FROM `users` u
-                     INNER JOIN `roles` r ON r.`id` = u.`role_id`
-                     WHERE r.`code` = 'DM'
-                       AND u.`status` = 'ACTIVE'
-                       AND u.`id` NOT IN (
-                           SELECT da.`dm_user_id` FROM `dm_assignments` da
-                           WHERE da.`game_room_id` = :rid AND da.`status` IN ('REJECTED', 'PENDING', 'ACCEPTED')
-                       )
-                     ORDER BY u.`id` ASC
-                     LIMIT 1"
-                );
-                $nextDmStmt->execute([':rid' => $roomId]);
+            $curStart = null;
+            $curEnd = null;
+            if ($sessTime !== false) {
+                $durMins = max(60, (int) ($sessTime['duration_minutes'] ?? 210));
+                if (!empty($sessTime['start_at']) && !empty($sessTime['end_at'])) {
+                    $curStart = (string) $sessTime['start_at'];
+                    $curEnd = (string) $sessTime['end_at'];
+                } elseif (!empty($sessTime['target_time_slot']) && strtotime((string) $sessTime['target_time_slot']) !== false) {
+                    $ts = strtotime((string) $sessTime['target_time_slot']);
+                    $curStart = date('Y-m-d H:i:s', $ts);
+                    $curEnd = date('Y-m-d H:i:s', $ts + $durMins * 60);
+                }
             }
-            $candidateId = (int) $nextDmStmt->fetchColumn();
+
+            $candStmt = $this->pdo->prepare(
+                "SELECT u.`id`
+                 FROM `users` u
+                 INNER JOIN `roles` r ON r.`id` = u.`role_id`
+                 WHERE r.`code` = 'DM'
+                   AND u.`status` = 'ACTIVE'
+                   AND u.`id` NOT IN (
+                       SELECT da.`dm_user_id` FROM `dm_assignments` da
+                       WHERE da.`game_room_id` = :rid AND da.`status` IN ('REJECTED', 'PENDING', 'ACCEPTED')
+                   )
+                 ORDER BY u.`id` ASC"
+            );
+            $candStmt->execute([':rid' => $roomId]);
+            $candidates = array_map('intval', $candStmt->fetchAll(PDO::FETCH_COLUMN));
+
+            $candidateId = 0;
+            $myS = $curStart !== null ? strtotime($curStart) : false;
+            $myE = $curEnd !== null ? strtotime($curEnd) : false;
+
+            $nowTs = time();
+            foreach ($candidates as $candUid) {
+                if ($myS !== false && $myE !== false) {
+                    // 1. Kiểm tra trùng trong sessions theo thời lượng thực tế từng kịch bản (IN_PROGRESS tính từ started_at) + 30 phút đệm
+                    $cSess = $this->pdo->prepare(
+                        "SELECT s2.`status`, s2.`start_at`, s2.`started_at`, COALESCE(g2.`duration_minutes`, 210) AS `duration_minutes`
+                         FROM `sessions` s2
+                         INNER JOIN `dm_assignments` da2 ON da2.`id` = s2.`dm_assignment_id`
+                         INNER JOIN `game_rooms` gr2 ON gr2.`id` = s2.`game_room_id`
+                         INNER JOIN `games` g2 ON g2.`id` = gr2.`game_id`
+                         WHERE da2.`dm_user_id` = :uid
+                           AND da2.`status` IN ('PENDING', 'ACCEPTED')
+                           AND s2.`game_room_id` != :rid
+                           AND s2.`status` IN ('SCHEDULED', 'IN_PROGRESS')"
+                    );
+                    $cSess->execute([':uid' => $candUid, ':rid' => $roomId]);
+                    $hasSessConflict = false;
+                    foreach ($cSess->fetchAll(PDO::FETCH_ASSOC) as $sr) {
+                        $isRun = strtoupper((string) $sr['status']) === 'IN_PROGRESS';
+                        $oDur = max(60, (int) ($sr['duration_minutes'] ?? 210));
+                        $os = $isRun && !empty($sr['started_at'])
+                            ? strtotime((string) $sr['started_at'])
+                            : strtotime((string) ($sr['start_at'] ?? ''));
+                        if ($os === false) {
+                            $os = $isRun ? $nowTs : false;
+                        }
+                        if ($os === false) {
+                            continue;
+                        }
+                        $oe = $os + $oDur * 60;
+                        if ($isRun) {
+                            $oe = max($oe, $nowTs + 60);
+                        }
+                        if ($myS < ($oe + 1800) && $myE > ($os - 1800)) {
+                            $hasSessConflict = true;
+                            break;
+                        }
+                    }
+                    if ($hasSessConflict) {
+                        continue;
+                    }
+
+                    // 2. Kiểm tra trùng với các phòng khác đã gán DM này (PENDING/ACCEPTED) theo target_time_slot
+                    $cDa = $this->pdo->prepare(
+                        "SELECT gr2.`target_time_slot`, COALESCE(g2.`duration_minutes`, 210) AS `duration_minutes`
+                         FROM `dm_assignments` da2
+                         INNER JOIN `game_rooms` gr2 ON gr2.`id` = da2.`game_room_id`
+                         INNER JOIN `games` g2 ON g2.`id` = gr2.`game_id`
+                         WHERE da2.`dm_user_id` = :uid
+                           AND da2.`status` IN ('PENDING', 'ACCEPTED')
+                           AND gr2.`id` != :rid
+                           AND gr2.`status` NOT IN ('CANCELLED', 'COMPLETED')
+                           AND gr2.`target_time_slot` IS NOT NULL"
+                    );
+                    $cDa->execute([':uid' => $candUid, ':rid' => $roomId]);
+                    $hasConflict = false;
+                    foreach ($cDa->fetchAll(PDO::FETCH_ASSOC) as $otherRow) {
+                        $os = strtotime((string) $otherRow['target_time_slot']);
+                        if ($os === false) {
+                            continue;
+                        }
+                        $oe = $os + max(60, (int) $otherRow['duration_minutes']) * 60;
+                        if ($myS < ($oe + 1800) && $myE > ($os - 1800)) {
+                            $hasConflict = true;
+                            break;
+                        }
+                    }
+                    if ($hasConflict) {
+                        continue;
+                    }
+                }
+                $candidateId = $candUid;
+                break;
+            }
             if ($candidateId > 0) {
                 $rotatedDmId = $candidateId;
                 $rotatedAssignmentId = $this->dmRepo->assignToRoom(
@@ -250,12 +350,21 @@ class DMAssignmentController
 
                 $this->notiRepo->createNotification(
                     'Phân công ca trực mới (Xoay tua tự động)',
-                    "Bạn được hệ thống tự động xoay tua phân công phụ trách phòng '{$assignment['room_title']}'. Vui lòng xác nhận trong vòng 2 giờ.",
+                    "Bạn được hệ thống tự động xoay tua phân công phụ trách phòng #{$roomId} ('{$assignment['room_title']}'). Vui lòng xác nhận trong vòng 2 giờ.",
                     'DM_ASSIGNMENT',
                     (int) $auth['id'],
-                    [$candidateId]
+                    [$candidateId],
+                    'ROOM',
+                    $roomId
                 );
             }
+
+            // Đưa phòng về trạng thái SCHEDULED (chờ DM mới xác nhận hoặc chờ Admin điều phối lại; tuyệt đối không giữ CONFIRMED)
+            $this->pdo->prepare(
+                "UPDATE `game_rooms`
+                 SET `status` = 'SCHEDULED', `updated_at` = NOW()
+                 WHERE `id` = :rid AND `status` IN ('CONFIRMED', 'FORMING')"
+            )->execute([':rid' => $roomId]);
         }
 
         // Audit log & thông báo Admin
@@ -267,14 +376,26 @@ class DMAssignmentController
         $adminStmt = $this->pdo->query('SELECT u.`id` FROM `users` u JOIN `roles` r ON r.`id` = u.`role_id` WHERE r.`code` = \'ADMIN\' AND u.`status` = \'ACTIVE\'');
         $adminIds = array_map('intval', $adminStmt->fetchAll(PDO::FETCH_COLUMN));
 
+        $rotatedDmName = null;
+        if ($rotatedDmId !== null) {
+            $rdStmt = $this->pdo->prepare('SELECT `full_name` FROM `users` WHERE `id` = :id LIMIT 1');
+            $rdStmt->execute([':id' => $rotatedDmId]);
+            $rotatedDmName = (string) ($rdStmt->fetchColumn() ?: ('DM #' . $rotatedDmId));
+        }
+
         if (!empty($adminIds)) {
             $dmName = $auth['full_name'] ?? $auth['name'] ?? 'Quản trò';
+            $followUp = $rotatedDmId !== null
+                ? "Hệ thống đã tự động xoay tua sang Quản trò {$rotatedDmName} (đang chờ xác nhận)."
+                : 'CẦN ADMIN ĐIỀU PHỐI THỦ CÔNG: Hiện không còn Quản trò rảnh để xoay tua tự động.';
             $this->notiRepo->createNotification(
-                'Quản trò từ chối ca làm việc',
-                "Quản trò {$dmName} đã từ chối nhận ca làm việc tại phòng '{$assignment['room_title']}'. Lý do: {$reason}.",
+                $rotatedDmId !== null ? 'Quản trò từ chối ca (Đã xoay tua)' : '[Khẩn] Quản trò từ chối ca — Cần gán lại',
+                "Quản trò {$dmName} đã TỪ CHỐI ca phòng #{$roomId} ('{$assignment['room_title']}'). Lý do: {$reason}. {$followUp}",
                 'ADMIN',
                 (int) $auth['id'],
-                $adminIds
+                $adminIds,
+                'ROOM',
+                $roomId
             );
         }
 
@@ -282,6 +403,12 @@ class DMAssignmentController
 
         return Response::success([
             'assignment' => $updated,
-        ], 'Đã từ chối ca làm việc');
+            'rotated_assignment_id' => $rotatedAssignmentId,
+            'rotated_dm_id' => $rotatedDmId,
+            'rotated_dm_name' => $rotatedDmName,
+            'needs_admin_action' => $rotatedDmId === null,
+        ], $rotatedDmId !== null
+            ? "Đã từ chối ca trực và tự động xoay tua sang Quản trò {$rotatedDmName}"
+            : 'Đã từ chối ca trực và gửi cảnh báo cho Quản trị viên điều phối lại');
     }
 }

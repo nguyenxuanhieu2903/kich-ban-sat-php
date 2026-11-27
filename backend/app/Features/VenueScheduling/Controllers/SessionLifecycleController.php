@@ -106,6 +106,8 @@ class SessionLifecycleController
         }
 
         $sessionId = (int) $id;
+        $body = $request->getBodyParams();
+        $staffFillIn = !empty($body['staff_fill_in']) || !empty($body['force_start']);
 
         $this->pdo->beginTransaction();
         try {
@@ -120,6 +122,64 @@ class SessionLifecycleController
                 if ($ownerErr !== null) {
                     $this->pdo->rollBack();
                     return $ownerErr;
+                }
+            }
+
+            $targetRoomId = $session !== false ? (int) $session['game_room_id'] : $sessionId;
+            $rmMetaStmt = $this->pdo->prepare(
+                'SELECT `id`, `status`, `min_players`, `max_players`, `total_players`, `creator_id`, `booking_type`, `guest_slots`, `price_details`
+                 FROM `game_rooms` WHERE `id` = :rid LIMIT 1'
+            );
+            $rmMetaStmt->execute([':rid' => $targetRoomId]);
+            $rmMeta = $rmMetaStmt->fetch(PDO::FETCH_ASSOC);
+
+            if ($rmMeta !== false) {
+                if (in_array(strtoupper((string) ($rmMeta['status'] ?? '')), ['CANCELLED', 'COMPLETED'], true)) {
+                    $this->pdo->rollBack();
+                    return Response::fail('Không thể bắt đầu buổi chơi cho phòng đã hủy hoặc đã hoàn tất', 'INVALID_ROOM_STATUS', 409);
+                }
+
+                // Kiểm tra DM đã được phân công và đã chấp nhận ca (ACCEPTED) chưa
+                $daChkStmt = $this->pdo->prepare(
+                    'SELECT `id`, `dm_user_id`, `status` FROM `dm_assignments`
+                     WHERE `game_room_id` = :rid ORDER BY `id` DESC LIMIT 1'
+                );
+                $daChkStmt->execute([':rid' => $targetRoomId]);
+                $latestDa = $daChkStmt->fetch(PDO::FETCH_ASSOC);
+                $actorRole = strtoupper((string) ($auth['role_code'] ?? $auth['role'] ?? ''));
+                if ($actorRole === 'DM') {
+                    if ($latestDa === false || (int) ($latestDa['dm_user_id'] ?? 0) !== (int) $auth['id']) {
+                        $this->pdo->rollBack();
+                        return Response::fail('Bạn không phải Quản trò được phân công phụ trách phòng chơi này', 'FORBIDDEN_DM_SESSION', 403);
+                    }
+                    if (strtoupper((string) ($latestDa['status'] ?? '')) !== 'ACCEPTED') {
+                        $this->pdo->rollBack();
+                        return Response::fail(
+                            'Bạn cần bấm Nhận ca trước khi bắt đầu buổi chơi.',
+                            'DM_NOT_ACCEPTED',
+                            409
+                        );
+                    }
+                }
+
+                // Kiểm tra đủ số lượng người chơi tối thiểu (min_players) qua RoomSeatHelper
+                $pRowsStmt = $this->pdo->prepare(
+                    'SELECT `user_id` FROM `room_participants`
+                     WHERE `game_room_id` = :rid AND `status` IN (\'PENDING_DEPOSIT\', \'DEPOSITED\', \'LEAVE_REQUESTED\')'
+                );
+                $pRowsStmt->execute([':rid' => $targetRoomId]);
+                $activeUids = array_map('intval', $pRowsStmt->fetchAll(PDO::FETCH_COLUMN));
+                $seatCalc = \App\Shared\Services\RoomSeatHelper::computeSeats($rmMeta, $activeUids);
+                $occupiedSeats = $seatCalc['occupied_seats'];
+                $minRequired = max(1, (int) ($rmMeta['min_players'] ?? 1));
+
+                if (!$staffFillIn && $occupiedSeats < $minRequired) {
+                    $this->pdo->rollBack();
+                    return Response::fail(
+                        "Phòng chơi chưa đủ số lượng người chơi tối thiểu ({$occupiedSeats}/{$minRequired} người), không thể bắt đầu trò chơi.",
+                        'INSUFFICIENT_PLAYERS',
+                        422
+                    );
                 }
             }
 
@@ -273,9 +333,13 @@ class SessionLifecycleController
                 $rStmt->execute();
                 $room = $rStmt->fetch(PDO::FETCH_ASSOC);
                 if ($room !== false) {
-                    if (in_array(strtoupper((string) ($room['status'] ?? '')), ['CANCELLED', 'COMPLETED'], true)) {
+                    if (strtoupper((string) ($room['status'] ?? '')) !== 'IN_PROGRESS') {
                         $this->pdo->rollBack();
-                        return Response::fail('Không thể hoàn tất buổi chơi cho phòng đã hủy hoặc đã kết thúc', 'INVALID_ROOM_STATUS', 409);
+                        return Response::fail(
+                            'Chỉ có thể hoàn tất phòng chơi đang diễn ra (IN_PROGRESS). Không thể chuyển thẳng sang COMPLETED khi chưa bắt đầu (Hiện tại: ' . ($room['status'] ?? 'UNKNOWN') . ')',
+                            'INVALID_ROOM_STATUS',
+                            409
+                        );
                     }
                     $updRoom = $this->pdo->prepare('UPDATE `game_rooms` SET `status` = \'COMPLETED\', `updated_at` = NOW() WHERE `id` = :rid');
                     $updRoom->bindValue(':rid', (int) $room['id'], PDO::PARAM_INT);
@@ -299,50 +363,37 @@ class SessionLifecycleController
                 ], 'Phiên chơi đã hoàn tất trước đó');
             }
 
-            if ($session['status'] !== 'IN_PROGRESS' && $session['status'] !== 'SCHEDULED') {
+            if ($session['status'] !== 'IN_PROGRESS') {
                 $this->pdo->rollBack();
                 return Response::fail(
-                    'Chỉ có thể hoàn tất phiên chơi đang diễn ra IN_PROGRESS (Hiện tại: ' . $session['status'] . ')',
+                    'Chỉ có thể hoàn tất buổi chơi đang diễn ra. Không thể kết thúc khi buổi chơi chưa bắt đầu.',
                     'INVALID_SESSION_STATUS',
                     409
                 );
             }
 
+            // Bước 1: Đánh dấu đã kết thúc phần chơi (completed_at = NOW()), CHƯA chuyển COMPLETED.
+            // Phải thực hiện bước Tất toán tại quầy (settle) tiếp theo thì ca mới chính thức chuyển sang COMPLETED.
             $upd = $this->pdo->prepare(
-                'UPDATE `sessions` SET `status` = \'COMPLETED\', `completed_at` = NOW(), `updated_at` = NOW() WHERE `id` = :id'
+                'UPDATE `sessions` SET `completed_at` = COALESCE(`completed_at`, NOW()), `updated_at` = NOW() WHERE `id` = :id'
             );
             $upd->bindValue(':id', (int) $session['id'], PDO::PARAM_INT);
             $upd->execute();
 
-            $updRoom = $this->pdo->prepare('UPDATE `game_rooms` SET `status` = \'COMPLETED\', `updated_at` = NOW() WHERE `id` = :rid');
-            $updRoom->bindValue(':rid', (int) $session['game_room_id'], PDO::PARAM_INT);
-            $updRoom->execute();
-
-            $this->auditService->log((int) $auth['id'], 'COMPLETE_SESSION', 'session', (int) $session['id'], ['game_room_id' => (int) $session['game_room_id']]);
-
-            // Gửi thông báo hoàn tất phiên chơi tới người chơi đang hoạt động (không gửi cho người đã LEFT)
-            $notiRepo = new \App\Features\Notification\Repositories\NotificationRepository($this->pdo);
-            $pStmt = $this->pdo->prepare('SELECT `user_id` FROM `room_participants` WHERE `game_room_id` = :rid AND `status` IN (\'PENDING_DEPOSIT\', \'DEPOSITED\', \'LEAVE_REQUESTED\')');
-            $pStmt->bindValue(':rid', (int) $session['game_room_id'], PDO::PARAM_INT);
-            $pStmt->execute();
-            $playerIds = array_map('intval', $pStmt->fetchAll(PDO::FETCH_COLUMN));
-
-            if (!empty($playerIds)) {
-                $notiRepo->createNotification(
-                    'Phiên chơi đã kết thúc',
-                    'Phiên chơi kịch bản sát của bạn đã hoàn tất. Cảm ơn bạn đã tham gia và chúc bạn có những trải nghiệm tuyệt vời!',
-                    'SESSION',
-                    (int) $auth['id'],
-                    $playerIds
-                );
-            }
+            $this->auditService->log((int) $auth['id'], 'FINISH_GAMEPLAY', 'session', (int) $session['id'], [
+                'game_room_id' => (int) $session['game_room_id'],
+                'awaiting_settlement' => true,
+            ]);
 
             $this->pdo->commit();
 
             return Response::success([
-                'session_id' => $sessionId,
-                'status' => 'COMPLETED',
-            ], 'Đã hoàn tất phiên chơi');
+                'session_id' => (int) $session['id'],
+                'game_room_id' => (int) $session['game_room_id'],
+                'status' => 'IN_PROGRESS',
+                'gameplay_finished' => true,
+                'awaiting_settlement' => true,
+            ], 'Đã hoàn tất buổi chơi. Vui lòng thực hiện Tất toán tại quầy để chuyển ca sang trạng thái Hoàn tất.');
         } catch (\Throwable $e) {
             if ($this->pdo->inTransaction()) {
                 $this->pdo->rollBack();
@@ -424,7 +475,7 @@ class SessionLifecycleController
         $extraFee = max(0, (float) ($body['extra_fee'] ?? 0));
         $extraFeeReason = trim((string) ($body['extra_fee_reason'] ?? ''));
 
-        $stmt = $this->pdo->prepare('SELECT `id`, `game_room_id`, `dm_assignment_id`, `status` FROM `sessions` WHERE `id` = :id OR `game_room_id` = :rid ORDER BY `id` DESC LIMIT 1');
+        $stmt = $this->pdo->prepare('SELECT `id`, `game_room_id`, `dm_assignment_id`, `status`, `completed_at` FROM `sessions` WHERE `id` = :id OR `game_room_id` = :rid ORDER BY `id` DESC LIMIT 1');
         $stmt->bindValue(':id', $sessionId, PDO::PARAM_INT);
         $stmt->bindValue(':rid', $sessionId, PDO::PARAM_INT);
         $stmt->execute();
@@ -435,8 +486,19 @@ class SessionLifecycleController
             if ($ownerErr !== null) {
                 return $ownerErr;
             }
-            if (in_array(strtoupper((string) ($session['status'] ?? '')), ['CANCELLED', 'COMPLETED'], true)) {
+            $stUpper = strtoupper((string) ($session['status'] ?? ''));
+            if (in_array($stUpper, ['CANCELLED', 'COMPLETED'], true)) {
                 return Response::fail('Không thể tất toán tại quầy cho ca chơi đã hủy hoặc đã hoàn tất', 'INVALID_SESSION_STATUS', 409);
+            }
+            if ($stUpper !== 'IN_PROGRESS') {
+                return Response::fail('Phiên chơi chưa bắt đầu nên chưa thể tất toán tại quầy', 'SESSION_NOT_STARTED', 409);
+            }
+            if (empty($session['completed_at']) && !$isDisputed) {
+                return Response::fail(
+                    'Vui lòng bấm Hoàn tất buổi chơi trước, sau đó mới thực hiện Tất toán tại quầy để chốt hoàn tất ca.',
+                    'GAMEPLAY_NOT_FINISHED',
+                    409
+                );
             }
         }
 
@@ -466,7 +528,7 @@ class SessionLifecycleController
             $updPay->execute();
 
             // 2. Tự động ghi nhận khoản thu phần còn lại (REMAINING) tại quầy vào player_payments để đồng bộ Doanh thu thuần cho Admin
-            $rMetaStmt = $this->pdo->prepare('SELECT `game_id`, `creator_id`, `total_players`, `target_time_slot` FROM `game_rooms` WHERE `id` = :rid LIMIT 1');
+            $rMetaStmt = $this->pdo->prepare('SELECT `game_id`, `creator_id`, `total_players`, `max_players`, `target_time_slot`, `price_details` FROM `game_rooms` WHERE `id` = :rid LIMIT 1');
             $rMetaStmt->execute([':rid' => $roomId]);
             $rMeta = $rMetaStmt->fetch(PDO::FETCH_ASSOC);
 
@@ -483,6 +545,8 @@ class SessionLifecycleController
                 );
                 $partsStmt->execute([':rid' => $roomId]);
                 $activeParts = $partsStmt->fetchAll(PDO::FETCH_ASSOC);
+                $activeUids = array_map(static fn (array $ap): int => (int) $ap['user_id'], $activeParts);
+                $seatCalc = \App\Shared\Services\RoomSeatHelper::computeSeats($rMeta, $activeUids);
 
                 foreach ($activeParts as $ap) {
                     $pid = (int) $ap['id'];
@@ -496,7 +560,7 @@ class SessionLifecycleController
                     $paidSumStmt->execute([':pid' => $pid]);
                     $alreadyPaid = (int) $paidSumStmt->fetchColumn();
 
-                    $seats = ((int) $ap['user_id'] === (int) $rMeta['creator_id']) ? max(1, (int) ($rMeta['total_players'] ?: 1)) : 1;
+                    $seats = $seatCalc['seats_by_user'][(int) $ap['user_id']] ?? 1;
                     $quote = $pricingService->calculateQuote((int) $rMeta['game_id'], $seats, $playDt, !empty($ap['student_verified']));
                     $remAmt = max(0, (int) ($quote['final_total_vnd'] ?? 0) - $alreadyPaid);
                     if ($remAmt > 0) {
@@ -521,9 +585,40 @@ class SessionLifecycleController
                     }
                 }
             }
+
+            // 3. Sau khi hoàn tất buổi chơi + tất toán tại quầy -> chính thức chuyển ca & phòng sang COMPLETED
+            if ($session !== false) {
+                $this->pdo->prepare(
+                    'UPDATE `sessions` SET `status` = \'COMPLETED\', `completed_at` = COALESCE(`completed_at`, NOW()), `updated_at` = NOW() WHERE `id` = :sid'
+                )->execute([':sid' => (int) $session['id']]);
+            }
+            $this->pdo->prepare('UPDATE `game_rooms` SET `status` = \'COMPLETED\', `updated_at` = NOW() WHERE `id` = :rid')
+                ->execute([':rid' => $roomId]);
+
+            $this->auditService->log((int) $auth['id'], 'COMPLETE_SESSION', 'session', $session ? (int) $session['id'] : $sessionId, ['game_room_id' => $roomId]);
+
+            // Gửi thông báo hoàn tất ca tới các thành viên đang hoạt động
+            try {
+                $notiRepo = new \App\Features\Notification\Repositories\NotificationRepository($this->pdo);
+                $pStmt = $this->pdo->prepare('SELECT `user_id` FROM `room_participants` WHERE `game_room_id` = :rid AND `status` IN (\'PENDING_DEPOSIT\', \'DEPOSITED\', \'LEAVE_REQUESTED\')');
+                $pStmt->execute([':rid' => $roomId]);
+                $playerIds = array_map('intval', $pStmt->fetchAll(PDO::FETCH_COLUMN));
+                if (!empty($playerIds)) {
+                    $notiRepo->createNotification(
+                        'Buổi chơi đã hoàn tất',
+                        "Buổi chơi tại phòng #{$roomId} đã hoàn tất và tất toán xong. Cảm ơn bạn đã tham gia — bạn có thể để lại đánh giá ngay trong trang chi tiết phòng!",
+                        'SESSION',
+                        (int) $auth['id'],
+                        $playerIds,
+                        'ROOM',
+                        $roomId
+                    );
+                }
+            } catch (\Throwable) {
+            }
         }
 
-        $this->auditService->log((int) $auth['id'], 'SETTLE_PAYMENT_AT_COUNTER', 'session', $sessionId, [
+        $this->auditService->log((int) $auth['id'], 'SETTLE_PAYMENT_AT_COUNTER', 'session', $session ? (int) $session['id'] : $sessionId, [
             'status' => $targetStatus,
             'notes' => $notes,
             'room_id' => $roomId,
@@ -532,12 +627,13 @@ class SessionLifecycleController
         ]);
 
         return Response::success([
-            'session_id' => $sessionId,
+            'session_id' => $session ? (int) $session['id'] : $sessionId,
             'room_id' => $roomId,
+            'status' => $isDisputed ? 'IN_PROGRESS' : 'COMPLETED',
             'payment_status' => $targetStatus,
             'extra_fee' => $extraFee,
             'extra_fee_reason' => $extraFeeReason,
-        ], $isDisputed ? 'Đã ghi nhận cờ tranh chấp tài chính PAYMENT_DISPUTE' : 'Đã xác nhận tất toán đủ tiền tại quầy thành công');
+        ], $isDisputed ? 'Đã ghi nhận tranh chấp thanh toán tại quầy' : 'Đã tất toán tại quầy và chuyển ca sang trạng thái Hoàn tất thành công');
     }
 
     /**
@@ -580,7 +676,7 @@ class SessionLifecycleController
                 return $ownerErr;
             }
             if (in_array(strtoupper((string) ($session['status'] ?? '')), ['CANCELLED', 'COMPLETED'], true)) {
-                return Response::fail('Không thể tất toán tại quầy cho ca chơi đã hủy hoặc đã hoàn tất', 'INVALID_SESSION_STATUS', 409);
+                return Response::fail('Không thể ghi nhận vắng mặt cho ca chơi đã hủy hoặc đã hoàn tất', 'INVALID_SESSION_STATUS', 409);
             }
         }
 

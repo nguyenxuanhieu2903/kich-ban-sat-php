@@ -53,20 +53,31 @@ class PaymentRefundRequestController
             return Response::fail('Khoản thanh toán chưa có tiền đã nộp để hoàn lại', 'NO_PAID_AMOUNT', 400);
         }
 
-        // Kiểm tra đã có yêu cầu hoàn tiền đang PENDING hoặc APPROVED chưa
+        // Chặn gửi lại nếu khoản thanh toán này đã từng có yêu cầu hoàn tiền (kể cả chờ duyệt, đã duyệt, hoàn tất hay bị từ chối)
         $dupStmt = $this->pdo->prepare(
-            'SELECT `id` FROM `refunds` WHERE `player_payment_id` = :pid AND `status` IN (\'PENDING\', \'APPROVED\') LIMIT 1'
+            'SELECT `id`, `status` FROM `refunds`
+             WHERE `player_payment_id` = :pid
+               AND `status` IN (\'PENDING\', \'APPROVED\', \'PROCESSING\', \'COMPLETED\', \'REJECTED\')
+             ORDER BY `id` DESC LIMIT 1'
         );
         $dupStmt->bindValue(':pid', $paymentId, PDO::PARAM_INT);
         $dupStmt->execute();
-        if ($dupStmt->fetchColumn() !== false) {
-            return Response::fail('Đã tồn tại yêu cầu hoàn tiền đang chờ xử lý hoặc đã duyệt cho khoản này', 'DUPLICATE_REFUND_REQUEST', 409);
+        $existingRef = $dupStmt->fetch(PDO::FETCH_ASSOC);
+        if ($existingRef !== false) {
+            $exStatus = strtoupper((string) ($existingRef['status'] ?? ''));
+            $errMsg = match ($exStatus) {
+                'REJECTED' => 'Yêu cầu hoàn tiền cho khoản này đã bị Quản trị viên từ chối trước đó, không thể gửi lại.',
+                'APPROVED', 'PROCESSING' => 'Yêu cầu hoàn tiền cho khoản này đã được Quản trị viên phê duyệt, không thể gửi thêm.',
+                'COMPLETED' => 'Khoản thanh toán này đã được hoàn tiền hoàn tất.',
+                default => 'Đã tồn tại yêu cầu hoàn tiền đang chờ Quản trị viên xét duyệt cho khoản này.',
+            };
+            return Response::fail($errMsg, 'DUPLICATE_REFUND_REQUEST', 409);
         }
 
         $body = $request->getBodyParams();
-        $reason = trim((string) ($body['reason'] ?? 'Yêu cầu hoàn tiền từ người chơi'));
+        $reason = trim((string) ($body['reason'] ?? ''));
         if ($reason === '') {
-            $reason = 'Yêu cầu hoàn tiền từ người chơi';
+            return Response::fail('Vui lòng nhập rõ lý do yêu cầu hoàn tiền.', 'VALIDATION_ERROR', 422);
         }
 
         // Kiểm tra mốc 24h trước giờ chơi nếu có session (chặn hoàn cọc nếu buổi chơi đã COMPLETED)
@@ -109,10 +120,36 @@ class PaymentRefundRequestController
             (int) $auth['id']
         );
 
+        // Gửi thông báo ngay tới tất cả Quản trị viên kèm rõ lý do hoàn tiền từ phía người chơi
+        try {
+            $adminStmt = $this->pdo->query(
+                "SELECT u.`id` FROM `users` u
+                 INNER JOIN `roles` r ON r.`id` = u.`role_id`
+                 WHERE r.`code` = 'ADMIN' AND u.`status` = 'ACTIVE'"
+            );
+            $adminIds = array_map('intval', $adminStmt->fetchAll(PDO::FETCH_COLUMN));
+            if (!empty($adminIds)) {
+                $playerName = trim((string) ($auth['full_name'] ?? $auth['name'] ?? $payment['player_name'] ?? 'Người chơi'));
+                $roomTitle = trim((string) ($payment['room_title'] ?? "Phòng #{$roomId}"));
+                $notiRepo = new \App\Features\Notification\Repositories\NotificationRepository($this->pdo);
+                $notiRepo->createNotification(
+                    'Yêu cầu hoàn tiền mới cần duyệt',
+                    "Người chơi {$playerName} yêu cầu hoàn " . number_format($paidAmount) . " đ cho phòng #{$roomId} ('{$roomTitle}'). Lý do: {$reason}",
+                    'REFUND',
+                    (int) $auth['id'],
+                    $adminIds,
+                    'REFUND',
+                    $refundId
+                );
+            }
+        } catch (\Throwable) {
+        }
+
         return Response::success([
             'refund_id' => $refundId,
             'player_payment_id' => $paymentId,
             'amount' => $paidAmount,
+            'reason' => $reason,
             'status' => 'PENDING',
         ], 'Đã gửi yêu cầu hoàn tiền thành công', null, 201);
     }
@@ -145,13 +182,35 @@ class PaymentRefundRequestController
                   AND NOT EXISTS (
                       SELECT 1 FROM `refunds` r
                       WHERE r.`player_payment_id` = p.`id`
-                        AND r.`status` IN (\'PENDING\', \'APPROVED\', \'PROCESSING\', \'COMPLETED\')
+                        AND r.`status` IN (\'PENDING\', \'APPROVED\', \'PROCESSING\', \'COMPLETED\', \'REJECTED\')
                   )
                 ORDER BY p.`id` ASC');
             $stmt->bindValue(':room_id', $roomId, PDO::PARAM_INT);
             $stmt->bindValue(':user_id', (int) $auth['id'], PDO::PARAM_INT);
             $stmt->execute();
             $paymentIds = array_map('intval', $stmt->fetchAll(PDO::FETCH_COLUMN));
+
+            if (empty($paymentIds)) {
+                $prevRefStmt = $this->pdo->prepare(
+                    'SELECT r.`status` FROM `refunds` r
+                     INNER JOIN `player_payments` p ON p.`id` = r.`player_payment_id`
+                     INNER JOIN `room_participants` rp ON rp.`id` = p.`room_participant_id`
+                     WHERE rp.`game_room_id` = :room_id AND rp.`user_id` = :user_id
+                     ORDER BY r.`id` DESC LIMIT 1'
+                );
+                $prevRefStmt->execute([':room_id' => $roomId, ':user_id' => (int) $auth['id']]);
+                $prevStatus = $prevRefStmt->fetchColumn();
+                if ($prevStatus !== false) {
+                    $stUp = strtoupper((string) $prevStatus);
+                    $msg = match ($stUp) {
+                        'REJECTED' => 'Yêu cầu hoàn tiền cho phòng này đã bị Quản trị viên từ chối trước đó, không thể gửi lại.',
+                        'APPROVED', 'PROCESSING' => 'Yêu cầu hoàn tiền cho phòng này đã được Quản trị viên phê duyệt, không thể gửi thêm.',
+                        'COMPLETED' => 'Tiền cọc cho phòng này đã được hoàn tất chuyển khoản.',
+                        default => 'Bạn đã gửi yêu cầu hoàn tiền cho phòng này và đang chờ Quản trị viên xét duyệt.',
+                    };
+                    return Response::fail($msg, 'DUPLICATE_REFUND_REQUEST', 409);
+                }
+            }
 
             if (!empty($paymentIds)) {
                 $createdRefunds = [];

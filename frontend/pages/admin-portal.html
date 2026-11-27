@@ -3,39 +3,78 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Cổng Quản Trị Viên (Admin Portal) — Kịch Bản Sát V16</title>
+  <title>Trang Quản Trị Hệ Thống — Kịch Bản Sát</title>
   <link rel="stylesheet" href="../src/styles/components.css" />
   <link rel="stylesheet" href="../src/styles/portals-vintage.css" />
 </head>
 <body>
   <div id="app-header"></div>
 
-  <main class="portal-main">
-    <div class="container">
-      <div class="portal-hero">
-        <div>
-          <div class="portal-eyebrow">ADMIN PORTAL — CENTRAL OPERATIONS &amp; FINANCE</div>
-          <h1 class="portal-title">Cổng Quản Trị Hệ Thống</h1>
-          <p class="portal-subtitle">Điều phối Quản trò &amp; Phòng vật lý, phê duyệt hoàn tiền, xét duyệt HSSV và kiểm toán trực tiếp trên MySQL.</p>
-        </div>
-        <div class="portal-actions">
-          <a href="./dm-portal.html" class="btn btn-ghost">Mở DM Portal</a>
+  <main class="portal-main admin-main-shell">
+    <div class="container admin-container">
+      <div class="admin-shell">
+        <aside class="admin-sidebar" aria-label="Danh mục quản trị hệ thống">
+          <div class="admin-brand-head">
+            <div class="admin-brand-eyebrow">TRUNG TÂM ĐIỀU HÀNH</div>
+            <div class="admin-brand-title">Quản Trị Hệ Thống</div>
+          </div>
+
+          <div class="admin-sidebar-group">
+            <div class="admin-sidebar-label">Tổng Quan &amp; Vận Hành</div>
+            <button type="button" class="admin-nav-btn active" data-tab="dashboard">
+              <span>Bảng điều khiển</span>
+            </button>
+            <button type="button" class="admin-nav-btn" data-tab="rooms">
+              <span>Điều phối Phòng &amp; Quản trò</span>
+              <span class="admin-nav-badge" id="nav-badge-rooms" style="display:none;">0</span>
+            </button>
+            <button type="button" class="admin-nav-btn" data-tab="games">
+              <span>Kịch bản &amp; Bảng giá</span>
+            </button>
+            <button type="button" class="admin-nav-btn" data-tab="promos">
+              <span>Khuyến mãi &amp; Chi nhánh</span>
+            </button>
+          </div>
+
+          <div class="admin-sidebar-group">
+            <div class="admin-sidebar-label">Tài Chính &amp; Hệ Thống</div>
+            <button type="button" class="admin-nav-btn" data-tab="refunds">
+              <span>Duyệt Hoàn tiền</span>
+              <span class="admin-nav-badge is-alert" id="nav-badge-refunds" style="display:none;">0</span>
+            </button>
+            <button type="button" class="admin-nav-btn" data-tab="payments">
+              <span>Giao dịch Thanh toán</span>
+            </button>
+            <button type="button" class="admin-nav-btn" data-tab="hssv">
+              <span>Tài khoản &amp; Thẻ HSSV</span>
+              <span class="admin-nav-badge" id="nav-badge-hssv" style="display:none;">0</span>
+            </button>
+            <button type="button" class="admin-nav-btn" data-tab="audit">
+              <span>Nhật ký Kiểm toán</span>
+            </button>
+          </div>
+
+          <div class="admin-sidebar-footer">
+            <a href="./lobby.html" class="btn btn-ghost btn-sm" style="width:100%;justify-content:center;">Xem Sảnh Ghép Phòng</a>
+          </div>
+        </aside>
+
+        <div class="admin-workspace">
+          <div class="ecom-topbar">
+            <div class="ecom-breadcrumb">
+              <h1 class="ecom-page-title" id="admin-page-heading">Bảng điều khiển</h1>
+              <span class="ecom-crumb-sub" id="admin-page-sub">Tổng quan doanh thu &amp; vận hành hệ thống</span>
+            </div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;">
+              <button type="button" class="btn btn-ghost btn-sm" id="btn-refresh-admin">Làm mới số liệu</button>
+              <button type="button" class="btn btn-gold btn-sm" id="btn-quick-dispatch">Mở Điều phối</button>
+            </div>
+          </div>
+
+          <div id="admin-dashboard-stage"></div>
+          <section class="portal-panel" id="admin-panel" style="display:none;">Đang tải dữ liệu quản trị...</section>
         </div>
       </div>
-
-      <div class="kpi-grid" id="admin-kpi"></div>
-
-      <div class="portal-tabs" id="admin-tabs">
-        <button class="portal-tab active" data-tab="rooms">Điều phối Phòng &amp; DM</button>
-        <button class="portal-tab" data-tab="games">Kịch bản &amp; Bảng giá</button>
-        <button class="portal-tab" data-tab="promos">Khuyến mãi &amp; Chi nhánh</button>
-        <button class="portal-tab" data-tab="refunds">Duyệt Hoàn tiền</button>
-        <button class="portal-tab" data-tab="payments">Giao dịch Thanh toán</button>
-        <button class="portal-tab" data-tab="hssv">Người dùng &amp; Thẻ HSSV</button>
-        <button class="portal-tab" data-tab="audit">Nhật ký Kiểm toán</button>
-      </div>
-
-      <section class="portal-panel" id="admin-panel">Đang tải dữ liệu quản trị...</section>
     </div>
   </main>
 
@@ -44,17 +83,95 @@
   <script type="module">
     import { initChrome } from '../src/logic/layout.js';
     import { api } from '../src/logic/api.js';
-    import { requireAuthRole, formatVND, escapeHtml, showToast } from '../src/logic/portal-mock.js';
+    import { requireAuthRole, formatVND, escapeHtml, showToast, formatRoomStatus, formatRefundStatus, formatPaymentStatus, formatPaymentType } from '../src/logic/portal-mock.js';
 
-    let activeTab = 'rooms';
+    let activeTab = 'dashboard';
+    let dispatchFilter = 'ALL';
+    let auditSearch = '';
+    let auditActionFilter = '';
     let currentAdminId = 0;
+    let currentAdminName = 'Quản trị viên';
+
+    const TAB_META = {
+      dashboard: ['Bảng điều khiển', 'Tổng quan doanh thu, trạng thái phòng chơi & vận hành'],
+      rooms: ['Điều phối Phòng & Quản trò', 'Phân công Quản trò, Phòng vật lý, khóa lịch trực tiếp & bảo trì'],
+      games: ['Kịch bản & Bảng giá', 'Quản lý danh mục kịch bản, ẩn/hiện và cập nhật giá ngày/tối'],
+      promos: ['Khuyến mãi & Chi nhánh', 'Bật/tắt ưu đãi, gửi thông báo chung và quản lý cơ sở'],
+      refunds: ['Duyệt Hoàn tiền', 'Xét duyệt yêu cầu hoàn tiền cọc từ người chơi'],
+      payments: ['Giao dịch Thanh toán', 'Theo dõi toàn bộ khoản thu cọc và tất toán tại quầy'],
+      hssv: ['Tài khoản & Thẻ HSSV', 'Phân quyền tài khoản và xét duyệt thẻ học sinh - sinh viên'],
+      audit: ['Nhật ký Kiểm toán', 'Tra cứu lịch sử toàn bộ thao tác vận hành trên hệ thống'],
+    };
+
+    function switchAdminTab(nextTab) {
+      activeTab = nextTab;
+      document.querySelectorAll('.admin-sidebar .admin-nav-btn').forEach((btn) => {
+        btn.classList.toggle('active', btn.getAttribute('data-tab') === activeTab);
+      });
+      const [h, sub] = TAB_META[activeTab] || TAB_META.dashboard;
+      const hEl = document.getElementById('admin-page-heading');
+      const sEl = document.getElementById('admin-page-sub');
+      if (hEl) hEl.textContent = h;
+      if (sEl) sEl.textContent = sub;
+      render();
+    }
+
+    function buildSparklineSvg(values, strokeColor, fillColor) {
+      const pts = Array.isArray(values) && values.length >= 2 ? values : [1, 2, 1.5, 3, 2.4, 3.8, 3.2];
+      const maxV = Math.max(1, ...pts);
+      const minV = Math.min(0, ...pts);
+      const span = Math.max(1, maxV - minV);
+      const w = 160;
+      const h = 42;
+      const step = w / Math.max(1, pts.length - 1);
+      const coords = pts.map((v, idx) => {
+        const x = +(idx * step).toFixed(1);
+        const y = +(h - 4 - ((v - minV) / span) * (h - 10)).toFixed(1);
+        return [x, y];
+      });
+      const poly = coords.map(([x, y]) => `${x},${y}`).join(' ');
+      const area = `0,${h} ${poly} ${w},${h}`;
+      return `
+        <svg class="ecom-spark" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" aria-hidden="true">
+          <polygon points="${area}" fill="${fillColor}"></polygon>
+          <polyline points="${poly}" fill="none" stroke="${strokeColor}" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"></polyline>
+        </svg>
+      `;
+    }
+
+    function buildMiniRingSvg(pct, color) {
+      const clamped = Math.max(0, Math.min(100, pct));
+      const r = 24;
+      const c = +(2 * Math.PI * r).toFixed(2);
+      const dash = +((clamped / 100) * c).toFixed(2);
+      return `
+        <svg width="60" height="60" viewBox="0 0 60 60" style="flex-shrink:0;" aria-hidden="true">
+          <circle cx="30" cy="30" r="${r}" fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="6"></circle>
+          <circle cx="30" cy="30" r="${r}" fill="none" stroke="${color}" stroke-width="6"
+            stroke-dasharray="${dash} ${c}" stroke-linecap="round" transform="rotate(-90 30 30)"></circle>
+          <text x="30" y="34" text-anchor="middle" fill="#E2E8F0" font-size="11" font-weight="700" font-family="monospace">${clamped}%</text>
+        </svg>
+      `;
+    }
+
+    function fmtShortVnd(n) {
+      const val = Number(n || 0);
+      if (val >= 1000000) return `${(val / 1000000).toFixed(1).replace('.0', '')}tr`;
+      if (val >= 1000) return `${Math.round(val / 1000)}k`;
+      return `${val}`;
+    }
 
     async function render() {
       const panel = document.getElementById('admin-panel');
+      const dashStage = document.getElementById('admin-dashboard-stage');
+      const isDash = activeTab === 'dashboard';
+      if (dashStage) dashStage.style.display = isDash ? 'block' : 'none';
+      if (panel) panel.style.display = isDash ? 'none' : 'block';
+
       try {
         const [revData, roomsData, refundsData, usersData, prData] = await Promise.all([
           api.get('/admin/reports/revenue').catch(() => ({})),
-          api.get('/rooms?status=ALL&per_page=20').catch(() => ({ rooms: [] })),
+          api.get('/rooms?status=ALL&per_page=50').catch(() => ({ rooms: [] })),
           api.get('/admin/refunds').catch(() => ({ refunds: [] })),
           api.get('/admin/users?per_page=100').catch(() => ({ users: [] })),
           api.get('/admin/physical-rooms').catch(() => ({ physical_rooms: [] })),
@@ -66,91 +183,623 @@
         const physicalRooms = Array.isArray(prData) ? prData : (prData?.physical_rooms || prData?.items || []);
         const dms = users.filter((u) => String(u.role_code || u.role || '').toUpperCase() === 'DM');
 
-        const netRev = Number(
-          revData?.total_net_revenue
-          ?? revData?.revenue?.net_revenue
-          ?? revData?.net_revenue
-          ?? revData?.total_revenue
-          ?? revData?.summary?.net_revenue
-          ?? 0
-        );
+        const revObj = revData?.revenue || {};
+        const netRev = Number(revData?.total_net_revenue ?? revObj.net_revenue ?? 0);
+        const totalCollected = Number(revObj.total_collected ?? netRev);
+        const depositCollected = Number(revObj.deposit_collected ?? revData?.total_deposit ?? 0);
+        const remainingCollected = Number(revObj.remaining_collected ?? Math.max(0, totalCollected - depositCollected));
+        const totalRefunded = Number(revObj.total_refunded ?? 0);
         const pendingRefunds = refunds.filter((r) => r.status === 'PENDING').length;
+        const pendingHssv = users.filter((u) => String(u.student_card_status || '').toUpperCase() === 'PENDING' && !u.student_verified).length;
+        const activeRoomsCount = rooms.filter((r) => !['CANCELLED', 'COMPLETED'].includes(String(r.status || '').toUpperCase())).length;
 
-        document.getElementById('admin-kpi').innerHTML = `
-          <div class="kpi-card"><div class="kpi-label">Doanh thu thuần</div><div class="kpi-value">${formatVND(netRev)}</div><div class="kpi-meta">Báo cáo trực tiếp từ MySQL</div></div>
-          <div class="kpi-card"><div class="kpi-label">Phòng chơi (tải gần nhất)</div><div class="kpi-value">${roomsData?.meta?.total ?? rooms.length}</div><div class="kpi-meta">${physicalRooms.length} phòng vật lý</div></div>
-          <div class="kpi-card"><div class="kpi-label">Hoàn tiền chờ duyệt</div><div class="kpi-value">${pendingRefunds}</div><div class="kpi-meta">Tổng ${refunds.length} yêu cầu</div></div>
-          <div class="kpi-card"><div class="kpi-label">Người dùng hệ thống</div><div class="kpi-value">${users.length}</div><div class="kpi-meta">${dms.length} Quản trò (DM)</div></div>
-        `;
+        const setNavBadge = (id, count) => {
+          const el = document.getElementById(id);
+          if (!el) return;
+          if (count > 0) {
+            el.textContent = String(count);
+            el.style.display = 'inline-flex';
+          } else {
+            el.style.display = 'none';
+          }
+        };
+        setNavBadge('nav-badge-rooms', activeRoomsCount);
+        setNavBadge('nav-badge-refunds', pendingRefunds);
+        setNavBadge('nav-badge-hssv', pendingHssv);
 
-        if (activeTab === 'rooms') {
-          panel.innerHTML = `
-            <h2 class="portal-panel-title">Điều Phối Phòng Chơi, Quản Trò (DM) &amp; Phòng Vật Lý</h2>
-            <div class="portal-table-wrap">
-              <table class="portal-table">
-                <thead><tr><th>Phòng</th><th>Kịch bản</th><th>Trạng thái</th><th>Gán DM</th><th>Gán Phòng vật lý</th><th>Thao tác</th></tr></thead>
-                <tbody>
-                  ${rooms.slice(0, 15).map((r) => {
-                    const isClosedRoom = r.status === 'CANCELLED' || r.status === 'COMPLETED';
-                    return `
-                    <tr>
-                      <td><strong>#${r.id}</strong></td>
-                      <td>${escapeHtml(r.game_name || r.title || '')}</td>
-                      <td><span class="v-badge ${r.status === 'COMPLETED' ? 'v-badge-green' : r.status === 'CANCELLED' ? 'v-badge-crimson' : 'v-badge-gold'}">${escapeHtml(r.status)}</span></td>
-                      <td>
-                        ${isClosedRoom ? '<span class="text-muted" style="font-size:0.82rem;">Không áp dụng</span>' : `
-                          <select class="portal-select" data-dm-sel="${r.id}">
-                            <option value="">-- Chọn DM --</option>
-                            ${dms.map((d) => `<option value="${d.id}">${d.full_name || d.email}</option>`).join('')}
-                          </select>
-                        `}
-                      </td>
-                      <td>
-                        ${isClosedRoom ? '<span class="text-muted" style="font-size:0.82rem;">Không áp dụng</span>' : `
-                          <select class="portal-select" data-pr-sel="${r.id}">
-                            <option value="">-- Chọn phòng vật lý --</option>
-                            ${physicalRooms.map((p) => `<option value="${p.id}">${p.name || ('PR #' + p.id)}${p.is_maintenance ? ' (Bảo trì)' : ''}</option>`).join('')}
-                          </select>
-                        `}
-                      </td>
-                      <td style="display:flex;gap:6px;flex-wrap:wrap;">
-                        ${!isClosedRoom ? `
-                          <button class="btn btn-gold btn-sm" data-assign-dm="${r.id}">Gán DM</button>
-                          <button class="btn btn-ghost btn-sm" data-assign-pr="${r.id}">Gán Phòng</button>
-                          <button class="btn btn-ghost btn-sm" data-disband="${r.id}">Giải tán</button>
-                        ` : `<a href="./room-detail.html?id=${encodeURIComponent(r.id)}" class="btn btn-ghost btn-sm">Xem hồ sơ</a>`}
-                      </td>
-                    </tr>
-                  `; }).join('')}
-                </tbody>
-              </table>
-            </div>
+        if (isDash) {
+          const [overview, auditData] = await Promise.all([
+            api.get('/admin/dispatch-overview?per_page=30').catch(() => null),
+            api.get('/admin/audit-logs?per_page=6').catch(() => ({ items: [] })),
+          ]);
+          const ovRooms = overview?.rooms || rooms;
+          const ovDms = overview?.dms || [];
+          const ovPrs = overview?.physical_rooms || physicalRooms;
+          const recentLogs = Array.isArray(auditData) ? auditData : (auditData?.items || auditData?.logs || []);
 
-            <h3 class="portal-panel-title" style="margin-top:24px;">Quản Lý Phòng Vật Lý: Khóa Hotline/Walk-in &amp; Bảo Trì</h3>
-            <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px;">
-              <select class="portal-select" id="ob-pr-id" style="max-width:220px;">
-                ${physicalRooms.map((p) => `<option value="${p.id}">${p.name || ('PR #' + p.id)}${p.is_maintenance ? ' (Đang bảo trì)' : ''}</option>`).join('')}
-              </select>
-              <input type="datetime-local" id="ob-start" class="portal-input" value="2026-12-15T14:00" style="max-width:200px;" />
-              <input type="datetime-local" id="ob-end" class="portal-input" value="2026-12-15T17:00" style="max-width:200px;" />
-              <input type="text" id="ob-reason" class="portal-input" placeholder="Lý do (VD: Khách đặt Hotline)" style="max-width:220px;" />
-              <button class="btn btn-gold btn-sm" id="btn-offline-block">Khóa phòng Hotline</button>
-              <button class="btn btn-ghost btn-sm" id="btn-toggle-maint">Bật/Tắt Bảo trì</button>
+          const stCounts = revData?.room_status_counts || {
+            FORMING: rooms.filter((r) => r.status === 'FORMING').length,
+            SCHEDULED: rooms.filter((r) => r.status === 'SCHEDULED').length,
+            CONFIRMED: rooms.filter((r) => r.status === 'CONFIRMED').length,
+            IN_PROGRESS: rooms.filter((r) => r.status === 'IN_PROGRESS').length,
+            COMPLETED: rooms.filter((r) => r.status === 'COMPLETED').length,
+            CANCELLED: rooms.filter((r) => r.status === 'CANCELLED').length,
+          };
+          const totalAllRooms = Math.max(1, Object.values(stCounts).reduce((a, b) => a + Number(b || 0), 0));
+          const completedCnt = Number(stCounts.COMPLETED || 0);
+          const runningCnt = Number(stCounts.IN_PROGRESS || 0) + Number(stCounts.CONFIRMED || 0) + Number(stCounts.SCHEDULED || 0);
+          const formingCnt = Number(stCounts.FORMING || 0);
+          const cancelledCnt = Number(stCounts.CANCELLED || 0);
+          const activeRatioPct = Math.round(((completedCnt + runningCnt + formingCnt) / totalAllRooms) * 100);
+
+          // Donut Chart SVG (4 nhóm màu chuẩn eCommerce)
+          const donutData = [
+            { label: 'Đã hoàn tất', count: completedCnt, color: '#22C55E' },
+            { label: 'Đã xếp lịch / Chốt / Đang chạy', count: runningCnt, color: '#F59E0B' },
+            { label: 'Đang tuyển người', count: formingCnt, color: '#38BDF8' },
+            { label: 'Đã hủy', count: cancelledCnt, color: '#EF4444' },
+          ];
+          const donutR = 76;
+          const donutCirc = +(2 * Math.PI * donutR).toFixed(2);
+          let donutOffset = 0;
+          const donutSegs = donutData.map((seg) => {
+            const frac = seg.count / totalAllRooms;
+            const segLen = +(frac * donutCirc).toFixed(2);
+            const gap = segLen > 4 ? 3 : 0;
+            const dash = Math.max(0, segLen - gap);
+            const out = `<circle cx="105" cy="105" r="${donutR}" fill="none" stroke="${seg.color}" stroke-width="18" stroke-dasharray="${dash} ${donutCirc}" stroke-dashoffset="${-donutOffset}" transform="rotate(-90 105 105)"></circle>`;
+            donutOffset += segLen;
+            return out;
+          }).join('');
+
+          // Grouped Bar Chart (Doanh thu Cọc vs Tất toán theo ngày thật từ CSDL)
+          const rawDaily = Array.isArray(revData?.daily_series) && revData.daily_series.length
+            ? revData.daily_series
+            : [{ label: 'Hiện tại', deposit_vnd: depositCollected, remaining_vnd: remainingCollected, total_vnd: totalCollected, tx_count: 1 }];
+          const maxBarVal = Math.max(100000, ...rawDaily.map((d) => Math.max(Number(d.deposit_vnd || 0), Number(d.remaining_vnd || 0))));
+          const yTicks = [maxBarVal, Math.round(maxBarVal * 0.75), Math.round(maxBarVal * 0.5), Math.round(maxBarVal * 0.25), 0];
+
+          const depPct = totalCollected > 0 ? Math.round((depositCollected / totalCollected) * 100) : 0;
+          const remPct = totalCollected > 0 ? Math.round((remainingCollected / totalCollected) * 100) : 0;
+          const netPct = totalCollected > 0 ? Math.round((netRev / totalCollected) * 100) : 100;
+
+          const topScenarios = Array.isArray(revData?.top_scenarios) ? revData.top_scenarios : [];
+          const maxScenRev = Math.max(1, ...topScenarios.map((s) => Number(s.revenue_vnd || 0)));
+
+          const readyNeedDispatch = ovRooms.filter((r) =>
+            !['CANCELLED', 'COMPLETED', 'IN_PROGRESS'].includes(String(r.status || '').toUpperCase())
+            && Boolean(r.has_enough_players)
+            && (!r.current_dm || !['PENDING', 'ACCEPTED'].includes(String(r.current_dm.status || '').toUpperCase()) || !r.current_physical_room)
+          ).length;
+          const maintPrCount = ovPrs.filter((p) => Boolean(p.is_maintenance)).length;
+          const busyDmCount = ovDms.filter((d) => Boolean(d.is_busy_now)).length;
+          const busyPrCount = ovPrs.filter((p) => Boolean(p.is_busy_now)).length;
+
+          const sparkTotals = rawDaily.map((d) => Number(d.total_vnd || 0));
+          const sparkDeposits = rawDaily.map((d) => Number(d.deposit_vnd || 0));
+          const sparkTx = rawDaily.map((d) => Number(d.tx_count || 0));
+          const eqBars = (sparkTx.length >= 5 ? sparkTx.slice(-8) : [3, 5, 4, 6, 5, 7, 4, 6]);
+          const eqMax = Math.max(1, ...eqBars);
+
+          dashStage.innerHTML = `
+            <div class="portal-section-stack" style="gap:18px;">
+              <!-- HÀNG 1: DOANH THU & 4 CỘT CHỈ SỐ NGANG HÀNG -->
+              <div class="ecom-top-grid">
+                <article class="ecom-card ecom-card-hero">
+                  <div>
+                    <div class="ecom-hero-greet">Xin chào, ${escapeHtml(currentAdminName)}</div>
+                    <div class="ecom-hero-sub">Doanh thu thuần thực thu toàn hệ thống</div>
+                    <div class="ecom-hero-value">${formatVND(netRev)}</div>
+                    <div class="ecom-hero-meta" style="margin-top:4px;">Tổng thu ${formatVND(totalCollected)} • Đã hoàn ${formatVND(totalRefunded)} (${netPct}% giữ lại)</div>
+                  </div>
+                  <div style="margin-top:6px;">
+                    <button type="button" class="btn btn-gold btn-sm" data-jump-tab="payments">Xem chi tiết doanh thu</button>
+                  </div>
+                </article>
+
+                <article class="ecom-card">
+                  <div class="ecom-metric-head">
+                    <span class="ecom-metric-tag blue">PH</span>
+                    <span class="ecom-delta up">${activeRatioPct}%</span>
+                  </div>
+                  <div>
+                    <div class="ecom-metric-val">${roomsData?.meta?.total ?? rooms.length}</div>
+                    <div class="ecom-metric-lbl">Tổng phòng chơi (${completedCnt} hoàn tất)</div>
+                  </div>
+                  ${buildSparklineSvg(sparkTotals, '#38BDF8', 'rgba(56, 189, 248, 0.14)')}
+                </article>
+
+                <article class="ecom-card">
+                  <div class="ecom-metric-head">
+                    <span class="ecom-metric-tag green">CỌC</span>
+                    <span class="ecom-delta up">${depPct}%</span>
+                  </div>
+                  <div>
+                    <div class="ecom-metric-val">${fmtShortVnd(depositCollected)} đ</div>
+                    <div class="ecom-metric-lbl">Tiền cọc giữ chỗ đã thu</div>
+                  </div>
+                  ${buildSparklineSvg(sparkDeposits, '#4ADE80', 'rgba(74, 222, 128, 0.14)')}
+                </article>
+
+                <article class="ecom-card">
+                  <div class="ecom-metric-head">
+                    <span class="ecom-metric-tag crimson">TV</span>
+                    <span class="ecom-delta warn">${dms.length} QT</span>
+                  </div>
+                  <div>
+                    <div class="ecom-metric-val">${users.length}</div>
+                    <div class="ecom-metric-lbl">Tài khoản (${pendingHssv} thẻ HSSV chờ)</div>
+                  </div>
+                  ${buildSparklineSvg(sparkTx, '#F472B6', 'rgba(244, 114, 182, 0.14)')}
+                </article>
+
+                <article class="ecom-card">
+                  <div class="ecom-metric-head">
+                    <span class="ecom-metric-tag gold">HT</span>
+                    <span class="ecom-delta ${pendingRefunds > 0 ? 'down' : 'up'}">${pendingRefunds > 0 ? pendingRefunds + ' chờ' : 'Ổn định'}</span>
+                  </div>
+                  <div>
+                    <div class="ecom-metric-val">${pendingRefunds} / ${refunds.length}</div>
+                    <div class="ecom-metric-lbl">Hoàn tiền chờ duyệt</div>
+                  </div>
+                  <div style="display:flex;align-items:flex-end;justify-content:space-between;gap:4px;height:42px;padding-top:4px;">
+                    ${eqBars.map((v) => `<span style="flex:1;height:${Math.max(16, Math.round((v / eqMax) * 100))}%;border-radius:4px;background:linear-gradient(180deg,#FACC15,#D97706);"></span>`).join('')}
+                  </div>
+                </article>
+              </div>
+
+              <!-- HÀNG 2: BIỂU ĐỒ TRẠNG THÁI PHÒNG (TRÁI) & BIỂU ĐỒ CỘT DOANH THU + VÒNG TỶ LỆ (PHẢI) -->
+              <div class="ecom-charts-grid">
+                <article class="ecom-card">
+                  <div class="ecom-card-head">
+                    <h2 class="ecom-card-title">Trạng Thái Phòng Chơi</h2>
+                    <span class="ecom-card-hint">Tổng ${totalAllRooms} phòng</span>
+                  </div>
+                  <div class="ecom-donut-wrap">
+                    <svg class="ecom-donut-svg" viewBox="0 0 210 210" role="img" aria-label="Biểu đồ tròn phân bổ trạng thái phòng chơi">
+                      <circle cx="105" cy="105" r="${donutR}" fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="18"></circle>
+                      ${donutSegs}
+                      <text x="105" y="100" text-anchor="middle" fill="#FFFFFF" font-size="30" font-weight="700" font-family="Cormorant Garamond, serif">${activeRatioPct}%</text>
+                      <text x="105" y="122" text-anchor="middle" fill="#94A3B8" font-size="11.5">Tỷ lệ vận hành</text>
+                    </svg>
+                  </div>
+                  <div class="ecom-legend-list">
+                    ${donutData.map((d) => {
+                      const pct = Math.round((d.count / totalAllRooms) * 100);
+                      return `
+                        <div class="ecom-legend-row">
+                          <span class="ecom-legend-left"><span class="ecom-legend-dot" style="background:${d.color};"></span>${escapeHtml(d.label)}</span>
+                          <strong>${d.count} phòng (${pct}%)</strong>
+                        </div>
+                      `;
+                    }).join('')}
+                  </div>
+                </article>
+
+                <article class="ecom-card">
+                  <div class="ecom-card-head">
+                    <div>
+                      <h2 class="ecom-card-title">Doanh Thu &amp; Cơ Cấu Thu Theo Ngày</h2>
+                      <div class="ecom-card-hint">So sánh Tiền cọc giữ chỗ và Tất toán phần còn lại (dữ liệu trực tiếp)</div>
+                    </div>
+                    <button type="button" class="btn btn-ghost btn-sm" data-jump-tab="payments">Lịch sử thu</button>
+                  </div>
+
+                  <div class="ecom-barchart-box">
+                    <div class="ecom-bars-stage">
+                      <div class="ecom-y-axis">
+                        ${yTicks.map((t) => `<span>${fmtShortVnd(t)}</span>`).join('')}
+                      </div>
+                      <div class="ecom-bars-canvas">
+                        ${rawDaily.map((d) => {
+                          const depH = Math.max(4, Math.round((Number(d.deposit_vnd || 0) / maxBarVal) * 100));
+                          const remH = Math.max(4, Math.round((Number(d.remaining_vnd || 0) / maxBarVal) * 100));
+                          return `
+                            <div class="ecom-bar-group">
+                              <div class="ecom-bar-pair">
+                                <div class="ecom-bar gold" style="height:${Number(d.deposit_vnd || 0) > 0 ? depH : 2}%;" title="${escapeHtml(d.label)} — Tiền cọc: ${formatVND(d.deposit_vnd || 0)}"></div>
+                                <div class="ecom-bar blue" style="height:${Number(d.remaining_vnd || 0) > 0 ? remH : 2}%;" title="${escapeHtml(d.label)} — Tất toán: ${formatVND(d.remaining_vnd || 0)}"></div>
+                              </div>
+                              <span class="ecom-bar-label">${escapeHtml(d.label)}</span>
+                            </div>
+                          `;
+                        }).join('')}
+                      </div>
+                    </div>
+                    <div class="ecom-chart-legend">
+                      <span class="ecom-legend-left"><span class="ecom-legend-dot" style="background:#F59E0B;"></span>Tiền cọc giữ chỗ</span>
+                      <span class="ecom-legend-left"><span class="ecom-legend-dot" style="background:#38BDF8;"></span>Tất toán phần còn lại</span>
+                    </div>
+                  </div>
+
+                  <div class="ecom-dual-rings">
+                    <div class="ecom-ring-item">
+                      ${buildMiniRingSvg(depPct, '#F59E0B')}
+                      <div>
+                        <div class="ecom-ring-lbl">Tổng Tiền Cọc Đã Thu</div>
+                        <div class="ecom-ring-val">${formatVND(depositCollected)}</div>
+                        <div class="ecom-ring-sub">Chiếm ${depPct}% tổng thực thu</div>
+                      </div>
+                    </div>
+                    <div class="ecom-ring-item">
+                      ${buildMiniRingSvg(remPct, '#38BDF8')}
+                      <div>
+                        <div class="ecom-ring-lbl">Tổng Tất Toán Còn Lại</div>
+                        <div class="ecom-ring-val">${formatVND(remainingCollected)}</div>
+                        <div class="ecom-ring-sub" style="color:#38BDF8;">Chiếm ${remPct}% tổng thực thu</div>
+                      </div>
+                    </div>
+                  </div>
+                </article>
+              </div>
+
+              <!-- HÀNG 3: TOP KỊCH BẢN DOANH THU (TRÁI) & TÁC VỤ CẦN XỬ LÝ + NHÂN SỰ (PHẢI) -->
+              <div class="ecom-bottom-grid">
+                <article class="ecom-card">
+                  <div class="ecom-card-head">
+                    <h2 class="ecom-card-title">Kịch Bản Đóng Góp Doanh Thu Cao Nhất</h2>
+                    <button type="button" class="btn btn-ghost btn-sm" data-jump-tab="games">Quản lý kịch bản</button>
+                  </div>
+                  <div class="ecom-dark-list">
+                    ${topScenarios.length ? topScenarios.map((sc) => {
+                      const pct = Math.max(6, Math.round((Number(sc.revenue_vnd || 0) / maxScenRev) * 100));
+                      return `
+                        <div class="ecom-dark-row" style="flex-direction:column;align-items:stretch;gap:4px;">
+                          <div style="display:flex;justify-content:space-between;gap:10px;align-items:baseline;">
+                            <strong>${escapeHtml(sc.game_name)}</strong>
+                            <span style="color:#E4C072;font-weight:700;white-space:nowrap;">${formatVND(sc.revenue_vnd)}</span>
+                          </div>
+                          <div style="display:flex;justify-content:space-between;font-size:0.76rem;color:#8B96AA;">
+                            <span>${sc.room_count} phòng đã mở</span>
+                            <span>${Math.round((Number(sc.revenue_vnd || 0) / Math.max(1, totalCollected)) * 100)}% tổng thu</span>
+                          </div>
+                          <div class="ecom-hbar-track"><div class="ecom-hbar-fill" style="width:${pct}%;"></div></div>
+                        </div>
+                      `;
+                    }).join('') : '<div class="ecom-dark-row" style="color:#8B96AA;">Chưa có dữ liệu doanh thu theo kịch bản.</div>'}
+                  </div>
+                </article>
+
+                <article class="ecom-card">
+                  <div class="ecom-card-head">
+                    <h2 class="ecom-card-title">Tác Vụ Cần Xử Lý &amp; Tình Trạng Vận Hành</h2>
+                    <button type="button" class="btn btn-ghost btn-sm" data-jump-tab="audit">Nhật ký</button>
+                  </div>
+                  <div class="ecom-dark-list">
+                    <div class="ecom-dark-row clickable" data-jump-tab="rooms">
+                      <div>
+                        <strong>Phòng đủ người cần điều phối Quản trò / Phòng vật lý</strong>
+                        <div style="font-size:0.76rem;color:#8B96AA;">Nhân sự rảnh: ${Math.max(0, ovDms.length - busyDmCount)}/${ovDms.length} Quản trò • Phòng trống: ${Math.max(0, ovPrs.length - busyPrCount - maintPrCount)}/${ovPrs.length}</div>
+                      </div>
+                      <span class="v-badge ${readyNeedDispatch > 0 ? 'v-badge-crimson' : 'v-badge-green'}">${readyNeedDispatch} phòng</span>
+                    </div>
+                    <div class="ecom-dark-row clickable" data-jump-tab="refunds">
+                      <div>
+                        <strong>Yêu cầu hoàn tiền cọc đang chờ xét duyệt</strong>
+                        <div style="font-size:0.76rem;color:#8B96AA;">Tổng đã duyệt/hoàn: ${formatVND(totalRefunded)}</div>
+                      </div>
+                      <span class="v-badge ${pendingRefunds > 0 ? 'v-badge-crimson' : 'v-badge-green'}">${pendingRefunds} đơn</span>
+                    </div>
+                    <div class="ecom-dark-row clickable" data-jump-tab="hssv">
+                      <div>
+                        <strong>Hồ sơ thẻ Học sinh - Sinh viên chờ duyệt</strong>
+                        <div style="font-size:0.76rem;color:#8B96AA;">Kiểm tra ảnh thẻ và kích hoạt ưu đãi HSSV</div>
+                      </div>
+                      <span class="v-badge ${pendingHssv > 0 ? 'v-badge-gold' : 'v-badge-green'}">${pendingHssv} hồ sơ</span>
+                    </div>
+                    <div class="ecom-dark-row clickable" data-jump-tab="rooms">
+                      <div>
+                        <strong>Phòng vật lý đang bảo trì kỹ thuật</strong>
+                        <div style="font-size:0.76rem;color:#8B96AA;">Theo dõi sẵn sàng của ${ovPrs.length} phòng chơi tại cơ sở</div>
+                      </div>
+                      <span class="v-badge ${maintPrCount > 0 ? 'v-badge-gold' : 'v-badge-green'}">${maintPrCount} phòng</span>
+                    </div>
+                    ${recentLogs.slice(0, 2).map((l) => `
+                      <div class="ecom-dark-row clickable" data-jump-tab="audit" style="flex-direction:column;align-items:stretch;gap:3px;">
+                        <div style="display:flex;justify-content:space-between;gap:8px;font-size:0.76rem;color:#94A3B8;">
+                          <strong>${escapeHtml(l.actor_name || ('Tài khoản #' + (l.actor_id || '?')))} — ${escapeHtml(l.action_label || l.action || '')}</strong>
+                          <span>${escapeHtml(String(l.created_at || '').replace(/\.\d+$/, ''))}</span>
+                        </div>
+                        <div style="font-size:0.8rem;color:#CBD5E1;">${escapeHtml(l.detail_summary || l.entity_label || '')}</div>
+                      </div>
+                    `).join('')}
+                  </div>
+                </article>
+              </div>
             </div>
           `;
 
-          panel.querySelectorAll('[data-assign-dm]').forEach((btn) => btn.addEventListener('click', async () => {
-            const rid = btn.getAttribute('data-assign-dm');
-            const dmId = Number(panel.querySelector(`[data-dm-sel="${rid}"]`).value);
-            if (!dmId) { showToast('Vui lòng chọn Quản trò trước.'); return; }
-            try { await api.post(`/admin/rooms/${rid}/assign-dm`, { dm_user_id: dmId }); showToast(`Đã phân công DM cho phòng #${rid}.`); render(); } catch (e) { showToast(e.message); }
+          dashStage.querySelectorAll('[data-jump-tab]').forEach((el) => {
+            el.addEventListener('click', () => {
+              const tgt = el.getAttribute('data-jump-tab');
+              if (tgt) switchAdminTab(tgt);
+            });
+          });
+        } else if (activeTab === 'rooms') {
+          const overview = await api.get('/admin/dispatch-overview?per_page=25').catch(() => null);
+          const allOvRooms = overview?.rooms || rooms.slice(0, 20);
+          const ovDms = overview?.dms || [];
+          const ovPrs = overview?.physical_rooms || physicalRooms;
+
+          const countReady = allOvRooms.filter((r) => !['CANCELLED', 'COMPLETED', 'IN_PROGRESS'].includes(r.status) && Boolean(r.has_enough_players ?? (Number(r.current_players || 0) >= Number(r.min_players || 4)))).length;
+          const countPendingDm = allOvRooms.filter((r) => !['CANCELLED', 'COMPLETED'].includes(r.status) && r.current_dm?.status === 'PENDING').length;
+          const countRejectedDm = allOvRooms.filter((r) => !['CANCELLED', 'COMPLETED'].includes(r.status) && r.current_dm?.status === 'REJECTED').length;
+          const countUnderMin = allOvRooms.filter((r) => !['CANCELLED', 'COMPLETED'].includes(r.status) && !Boolean(r.has_enough_players ?? (Number(r.current_players || 0) >= Number(r.min_players || 4)))).length;
+
+          const filteredRooms = allOvRooms.filter((r) => {
+            const enough = Boolean(r.has_enough_players ?? (Number(r.current_players || 0) >= Number(r.min_players || 4)));
+            const closed = ['CANCELLED', 'COMPLETED'].includes(r.status);
+            if (dispatchFilter === 'READY') return !closed && r.status !== 'IN_PROGRESS' && enough;
+            if (dispatchFilter === 'PENDING_DM') return !closed && r.current_dm?.status === 'PENDING';
+            if (dispatchFilter === 'REJECTED_DM') return !closed && r.current_dm?.status === 'REJECTED';
+            if (dispatchFilter === 'UNDER_MIN') return !closed && !enough;
+            return true;
+          });
+
+          const dmStatusLabel = (st) => {
+            if (st === 'ACCEPTED') return ['Đã nhận ca', 'v-badge-green'];
+            if (st === 'PENDING') return ['Chờ Quản trò xác nhận', 'v-badge-gold'];
+            if (st === 'REJECTED') return ['Quản trò từ chối', 'v-badge-crimson'];
+            if (st === 'REVOKED') return ['Đã thu hồi', 'v-badge-muted'];
+            return [st || 'Chưa gán', 'v-badge-muted'];
+          };
+
+          panel.innerHTML = `
+            <div class="portal-section-stack">
+              <!-- 1. TÌNH TRẠNG NHÂN SỰ & PHÒNG VẬT LÝ -->
+              <div class="status-board-grid">
+                <div class="sub-card">
+                  <div class="sub-card-head">
+                    <h3 class="sub-card-title">Nhân Sự Quản Trò (${ovDms.length || dms.length})</h3>
+                    <span class="text-muted" style="font-size:0.78rem;">Cập nhật trực tiếp</span>
+                  </div>
+                  <div class="status-chip-list">
+                    ${(ovDms.length ? ovDms : dms).map((d) => `
+                      <div class="status-chip-row">
+                        <div class="status-chip-name">
+                          <span class="status-dot ${d.is_busy_now ? 'busy' : 'free'}"></span>
+                          <div>
+                            <strong>${escapeHtml(d.full_name || d.email)}</strong>
+                            ${d.upcoming_shifts ? `<div class="text-muted" style="font-size:0.74rem;">${d.upcoming_shifts} ca sắp tới</div>` : ''}
+                          </div>
+                        </div>
+                        <span class="v-badge ${d.is_busy_now ? 'v-badge-crimson' : 'v-badge-green'}">${d.is_busy_now ? escapeHtml(d.current_shift || 'Đang bận') : 'Đang rảnh'}</span>
+                      </div>
+                    `).join('') || '<span class="text-muted">Chưa có tài khoản Quản trò.</span>'}
+                  </div>
+                </div>
+
+                <div class="sub-card">
+                  <div class="sub-card-head">
+                    <h3 class="sub-card-title">Phòng Vật Lý (${ovPrs.length})</h3>
+                    <span class="text-muted" style="font-size:0.78rem;">Sức chứa &amp; trạng thái</span>
+                  </div>
+                  <div class="status-chip-list">
+                    ${ovPrs.map((p) => `
+                      <div class="status-chip-row">
+                        <div class="status-chip-name">
+                          <span class="status-dot ${p.is_maintenance ? 'busy' : p.is_busy_now ? 'warn' : 'free'}"></span>
+                          <div>
+                            <strong>${escapeHtml(p.name || ('Phòng #' + p.id))}</strong>
+                            <div class="text-muted" style="font-size:0.74rem;">Sức chứa tối đa ${p.capacity || 8} người</div>
+                          </div>
+                        </div>
+                        <span class="v-badge ${p.is_maintenance ? 'v-badge-crimson' : p.is_busy_now ? 'v-badge-gold' : 'v-badge-green'}">
+                          ${p.is_maintenance ? 'Đang bảo trì' : p.is_busy_now ? escapeHtml(p.current_usage || 'Đang dùng') : 'Đang trống'}
+                        </span>
+                      </div>
+                    `).join('') || '<span class="text-muted">Chưa có phòng vật lý.</span>'}
+                  </div>
+                </div>
+              </div>
+
+              <!-- 2. DANH SÁCH THẺ ĐIỀU PHỐI PHÒNG CHƠI -->
+              <div>
+                <div class="sub-card-head" style="margin-bottom:12px;">
+                  <h2 class="portal-panel-title" style="margin:0;border:none;padding:0;">Điều Phối Ca Chơi (Quản Trò &amp; Phòng Vật Lý)</h2>
+                </div>
+                <div class="filter-bar">
+                  <button class="filter-pill ${dispatchFilter === 'ALL' ? 'active' : ''}" data-dfilter="ALL">Tất cả (${allOvRooms.length})</button>
+                  <button class="filter-pill ${dispatchFilter === 'READY' ? 'active' : ''}" data-dfilter="READY">Đủ người cần gán (${countReady})</button>
+                  <button class="filter-pill ${dispatchFilter === 'PENDING_DM' ? 'active' : ''}" data-dfilter="PENDING_DM">Chờ Quản trò nhận (${countPendingDm})</button>
+                  <button class="filter-pill ${dispatchFilter === 'REJECTED_DM' ? 'active' : ''}" data-dfilter="REJECTED_DM">Quản trò từ chối (${countRejectedDm})</button>
+                  <button class="filter-pill ${dispatchFilter === 'UNDER_MIN' ? 'active' : ''}" data-dfilter="UNDER_MIN">Chưa đủ người (${countUnderMin})</button>
+                </div>
+
+                <div class="dispatch-list">
+                  ${filteredRooms.length ? filteredRooms.slice(0, 20).map((r) => {
+                    const isClosedRoom = r.status === 'CANCELLED' || r.status === 'COMPLETED';
+                    const isInProgress = r.status === 'IN_PROGRESS';
+                    const dmOpts = Array.isArray(r.dm_options) && r.dm_options.length
+                      ? r.dm_options
+                      : dms.map((d) => ({ id: d.id, full_name: d.full_name || d.email, available: true, busy_reason: null, is_current: false }));
+                    const prOpts = Array.isArray(r.physical_room_options) && r.physical_room_options.length
+                      ? r.physical_room_options
+                      : physicalRooms.map((p) => ({ id: p.id, name: p.name || ('Phòng #' + p.id), capacity: p.capacity || 8, available: !p.is_maintenance, busy_reason: p.is_maintenance ? 'Đang bảo trì' : null, is_current: false }));
+                    const curDm = r.current_dm;
+                    const curPr = r.current_physical_room;
+                    const curPlayers = Number(r.current_players ?? 0);
+                    const minP = Number(r.min_players ?? 4);
+                    const maxP = Number(r.max_players ?? 8);
+                    const hasEnoughPlayers = Boolean(r.has_enough_players ?? (curPlayers >= minP));
+                    const [dmStText, dmStCls] = curDm ? dmStatusLabel(curDm.status) : ['Chưa gán Quản trò', 'v-badge-muted'];
+                    const canEditDispatch = !isClosedRoom && !isInProgress && hasEnoughPlayers;
+                    const hasActiveDm = curDm && (curDm.status === 'PENDING' || curDm.status === 'ACCEPTED');
+                    const cardTone = isInProgress ? 'is-running' : isClosedRoom ? 'is-closed' : (r.status === 'CONFIRMED' ? 'is-ready' : '');
+
+                    return `
+                      <article class="dispatch-card ${cardTone}">
+                        <div class="dispatch-card-head">
+                          <div>
+                            <div class="dispatch-card-title-row">
+                              <span class="dispatch-room-id">PHÒNG #${r.id}</span>
+                              <h3 class="dispatch-room-name">${escapeHtml(r.game_name || r.title || '')}</h3>
+                            </div>
+                            <div class="dispatch-meta-strip">
+                              <span>Khung giờ: <strong>${escapeHtml(r.slot_display || r.slot_start_at || r.target_time_slot || 'Chưa ấn định')}</strong></span>
+                              <span style="color:${hasEnoughPlayers ? '#1A5936' : '#8B1E1E'};">Sĩ số: <strong>${curPlayers} / ${minP}–${maxP} người</strong> (${hasEnoughPlayers ? 'Đủ điều kiện' : `Thiếu ${Math.max(0, minP - curPlayers)} người`})</span>
+                            </div>
+                          </div>
+                          <span class="v-badge ${r.status === 'COMPLETED' || r.status === 'CONFIRMED' ? 'v-badge-green' : r.status === 'CANCELLED' || r.status === 'IN_PROGRESS' ? 'v-badge-crimson' : 'v-badge-gold'}">${escapeHtml(formatRoomStatus(r.status))}</span>
+                        </div>
+
+                        <div class="dispatch-card-body">
+                          <div class="dispatch-current-box">
+                            <div class="dispatch-current-row">
+                              <span class="text-muted">Quản trò phụ trách:</span>
+                              <span>${curDm ? `<strong>${escapeHtml(curDm.dm_name)}</strong>` : '<span class="text-muted">Chưa gán</span>'}</span>
+                            </div>
+                            <div class="dispatch-current-row">
+                              <span class="text-muted">Phản hồi nhận ca:</span>
+                              <span class="v-badge ${dmStCls}">${escapeHtml(dmStText)}</span>
+                            </div>
+                            ${curDm && curDm.status === 'REJECTED' && curDm.reason ? `
+                              <div style="font-size:0.8rem;color:#8B1E1E;background:#FEF2F2;padding:6px 8px;border-radius:5px;">
+                                <strong>Lý do từ chối:</strong> ${escapeHtml(curDm.reason)}
+                              </div>
+                            ` : ''}
+                            <div class="dispatch-current-row">
+                              <span class="text-muted">Phòng vật lý:</span>
+                              <span>${curPr ? `<strong>${escapeHtml(curPr.name)}</strong>` : '<span class="text-muted">Chưa gán</span>'}</span>
+                            </div>
+                          </div>
+
+                          <div class="dispatch-controls-box">
+                            ${canEditDispatch ? `
+                              <div class="dispatch-selects-grid">
+                                <div class="inline-form-field">
+                                  <label>Chọn Quản trò (theo khung giờ)</label>
+                                  <select class="portal-select" data-dm-sel="${r.id}" data-cur-dm="${curDm && hasActiveDm ? curDm.dm_user_id : ''}">
+                                    <option value="">-- Chọn Quản trò --</option>
+                                    ${dmOpts.map((d) => {
+                                      const freeLabel = Number(d.same_day_shifts || 0) > 0
+                                        ? `[Rảnh khung này • ${d.same_day_shifts} ca cùng ngày]`
+                                        : '[Rảnh khung này]';
+                                      return `<option value="${d.id}" ${d.is_current && hasActiveDm ? 'selected' : ''} ${!d.available && !(d.is_current && hasActiveDm) ? 'disabled' : ''}>${escapeHtml(d.full_name || d.email)} ${d.available ? freeLabel : `[${escapeHtml(d.busy_reason || 'Bận')}]`}</option>`;
+                                    }).join('')}
+                                  </select>
+                                </div>
+                                <div class="inline-form-field">
+                                  <label>Chọn Phòng vật lý (theo khung giờ)</label>
+                                  <select class="portal-select" data-pr-sel="${r.id}" data-cur-pr="${curPr ? curPr.id : ''}">
+                                    <option value="">-- Chọn phòng vật lý --</option>
+                                    ${prOpts.map((p) => `<option value="${p.id}" ${p.is_current ? 'selected' : ''} ${!p.available && !p.is_current ? 'disabled' : ''}>${escapeHtml(p.name)} (${p.capacity} chỗ) ${p.available ? '[Trống]' : `[${escapeHtml(p.busy_reason || 'Bận')}]`}</option>`).join('')}
+                                  </select>
+                                </div>
+                              </div>
+                              <div class="dispatch-actions-row">
+                                <a href="./room-detail.html?id=${encodeURIComponent(r.id)}" class="btn btn-ghost btn-sm">Chi tiết</a>
+                                ${hasActiveDm ? `<button class="btn btn-ghost btn-sm" data-revoke-dm="${r.id}">Thu hồi Quản trò</button>` : ''}
+                                <button class="btn btn-ghost btn-sm" data-disband="${r.id}">Giải tán</button>
+                                <button class="btn btn-gold btn-sm" data-save-dispatch="${r.id}">Lưu điều phối</button>
+                              </div>
+                            ` : !isClosedRoom && !isInProgress ? `
+                              <div class="dispatch-lock-note">
+                                Phòng mới có <strong>${curPlayers}/${minP} người</strong>. Khi đạt đủ số lượng người chơi tối thiểu, hệ thống sẽ tự động mở khóa phần gán Quản trò và Phòng vật lý.
+                              </div>
+                              <div class="dispatch-actions-row">
+                                <a href="./room-detail.html?id=${encodeURIComponent(r.id)}" class="btn btn-ghost btn-sm">Chi tiết phòng</a>
+                                <button class="btn btn-ghost btn-sm" data-disband="${r.id}">Giải tán phòng</button>
+                              </div>
+                            ` : `
+                              <div class="dispatch-actions-row" style="margin-top:8px;">
+                                <span class="text-muted" style="font-size:0.84rem;margin-right:auto;">${isInProgress ? 'Buổi chơi đang diễn ra, không thể thay đổi phân công.' : 'Phòng đã đóng hồ sơ.'}</span>
+                                <a href="./room-detail.html?id=${encodeURIComponent(r.id)}" class="btn btn-ghost btn-sm">Xem hồ sơ phòng</a>
+                              </div>
+                            `}
+                          </div>
+                        </div>
+                      </article>
+                    `;
+                  }).join('') : '<div class="sub-card text-muted" style="text-align:center;">Không có phòng chơi nào khớp bộ lọc điều phối hiện tại.</div>'}
+                </div>
+              </div>
+
+              <!-- 3. KHÓA PHÒNG TRỰC TIẾP & BẢO TRÌ -->
+              <div class="sub-card">
+                <div class="sub-card-head">
+                  <h3 class="sub-card-title">Quản Lý Phòng Vật Lý: Khóa Đặt Qua Điện Thoại &amp; Bảo Trì</h3>
+                </div>
+                <div class="inline-form-grid">
+                  <div class="inline-form-field">
+                    <label for="ob-pr-id">Chọn phòng vật lý</label>
+                    <select class="portal-select" id="ob-pr-id">
+                      ${physicalRooms.map((p) => `<option value="${p.id}">${escapeHtml(p.name || ('Phòng #' + p.id))}${p.is_maintenance ? ' (Đang bảo trì)' : ''}</option>`).join('')}
+                    </select>
+                  </div>
+                  <div class="inline-form-field">
+                    <label for="ob-start">Từ thời điểm</label>
+                    <input type="datetime-local" id="ob-start" class="portal-input" value="2026-12-15T14:00" />
+                  </div>
+                  <div class="inline-form-field">
+                    <label for="ob-end">Đến thời điểm</label>
+                    <input type="datetime-local" id="ob-end" class="portal-input" value="2026-12-15T17:00" />
+                  </div>
+                  <div class="inline-form-field">
+                    <label for="ob-reason">Lý do khóa phòng</label>
+                    <input type="text" id="ob-reason" class="portal-input" placeholder="VD: Khách đặt qua điện thoại" />
+                  </div>
+                </div>
+                <div class="inline-form-actions">
+                  <button class="btn btn-ghost btn-sm" id="btn-toggle-maint">Bật / Tắt Bảo trì phòng đã chọn</button>
+                  <button class="btn btn-gold btn-sm" id="btn-offline-block">Khóa phòng trực tiếp</button>
+                </div>
+              </div>
+            </div>
+          `;
+
+          panel.querySelectorAll('[data-dfilter]').forEach((btn) => btn.addEventListener('click', () => {
+            dispatchFilter = btn.getAttribute('data-dfilter') || 'ALL';
+            render();
           }));
 
-          panel.querySelectorAll('[data-assign-pr]').forEach((btn) => btn.addEventListener('click', async () => {
-            const rid = btn.getAttribute('data-assign-pr');
-            const prId = Number(panel.querySelector(`[data-pr-sel="${rid}"]`).value);
-            if (!prId) { showToast('Vui lòng chọn phòng vật lý trước.'); return; }
-            try { await api.post(`/admin/rooms/${rid}/assign-venue`, { physical_room_id: prId }); showToast(`Đã gán phòng vật lý cho phòng #${rid}.`); render(); } catch (e) { showToast(e.message); }
+          panel.querySelectorAll('[data-save-dispatch]').forEach((btn) => btn.addEventListener('click', async () => {
+            const rid = btn.getAttribute('data-save-dispatch');
+            const dmSel = panel.querySelector(`[data-dm-sel="${rid}"]`);
+            const prSel = panel.querySelector(`[data-pr-sel="${rid}"]`);
+            const dmId = Number(dmSel?.value || 0);
+            const curDmId = Number(dmSel?.getAttribute('data-cur-dm') || 0);
+            const prId = Number(prSel?.value || 0);
+            const curPrId = Number(prSel?.getAttribute('data-cur-pr') || 0);
+
+            if (!dmId && !prId) {
+              showToast('Vui lòng chọn Quản trò hoặc Phòng vật lý trước khi lưu.');
+              return;
+            }
+            const msgs = [];
+            try {
+              if (dmId && dmId !== curDmId) {
+                await api.post(`/admin/rooms/${rid}/assign-dm`, { dm_user_id: dmId });
+                msgs.push('đã gán Quản trò (chờ Quản trò xác nhận)');
+              } else if (dmId && !prId) {
+                await api.post(`/admin/rooms/${rid}/assign-dm`, { dm_user_id: dmId });
+                msgs.push('đã gửi lại phân công Quản trò');
+              }
+              if (prId && (prId !== curPrId || !curPrId)) {
+                await api.post(`/admin/rooms/${rid}/assign-venue`, { physical_room_id: prId });
+                msgs.push('đã gán phòng vật lý & đồng bộ lịch');
+              }
+              if (!msgs.length) {
+                showToast('Chưa có thay đổi mới nào để lưu.');
+                return;
+              }
+              showToast(`Phòng #${rid}: ${msgs.join(' và ')}.`);
+              render();
+            } catch (e) {
+              showToast(e.message || 'Không thể lưu điều phối.');
+              render();
+            }
+          }));
+
+          panel.querySelectorAll('[data-revoke-dm]').forEach((btn) => btn.addEventListener('click', async () => {
+            const rid = btn.getAttribute('data-revoke-dm');
+            const reason = window.prompt(`Nhập lý do thu hồi ca Quản trò phòng #${rid}:`, 'Quản trị viên điều phối lại nhân sự');
+            if (!reason || !reason.trim()) return;
+            try {
+              await api.post(`/admin/rooms/${rid}/revoke-dm`, { reason: reason.trim() });
+              showToast(`Đã thu hồi ca Quản trò của phòng #${rid} và gửi thông báo.`);
+              render();
+            } catch (e) { showToast(e.message); }
           }));
 
           panel.querySelectorAll('[data-disband]').forEach((btn) => btn.addEventListener('click', async () => {
@@ -164,8 +813,8 @@
             const prId = Number(document.getElementById('ob-pr-id')?.value);
             const startAt = (document.getElementById('ob-start')?.value || '').replace('T', ' ') + ':00';
             const endAt = (document.getElementById('ob-end')?.value || '').replace('T', ' ') + ':00';
-            const reason = (document.getElementById('ob-reason')?.value || '').trim() || 'Khóa giữ chỗ khách Hotline/Walk-in';
-            try { await api.post('/admin/rooms/offline-block', { physical_room_id: prId, start_at: startAt, end_at: endAt, reason }); showToast('Đã khóa phòng cho khách Hotline/Walk-in.'); render(); } catch (e) { showToast(e.message); }
+            const reason = (document.getElementById('ob-reason')?.value || '').trim() || 'Khóa giữ chỗ khách đặt qua điện thoại';
+            try { await api.post('/admin/rooms/offline-block', { physical_room_id: prId, start_at: startAt, end_at: endAt, reason }); showToast('Đã khóa phòng cho khách đặt trực tiếp.'); render(); } catch (e) { showToast(e.message); }
           });
 
           document.getElementById('btn-toggle-maint')?.addEventListener('click', async () => {
@@ -178,36 +827,68 @@
           const gData = await api.get('/admin/games').catch(() => ({ games: [] }));
           const games = gData?.games || (Array.isArray(gData) ? gData : []);
           panel.innerHTML = `
-            <h2 class="portal-panel-title">Quản Lý Danh Mục Kịch Bản &amp; Bảng Giá (${games.length} bộ)</h2>
-            <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;">
-              <input id="ng-name" class="portal-input" placeholder="Tên kịch bản mới..." style="max-width:220px;" />
-              <input id="ng-genre" class="portal-input" placeholder="Thể loại" value="Trinh thám" style="max-width:140px;" />
-              <input id="ng-min" type="number" class="portal-input" value="5" style="max-width:70px;" title="Số người tối thiểu" />
-              <input id="ng-max" type="number" class="portal-input" value="8" style="max-width:70px;" title="Số người tối đa" />
-              <input id="ng-day" type="number" class="portal-input" value="199000" style="max-width:110px;" title="Giá ban ngày" />
-              <input id="ng-night" type="number" class="portal-input" value="239000" style="max-width:110px;" title="Giá ban tối" />
-              <button class="btn btn-gold btn-sm" id="btn-add-game">+ Thêm kịch bản</button>
-            </div>
-            <div class="portal-table-wrap">
-              <table class="portal-table">
-                <thead><tr><th>ID</th><th>Tên kịch bản</th><th>Sĩ số</th><th>Giá ngày</th><th>Giá tối</th><th>Trạng thái</th><th>Thao tác</th></tr></thead>
-                <tbody>
-                  ${games.map((g) => `
-                    <tr>
-                      <td><strong>#${g.id}</strong></td>
-                      <td><strong>${g.name}</strong><div class="text-muted" style="font-size:0.78rem;">${g.genre || ''}</div></td>
-                      <td>${g.min_players}–${g.max_players}</td>
-                      <td><input type="number" class="portal-input" data-gday="${g.id}" value="${g.day_price || 199000}" style="width:105px;" /></td>
-                      <td><input type="number" class="portal-input" data-gnight="${g.id}" value="${g.night_price || 239000}" style="width:105px;" /></td>
-                      <td><span class="v-badge ${g.status === 'ACTIVE' ? 'v-badge-green' : 'v-badge-crimson'}">${g.status}</span></td>
-                      <td style="display:flex;gap:6px;">
-                        <button class="btn btn-gold btn-sm" data-save-game="${g.id}">Lưu giá</button>
-                        <button class="btn btn-ghost btn-sm" data-toggle-game="${g.id}" data-next-gst="${g.status === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE'}">${g.status === 'ACTIVE' ? 'Ẩn' : 'Hiện'}</button>
-                      </td>
-                    </tr>
-                  `).join('')}
-                </tbody>
-              </table>
+            <div class="portal-section-stack">
+              <div class="sub-card">
+                <div class="sub-card-head">
+                  <h3 class="sub-card-title">Thêm Kịch Bản Mới Vào Danh Mục</h3>
+                </div>
+                <div class="inline-form-grid">
+                  <div class="inline-form-field">
+                    <label for="ng-name">Tên kịch bản</label>
+                    <input id="ng-name" class="portal-input" placeholder="VD: Biệt Thự Sương Mù" />
+                  </div>
+                  <div class="inline-form-field">
+                    <label for="ng-genre">Thể loại</label>
+                    <input id="ng-genre" class="portal-input" value="Trinh thám" />
+                  </div>
+                  <div class="inline-form-field">
+                    <label for="ng-min">Tối thiểu (người)</label>
+                    <input id="ng-min" type="number" class="portal-input" value="5" />
+                  </div>
+                  <div class="inline-form-field">
+                    <label for="ng-max">Tối đa (người)</label>
+                    <input id="ng-max" type="number" class="portal-input" value="8" />
+                  </div>
+                  <div class="inline-form-field">
+                    <label for="ng-day">Giá ban ngày (đ)</label>
+                    <input id="ng-day" type="number" class="portal-input" value="199000" />
+                  </div>
+                  <div class="inline-form-field">
+                    <label for="ng-night">Giá buổi tối (đ)</label>
+                    <input id="ng-night" type="number" class="portal-input" value="239000" />
+                  </div>
+                </div>
+                <div class="inline-form-actions">
+                  <button class="btn btn-gold btn-sm" id="btn-add-game">+ Thêm kịch bản mới</button>
+                </div>
+              </div>
+
+              <div>
+                <h2 class="portal-panel-title">Danh Mục Kịch Bản &amp; Bảng Giá (${games.length} bộ)</h2>
+                <div class="portal-table-wrap">
+                  <table class="portal-table">
+                    <thead><tr><th>Mã</th><th>Tên kịch bản</th><th>Sĩ số</th><th>Giá ngày (đ)</th><th>Giá tối (đ)</th><th>Trạng thái</th><th>Thao tác</th></tr></thead>
+                    <tbody>
+                      ${games.map((g) => `
+                        <tr ${g.status !== 'ACTIVE' ? 'style="opacity:0.65;background:#FAF6F0;"' : ''}>
+                          <td><strong>#${g.id}</strong></td>
+                          <td><strong>${escapeHtml(g.name)}</strong><div class="text-muted" style="font-size:0.78rem;">${escapeHtml(g.genre || '')}</div></td>
+                          <td style="white-space:nowrap;">${g.min_players}–${g.max_players} người</td>
+                          <td><input type="number" class="portal-input" data-gday="${g.id}" value="${g.day_price || 199000}" style="width:115px;" /></td>
+                          <td><input type="number" class="portal-input" data-gnight="${g.id}" value="${g.night_price || 239000}" style="width:115px;" /></td>
+                          <td><span class="v-badge ${g.status === 'ACTIVE' ? 'v-badge-green' : 'v-badge-crimson'}">${g.status === 'ACTIVE' ? 'ĐANG HIỆN' : 'ĐANG ẨN'}</span></td>
+                          <td>
+                            <div style="display:flex;gap:6px;flex-wrap:nowrap;">
+                              <button class="btn btn-gold btn-sm" data-save-game="${g.id}">Lưu giá</button>
+                              <button class="btn btn-ghost btn-sm" data-toggle-game="${g.id}" data-game-name="${escapeHtml(g.name)}" data-next-gst="${g.status === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE'}">${g.status === 'ACTIVE' ? 'Ẩn kịch bản' : 'Hiện lại'}</button>
+                            </div>
+                          </td>
+                        </tr>
+                      `).join('')}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
             </div>
           `;
           document.getElementById('btn-add-game')?.addEventListener('click', async () => {
@@ -234,8 +915,17 @@
           }));
           panel.querySelectorAll('[data-toggle-game]').forEach((b) => b.addEventListener('click', async () => {
             const gid = b.getAttribute('data-toggle-game');
+            const gName = b.getAttribute('data-game-name') || `#${gid}`;
             const status = b.getAttribute('data-next-gst');
-            try { await api.patch(`/admin/games/${gid}`, { status }); showToast(`Đã chuyển kịch bản #${gid} sang ${status}.`); render(); } catch (e) { showToast(e.message); }
+            try {
+              await api.patch(`/admin/games/${gid}`, { status });
+              showToast(
+                status === 'INACTIVE'
+                  ? `Thông báo: Đã ẩn kịch bản "${gName}" khỏi Trang chủ, Kho kịch bản và danh sách Tạo phòng (đã gửi thông báo tới người chơi liên quan).`
+                  : `Thông báo: Đã hiển thị lại kịch bản "${gName}" trên toàn hệ thống.`
+              );
+              render();
+            } catch (e) { showToast(e.message); }
           }));
         } else if (activeTab === 'promos') {
           const [pData, vData] = await Promise.all([
@@ -245,38 +935,105 @@
           const promos = pData?.promotions || (Array.isArray(pData) ? pData : []);
           const venues = vData?.venues || (Array.isArray(vData) ? vData : []);
           panel.innerHTML = `
-            <h2 class="portal-panel-title">Chương Trình Khuyến Mãi</h2>
-            <div class="portal-table-wrap" style="margin-bottom:24px;">
-              <table class="portal-table">
-                <thead><tr><th>ID</th><th>Tên chương trình</th><th>Loại</th><th>Giá trị</th><th>Trạng thái</th><th>Thao tác</th></tr></thead>
-                <tbody>
-                  ${promos.length ? promos.map((pr) => `
-                    <tr>
-                      <td><strong>#${pr.id}</strong></td>
-                      <td>${pr.name || pr.code || ''}</td>
-                      <td>${pr.discount_type || ''}</td>
-                      <td><strong>${pr.discount_value || 0}</strong></td>
-                      <td><span class="v-badge ${pr.is_active ? 'v-badge-green' : 'v-badge-crimson'}">${pr.is_active ? 'ĐANG CHẠY' : 'TẠM TẮT'}</span></td>
-                      <td><button class="btn btn-gold btn-sm" data-promo-toggle="${pr.id}" data-promo-next="${pr.is_active ? 0 : 1}">${pr.is_active ? 'Tắt' : 'Bật'}</button></td>
-                    </tr>
-                  `).join('') : '<tr><td colspan="6" class="text-muted">Chưa có chương trình khuyến mãi.</td></tr>'}
-                </tbody>
-              </table>
-            </div>
+            <div class="portal-section-stack">
+              <div>
+                <h2 class="portal-panel-title">Chương Trình Khuyến Mãi</h2>
+                <div class="portal-table-wrap">
+                  <table class="portal-table">
+                    <thead><tr><th>Mã</th><th>Tên chương trình</th><th>Loại</th><th>Giá trị</th><th>Trạng thái</th><th>Thao tác</th></tr></thead>
+                    <tbody>
+                      ${promos.length ? promos.map((pr) => `
+                        <tr>
+                          <td><strong>#${pr.id}</strong></td>
+                          <td><strong>${escapeHtml(pr.name || pr.code || '')}</strong></td>
+                          <td>${String(pr.discount_type || '').toUpperCase().includes('PERCENT') ? 'Giảm theo phần trăm' : 'Giảm trực tiếp'}</td>
+                          <td><strong>${String(pr.discount_type || '').toUpperCase().includes('PERCENT') ? `${pr.discount_value || 0}%` : formatVND(pr.discount_value || 0)}</strong></td>
+                          <td><span class="v-badge ${pr.is_active ? 'v-badge-green' : 'v-badge-crimson'}">${pr.is_active ? 'ĐANG CHẠY' : 'TẠM TẮT'}</span></td>
+                          <td><button class="btn btn-gold btn-sm" data-promo-toggle="${pr.id}" data-promo-next="${pr.is_active ? 0 : 1}">${pr.is_active ? 'Tắt' : 'Bật'}</button></td>
+                        </tr>
+                      `).join('') : '<tr><td colspan="6" class="text-muted">Chưa có chương trình khuyến mãi.</td></tr>'}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
 
-            <h2 class="portal-panel-title">Quản Lý Chi Nhánh &amp; Thêm Phòng Vật Lý</h2>
-            <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;">
-              <input id="nv-name" class="portal-input" placeholder="Tên chi nhánh mới..." style="max-width:200px;" />
-              <input id="nv-addr" class="portal-input" placeholder="Địa chỉ chi nhánh..." style="max-width:260px;" />
-              <button class="btn btn-gold btn-sm" id="btn-add-venue">+ Thêm chi nhánh</button>
-            </div>
-            <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;">
-              <select id="npr-vid" class="portal-select" style="max-width:220px;">
-                ${venues.map((v) => `<option value="${v.id}">${v.name}</option>`).join('')}
-              </select>
-              <input id="npr-name" class="portal-input" placeholder="Tên phòng vật lý mới..." style="max-width:200px;" />
-              <input id="npr-cap" type="number" class="portal-input" value="8" style="max-width:80px;" title="Sức chứa" />
-              <button class="btn btn-ghost btn-sm" id="btn-add-pr">+ Thêm phòng vật lý</button>
+              <div class="sub-card">
+                <div class="sub-card-head">
+                  <h3 class="sub-card-title">Phát Thông Báo Chung / Theo Vai Trò</h3>
+                </div>
+                <div class="inline-form-grid">
+                  <div class="inline-form-field">
+                    <label for="bc-audience">Đối tượng nhận</label>
+                    <select id="bc-audience" class="portal-select">
+                      <option value="ALL">Thông báo chung (Tất cả mọi người)</option>
+                      <option value="PLAYER">Quyền lợi chung cho Người chơi</option>
+                      <option value="DM">Thông báo chung cho Quản trò</option>
+                    </select>
+                  </div>
+                  <div class="inline-form-field">
+                    <label for="bc-target">Trang đích khi nhấn vào</label>
+                    <select id="bc-target" class="portal-select">
+                      <option value="INFO">Quy định &amp; Giá vé</option>
+                      <option value="PROMOTION">Ưu đãi &amp; Khuyến mãi</option>
+                      <option value="LOBBY">Sảnh ghép phòng</option>
+                      <option value="DM_PORTAL">Cổng Quản Trò</option>
+                    </select>
+                  </div>
+                  <div class="inline-form-field">
+                    <label for="bc-title">Tiêu đề thông báo</label>
+                    <input id="bc-title" class="portal-input" placeholder="Nhập tiêu đề ngắn gọn..." />
+                  </div>
+                </div>
+                <div class="inline-form-field" style="margin-top:12px;">
+                  <label for="bc-content">Nội dung thông báo</label>
+                  <input id="bc-content" class="portal-input" placeholder="Nhập nội dung chi tiết gửi tới người nhận..." />
+                </div>
+                <div class="inline-form-actions">
+                  <button class="btn btn-gold btn-sm" id="btn-send-broadcast">Gửi thông báo ngay</button>
+                </div>
+              </div>
+
+              <div class="status-board-grid">
+                <div class="sub-card">
+                  <div class="sub-card-head"><h3 class="sub-card-title">Thêm Chi Nhánh Mới</h3></div>
+                  <div class="inline-form-grid">
+                    <div class="inline-form-field">
+                      <label for="nv-name">Tên chi nhánh</label>
+                      <input id="nv-name" class="portal-input" placeholder="VD: Chi nhánh Quận 1" />
+                    </div>
+                    <div class="inline-form-field">
+                      <label for="nv-addr">Địa chỉ</label>
+                      <input id="nv-addr" class="portal-input" placeholder="Số nhà, đường, quận..." />
+                    </div>
+                  </div>
+                  <div class="inline-form-actions">
+                    <button class="btn btn-gold btn-sm" id="btn-add-venue">+ Thêm chi nhánh</button>
+                  </div>
+                </div>
+
+                <div class="sub-card">
+                  <div class="sub-card-head"><h3 class="sub-card-title">Thêm Phòng Vật Lý Mới</h3></div>
+                  <div class="inline-form-grid">
+                    <div class="inline-form-field">
+                      <label for="npr-vid">Thuộc chi nhánh</label>
+                      <select id="npr-vid" class="portal-select">
+                        ${venues.map((v) => `<option value="${v.id}">${escapeHtml(v.name)}</option>`).join('')}
+                      </select>
+                    </div>
+                    <div class="inline-form-field">
+                      <label for="npr-name">Tên phòng vật lý</label>
+                      <input id="npr-name" class="portal-input" placeholder="VD: Phòng Mật Thất 06" />
+                    </div>
+                    <div class="inline-form-field">
+                      <label for="npr-cap">Sức chứa</label>
+                      <input id="npr-cap" type="number" class="portal-input" value="8" />
+                    </div>
+                  </div>
+                  <div class="inline-form-actions">
+                    <button class="btn btn-gold btn-sm" id="btn-add-pr">+ Thêm phòng vật lý</button>
+                  </div>
+                </div>
+              </div>
             </div>
           `;
           panel.querySelectorAll('[data-promo-toggle]').forEach((b) => b.addEventListener('click', async () => {
@@ -284,6 +1041,21 @@
             const is_active = Number(b.getAttribute('data-promo-next')) === 1;
             try { await api.patch(`/admin/promotions/${pid}`, { is_active }); showToast('Đã cập nhật trạng thái khuyến mãi.'); render(); } catch (e) { showToast(e.message); }
           }));
+          document.getElementById('btn-send-broadcast')?.addEventListener('click', async () => {
+            const audience = document.getElementById('bc-audience')?.value || 'ALL';
+            const target_section = document.getElementById('bc-target')?.value || 'INFO';
+            const title = (document.getElementById('bc-title')?.value || '').trim();
+            const content = (document.getElementById('bc-content')?.value || '').trim();
+            if (!title || !content) { showToast('Vui lòng nhập đầy đủ tiêu đề và nội dung thông báo.'); return; }
+            try {
+              const r = await api.post('/admin/notifications/broadcast', { audience, target_section, title, content });
+              const audVi = { ALL: 'Tất cả người dùng', PLAYER: 'Người chơi', DM: 'Quản trò' }[audience] || 'Người dùng';
+              showToast(`Đã gửi thông báo tới ${r?.recipient_count ?? ''} tài khoản (${audVi}).`);
+              document.getElementById('bc-title').value = '';
+              document.getElementById('bc-content').value = '';
+            } catch (e) { showToast(e.message); }
+          });
+
           document.getElementById('btn-add-venue')?.addEventListener('click', async () => {
             const name = document.getElementById('nv-name').value.trim();
             const address = document.getElementById('nv-addr').value.trim();
@@ -302,16 +1074,22 @@
             <h2 class="portal-panel-title">Quản Lý Yêu Cầu Hoàn Tiền Cọc</h2>
             <div class="portal-table-wrap">
               <table class="portal-table">
-                <thead><tr><th>Mã</th><th>Người chơi</th><th>Số tiền</th><th>Lý do</th><th>Trạng thái</th><th>Thao tác</th></tr></thead>
+                <thead><tr><th>Mã</th><th>Người chơi &amp; Phòng</th><th>Số tiền</th><th>Lý do hoàn tiền</th><th>Trạng thái</th><th>Thao tác</th></tr></thead>
                 <tbody>
                   ${refunds.length ? refunds.map((rf) => `
                     <tr>
                       <td><strong>#${rf.id}</strong></td>
-                      <td>${rf.user_name || rf.full_name || ('Payment #' + rf.player_payment_id)}</td>
+                      <td>
+                        <strong>${escapeHtml(rf.user_name || rf.full_name || ('Giao dịch #' + rf.player_payment_id))}</strong>
+                        ${rf.game_room_id ? `<div class="text-muted" style="font-size:0.78rem;">Phòng #${rf.game_room_id}${rf.room_title ? ' — ' + escapeHtml(rf.room_title) : ''}</div>` : ''}
+                      </td>
                       <td><strong>${formatVND(rf.amount)}</strong></td>
-                      <td>${rf.reason || ''}</td>
-                      <td><span class="v-badge ${rf.status === 'COMPLETED' ? 'v-badge-green' : rf.status === 'APPROVED' ? 'v-badge-gold' : 'v-badge-crimson'}">${rf.status}</span></td>
-                      <td style="display:flex;gap:6px;">
+                      <td style="max-width:280px;font-size:0.86rem;">
+                        <div>${escapeHtml(rf.reason || 'Không ghi rõ lý do')}</div>
+                        ${rf.review_reason ? `<div class="text-muted" style="font-size:0.76rem;margin-top:3px;">Phản hồi Quản trị: ${escapeHtml(rf.review_reason)}</div>` : ''}
+                      </td>
+                      <td><span class="v-badge ${rf.status === 'COMPLETED' ? 'v-badge-green' : rf.status === 'APPROVED' ? 'v-badge-gold' : 'v-badge-crimson'}">${escapeHtml(formatRefundStatus(rf.status))}</span></td>
+                      <td style="display:flex;gap:6px;flex-wrap:wrap;">
                         ${rf.status === 'PENDING' ? `
                           <button class="btn btn-gold btn-sm" data-rf-app="${rf.id}">Duyệt</button>
                           <button class="btn btn-ghost btn-sm" data-rf-rej="${rf.id}">Từ chối</button>
@@ -328,7 +1106,10 @@
             try { await api.post(`/admin/refunds/${b.getAttribute('data-rf-app')}/approve`, {}); showToast('Đã duyệt hoàn tiền.'); render(); } catch (e) { showToast(e.message); }
           }));
           panel.querySelectorAll('[data-rf-rej]').forEach((b) => b.addEventListener('click', async () => {
-            try { await api.post(`/admin/refunds/${b.getAttribute('data-rf-rej')}/reject`, { reason: 'Không đủ điều kiện hoàn cọc theo quy chế 24h' }); showToast('Đã từ chối hoàn tiền.'); render(); } catch (e) { showToast(e.message); }
+            const rfId = b.getAttribute('data-rf-rej');
+            const reason = window.prompt(`Nhập lý do từ chối yêu cầu hoàn tiền #${rfId}:`, 'Không đủ điều kiện hoàn cọc theo quy chế 24h');
+            if (reason === null || !reason.trim()) return;
+            try { await api.post(`/admin/refunds/${rfId}/reject`, { reason: reason.trim() }); showToast('Đã từ chối hoàn tiền.'); render(); } catch (e) { showToast(e.message); }
           }));
           panel.querySelectorAll('[data-rf-comp]').forEach((b) => b.addEventListener('click', async () => {
             try { await api.post(`/admin/refunds/${b.getAttribute('data-rf-comp')}/complete`, { bank_reference_code: 'CK_' + Date.now() }); showToast('Đã hoàn tất chuyển khoản hoàn tiền.'); render(); } catch (e) { showToast(e.message); }
@@ -340,17 +1121,17 @@
             <h2 class="portal-panel-title">Danh Sách Giao Dịch Thanh Toán Hệ Thống</h2>
             <div class="portal-table-wrap">
               <table class="portal-table">
-                <thead><tr><th>ID</th><th>Người chơi</th><th>Phòng</th><th>Loại</th><th>Số tiền</th><th>Đã thu</th><th>Trạng thái</th></tr></thead>
+                <thead><tr><th>Mã</th><th>Người chơi</th><th>Phòng</th><th>Loại</th><th>Số tiền</th><th>Đã thu</th><th>Trạng thái</th></tr></thead>
                 <tbody>
                   ${payments.length ? payments.map((p) => `
                     <tr>
                       <td><strong>#${p.id}</strong></td>
                       <td>${p.player_name || p.player_email || ''}</td>
                       <td>#${p.game_room_id || ''} ${p.room_title || ''}</td>
-                      <td>${p.payment_type || ''}</td>
+                      <td>${escapeHtml(formatPaymentType(p.payment_type))}</td>
                       <td>${formatVND(p.amount)}</td>
                       <td><strong>${formatVND(p.paid_amount)}</strong></td>
-                      <td><span class="v-badge ${p.status === 'PAID' ? 'v-badge-green' : 'v-badge-gold'}">${p.status}</span></td>
+                      <td><span class="v-badge ${p.status === 'PAID' ? 'v-badge-green' : 'v-badge-gold'}">${escapeHtml(formatPaymentStatus(p.status))}</span></td>
                     </tr>
                   `).join('') : '<tr><td colspan="7" class="text-muted">Chưa có giao dịch thanh toán nào.</td></tr>'}
                 </tbody>
@@ -358,11 +1139,12 @@
             </div>
           `;
         } else if (activeTab === 'hssv') {
+          const roleViLabel = (rc) => ({ PLAYER: 'Người chơi', DM: 'Quản trò', ADMIN: 'Quản trị viên' }[String(rc || '').toUpperCase()] || 'Người chơi');
           panel.innerHTML = `
-            <h2 class="portal-panel-title">Danh Sách Tài Khoản, Phân Quyền &amp; Xét Duyệt Thẻ HSSV</h2>
+            <h2 class="portal-panel-title">Danh Sách Tài Khoản, Phân Quyền &amp; Xét Duyệt Thẻ Học Sinh - Sinh Viên</h2>
             <div class="portal-table-wrap">
               <table class="portal-table">
-                <thead><tr><th>ID</th><th>Họ tên</th><th>Email</th><th>Vai trò</th><th>Thẻ HSSV</th><th>Thao tác</th></tr></thead>
+                <thead><tr><th>Mã</th><th>Họ tên</th><th>Thư điện tử</th><th>Vai trò</th><th>Thẻ HSSV</th><th>Thao tác</th></tr></thead>
                 <tbody>
                   ${users.map((u) => {
                     const roleCode = String(u.role_code || u.role || 'PLAYER').toUpperCase();
@@ -376,21 +1158,21 @@
                       <td>${escapeHtml(u.email || '')}</td>
                       <td>
                         ${isSelf
-                          ? `<span class="v-badge v-badge-gold">${roleCode}</span>`
-                          : `<select class="portal-select" data-role-sel="${u.id}" style="min-width:100px;">
-                              ${['PLAYER', 'DM', 'ADMIN'].map((rc) => `<option value="${rc}" ${rc === roleCode ? 'selected' : ''}>${rc}</option>`).join('')}
+                          ? `<span class="v-badge v-badge-gold">${escapeHtml(roleViLabel(roleCode))}</span>`
+                          : `<select class="portal-select" data-role-sel="${u.id}" style="min-width:130px;">
+                              ${['PLAYER', 'DM', 'ADMIN'].map((rc) => `<option value="${rc}" ${rc === roleCode ? 'selected' : ''}>${escapeHtml(roleViLabel(rc))}</option>`).join('')}
                             </select>`}
                       </td>
                       <td>
                         ${isPlayerAcc ? `
                           <span class="v-badge ${u.student_verified ? 'v-badge-green' : u.student_card_status === 'PENDING' ? 'v-badge-gold' : 'v-badge-muted'}">${u.student_verified ? 'ĐÃ DUYỆT' : u.student_card_status === 'PENDING' ? 'CHỜ DUYỆT' : 'CHƯA NỘP'}</span>
                           ${u.student_card_url ? `<div style="font-size:0.75rem;margin-top:3px;"><span class="text-muted">Đã nộp ảnh thẻ</span></div>` : ''}
-                        ` : `<span class="text-muted" style="font-size:0.82rem;">Nội bộ (${roleCode})</span>`}
+                        ` : `<span class="text-muted" style="font-size:0.82rem;">Nội bộ (${escapeHtml(roleViLabel(roleCode))})</span>`}
                       </td>
                       <td style="display:flex;gap:6px;flex-wrap:wrap;">
                         ${isPlayerAcc ? `<button class="btn btn-gold btn-sm" data-sv-toggle="${u.id}" data-sv-val="${u.student_verified ? 0 : 1}">${u.student_verified ? 'Hủy HSSV' : 'Duyệt HSSV'}</button>` : ''}
                         ${!isSelf ? `
-                          <button class="btn btn-ghost btn-sm" data-role-save="${u.id}">Lưu Role</button>
+                          <button class="btn btn-ghost btn-sm" data-role-save="${u.id}">Lưu vai trò</button>
                           <button class="btn btn-ghost btn-sm" data-status-toggle="${u.id}" data-next-status="${isSuspended ? 'ACTIVE' : 'SUSPENDED'}">${isSuspended ? 'Mở khóa' : 'Khóa'}</button>
                         ` : `<span class="text-muted" style="font-size:0.8rem;">Tài khoản hiện tại</span>`}
                       </td>
@@ -403,39 +1185,96 @@
           panel.querySelectorAll('[data-sv-toggle]').forEach((b) => b.addEventListener('click', async () => {
             const uid = b.getAttribute('data-sv-toggle');
             const val = Number(b.getAttribute('data-sv-val')) === 1;
-            try { await api.post(`/admin/users/${uid}/verify-student`, { student_verified: val, verified: val }); showToast('Đã cập nhật trạng thái HSSV.'); render(); } catch (e) { showToast(e.message); }
+            try { await api.post(`/admin/users/${uid}/verify-student`, { student_verified: val, verified: val }); showToast('Đã cập nhật trạng thái thẻ học sinh - sinh viên.'); render(); } catch (e) { showToast(e.message); }
           }));
           panel.querySelectorAll('[data-role-save]').forEach((b) => b.addEventListener('click', async () => {
             const uid = b.getAttribute('data-role-save');
             const role = panel.querySelector(`[data-role-sel="${uid}"]`).value;
-            try { await api.put(`/admin/users/${uid}/role`, { role_code: role, role }); showToast(`Đã đổi vai trò tài khoản #${uid} sang ${role}.`); render(); } catch (e) { showToast(e.message); }
+            try { await api.put(`/admin/users/${uid}/role`, { role_code: role, role }); showToast(`Đã đổi vai trò tài khoản #${uid} sang ${roleViLabel(role)}.`); render(); } catch (e) { showToast(e.message); }
           }));
           panel.querySelectorAll('[data-status-toggle]').forEach((b) => b.addEventListener('click', async () => {
             const uid = b.getAttribute('data-status-toggle');
             const nextStatus = b.getAttribute('data-next-status');
-            try { await api.patch(`/admin/users/${uid}`, { status: nextStatus }); showToast(`Đã cập nhật trạng thái tài khoản #${uid} sang ${nextStatus}.`); render(); } catch (e) { showToast(e.message); }
+            try { await api.patch(`/admin/users/${uid}`, { status: nextStatus }); showToast(`Đã cập nhật tài khoản #${uid} sang trạng thái ${nextStatus === 'ACTIVE' ? 'Đang hoạt động' : 'Đã khóa'}.`); render(); } catch (e) { showToast(e.message); }
           }));
         } else {
-          const auditData = await api.get('/admin/audit-logs?limit=30').catch(() => ({ logs: [] }));
-          const logs = auditData?.logs || auditData?.items || (Array.isArray(auditData) ? auditData : []);
+          const auditParams = new URLSearchParams({ per_page: '40' });
+          if (auditSearch.trim()) auditParams.set('q', auditSearch.trim());
+          if (auditActionFilter) auditParams.set('action', auditActionFilter);
+          const auditData = await api.get(`/admin/audit-logs?${auditParams.toString()}`).catch(() => ({ items: [] }));
+          const logs = Array.isArray(auditData) ? auditData : (auditData?.items || auditData?.logs || []);
+          const roleVi = (rc) => ({ ADMIN: 'Quản trị viên', DM: 'Quản trò', PLAYER: 'Người chơi' }[String(rc || '').toUpperCase()] || (rc || 'Hệ thống'));
+
           panel.innerHTML = `
-            <h2 class="portal-panel-title">Nhật Ký Kiểm Toán Hệ Thống (Audit Logs)</h2>
+            <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:14px;">
+              <h2 class="portal-panel-title" style="margin:0;">Nhật Ký Kiểm Toán Hệ Thống (${logs.length} bản ghi gần nhất)</h2>
+              <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                <input id="audit-q" type="search" class="portal-input" value="${escapeHtml(auditSearch)}" placeholder="Tìm người thực hiện, lý do, phòng..." style="min-width:220px;" />
+                <select id="audit-action-sel" class="portal-select" style="min-width:190px;">
+                  <option value="">Tất cả loại thao tác</option>
+                  <option value="ASSIGN_DM" ${auditActionFilter === 'ASSIGN_DM' ? 'selected' : ''}>Phân công Quản trò</option>
+                  <option value="REVOKE_DM" ${auditActionFilter === 'REVOKE_DM' ? 'selected' : ''}>Thu hồi ca Quản trò</option>
+                  <option value="ACCEPT_DM_ASSIGNMENT" ${auditActionFilter === 'ACCEPT_DM_ASSIGNMENT' ? 'selected' : ''}>Quản trò chấp nhận ca</option>
+                  <option value="REJECT_DM_ASSIGNMENT" ${auditActionFilter === 'REJECT_DM_ASSIGNMENT' ? 'selected' : ''}>Quản trò từ chối ca</option>
+                  <option value="ASSIGN_VENUE" ${auditActionFilter === 'ASSIGN_VENUE' ? 'selected' : ''}>Gán phòng vật lý</option>
+                  <option value="START_SESSION" ${auditActionFilter === 'START_SESSION' ? 'selected' : ''}>Bắt đầu buổi chơi</option>
+                  <option value="COMPLETE_SESSION" ${auditActionFilter === 'COMPLETE_SESSION' ? 'selected' : ''}>Hoàn tất buổi chơi</option>
+                  <option value="ADMIN_UPDATE_GAME" ${auditActionFilter === 'ADMIN_UPDATE_GAME' ? 'selected' : ''}>Ẩn/Hiện &amp; Sửa giá kịch bản</option>
+                  <option value="APPROVE_REFUND" ${auditActionFilter === 'APPROVE_REFUND' ? 'selected' : ''}>Duyệt hoàn tiền</option>
+                  <option value="VERIFY_STUDENT" ${auditActionFilter === 'VERIFY_STUDENT' ? 'selected' : ''}>Xét duyệt thẻ HSSV</option>
+                </select>
+                <button class="btn btn-gold btn-sm" id="btn-audit-filter">Lọc nhật ký</button>
+              </div>
+            </div>
             <div class="portal-table-wrap">
               <table class="portal-table">
-                <thead><tr><th>Thời gian</th><th>Actor ID</th><th>Hành động</th><th>Đối tượng</th></tr></thead>
+                <thead>
+                  <tr>
+                    <th>Thời gian &amp; Địa chỉ mạng</th>
+                    <th>Người thực hiện</th>
+                    <th>Hành động</th>
+                    <th>Đối tượng tác động</th>
+                    <th>Chi tiết thay đổi</th>
+                  </tr>
+                </thead>
                 <tbody>
                   ${logs.length ? logs.map((l) => `
                     <tr>
-                      <td style="font-family:var(--font-mono);font-size:0.8rem;">${l.created_at || ''}</td>
-                      <td>#${l.actor_id || ''}</td>
-                      <td><span class="v-badge v-badge-gold">${l.action || ''}</span></td>
-                      <td>${l.entity_type || ''} #${l.entity_id || ''}</td>
+                      <td style="font-family:var(--font-mono);font-size:0.78rem;white-space:nowrap;">
+                        <div>${escapeHtml(String(l.created_at || '').replace(/\.\d+$/, ''))}</div>
+                        <div class="text-muted" style="font-size:0.72rem;">Địa chỉ mạng: ${escapeHtml(l.ip_address || '127.0.0.1')}</div>
+                      </td>
+                      <td>
+                        <strong>${escapeHtml(l.actor_name || ('Tài khoản #' + (l.actor_id || '?')))}</strong>
+                        <div class="text-muted" style="font-size:0.75rem;">${escapeHtml(l.actor_email || '')}</div>
+                        <span class="v-badge v-badge-muted" style="font-size:0.68rem;margin-top:2px;">${escapeHtml(roleVi(l.actor_role))} • #${escapeHtml(l.actor_id || '')}</span>
+                      </td>
+                      <td>
+                        <span class="v-badge v-badge-gold">${escapeHtml(l.action_label || l.action || '')}</span>
+                      </td>
+                      <td><strong>${escapeHtml(l.entity_label || ((l.entity_type || '') + ' #' + (l.entity_id || '')))}</strong></td>
+                      <td style="font-size:0.83rem;line-height:1.45;max-width:340px;">${escapeHtml(l.detail_summary || 'Đã ghi nhận thao tác.')}</td>
                     </tr>
-                  `).join('') : '<tr><td colspan="4" class="text-muted">Chưa có bản ghi kiểm toán.</td></tr>'}
+                  `).join('') : '<tr><td colspan="5" class="text-muted" style="text-align:center;">Không có bản ghi kiểm toán nào khớp bộ lọc.</td></tr>'}
                 </tbody>
               </table>
             </div>
           `;
+          document.getElementById('btn-audit-filter')?.addEventListener('click', () => {
+            auditSearch = document.getElementById('audit-q')?.value || '';
+            auditActionFilter = document.getElementById('audit-action-sel')?.value || '';
+            render();
+          });
+          document.getElementById('audit-action-sel')?.addEventListener('change', (e) => {
+            auditActionFilter = e.target.value || '';
+            render();
+          });
+          document.getElementById('audit-q')?.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+              auditSearch = e.target.value || '';
+              render();
+            }
+          });
         }
       } catch (err) {
         panel.innerHTML = `<p class="text-muted">Lỗi tải dữ liệu quản trị: ${err.message}</p>`;
@@ -443,19 +1282,31 @@
     }
 
     (async () => {
-      const auth = await requireAuthRole(['admin'], 'Cổng Quản Trị Viên (Admin Portal)');
+      const auth = await requireAuthRole(['admin'], 'Trang Quản Trị Hệ Thống');
       currentAdminId = Number(auth.user?.id || 0);
+      currentAdminName = String(auth.user?.full_name || auth.user?.name || 'Quản trị viên');
       initChrome('admin');
       if (!auth.allowed) return;
 
-      document.querySelectorAll('#admin-tabs .portal-tab').forEach((tab) => {
+      document.getElementById('btn-refresh-admin')?.addEventListener('click', () => {
+        showToast('Đang làm mới dữ liệu quản trị...');
+        render();
+      });
+      document.getElementById('btn-quick-dispatch')?.addEventListener('click', () => {
+        switchAdminTab('rooms');
+      });
+
+      document.querySelectorAll('.admin-sidebar .admin-nav-btn').forEach((tab) => {
         tab.addEventListener('click', () => {
-          document.querySelectorAll('#admin-tabs .portal-tab').forEach((t) => t.classList.remove('active'));
-          tab.classList.add('active');
-          activeTab = tab.getAttribute('data-tab');
-          render();
+          switchAdminTab(tab.getAttribute('data-tab') || 'dashboard');
         });
       });
+
+      const urlTab = new URLSearchParams(window.location.search).get('tab');
+      if (urlTab && ['dashboard', 'rooms', 'games', 'promos', 'refunds', 'payments', 'hssv', 'audit'].includes(urlTab)) {
+        switchAdminTab(urlTab);
+        return;
+      }
 
       render();
     })();

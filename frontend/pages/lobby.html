@@ -14,9 +14,9 @@
     <div class="container">
       <div class="portal-hero">
         <div>
-          <div class="portal-eyebrow">PLAYER PORTAL — MATCHMAKING LOBBY</div>
+          <div class="portal-eyebrow">SẢNH GHÉP PHÒNG NGƯỜI CHƠI</div>
           <h1 class="portal-title">Sảnh Ghép Phòng Đang Tuyển</h1>
-          <p class="portal-subtitle">Dữ liệu đồng bộ trực tiếp từ cơ sở dữ liệu hệ thống Kịch Bản Sát V16.</p>
+          <p class="portal-subtitle">Danh sách các bàn chơi đang mở tuyển thành viên, cập nhật theo thời gian thực.</p>
         </div>
         <div class="portal-actions" id="lobby-hero-actions">
           <a href="./create-room.html" class="btn btn-gold" id="lobby-create-btn">+ Tạo Phòng Mới</a>
@@ -30,15 +30,10 @@
         <input type="search" id="lobby-search" class="portal-input" placeholder="Tìm theo tên phòng hoặc tên kịch bản..." />
         <select id="lobby-status" class="portal-select">
           <option value="ALL">Tất cả trạng thái</option>
-          <option value="FORMING" selected>Đang tuyển người (FORMING)</option>
-          <option value="SCHEDULED">Đã xếp lịch (SCHEDULED)</option>
-          <option value="CONFIRMED">Đã chốt ca (CONFIRMED)</option>
-          <option value="COMPLETED">Đã hoàn tất (COMPLETED)</option>
-        </select>
-        <select id="lobby-type" class="portal-select">
-          <option value="">Mọi loại bàn</option>
-          <option value="PUBLIC">Ghép công khai (PUBLIC)</option>
-          <option value="PRIVATE">Nhóm riêng (PRIVATE)</option>
+          <option value="FORMING" selected>Đang tuyển người</option>
+          <option value="SCHEDULED">Đã xếp lịch (chờ Quản trò)</option>
+          <option value="CONFIRMED">Đã chốt ca</option>
+          <option value="COMPLETED">Đã hoàn tất</option>
         </select>
       </div>
 
@@ -55,11 +50,11 @@
     import { requireAuthRole, escapeHtml, showToast } from '../src/logic/portal-mock.js';
 
     const statusLabels = {
-      FORMING: ['Đang tuyển', 'v-badge-gold'],
-      SCHEDULED: ['Chờ cọc', 'v-badge-gold'],
+      FORMING: ['Đang tuyển người', 'v-badge-gold'],
+      SCHEDULED: ['Đã xếp lịch (chờ Quản trò)', 'v-badge-gold'],
       CONFIRMED: ['Đã chốt ca', 'v-badge-green'],
-      IN_PROGRESS: ['Đang chơi', 'v-badge-crimson'],
-      COMPLETED: ['Hoàn tất', 'v-badge-muted'],
+      IN_PROGRESS: ['Đang diễn ra', 'v-badge-crimson'],
+      COMPLETED: ['Đã hoàn tất', 'v-badge-muted'],
       CANCELLED: ['Đã hủy', 'v-badge-crimson'],
     };
 
@@ -68,10 +63,8 @@
     async function loadAndRender() {
       const q = document.getElementById('lobby-search').value.trim();
       const status = document.getElementById('lobby-status').value;
-      const bookingType = document.getElementById('lobby-type').value;
       const params = new URLSearchParams({ status, page: '1', per_page: '24' });
       if (q) params.set('q', q);
-      if (bookingType) params.set('booking_type', bookingType);
 
       const grid = document.getElementById('lobby-grid');
       try {
@@ -82,7 +75,7 @@
         const openSlots = rooms.reduce((sum, r) => sum + (r.status === 'FORMING' ? Math.max(0, Number(r.max_players || 6) - Number(r.current_players || 0)) : 0), 0);
 
         document.getElementById('lobby-kpi').innerHTML = `
-          <div class="kpi-card"><div class="kpi-label">Tổng số bàn khớp lọc</div><div class="kpi-value">${total}</div><div class="kpi-meta">Dữ liệu trực tiếp từ MySQL</div></div>
+          <div class="kpi-card"><div class="kpi-label">Tổng số bàn khớp lọc</div><div class="kpi-value">${total}</div><div class="kpi-meta">Cập nhật theo thời gian thực</div></div>
           <div class="kpi-card"><div class="kpi-label">Bàn đang tuyển</div><div class="kpi-value">${formingCount}</div><div class="kpi-meta">Còn ${openSlots} ghế trống</div></div>
           <div class="kpi-card"><div class="kpi-label">Cọc giữ chỗ chuẩn</div><div class="kpi-value">50.000 đ</div><div class="kpi-meta">Hoàn 100% nếu hủy trước 24h</div></div>
         `;
@@ -97,13 +90,16 @@
           const cur = Number(r.current_players ?? r.member_count ?? 0);
           const max = Number(r.max_players || 6);
           const empty = Math.max(0, max - cur);
-          const isClosedPrivate = String(r.booking_type || 'PUBLIC').toUpperCase() === 'PRIVATE' && Number(r.guest_slots ?? 0) === 0;
           const isPlayer = currentRole === 'player';
-          const canJoin = isPlayer && r.status === 'FORMING' && empty > 0 && !isClosedPrivate;
+          const canJoin = isPlayer && r.status === 'FORMING' && empty > 0;
+          const seatOpts = [];
+          for (let n = 1; n <= empty; n++) {
+            seatOpts.push(`<option value="${n}">${n} người</option>`);
+          }
           return `
             <article class="ticket-card">
               <div class="ticket-header">
-                <span class="ticket-code">PHÒNG #${r.id} • ${r.booking_type || 'PUBLIC'}</span>
+                <span class="ticket-code">PHÒNG #${r.id}</span>
                 <span class="v-badge ${cls}">${label}</span>
               </div>
               <h2 class="ticket-title">${escapeHtml(r.title || r.game_name)}</h2>
@@ -115,10 +111,13 @@
                 <div>Chi nhánh: <strong>${escapeHtml(r.target_venue_name || 'Chưa chọn')}</strong></div>
                 <div>Khung giờ: <strong>${escapeHtml(r.target_time_slot || 'Linh hoạt')}</strong></div>
               </div>
-              <div class="ticket-footer">
+              <div class="ticket-footer" style="flex-wrap:wrap;gap:8px;">
                 <a href="./room-detail.html?id=${encodeURIComponent(r.id)}" class="btn btn-ghost btn-sm">Chi tiết phòng</a>
                 ${canJoin
-                  ? `<button class="btn btn-gold btn-sm" data-join="${r.id}">Tham gia ngay (Còn ${empty})</button>`
+                  ? `<div style="display:flex;gap:6px;align-items:center;">
+                      <select class="portal-select" data-join-seats="${r.id}" style="min-height:34px;padding:4px 8px;font-size:0.8rem;min-width:92px;">${seatOpts.join('')}</select>
+                      <button class="btn btn-gold btn-sm" data-join="${r.id}">Tham gia ngay</button>
+                    </div>`
                   : (isPlayer ? `<a href="./booking-status.html?id=${encodeURIComponent(r.id)}" class="btn btn-ghost btn-sm">Xem vé</a>` : `<a href="./booking-status.html?id=${encodeURIComponent(r.id)}" class="btn btn-ghost btn-sm">Đối soát thu</a>`)}
               </div>
             </article>
@@ -133,10 +132,12 @@
               return;
             }
             const rid = btn.getAttribute('data-join');
+            const seatsSel = grid.querySelector(`[data-join-seats="${rid}"]`);
+            const seats = Math.max(1, Number(seatsSel?.value || 1));
             try {
-              await api.post(`/rooms/${encodeURIComponent(rid)}/join`, {});
-              showToast(`Đã tham gia phòng #${rid} thành công.`);
-              loadAndRender();
+              await api.post(`/rooms/${encodeURIComponent(rid)}/join`, { seats });
+              showToast(`Đã tham gia phòng #${rid} (${seats} người). Đang chuyển vào phòng...`);
+              window.location.href = `./room-detail.html?id=${encodeURIComponent(rid)}`;
             } catch (err) {
               showToast(err.message || 'Không thể tham gia phòng.');
             }
@@ -156,7 +157,7 @@
         const createBtn = document.getElementById('lobby-create-btn');
         if (createBtn) createBtn.style.display = 'none';
       }
-      ['lobby-search', 'lobby-status', 'lobby-type'].forEach((id) => {
+      ['lobby-search', 'lobby-status'].forEach((id) => {
         document.getElementById(id).addEventListener('change', loadAndRender);
       });
       document.getElementById('lobby-search').addEventListener('input', () => {

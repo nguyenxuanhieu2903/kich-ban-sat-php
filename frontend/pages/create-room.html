@@ -14,9 +14,9 @@
     <div class="container">
       <div class="portal-hero">
         <div>
-          <div class="portal-eyebrow">PLAYER PORTAL — ĐẶT LỊCH &amp; TẠO PHÒNG</div>
+          <div class="portal-eyebrow">ĐẶT LỊCH &amp; KHỞI TẠO PHÒNG CHƠI</div>
           <h1 class="portal-title">Khởi Tạo Phòng Chơi Mới</h1>
-          <p class="portal-subtitle">Chọn kịch bản, chi nhánh và ca chơi cố định. Chi phí và tiền cọc được tính minh bạch theo hình thức ghép bàn hoặc đặt riêng.</p>
+          <p class="portal-subtitle">Chọn kịch bản, chi nhánh, khung giờ và số lượng người tham gia. Chi phí và tiền cọc được tính minh bạch ngay trên trang.</p>
         </div>
         <div class="portal-actions">
           <a href="./lobby.html" class="btn btn-ghost">Quay lại Sảnh Ghép Phòng</a>
@@ -49,7 +49,7 @@
             </div>
             <div class="form-field full">
               <div style="padding:10px 12px;border-radius:8px;background:rgba(139,30,30,0.06);border-left:3px solid #8B1E1E;font-size:0.86rem;color:#3D372F;">
-                <strong>Cơ chế tiếp nhận khung giờ tự do:</strong> Nếu khung giờ bạn chọn còn trống phòng vật lý và có Quản trò (DM) rảnh, hệ thống sẽ <strong>tự động giao thẳng cho 1 DM tiếp nhận</strong> (không cần qua Admin). Nếu khung giờ đang bận, phòng sẽ chuyển <strong>Admin xem xét điều phối hoặc đề xuất dời lịch</strong>.
+                <strong>Quy trình tiếp nhận lịch chơi:</strong> Sau khi phòng đạt đủ số lượng người chơi tối thiểu, Quản trị viên sẽ điều phối <strong>Quản trò</strong> và <strong>Phòng chơi vật lý</strong> phù hợp theo khung giờ bạn đã chọn.
               </div>
             </div>
             <div class="form-field full">
@@ -62,8 +62,8 @@
               </label>
             </div>
             <div class="form-field full">
-              <label for="cr-notes">Ghi chú cho Quản trò (DM)</label>
-              <textarea id="cr-notes" rows="3" class="portal-textarea" placeholder="Ví dụ: Nhóm có người mới chơi lần đầu, cần DM hướng dẫn kỹ luật..."></textarea>
+              <label for="cr-notes">Ghi chú cho Quản trò</label>
+              <textarea id="cr-notes" rows="3" class="portal-textarea" placeholder="Ví dụ: Nhóm có người mới chơi lần đầu, cần Quản trò hướng dẫn kỹ luật..."></textarea>
             </div>
           </div>
           <div style="margin-top:18px;display:flex;gap:10px;justify-content:flex-end;">
@@ -96,7 +96,7 @@
       const hssvBox = document.getElementById('cr-hssv-status');
       hssvBox.innerHTML = isStudentVerified
         ? '<strong>Ưu đãi HSSV:</strong> Tài khoản của bạn đã được duyệt thẻ HSSV (hệ thống tự động áp dụng giảm 20.000đ/người khung T2–T5 ban ngày nếu không trùng ưu đãi cao hơn).'
-        : '<strong>Ưu đãi HSSV:</strong> Tài khoản chưa xác minh thẻ HSSV. Bạn có thể tải ảnh thẻ trong mục <a href="./profile.html" style="text-decoration:underline;color:#8B1E1E;">Hồ sơ cá nhân</a> để được Admin duyệt.';
+        : '<strong>Ưu đãi HSSV:</strong> Tài khoản chưa xác minh thẻ HSSV. Bạn có thể tải ảnh thẻ trong mục <a href="./profile.html" style="text-decoration:underline;color:#8B1E1E;">Hồ sơ cá nhân</a> để được Quản trị viên duyệt.';
 
       const scenarioSelect = document.getElementById('cr-scenario');
       const venueSelect = document.getElementById('cr-venue');
@@ -157,7 +157,7 @@
         const opts = [];
         for (let n = 1; n <= maxP; n++) {
           const remaining = maxP - n;
-          const note = remaining > 0 ? ` — Còn ${remaining} chỗ mở ghép` : ' — Trọn phòng (không ghép thêm)';
+          const note = remaining > 0 ? ` — Còn ${remaining} chỗ trống` : ' — Đủ toàn bộ chỗ trong phòng';
           opts.push(`<option value="${n}">${n} người (Cọc ${formatVND(n * 50000)})${note}</option>`);
         }
         playersSelect.innerHTML = opts.join('');
@@ -203,7 +203,7 @@
           document.getElementById('quote-box').innerHTML = `
             <div class="summary-row"><span>Kịch bản</span><strong>${q.game_name || g.name || ''}</strong></div>
             <div class="summary-row"><span>Khung giờ</span><strong>${q.time_window || q.time_slot}</strong></div>
-            <div class="summary-row"><span>Số chỗ bạn giữ</span><strong>${selectedPlayers} / ${maxP} chỗ${guestSlots > 0 ? ` (mở ghép ${guestSlots} chỗ)` : ' (trọn phòng)'}</strong></div>
+            <div class="summary-row"><span>Số chỗ bạn giữ</span><strong>${selectedPlayers} / ${maxP} chỗ${guestSlots > 0 ? ` (còn ${guestSlots} chỗ trống)` : ' (đủ chỗ)'}</strong></div>
             <div class="summary-row"><span>Đơn giá gốc / người</span><strong>${formatVND(unitPrice)}</strong></div>
             ${discountAmt > 0 ? `
               <div class="summary-row"><span>Tạm tính gốc (${selectedPlayers} người)</span><strong>${formatVND(rawTotal)}</strong></div>
@@ -244,7 +244,7 @@
             target_venue_id: Number(venueSelect.value) || 1,
             title: `${g.name || 'Kịch Bản Sát'} (${playDate} ${playTime})`,
             description: document.getElementById('cr-notes').value.trim(),
-            booking_type: guestSlots === 0 ? 'PRIVATE' : 'PUBLIC',
+            booking_type: 'PUBLIC',
             guest_slots: guestSlots,
             total_players: selectedPlayers,
             max_players: maxP,
@@ -253,16 +253,11 @@
           });
           const newId = res?.room?.id || res?.id;
           if (newId && playDate && playTime) {
-            const propRes = await api.post(`/rooms/${newId}/proposals`, {
+            await api.post(`/rooms/${newId}/proposals`, {
               proposed_start_at: `${playDate} ${playTime}:00`,
             }).catch(() => null);
-            const propId = propRes?.proposal_id || propRes?.proposal?.id || propRes?.id;
-            if (propId) {
-              // Tự động xác nhận khung giờ đã chọn để chuyển thẳng sang SCHEDULED và giao DM rảnh
-              await api.post(`/proposals/${propId}/vote`, { response: 'ACCEPTED' }).catch(() => {});
-            }
           }
-          showToast(`Đã tạo phòng #${newId} và chốt lịch thành công.`);
+          showToast(`Đã tạo phòng #${newId} với khung giờ ${playDate} ${playTime} thành công.`);
           window.setTimeout(() => {
             window.location.href = `./room-detail.html?id=${encodeURIComponent(newId)}`;
           }, 500);

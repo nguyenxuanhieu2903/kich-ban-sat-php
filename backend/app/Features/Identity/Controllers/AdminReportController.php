@@ -70,6 +70,74 @@ class AdminReportController
         $totalCollected = (int) $revData['total_collected'];
         $netRevenue = max(0, $totalCollected - $totalRefunded);
 
+        // 6. Doanh thu theo ngày (10 mốc ngày có phát sinh gần nhất) phục vụ biểu đồ cột ngang/dọc trên Dashboard
+        $dailyStmt = $this->pdo->query(
+            "SELECT
+                DATE(COALESCE(pp.`paid_at`, pp.`created_at`)) AS `pay_date`,
+                COALESCE(SUM(CASE WHEN pp.`payment_type` = 'DEPOSIT' THEN pp.`paid_amount` ELSE 0 END), 0) AS `deposit_vnd`,
+                COALESCE(SUM(CASE WHEN pp.`payment_type` = 'REMAINING' THEN pp.`paid_amount` ELSE 0 END), 0) AS `remaining_vnd`,
+                COALESCE(SUM(pp.`paid_amount`), 0) AS `total_vnd`,
+                COUNT(*) AS `tx_count`
+             FROM `player_payments` pp
+             WHERE pp.`paid_amount` > 0
+             GROUP BY DATE(COALESCE(pp.`paid_at`, pp.`created_at`))
+             ORDER BY `pay_date` DESC
+             LIMIT 9"
+        );
+        $dailyRows = array_reverse($dailyStmt->fetchAll(PDO::FETCH_ASSOC));
+        $dailySeries = array_map(static function (array $r): array {
+            $ts = strtotime((string) ($r['pay_date'] ?? ''));
+            return [
+                'date' => (string) ($r['pay_date'] ?? ''),
+                'label' => $ts !== false ? date('d/m', $ts) : (string) ($r['pay_date'] ?? ''),
+                'deposit_vnd' => (int) ($r['deposit_vnd'] ?? 0),
+                'remaining_vnd' => (int) ($r['remaining_vnd'] ?? 0),
+                'total_vnd' => (int) ($r['total_vnd'] ?? 0),
+                'tx_count' => (int) ($r['tx_count'] ?? 0),
+            ];
+        }, $dailyRows);
+
+        // 7. Doanh thu & lượt phòng theo từng kịch bản (Top 6 kịch bản nổi bật)
+        $topGameStmt = $this->pdo->query(
+            "SELECT
+                g.`id` AS `game_id`,
+                g.`name` AS `game_name`,
+                COUNT(DISTINCT gr.`id`) AS `room_count`,
+                COALESCE(SUM(pp.`paid_amount`), 0) AS `revenue_vnd`
+             FROM `game_rooms` gr
+             INNER JOIN `games` g ON g.`id` = gr.`game_id`
+             LEFT JOIN `room_participants` rp ON rp.`game_room_id` = gr.`id`
+             LEFT JOIN `player_payments` pp ON pp.`room_participant_id` = rp.`id`
+             GROUP BY g.`id`, g.`name`
+             ORDER BY `revenue_vnd` DESC, `room_count` DESC
+             LIMIT 6"
+        );
+        $topScenarios = array_map(static fn (array $r): array => [
+            'game_id' => (int) $r['game_id'],
+            'game_name' => (string) $r['game_name'],
+            'room_count' => (int) $r['room_count'],
+            'revenue_vnd' => (int) $r['revenue_vnd'],
+        ], $topGameStmt->fetchAll(PDO::FETCH_ASSOC));
+
+        // 8. Đếm chính xác toàn bộ phòng chơi theo trạng thái
+        $stStmt = $this->pdo->query(
+            "SELECT UPPER(`status`) AS `st`, COUNT(*) AS `cnt` FROM `game_rooms` GROUP BY UPPER(`status`)"
+        );
+        $roomStatusCounts = [
+            'FORMING' => 0,
+            'SCHEDULED' => 0,
+            'CONFIRMED' => 0,
+            'IN_PROGRESS' => 0,
+            'COMPLETED' => 0,
+            'CANCELLED' => 0,
+        ];
+        foreach ($stStmt->fetchAll(PDO::FETCH_ASSOC) as $sr) {
+            $k = (string) ($sr['st'] ?? '');
+            if (array_key_exists($k, $roomStatusCounts)) {
+                $roomStatusCounts[$k] = (int) $sr['cnt'];
+            }
+        }
+
         return Response::success([
             'total_net_revenue' => $netRevenue,
             'total_deposit' => (int) $revData['deposit_collected'],
@@ -86,6 +154,9 @@ class AdminReportController
                 'completed_sessions' => $completedSessions,
                 'active_rooms' => $activeRooms,
             ],
+            'daily_series' => $dailySeries,
+            'top_scenarios' => $topScenarios,
+            'room_status_counts' => $roomStatusCounts,
             'generated_at' => date('Y-m-d H:i:s'),
         ], 'Báo cáo doanh thu và chỉ số vận hành hệ thống');
     }

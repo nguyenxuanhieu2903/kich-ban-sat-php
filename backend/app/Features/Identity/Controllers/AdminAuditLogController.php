@@ -29,11 +29,13 @@ class AdminAuditLogController
         }
 
         $page = max(1, (int) $request->query('page', 1));
-        $perPage = max(1, min(100, (int) $request->query('per_page', 20)));
+        $perPage = max(1, min(100, (int) $request->query('per_page', $request->query('limit', 30))));
         $action = $request->query('action') !== null ? (string) $request->query('action') : null;
         $entityType = $request->query('entity_type') !== null ? (string) $request->query('entity_type') : null;
+        $search = $request->query('q', $request->query('search'));
+        $search = $search !== null ? (string) $search : null;
 
-        $result = $this->auditService->listLogs($page, $perPage, $action, $entityType);
+        $result = $this->auditService->listLogs($page, $perPage, $action, $entityType, $search);
 
         return Response::paginated($result['items'], $page, $perPage, $result['total'], 'Nhật ký kiểm toán hệ thống');
     }

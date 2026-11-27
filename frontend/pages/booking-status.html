@@ -19,7 +19,7 @@
   <script type="module">
     import { initChrome } from '../src/logic/layout.js';
     import { api } from '../src/logic/api.js';
-    import { requireAuthRole, formatVND, escapeHtml, showToast } from '../src/logic/portal-mock.js';
+    import { requireAuthRole, formatVND, escapeHtml, showToast, formatRoomStatus, formatPaymentStatus, formatPaymentType } from '../src/logic/portal-mock.js';
 
     const params = new URLSearchParams(window.location.search);
     const roomId = params.get('id') || params.get('room_id') || '1';
@@ -45,19 +45,19 @@
           root.innerHTML = `
             <div class="portal-hero">
               <div>
-                <div class="portal-eyebrow">${currentRole === 'admin' ? 'ADMIN AUDIT' : 'DM OPERATIONS'} — ĐỐI SOÁT THANH TOÁN PHÒNG</div>
+                <div class="portal-eyebrow">${currentRole === 'admin' ? 'QUẢN TRỊ VIÊN' : 'ĐIỀU HÀNH QUẢN TRÒ'} — ĐỐI SOÁT THANH TOÁN PHÒNG</div>
                 <h1 class="portal-title">Đối Soát Thanh Toán Phòng #${room.id}</h1>
-                <p class="portal-subtitle">Kịch bản: ${escapeHtml(room.game?.name || room.title || '')} • Trạng thái: ${escapeHtml(room.status || '')}</p>
+                <p class="portal-subtitle">Kịch bản: ${escapeHtml(room.game?.name || room.title || '')} • Trạng thái: ${escapeHtml(formatRoomStatus(room.status))}</p>
               </div>
               <div class="portal-actions">
                 <a href="./room-detail.html?id=${encodeURIComponent(room.id)}" class="btn btn-ghost">Chi tiết phòng</a>
-                <a href="${currentRole === 'admin' ? './admin-portal.html' : './dm-portal.html'}" class="btn btn-gold">${currentRole === 'admin' ? 'Về Admin Portal' : 'Về DM Portal'}</a>
+                <a href="${currentRole === 'admin' ? './admin-portal.html' : './dm-portal.html'}" class="btn btn-gold">${currentRole === 'admin' ? 'Về Trang Quản Trị' : 'Về Cổng Quản Trò'}</a>
               </div>
             </div>
 
             <section class="portal-panel">
               <h2 class="portal-panel-title">Danh Sách Giao Dịch Thành Viên (Chế Độ Xem Đối Soát)</h2>
-              <p class="text-muted" style="margin-bottom:14px;font-size:0.88rem;">Tài khoản ${currentRole === 'admin' ? 'Quản trị viên (Admin)' : 'Quản trò (DM)'} chỉ xem đối soát tình trạng thanh toán của khách, không phát sinh giao dịch đặt cọc cá nhân.</p>
+              <p class="text-muted" style="margin-bottom:14px;font-size:0.88rem;">Tài khoản ${currentRole === 'admin' ? 'Quản trị viên' : 'Quản trò'} chỉ xem đối soát tình trạng thanh toán của khách, không phát sinh giao dịch đặt cọc cá nhân.</p>
               <div class="summary-row" style="margin-bottom:14px;"><span>Tổng thực thu đã ghi nhận của phòng</span><strong>${formatVND(totalCollected)}</strong></div>
               <div class="portal-table-wrap">
                 <table class="portal-table">
@@ -66,11 +66,11 @@
                     ${payments.length ? payments.map((p) => `
                       <tr>
                         <td><strong>#${p.id}</strong></td>
-                        <td>${escapeHtml(p.full_name || p.player_name || ('User #' + (p.user_id || '')))}</td>
-                        <td>${escapeHtml(p.payment_type || 'DEPOSIT')}</td>
+                        <td>${escapeHtml(p.full_name || p.player_name || ('Thành viên #' + (p.user_id || '')))}</td>
+                        <td>${escapeHtml(formatPaymentType(p.payment_type || 'DEPOSIT'))}</td>
                         <td>${formatVND(p.amount || 0)}</td>
                         <td><strong>${formatVND(p.paid_amount || 0)}</strong></td>
-                        <td><span class="v-badge ${p.status === 'PAID' ? 'v-badge-green' : 'v-badge-gold'}">${escapeHtml(p.status || '')}</span></td>
+                        <td><span class="v-badge ${p.status === 'PAID' ? 'v-badge-green' : 'v-badge-gold'}">${escapeHtml(formatPaymentStatus(p.status))}</span></td>
                       </tr>
                     `).join('') : '<tr><td colspan="6" class="text-muted">Phòng này chưa có giao dịch thanh toán nào từ người chơi.</td></tr>'}
                   </tbody>
@@ -81,9 +81,7 @@
           return;
         }
 
-        const isCreator = myUid > 0 && myUid === Number(room.creator_id || 0);
-        // Chỉ Chủ phòng thanh toán theo số chỗ nhóm mình đặt; khách ghép lẻ chỉ thanh toán đúng 1 suất
-        const seatCount = isCreator ? Number(room.total_players || 1) : 1;
+        const seatCount = Math.max(1, Number(myPart?.seats || 1));
         const myPayments = myUid > 0 ? payments.filter((p) => Number(p.user_id || myUid) === myUid) : payments;
         const own = myPayments[0] || payments[0] || {};
 
@@ -121,7 +119,7 @@
         root.innerHTML = `
           <div class="portal-hero">
             <div>
-              <div class="portal-eyebrow">VINTAGE E-TICKET — BOOKING STATUS</div>
+              <div class="portal-eyebrow">VÉ ĐIỆN TỬ &amp; TRẠNG THÁI ĐẶT CHỖ</div>
               <h1 class="portal-title">Vé Điện Tử &amp; Trạng Thái Thanh Toán</h1>
               <p class="portal-subtitle">Mã phòng: #${room.id} • Kịch bản: ${room.game?.name || room.title || ''}</p>
             </div>
@@ -138,8 +136,8 @@
               <div class="summary-row"><span>Tên phòng</span><strong>${escapeHtml(room.title || '')}</strong></div>
               <div class="summary-row"><span>Kịch bản</span><strong>${escapeHtml(room.game?.name || '')}</strong></div>
               <div class="summary-row"><span>Số chỗ của bạn</span><strong>${seatCount} người</strong></div>
-              <div class="summary-row"><span>Trạng thái phòng</span><span class="v-badge v-badge-gold">${escapeHtml(room.status)}</span></div>
-              <div class="summary-row"><span>Trạng thái thanh toán</span><span class="v-badge ${status === 'PAID' ? 'v-badge-green' : paidAmt > 0 ? 'v-badge-gold' : 'v-badge-crimson'}">${escapeHtml(status)}</span></div>
+              <div class="summary-row"><span>Trạng thái phòng</span><span class="v-badge v-badge-gold">${escapeHtml(formatRoomStatus(room.status))}</span></div>
+              <div class="summary-row"><span>Trạng thái thanh toán</span><span class="v-badge ${status === 'PAID' ? 'v-badge-green' : paidAmt > 0 ? 'v-badge-gold' : 'v-badge-crimson'}">${escapeHtml(formatPaymentStatus(status))}</span></div>
             </section>
 
             <aside class="portal-panel">
@@ -165,7 +163,7 @@
 
         document.getElementById('btn-pay-dep')?.addEventListener('click', async () => {
           try {
-            await api.post('/payments/deposit', { room_id: Number(room.id), is_lump_sum: isCreator && seatCount > 1, amount: depAmt, provider: 'VNPAY' });
+            await api.post('/payments/deposit', { room_id: Number(room.id), is_lump_sum: seatCount > 1, amount: depAmt, provider: 'VNPAY' });
             showToast(`Đặt cọc giữ ${seatCount} chỗ (${formatVND(depAmt)}) thành công.`);
             render();
           } catch (e) { showToast(e.message); }

@@ -370,8 +370,8 @@
       <aside class="vintage-ticket ticket-front">
         <div class="ticket-front-art">
           <div class="ticket-front-top">
-            <span>KBS Hồ Chí Minh</span>
-            <span>Mystery Archive</span>
+            <span>Kịch Bản Sát TP.HCM</span>
+            <span>Kho Hồ Sơ Kỳ Án</span>
           </div>
           <div class="ticket-front-quote">
             “Khi cánh cửa khép lại, chân tướng mới bắt đầu.”
@@ -386,15 +386,15 @@
       <!-- MẶT PHẢI: CUỐNG VÉ ĐĂNG NHẬP / ĐĂNG KÝ / QUÊN MK -->
       <section class="vintage-ticket ticket-back">
         <div class="ticket-meta-bar">
-          <span>KBS ORIGINAL TICKET</span>
-          <span>NO. 2026</span>
+          <span>VÉ THÔNG HÀNH CHÍNH THỨC</span>
+          <span>SỐ 2026</span>
         </div>
 
         <div class="ticket-inner-box">
           <div class="ticket-box-header">
             <div class="ticket-box-header-top">
-              <span>ADMISSION PASS</span>
-              <span>[VIP / MEMBER]</span>
+              <span>THẺ VÀO CỬA</span>
+              <span>[THÀNH VIÊN]</span>
             </div>
             <h1 class="ticket-main-heading" id="auth-title">Đăng nhập hệ thống</h1>
           </div>
@@ -410,8 +410,8 @@
               <div class="auth-alert" id="alert-login"></div>
 
               <div class="ticket-field">
-                <label for="login-account">Tài khoản (SĐT hoặc Email)</label>
-                <input type="text" id="login-account" placeholder="0909.123.456 hoặc email" required />
+                <label for="login-account">Tài khoản (Số điện thoại hoặc Thư điện tử)</label>
+                <input type="text" id="login-account" placeholder="0909.123.456 hoặc thư điện tử" required />
               </div>
 
               <div class="ticket-field">
@@ -430,18 +430,6 @@
               </div>
 
               <button type="submit" class="ticket-submit">Đóng Dấu & Đăng Nhập</button>
-
-              <div style="margin-top:12px;padding:10px 12px;border:1px dashed rgba(153,43,43,0.45);background:rgba(153,43,43,0.04);font-size:0.74rem;color:#4a3f38;">
-                <div style="font-weight:700;color:#8c1d18;margin-bottom:6px;text-transform:uppercase;letter-spacing:0.04em;">Tài khoản Demo (Bấm để điền nhanh)</div>
-                <div style="display:flex;gap:6px;flex-wrap:wrap;">
-                  <button type="button" class="demo-fill-btn" data-demo-email="nguyenxuanhieu@gmail.com" data-demo-pass="pass123456!" style="flex:1;min-width:90px;padding:5px 6px;border:1px solid #8c1d18;background:#f5f2eb;color:#8c1d18;font-weight:700;font-size:0.72rem;cursor:pointer;">Admin</button>
-                  <button type="button" class="demo-fill-btn" data-demo-email="nguyenphamyhuynh@gmail.com" data-demo-pass="pass123456@" style="flex:1;min-width:90px;padding:5px 6px;border:1px solid #8c1d18;background:#f5f2eb;color:#8c1d18;font-weight:700;font-size:0.72rem;cursor:pointer;">DM (Quản trò)</button>
-                  <button type="button" class="demo-fill-btn" data-demo-email="nguoichoi01@gmail.com" data-demo-pass="pass123456#" style="flex:1;min-width:90px;padding:5px 6px;border:1px solid #8c1d18;background:#f5f2eb;color:#8c1d18;font-weight:700;font-size:0.72rem;cursor:pointer;">Player</button>
-                </div>
-                <div style="margin-top:5px;font-family:var(--font-mono,monospace);font-size:0.68rem;line-height:1.45;color:#5c554e;">
-                  Admin: nguyenxuanhieu@gmail.com (pass123456!) • DM: nguyenphamyhuynh@gmail.com (pass123456@) • Player: nguoichoi01@gmail.com (pass123456#)
-                </div>
-              </div>
             </form>
 
             <!-- 2. FORM ĐĂNG KÝ -->
@@ -459,8 +447,8 @@
               </div>
 
               <div class="ticket-field">
-                <label for="reg-email">Email liên hệ *</label>
-                <input type="email" id="reg-email" placeholder="email@example.com" required />
+                <label for="reg-email">Thư điện tử liên hệ *</label>
+                <input type="email" id="reg-email" placeholder="ten@vidu.vn" required />
               </div>
 
               <div class="ticket-field">
@@ -485,19 +473,19 @@
             <!-- 3. FORM QUÊN MẬT KHẨU -->
             <form class="auth-form" id="form-forgot" novalidate>
               <p class="ticket-hint">
-                Nhập <strong>Email</strong> hoặc <strong>Số điện thoại</strong> đã đăng ký để nhận mã OTP khôi phục vé.
+                Nhập <strong>Thư điện tử</strong> hoặc <strong>Số điện thoại</strong> đã đăng ký để nhận mã xác thực khôi phục vé.
               </p>
 
               <div class="auth-alert" id="alert-forgot"></div>
 
               <div class="ticket-field">
-                <label for="forgot-account">Email hoặc Số điện thoại *</label>
-                <input type="text" id="forgot-account" placeholder="Nhập email hoặc SĐT..." required />
+                <label for="forgot-account">Thư điện tử hoặc Số điện thoại *</label>
+                <input type="text" id="forgot-account" placeholder="Nhập thư điện tử hoặc số điện thoại..." required />
               </div>
 
               <div id="otp-step" style="display:none;flex-direction:column;gap:10px;">
                 <div class="ticket-field">
-                  <label for="forgot-otp">Mã xác thực OTP *</label>
+                  <label for="forgot-otp">Mã xác thực *</label>
                   <input type="text" id="forgot-otp" placeholder="VD: 123456" maxlength="6" />
                 </div>
                 <div class="ticket-field">
@@ -515,7 +503,7 @@
           </div>
 
           <div class="ticket-tear-line">
-            <div class="ticket-motto">When you wake up, all bad dreams will be over.</div>
+            <div class="ticket-motto">Khi màn đêm khép lại, sự thật sẽ được phơi bày.</div>
             <div class="ticket-barcode" aria-hidden="true"></div>
           </div>
         </div>

@@ -101,14 +101,10 @@ class GameRoomController
                        gr.`min_players`, gr.`max_players`, gr.`status`, gr.`formation_deadline_at`,
                        gr.`booking_type`, gr.`target_venue_id`, gr.`target_time_slot`,
                        gr.`total_players`, gr.`confirmed_players`, gr.`required_players`, gr.`guest_slots`, gr.`is_18_plus_acknowledged`,
-                       gr.`replacement_status`, gr.`replacement_deadline_at`,
+                       gr.`price_details`, gr.`replacement_status`, gr.`replacement_deadline_at`,
                        g.`name` AS `game_name`, g.`image_url` AS `game_image_url`, g.`duration_minutes`,
                        u.`full_name` AS `creator_name`,
-                       v.`name` AS `target_venue_name`,
-                       (SELECT COUNT(*) FROM `room_participants` rp
-                        WHERE rp.`game_room_id` = gr.`id`
-                          AND rp.`status` IN (\'PENDING_DEPOSIT\', \'DEPOSITED\', \'LEAVE_REQUESTED\')
-                       ) AS `current_players`
+                       v.`name` AS `target_venue_name`
                 FROM `game_rooms` gr
                 INNER JOIN `games` g ON g.`id` = gr.`game_id`
                 INNER JOIN `users` u ON u.`id` = gr.`creator_id`
@@ -125,15 +121,32 @@ class GameRoomController
         $stmt->execute();
 
         $rooms = $stmt->fetchAll(PDO::FETCH_ASSOC);
-        foreach ($rooms as &$room) {
-            $rawCount = (int) ($room['current_players'] ?? 0);
-            $creatorSeats = max(1, (int) ($room['total_players'] ?? 1));
-            $maxP = (int) ($room['max_players'] ?? 8);
-            $occupied = $rawCount > 0 ? min($maxP, $creatorSeats + max(0, $rawCount - 1)) : 0;
-            $room['current_players'] = $occupied;
-            $room['member_count'] = $occupied;
+        if (!empty($rooms)) {
+            $rIds = array_map(static fn (array $r): int => (int) $r['id'], $rooms);
+            $inSql = implode(',', array_fill(0, count($rIds), '?'));
+            $pStmt = $this->pdo->prepare(
+                "SELECT `game_room_id`, `user_id` FROM `room_participants`
+                 WHERE `game_room_id` IN ({$inSql})
+                   AND `status` IN ('PENDING_DEPOSIT', 'DEPOSITED', 'LEAVE_REQUESTED')"
+            );
+            foreach ($rIds as $idx => $ridVal) {
+                $pStmt->bindValue($idx + 1, $ridVal, PDO::PARAM_INT);
+            }
+            $pStmt->execute();
+            $uidsByRoom = [];
+            foreach ($pStmt->fetchAll(PDO::FETCH_ASSOC) as $prow) {
+                $uidsByRoom[(int) $prow['game_room_id']][] = (int) $prow['user_id'];
+            }
+
+            foreach ($rooms as &$room) {
+                $ridVal = (int) $room['id'];
+                $seatCalc = \App\Shared\Services\RoomSeatHelper::computeSeats($room, $uidsByRoom[$ridVal] ?? []);
+                $room['current_players'] = $seatCalc['occupied_seats'];
+                $room['member_count'] = $seatCalc['occupied_seats'];
+                unset($room['price_details']);
+            }
+            unset($room);
         }
-        unset($room);
 
         return Response::success([
             'rooms' => $rooms,
@@ -182,24 +195,21 @@ class GameRoomController
             }
         }
 
-        // Lấy danh sách thành viên tham gia (chỉ thành viên đang hoạt động)
+        // Lấy danh sách thành viên tham gia (chỉ thành viên đang hoạt động) và tính đúng số chỗ từng người
         $participants = $this->roomRepo->getParticipants($roomId);
-        $room['participants'] = $participants;
         $activeParts = array_filter($participants, function ($p) {
             return in_array($p['status'], ['PENDING_DEPOSIT', 'DEPOSITED', 'LEAVE_REQUESTED'], true);
         });
-        $creatorInActive = false;
-        foreach ($activeParts as $ap) {
-            if ((int) $ap['user_id'] === (int) ($room['creator_id'] ?? 0)) {
-                $creatorInActive = true;
-                break;
-            }
+        $activeUids = array_map(static fn (array $ap): int => (int) $ap['user_id'], $activeParts);
+        $seatCalc = \App\Shared\Services\RoomSeatHelper::computeSeats($room, $activeUids);
+        foreach ($participants as &$pRow) {
+            $pRow['seats'] = $seatCalc['seats_by_user'][(int) $pRow['user_id']] ?? 1;
         }
-        $creatorSeats = $creatorInActive ? max(1, (int) ($room['total_players'] ?? 1)) : 0;
-        $otherSeats = max(0, count($activeParts) - ($creatorInActive ? 1 : 0));
-        $room['current_players'] = min((int) ($room['max_players'] ?? 8), $creatorSeats + $otherSeats);
+        unset($pRow);
+        $room['participants'] = $participants;
+        $room['current_players'] = $seatCalc['occupied_seats'];
 
-        // Xác định user hiện tại (nếu có) để trả về phiếu biểu quyết và kiểm tra quyền xem invite_token
+        // Xác định user hiện tại (nếu có)
         $currentUserId = $this->resolveCurrentUserId($request);
         $myParticipantId = null;
         if ($currentUserId !== null) {
@@ -209,15 +219,6 @@ class GameRoomController
                     break;
                 }
             }
-        }
-
-        // Chỉ trả về invite_token cho thành viên trong phòng, Chủ phòng, DM hoặc Admin (chống lộ mã mời phòng PRIVATE)
-        $currentUserRole = strtoupper((string) ($_SESSION['role_code'] ?? $_SESSION['role'] ?? ''));
-        $canSeeInviteToken = $myParticipantId !== null
-            || ($currentUserId !== null && (int) ($room['creator_id'] ?? 0) === $currentUserId)
-            || in_array($currentUserRole, ['ADMIN', 'DM'], true);
-        if ($canSeeInviteToken) {
-            $room['invite_token'] = $this->buildInviteToken($room);
         }
 
         // Lấy các đề xuất lịch của phòng kèm thống kê phiếu biểu quyết
@@ -367,20 +368,15 @@ class GameRoomController
             }
         }
 
-        // Đọc thông số Public / Private và target venue/slot
-        $bookingType = strtoupper(trim((string) ($body['booking_type'] ?? 'PUBLIC')));
-        if (!in_array($bookingType, ['PUBLIC', 'PRIVATE'], true)) {
-            $bookingType = 'PUBLIC';
-        }
+        // Chuẩn hóa phòng ghép thống nhất (không phân biệt Công khai / Riêng tư)
+        $bookingType = 'PUBLIC';
 
         $targetVenueId = isset($body['target_venue_id']) && (int) $body['target_venue_id'] > 0 ? (int) $body['target_venue_id'] : null;
         $targetTimeSlot = isset($body['target_time_slot']) ? trim((string) $body['target_time_slot']) : null;
         $totalPlayers = isset($body['total_players']) && (int) $body['total_players'] > 0
             ? min($maxPlayers, (int) $body['total_players'])
             : 1;
-        $guestSlots = isset($body['guest_slots'])
-            ? max(0, min($maxPlayers - 1, (int) $body['guest_slots']))
-            : max(0, $maxPlayers - $totalPlayers);
+        $guestSlots = max(0, $maxPlayers - $totalPlayers);
         $is18Plus = !empty($body['is_18_plus_acknowledged']) ? 1 : 0;
 
         // Lấy configuration id v1
@@ -409,8 +405,9 @@ class GameRoomController
             'formation_deadline_at' => $deadline,
         ]);
 
-        // Thêm creator vào làm thành viên đầu tiên
+        // Thêm creator vào làm thành viên đầu tiên và lưu rõ số ghế chủ phòng giữ
         $this->roomRepo->addParticipant($roomId, $userId);
+        \App\Shared\Services\RoomSeatHelper::saveUserSeats($this->pdo, $roomId, $userId, $totalPlayers);
 
         $createdRoom = $this->roomRepo->findById($roomId);
 
@@ -464,22 +461,7 @@ class GameRoomController
         $body = $request->getBodyParams();
         $allowReplay = !empty($body['allow_replay']) || !empty($body['acknowledge_spoiler']);
         $checkAntiReplay = !empty($body['strict_anti_spoiler']) || !empty($body['check_replay']);
-
-        // Kiểm soát phòng Nhóm Riêng (PRIVATE): nếu guest_slots = 0 thì chỉ cho vào khi có đúng invite_token từ Host (trừ lúc mở Replacement Window)
-        if (($room['booking_type'] ?? 'PUBLIC') === 'PRIVATE' && !$isReplacementOpen) {
-            $guestSlots = (int) ($room['guest_slots'] ?? 0);
-            $suppliedToken = strtoupper(trim((string) ($body['invite_token'] ?? $request->query('invite') ?? '')));
-            $expectedToken = $this->buildInviteToken($room);
-            $hasValidInvite = $suppliedToken !== '' && hash_equals($expectedToken, $suppliedToken);
-
-            if ($guestSlots <= 0 && !$hasValidInvite) {
-                return Response::fail(
-                    'Đây là phòng Nhóm Bạn Riêng Tư (không mở slot ghép khách ngoài). Vui lòng xin link mời có mã bảo mật từ Chủ phòng để tham gia.',
-                    'PRIVATE_ROOM_CLOSED',
-                    403
-                );
-            }
-        }
+        $joinSeats = max(1, (int) ($body['seats'] ?? $body['player_count'] ?? $body['quantity'] ?? 1));
 
         // 1. Chống chơi lại kịch bản đã hoàn thành (Bảo vệ bí mật cốt truyện cho cả bàn chơi khi kích hoạt)
         if ($checkAntiReplay && !$allowReplay) {
@@ -618,25 +600,27 @@ class GameRoomController
             }
         }
 
-        // TRƯỜNG HỢP 2: Vào phòng FORMING bình thường — tính đúng tổng số ghế đã giữ (nhóm Chủ phòng + khách ghép)
+        // TRƯỜNG HỢP 2: Vào phòng FORMING bình thường — cho phép đặt nhiều chỗ cùng lúc (seats >= 1)
         $effectiveMax = (int) ($room['max_players'] ?? 8);
-        $creatorSeats = max(1, (int) ($room['total_players'] ?? 1));
-        $creatorInActive = false;
-        foreach ($activeParticipants as $ap) {
-            if ((int) $ap['user_id'] === (int) ($room['creator_id'] ?? 0)) {
-                $creatorInActive = true;
-                break;
-            }
-        }
-        $occupiedSeats = ($creatorInActive ? $creatorSeats : 0) + max(0, count($activeParticipants) - ($creatorInActive ? 1 : 0));
+        $activeUidsPre = array_map(static fn (array $ap): int => (int) $ap['user_id'], $activeParticipants);
+        $seatCalcPre = \App\Shared\Services\RoomSeatHelper::computeSeats($room, $activeUidsPre);
+        $occupiedSeats = $seatCalcPre['occupied_seats'];
 
         if ($occupiedSeats >= $effectiveMax) {
             return Response::fail('Phòng chơi đã đủ số lượng thành viên tối đa (' . $effectiveMax . ' người)', 'ROOM_FULL', 400);
         }
+        $availPre = max(0, $effectiveMax - $occupiedSeats);
+        if ($joinSeats > $availPre) {
+            return Response::fail(
+                "Phòng hiện chỉ còn {$availPre} chỗ trống, không đủ cho {$joinSeats} người tham gia cùng lúc.",
+                'INSUFFICIENT_ROOM_SLOTS',
+                422
+            );
+        }
 
         $this->pdo->beginTransaction();
         try {
-            $lockStmt = $this->pdo->prepare('SELECT `id`, `status`, `creator_id`, `max_players`, `total_players` FROM `game_rooms` WHERE `id` = :id FOR UPDATE');
+            $lockStmt = $this->pdo->prepare('SELECT `id`, `status`, `creator_id`, `max_players`, `total_players`, `price_details` FROM `game_rooms` WHERE `id` = :id FOR UPDATE');
             $lockStmt->bindValue(':id', $roomId, PDO::PARAM_INT);
             $lockStmt->execute();
             $roomRow = $lockStmt->fetch(PDO::FETCH_ASSOC);
@@ -653,15 +637,23 @@ class GameRoomController
             $cntStmt->bindValue(':id', $roomId, PDO::PARAM_INT);
             $cntStmt->execute();
             $activeUids = array_map('intval', $cntStmt->fetchAll(PDO::FETCH_COLUMN));
-            $hasCreator = in_array((int) ($roomRow['creator_id'] ?? 0), $activeUids, true);
-            $currOccupied = ($hasCreator ? max(1, (int) ($roomRow['total_players'] ?? 1)) : 0) + max(0, count($activeUids) - ($hasCreator ? 1 : 0));
+            $seatCalcLock = \App\Shared\Services\RoomSeatHelper::computeSeats($roomRow, $activeUids);
+            $currOccupied = $seatCalcLock['occupied_seats'];
 
-            if ($currOccupied >= $effectiveMax) {
+            if (($currOccupied + $joinSeats) > $effectiveMax) {
                 $this->pdo->rollBack();
-                return Response::fail('Phòng chơi đã đủ số lượng thành viên tối đa (' . $effectiveMax . ' người)', 'ROOM_FULL', 400);
+                $availNow = max(0, $effectiveMax - $currOccupied);
+                return Response::fail(
+                    $availNow <= 0
+                        ? 'Phòng chơi đã đủ số lượng thành viên tối đa (' . $effectiveMax . ' người)'
+                        : "Phòng hiện chỉ còn {$availNow} chỗ trống, không đủ cho {$joinSeats} người tham gia cùng lúc.",
+                    'ROOM_FULL',
+                    400
+                );
             }
 
             $participantId = $this->roomRepo->addParticipant($roomId, $userId);
+            \App\Shared\Services\RoomSeatHelper::saveUserSeats($this->pdo, $roomId, $userId, $joinSeats);
             $this->pdo->commit();
         } catch (\Throwable $e) {
             if ($this->pdo->inTransaction()) {
@@ -673,8 +665,10 @@ class GameRoomController
         return Response::success([
             'room_id' => $roomId,
             'participant_id' => $participantId,
-            'current_players' => $currOccupied + 1,
-        ], 'Tham gia phòng chơi thành công');
+            'seats_booked' => $joinSeats,
+            'current_players' => min($effectiveMax, $currOccupied + $joinSeats),
+            'remaining_seats' => max(0, $effectiveMax - ($currOccupied + $joinSeats)),
+        ], $joinSeats > 1 ? "Đã tham gia phòng chơi ({$joinSeats} người) thành công" : 'Tham gia phòng chơi thành công');
     }
 
     /**
@@ -721,6 +715,7 @@ class GameRoomController
             $upStmt = $this->pdo->prepare('UPDATE `room_participants` SET `status` = \'LEFT\', `left_at` = NOW() WHERE `id` = :id');
             $upStmt->bindValue(':id', $partId, PDO::PARAM_INT);
             $upStmt->execute();
+            \App\Shared\Services\RoomSeatHelper::saveUserSeats($this->pdo, $roomId, $userId, 0);
 
             // Nếu người rời phòng là Chủ phòng (Host), chuyển quyền Host cho thành viên tiếp theo
             if ((int) $room['creator_id'] === $userId) {
@@ -808,117 +803,7 @@ class GameRoomController
      */
     public function kick(Request $request, string $id): Response
     {
-        $auth = AuthMiddleware::authenticate($request);
-        if ($auth instanceof Response) {
-            return Response::fail('Bạn cần đăng nhập để thực hiện thao tác này', 'UNAUTHORIZED', 401);
-        }
-
-        $actorId = (int) $auth['id'];
-        $actorRole = strtoupper((string) ($auth['role_code'] ?? $auth['role'] ?? 'PLAYER'));
-
-        $roomId = (int) $id;
-        $room = $this->roomRepo->findById($roomId);
-        if ($room === null) {
-            return Response::fail('Phòng chơi không tồn tại', 'ROOM_NOT_FOUND', 404);
-        }
-
-        if ($actorRole !== 'ADMIN' && (int) ($room['creator_id'] ?? 0) !== $actorId) {
-            return Response::fail('Chỉ Chủ phòng hoặc Quản trị viên mới có quyền mời thành viên rời phòng', 'FORBIDDEN', 403);
-        }
-
-        if ((string) ($room['status'] ?? '') !== 'FORMING') {
-            return Response::fail('Chỉ có thể mời thành viên rời phòng khi phòng đang trong giai đoạn ghép người (FORMING)', 'INVALID_ROOM_STATUS', 400);
-        }
-
-        $body = $request->getBodyParams();
-        $targetUserId = (int) ($body['user_id'] ?? $body['target_user_id'] ?? 0);
-        $reason = trim((string) ($body['reason'] ?? 'Chủ phòng điều chỉnh danh sách thành viên'));
-
-        if ($targetUserId <= 0) {
-            return Response::fail('Vui lòng chỉ định thành viên cần mời rời phòng', 'VALIDATION_ERROR', 422);
-        }
-
-        if ($targetUserId === (int) ($room['creator_id'] ?? 0)) {
-            return Response::fail('Chủ phòng không thể tự mời chính mình rời phòng', 'VALIDATION_ERROR', 422);
-        }
-
-        $partStmt = $this->pdo->prepare(
-            'SELECT `id`, `status` FROM `room_participants`
-             WHERE `game_room_id` = :rid AND `user_id` = :uid
-               AND `status` IN (\'PENDING_DEPOSIT\', \'DEPOSITED\', \'LEAVE_REQUESTED\')
-             LIMIT 1'
-        );
-        $partStmt->execute([':rid' => $roomId, ':uid' => $targetUserId]);
-        $part = $partStmt->fetch(PDO::FETCH_ASSOC);
-
-        if ($part === false) {
-            return Response::fail('Thành viên này không còn hoạt động trong phòng chơi', 'PARTICIPANT_NOT_FOUND', 404);
-        }
-
-        $partId = (int) $part['id'];
-
-        $this->pdo->beginTransaction();
-        try {
-            $upd = $this->pdo->prepare(
-                'UPDATE `room_participants`
-                 SET `status` = \'LEFT\', `left_at` = NOW(), `cancel_reason` = :reason, `updated_at` = NOW()
-                 WHERE `id` = :id'
-            );
-            $upd->execute([
-                ':reason' => mb_substr('Chủ phòng mời rời phòng: ' . $reason, 0, 250),
-                ':id' => $partId,
-            ]);
-
-            // Nếu thành viên đã cọc sớm trong lúc FORMING, tự động tạo yêu cầu hoàn cọc 100%
-            $payStmt = $this->pdo->prepare(
-                'SELECT `id`, `paid_amount` FROM `player_payments`
-                 WHERE `room_participant_id` = :pid AND `paid_amount` > 0'
-            );
-            $payStmt->execute([':pid' => $partId]);
-            foreach ($payStmt->fetchAll(PDO::FETCH_ASSOC) as $pay) {
-                $chkRef = $this->pdo->prepare(
-                    'SELECT `id` FROM `refunds`
-                     WHERE `player_payment_id` = :ppid AND `status` IN (\'PENDING\', \'APPROVED\', \'COMPLETED\')
-                     LIMIT 1'
-                );
-                $chkRef->execute([':ppid' => (int) $pay['id']]);
-                if ($chkRef->fetchColumn() === false) {
-                    $this->pdo->prepare(
-                        'INSERT INTO `refunds` (`player_payment_id`, `amount`, `reason`, `status`, `requested_at`, `created_at`, `updated_at`)
-                         VALUES (:ppid, :amt, :r, \'APPROVED\', NOW(), NOW(), NOW())'
-                    )->execute([
-                        ':ppid' => (int) $pay['id'],
-                        ':amt' => (int) $pay['paid_amount'],
-                        ':r' => 'Hoàn cọc 100% do Chủ phòng mời rời phòng ở giai đoạn FORMING',
-                    ]);
-                }
-            }
-
-            $this->pdo->commit();
-        } catch (\Throwable $e) {
-            if ($this->pdo->inTransaction()) {
-                $this->pdo->rollBack();
-            }
-            throw $e;
-        }
-
-        try {
-            $notiRepo = new \App\Features\Notification\Repositories\NotificationRepository($this->pdo);
-            $notiRepo->createNotification(
-                'Thông báo từ phòng chơi',
-                "Bạn đã được Chủ phòng mời rời khỏi phòng '{$room['title']}'. Lý do: {$reason}.",
-                'ROOM',
-                $actorId,
-                [$targetUserId]
-            );
-        } catch (\Throwable) {
-        }
-
-        return Response::success([
-            'room_id' => $roomId,
-            'kicked_user_id' => $targetUserId,
-            'participant_id' => $partId,
-        ], 'Đã mời thành viên rời phòng thành công');
+        return Response::fail('Chức năng chủ phòng mời thành viên ra khỏi phòng không được áp dụng.', 'FEATURE_DISABLED', 403);
     }
 
     /**

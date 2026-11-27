@@ -152,6 +152,8 @@ class DMRepository extends BaseRepository
                            a.`assigned_at`, a.`responded_at`, a.`revoked_at`, a.`reason`,
                            a.`created_at`, a.`updated_at`,
                            gr.`title` AS `room_title`, gr.`status` AS `room_status`,
+                           gr.`min_players`, gr.`max_players`, gr.`total_players`,
+                           gr.`creator_id`, gr.`booking_type`, gr.`guest_slots`, gr.`target_time_slot`, gr.`price_details`,
                            g.`id` AS `game_id`, g.`name` AS `game_name`, g.`duration_minutes`,
                            gc.`configuration` AS `game_configuration`,
                            u.`full_name` AS `dm_name`,
@@ -177,6 +179,43 @@ class DMRepository extends BaseRepository
 
             /** @var list<array<string, mixed>> $rows */
             $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+            if (!empty($rows)) {
+                $roomIds = array_values(array_unique(array_map(static fn (array $r): int => (int) $r['game_room_id'], $rows)));
+                $placeholders = implode(',', array_fill(0, count($roomIds), '?'));
+                $pStmt = $this->pdo->prepare(
+                    "SELECT `game_room_id`, `user_id`
+                     FROM `room_participants`
+                     WHERE `game_room_id` IN ({$placeholders})
+                       AND `status` IN ('PENDING_DEPOSIT', 'DEPOSITED', 'LEAVE_REQUESTED')"
+                );
+                foreach ($roomIds as $idx => $rid) {
+                    $pStmt->bindValue($idx + 1, $rid, PDO::PARAM_INT);
+                }
+                $pStmt->execute();
+                $partsByRoom = [];
+                foreach ($pStmt->fetchAll(PDO::FETCH_ASSOC) as $prRow) {
+                    $partsByRoom[(int) $prRow['game_room_id']][] = (int) $prRow['user_id'];
+                }
+
+                foreach ($rows as &$row) {
+                    $rid = (int) $row['game_room_id'];
+                    $activeUids = $partsByRoom[$rid] ?? [];
+                    $seatCalc = \App\Shared\Services\RoomSeatHelper::computeSeats($row, $activeUids);
+                    $occupiedSeats = $seatCalc['occupied_seats'];
+                    $minP = max(1, (int) ($row['min_players'] ?? 1));
+                    $maxP = max($minP, (int) ($row['max_players'] ?? $minP));
+
+                    $row['current_players'] = $occupiedSeats;
+                    $row['min_players'] = $minP;
+                    $row['max_players'] = $maxP;
+                    $row['has_enough_players'] = $occupiedSeats >= $minP;
+                    $row['gameplay_finished'] = strtoupper((string) ($row['session_status'] ?? '')) === 'IN_PROGRESS' && !empty($row['completed_at']);
+                    unset($row['price_details']);
+                }
+                unset($row);
+            }
+
             return $rows;
         });
     }

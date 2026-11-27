@@ -97,19 +97,6 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   });
 
-  // Nút điền nhanh tài khoản Demo
-  document.querySelectorAll('.demo-fill-btn').forEach((btn) => {
-    btn.addEventListener('click', () => {
-      const email = btn.getAttribute('data-demo-email') || '';
-      const pass = btn.getAttribute('data-demo-pass') || '';
-      const accInput = document.getElementById('login-account');
-      const passInput = document.getElementById('login-password');
-      if (accInput) accInput.value = email;
-      if (passInput) passInput.value = pass;
-      clearAlerts();
-    });
-  });
-
   // 1. XỬ LÝ ĐĂNG NHẬP THẬT QUA BACKEND API (/api/v1/auth/login)
   forms.login?.addEventListener('submit', async (e) => {
     e.preventDefault();

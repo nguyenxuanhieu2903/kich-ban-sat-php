@@ -61,6 +61,9 @@ if (!str_starts_with($path, '/api')) {
         ];
         $contentType = $mimeTypes[$ext] ?? 'text/plain';
         header("Content-Type: {$contentType}; charset=utf-8");
+        if (in_array($ext, ['html', 'js', 'mjs', 'css'], true)) {
+            header('Cache-Control: no-cache, must-revalidate');
+        }
         readfile($filePath);
         exit;
     }

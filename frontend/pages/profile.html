@@ -14,9 +14,9 @@
     <div class="container">
       <div class="portal-hero">
         <div>
-          <div class="portal-eyebrow">PLAYER PORTAL — PROFILE &amp; HISTORY</div>
+          <div class="portal-eyebrow">HỒ SƠ CÁ NHÂN &amp; LỊCH SỬ ĐẶT CHỖ</div>
           <h1 class="portal-title">Hồ Sơ Cá Nhân &amp; Lịch Sử Đặt Chỗ</h1>
-          <p class="portal-subtitle">Dữ liệu tài khoản, xác minh HSSV, đổi mật khẩu và lịch sử hoàn cọc trực tiếp từ Backend.</p>
+          <p class="portal-subtitle">Quản lý thông tin tài khoản, xác minh thẻ học sinh - sinh viên, đổi mật khẩu và lịch sử hoàn cọc.</p>
         </div>
         <div class="portal-actions">
           <a href="./lobby.html" class="btn btn-gold">Vào Sảnh Ghép Phòng</a>
@@ -85,7 +85,7 @@
   <script type="module">
     import { initChrome } from '../src/logic/layout.js';
     import { api } from '../src/logic/api.js';
-    import { requireAuthRole, formatVND, escapeHtml, showToast } from '../src/logic/portal-mock.js';
+    import { requireAuthRole, formatVND, escapeHtml, showToast, formatRoomStatus, formatRefundStatus } from '../src/logic/portal-mock.js';
 
     async function loadProfile() {
       const [meData, histData] = await Promise.all([
@@ -104,25 +104,39 @@
 
       const rooms = histData?.rooms || histData?.items || (Array.isArray(histData) ? histData : []);
       const tbody = document.getElementById('pf-history-body');
-      tbody.innerHTML = rooms.length ? rooms.map((r) => `
+      tbody.innerHTML = rooms.length ? rooms.map((r) => {
+        const refSt = r.refund_status ? String(r.refund_status).toUpperCase() : '';
+        const refCls = refSt === 'COMPLETED' || refSt === 'APPROVED' ? 'v-badge-green' : refSt === 'REJECTED' ? 'v-badge-crimson' : 'v-badge-gold';
+        const showRefundBtn = Boolean(r.can_refund) && !refSt;
+        return `
         <tr>
           <td><strong>#${r.room_id || r.id}</strong></td>
           <td>${escapeHtml(r.game_name || r.room_title || 'Kịch bản')}</td>
-          <td><span class="v-badge v-badge-gold">${escapeHtml(r.room_status || r.status || '')}</span></td>
-          <td>${formatVND(r.paid_amount || 0)}</td>
-          <td style="display:flex;gap:6px;flex-wrap:wrap;">
+          <td><span class="v-badge v-badge-gold">${escapeHtml(formatRoomStatus(r.room_status || r.status || ''))}</span></td>
+          <td>
+            <div>${formatVND(r.paid_amount || 0)}</div>
+            ${refSt ? `<div style="margin-top:4px;"><span class="v-badge ${refCls}" style="font-size:0.66rem;">${escapeHtml(formatRefundStatus(refSt))}</span></div>` : ''}
+            ${refSt === 'REJECTED' && r.refund_review_reason ? `<div class="text-muted" style="font-size:0.74rem;margin-top:2px;">Lý do: ${escapeHtml(r.refund_review_reason)}</div>` : ''}
+          </td>
+          <td style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;">
             <a href="./room-detail.html?id=${encodeURIComponent(r.room_id || r.id)}" class="btn btn-ghost btn-sm">Chi tiết</a>
-            ${r.can_refund ? `<button class="btn btn-ghost btn-sm" data-refund="${r.room_id || r.id}">Xin hoàn cọc</button>` : ''}
+            ${showRefundBtn ? `<button class="btn btn-ghost btn-sm" data-refund="${r.room_id || r.id}">Xin hoàn cọc</button>` : ''}
           </td>
         </tr>
-      `).join('') : '<tr><td colspan="5" class="text-muted">Chưa có lịch sử phòng chơi.</td></tr>';
+      `; }).join('') : '<tr><td colspan="5" class="text-muted">Chưa có lịch sử phòng chơi.</td></tr>';
 
       tbody.querySelectorAll('[data-refund]').forEach((btn) => {
         btn.addEventListener('click', async () => {
           const rid = Number(btn.getAttribute('data-refund'));
+          const reason = window.prompt(`Nhập lý do yêu cầu hoàn tiền cọc cho phòng #${rid} (bắt buộc):`, '');
+          if (reason === null) return;
+          if (!reason.trim()) {
+            showToast('Vui lòng nhập rõ lý do yêu cầu hoàn tiền.');
+            return;
+          }
           try {
-            await api.post('/payments/refund-request', { room_id: rid, reason: 'Yêu cầu hoàn cọc từ trang hồ sơ' });
-            showToast(`Đã gửi yêu cầu hoàn cọc cho phòng #${rid}.`);
+            await api.post('/payments/refund-request', { room_id: rid, reason: reason.trim() });
+            showToast(`Đã gửi yêu cầu hoàn cọc cho phòng #${rid} tới Quản trị viên.`);
             loadProfile();
           } catch (e) { showToast(e.message); }
         });
@@ -143,12 +157,12 @@
         const title = document.querySelector('.portal-title');
         const sub = document.querySelector('.portal-subtitle');
         const actionBtn = document.querySelector('.portal-actions a');
-        if (eyebrow) eyebrow.textContent = auth.role === 'admin' ? 'ADMIN PORTAL — ACCOUNT PROFILE' : 'DM PORTAL — ACCOUNT PROFILE';
-        if (title) title.textContent = auth.role === 'admin' ? 'Hồ Sơ Tài Khoản Quản Trị Viên' : 'Hồ Sơ Tài Khoản Quản Trò (DM)';
+        if (eyebrow) eyebrow.textContent = auth.role === 'admin' ? 'HỒ SƠ TÀI KHOẢN QUẢN TRỊ' : 'HỒ SƠ TÀI KHOẢN QUẢN TRÒ';
+        if (title) title.textContent = auth.role === 'admin' ? 'Hồ Sơ Tài Khoản Quản Trị Viên' : 'Hồ Sơ Tài Khoản Quản Trò';
         if (sub) sub.textContent = 'Quản lý thông tin liên hệ và bảo mật mật khẩu cho tài khoản vận hành nội bộ.';
         if (actionBtn) {
           actionBtn.href = auth.role === 'admin' ? './admin-portal.html' : './dm-portal.html';
-          actionBtn.textContent = auth.role === 'admin' ? 'Vào Admin Portal' : 'Vào DM Portal';
+          actionBtn.textContent = auth.role === 'admin' ? 'Vào Trang Quản Trị' : 'Vào Cổng Quản Trò';
         }
       }
 
@@ -172,7 +186,7 @@
         fd.append('student_card', file);
         try {
           await api.upload('/me/student-card', fd);
-          showToast('Đã tải lên ảnh thẻ HSSV thành công, chờ Admin duyệt.');
+          showToast('Đã tải lên ảnh thẻ học sinh - sinh viên thành công, chờ Quản trị viên duyệt.');
           loadProfile();
         } catch (err) { showToast(err.message); }
       });

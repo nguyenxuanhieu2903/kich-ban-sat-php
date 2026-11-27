@@ -105,6 +105,20 @@ class AdminCatalogController
 
         $this->auditService->log((int) $auth['id'], 'ADMIN_CREATE_GAME', 'GAME', $gameId, ['name' => $name]);
 
+        // Thông báo quyền lợi chung cho toàn bộ người chơi biết có kịch bản mới ra mắt
+        try {
+            $notiRepo = new \App\Features\Notification\Repositories\NotificationRepository($this->pdo);
+            $notiRepo->broadcastToAudience(
+                'PLAYER',
+                'Kịch bản mới vừa ra mắt',
+                "Kịch bản '{$name}' ({$minPlayers}–{$maxPlayers} người) đã chính thức mở đặt phòng. Nhấn vào đây để xem chi tiết và đặt lịch!",
+                (int) $auth['id'],
+                'GAME',
+                $gameId
+            );
+        } catch (\Throwable) {
+        }
+
         return Response::success(['game_id' => $gameId, 'name' => $name], 'Thêm kịch bản mới thành công', null, 201);
     }
 
@@ -124,9 +138,39 @@ class AdminCatalogController
         $dayPrice = isset($body['day_price']) ? (int) $body['day_price'] : null;
         $nightPrice = isset($body['night_price']) ? (int) $body['night_price'] : null;
 
+        $gameNameStmt = $this->pdo->prepare('SELECT `name` FROM `games` WHERE `id` = :id LIMIT 1');
+        $gameNameStmt->execute([':id' => $gameId]);
+        $gameName = (string) ($gameNameStmt->fetchColumn() ?: ('Kịch bản #' . $gameId));
+
         if ($status !== null && in_array($status, ['ACTIVE', 'INACTIVE'], true)) {
             $st = $this->pdo->prepare('UPDATE `games` SET `status` = :st, `updated_at` = NOW() WHERE `id` = :id');
             $st->execute([':st' => $status, ':id' => $gameId]);
+
+            // Nếu ẩn kịch bản, thông báo cho các người chơi đang có phòng FORMING của kịch bản này
+            if ($status === 'INACTIVE') {
+                try {
+                    $uStmt = $this->pdo->prepare(
+                        "SELECT DISTINCT rp.`user_id`
+                         FROM `room_participants` rp
+                         INNER JOIN `game_rooms` gr ON gr.`id` = rp.`game_room_id`
+                         WHERE gr.`game_id` = :gid AND gr.`status` = 'FORMING'
+                           AND rp.`status` IN ('PENDING_DEPOSIT', 'DEPOSITED')"
+                    );
+                    $uStmt->execute([':gid' => $gameId]);
+                    $uIds = array_map('intval', $uStmt->fetchAll(PDO::FETCH_COLUMN));
+                    if (!empty($uIds)) {
+                        $notiRepo = new \App\Features\Notification\Repositories\NotificationRepository($this->pdo);
+                        $notiRepo->createNotification(
+                            'Kịch bản tạm ẩn khỏi danh mục',
+                            "Kịch bản '{$gameName}' vừa được Quản trị viên tạm ẩn khỏi danh sách nhận đặt mới. Các phòng đang chờ sẽ được quán liên hệ hỗ trợ.",
+                            'SYSTEM',
+                            (int) $auth['id'],
+                            $uIds
+                        );
+                    }
+                } catch (\Throwable) {
+                }
+            }
         }
 
         if ($dayPrice !== null && $dayPrice >= 50000) {
@@ -141,7 +185,13 @@ class AdminCatalogController
 
         $this->auditService->log((int) $auth['id'], 'ADMIN_UPDATE_GAME', 'GAME', $gameId, $body);
 
-        return Response::success(['game_id' => $gameId], 'Cập nhật kịch bản và bảng giá thành công');
+        $msg = $status === 'INACTIVE'
+            ? "Đã ẩn kịch bản '{$gameName}' khỏi Trang chủ, Kho kịch bản và màn hình Tạo phòng."
+            : ($status === 'ACTIVE'
+                ? "Đã hiển thị lại kịch bản '{$gameName}' trên toàn hệ thống."
+                : "Cập nhật kịch bản '{$gameName}' và bảng giá thành công.");
+
+        return Response::success(['game_id' => $gameId, 'game_name' => $gameName, 'status' => $status], $msg);
     }
 
     /**
@@ -174,6 +224,26 @@ class AdminCatalogController
 
         $st = $this->pdo->prepare('UPDATE `promotions` SET `is_active` = :a, `updated_at` = NOW() WHERE `id` = :id');
         $st->execute([':a' => $isActive, ':id' => $promoId]);
+
+        // Khi bật chương trình khuyến mãi, gửi thông báo quyền lợi chung cho tất cả người chơi
+        if ($isActive === 1) {
+            try {
+                $pNameStmt = $this->pdo->prepare('SELECT `name`, `code` FROM `promotions` WHERE `id` = :id LIMIT 1');
+                $pNameStmt->execute([':id' => $promoId]);
+                $pInfo = $pNameStmt->fetch(PDO::FETCH_ASSOC);
+                $pLabel = $pInfo ? ($pInfo['name'] ?: $pInfo['code'] ?: "Ưu đãi #{$promoId}") : "Ưu đãi #{$promoId}";
+                $notiRepo = new \App\Features\Notification\Repositories\NotificationRepository($this->pdo);
+                $notiRepo->broadcastToAudience(
+                    'PLAYER',
+                    'Chương trình ưu đãi đang mở áp dụng',
+                    "Ưu đãi '{$pLabel}' hiện đã được kích hoạt cho toàn bộ người chơi. Nhấn để xem chi tiết quy định và bảng giá!",
+                    (int) $auth['id'],
+                    'PROMOTION',
+                    $promoId
+                );
+            } catch (\Throwable) {
+            }
+        }
 
         $this->auditService->log((int) $auth['id'], 'ADMIN_TOGGLE_PROMOTION', 'PROMOTION', $promoId, ['is_active' => $isActive]);
 

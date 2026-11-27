@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Cổng Quản Trò (DM Portal) — Kịch Bản Sát V16</title>
+  <title>Cổng Điều Hành Quản Trò — Kịch Bản Sát</title>
   <link rel="stylesheet" href="../src/styles/components.css" />
   <link rel="stylesheet" href="../src/styles/portals-vintage.css" />
 </head>
@@ -14,9 +14,9 @@
     <div class="container">
       <div class="portal-hero">
         <div>
-          <div class="portal-eyebrow">DM PORTAL — DUNGEON MASTER OPERATIONS</div>
-          <h1 class="portal-title">Cổng Điều Hành Quản Trò (DM)</h1>
-          <p class="portal-subtitle">Dữ liệu phân công ca trực và điều hành buổi chơi trực tiếp từ máy chủ Backend.</p>
+          <div class="portal-eyebrow">CỔNG ĐIỀU HÀNH QUẢN TRÒ</div>
+          <h1 class="portal-title">Cổng Điều Hành Quản Trò</h1>
+          <p class="portal-subtitle">Theo dõi lịch phân công ca trực, xác nhận nhận ca và điều hành các buổi chơi.</p>
         </div>
         <div class="portal-actions">
           <a href="./lobby.html" class="btn btn-ghost">Xem Sảnh Ghép Phòng</a>
@@ -27,20 +27,8 @@
 
       <section class="portal-panel">
         <h2 class="portal-panel-title">Danh Sách Ca Trực &amp; Điều Hành Buổi Chơi</h2>
-        <div class="portal-table-wrap">
-          <table class="portal-table">
-            <thead>
-              <tr>
-                <th>Mã phân công</th>
-                <th>Phòng &amp; Kịch bản</th>
-                <th>Lịch &amp; Địa điểm</th>
-                <th>Trạng thái nhận ca</th>
-                <th>Trạng thái buổi chơi</th>
-                <th>Thao tác điều hành</th>
-              </tr>
-            </thead>
-            <tbody id="dm-table-body"><tr><td colspan="6" class="text-muted">Đang tải danh sách ca trực...</td></tr></tbody>
-          </table>
+        <div id="dm-table-body" class="dm-shift-list">
+          <div class="sub-card text-muted">Đang tải danh sách ca trực...</div>
         </div>
       </section>
 
@@ -56,7 +44,7 @@
   <script type="module">
     import { initChrome } from '../src/logic/layout.js';
     import { api } from '../src/logic/api.js';
-    import { requireAuthRole, escapeHtml, showToast } from '../src/logic/portal-mock.js';
+    import { requireAuthRole, escapeHtml, showToast, formatRoomStatus, formatDmAssignmentStatus } from '../src/logic/portal-mock.js';
 
     async function render() {
       const tbody = document.getElementById('dm-table-body');
@@ -68,14 +56,14 @@
         const completed = list.filter((a) => a.session_status === 'COMPLETED' || a.room_status === 'COMPLETED').length;
 
         document.getElementById('dm-kpi').innerHTML = `
-          <div class="kpi-card"><div class="kpi-label">Tổng ca phân công</div><div class="kpi-value">${list.length}</div><div class="kpi-meta">Đồng bộ từ MySQL</div></div>
-          <div class="kpi-card"><div class="kpi-label">Chờ xác nhận</div><div class="kpi-value">${pending}</div><div class="kpi-meta">SLA phản hồi 4 giờ</div></div>
+          <div class="kpi-card"><div class="kpi-label">Tổng ca phân công</div><div class="kpi-value">${list.length}</div><div class="kpi-meta">Cập nhật trực tiếp</div></div>
+          <div class="kpi-card"><div class="kpi-label">Chờ xác nhận</div><div class="kpi-value">${pending}</div><div class="kpi-meta">Phản hồi trong 4 giờ</div></div>
           <div class="kpi-card"><div class="kpi-label">Đã nhận ca</div><div class="kpi-value">${accepted}</div><div class="kpi-meta">Sẵn sàng điều hành</div></div>
           <div class="kpi-card"><div class="kpi-label">Đã hoàn tất</div><div class="kpi-value">${completed}</div><div class="kpi-meta">Hoàn thành buổi chơi</div></div>
         `;
 
         if (!list.length) {
-          tbody.innerHTML = '<tr><td colspan="6" class="text-muted">Hiện chưa có ca trực nào được phân công cho bạn.</td></tr>';
+          tbody.innerHTML = '<div class="sub-card text-muted" style="text-align:center;">Hiện chưa có ca trực nào được phân công cho bạn.</div>';
           return;
         }
 
@@ -83,31 +71,62 @@
           const sessId = a.session_id || a.game_room_id;
           const sessStatus = a.session_status || a.room_status || 'SCHEDULED';
           const locationText = [a.venue_name, a.physical_room_name].filter(Boolean).join(' • ') || 'Cơ sở chính';
+          const curP = Number(a.current_players ?? 0);
+          const minP = Number(a.min_players ?? 4);
+          const maxP = Number(a.max_players ?? 8);
+          const enoughPlayers = Boolean(a.has_enough_players ?? (curP >= minP));
+          const isClosedRoom = sessStatus === 'COMPLETED' || sessStatus === 'CANCELLED' || a.room_status === 'CANCELLED' || a.room_status === 'COMPLETED';
+          const isGameplayFinished = Boolean(a.gameplay_finished || (sessStatus === 'IN_PROGRESS' && a.completed_at));
+          const cardTone = sessStatus === 'IN_PROGRESS' ? 'is-running' : isClosedRoom ? 'is-closed' : (a.status === 'ACCEPTED' ? 'is-ready' : '');
+
           return `
-            <tr>
-              <td><strong>#${a.id}</strong></td>
-              <td><strong>Phòng #${a.game_room_id}</strong><div class="text-muted" style="font-size:0.8rem;">${escapeHtml(a.room_title || a.game_name || '')}</div></td>
-              <td><div>${escapeHtml(a.start_at || a.assigned_at || '')}</div><div class="text-muted" style="font-size:0.8rem;">${escapeHtml(locationText)}</div></td>
-              <td><span class="v-badge ${a.status === 'ACCEPTED' ? 'v-badge-green' : a.status === 'REJECTED' || a.status === 'REVOKED' ? 'v-badge-crimson' : 'v-badge-gold'}">${a.status}</span></td>
-              <td><span class="v-badge v-badge-muted">${sessStatus}</span></td>
-              <td style="display:flex;gap:6px;flex-wrap:wrap;">
-                <a href="./room-detail.html?id=${encodeURIComponent(a.game_room_id)}" class="btn btn-ghost btn-sm">Chi tiết</a>
-                ${a.status === 'PENDING' ? `
-                  <button class="btn btn-gold btn-sm" data-accept="${a.id}">Nhận ca</button>
-                  <button class="btn btn-ghost btn-sm" data-reject="${a.id}">Từ chối</button>
+            <article class="dm-shift-card ${cardTone}">
+              <div class="dispatch-card-head">
+                <div>
+                  <div class="dispatch-card-title-row">
+                    <span class="dispatch-room-id">CA #${a.id} • PHÒNG #${a.game_room_id}</span>
+                    <h3 class="dispatch-room-name">${escapeHtml(a.room_title || a.game_name || '')}</h3>
+                  </div>
+                  <div class="dispatch-meta-strip">
+                    <span>Thời gian: <strong>${escapeHtml(a.start_at || a.target_time_slot || a.assigned_at || 'Đang cập nhật')}</strong></span>
+                    <span>Địa điểm: <strong>${escapeHtml(locationText)}</strong></span>
+                    <span style="color:${enoughPlayers ? '#1A5936' : '#8B1E1E'};">Sĩ số: <strong>${curP} / ${minP}–${maxP} người</strong> (${enoughPlayers ? 'Đủ người' : `Thiếu ${Math.max(0, minP - curP)} người`})</span>
+                  </div>
+                </div>
+                <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;">
+                  <span class="v-badge ${a.status === 'ACCEPTED' ? 'v-badge-green' : a.status === 'REJECTED' || a.status === 'REVOKED' ? 'v-badge-crimson' : 'v-badge-gold'}">${escapeHtml(formatDmAssignmentStatus(a.status))}</span>
+                  <span class="v-badge ${isGameplayFinished ? 'v-badge-gold' : sessStatus === 'IN_PROGRESS' ? 'v-badge-crimson' : sessStatus === 'COMPLETED' ? 'v-badge-green' : 'v-badge-muted'}">${escapeHtml(isGameplayFinished ? 'Chờ tất toán tại quầy' : formatRoomStatus(sessStatus))}</span>
+                </div>
+              </div>
+              ${isGameplayFinished && !isClosedRoom ? `
+                <div style="margin:8px 0 4px;padding:8px 12px;border-radius:6px;background:rgba(180,83,9,0.1);border-left:3px solid #B45309;font-size:0.83rem;color:#78350F;">
+                  <strong>Bước cuối:</strong> Buổi chơi đã kết thúc. Vui lòng xác nhận <strong>Tất toán tại quầy</strong> để chuyển ca trực sang trạng thái <strong>Đã hoàn tất</strong>.
+                </div>
+              ` : ''}
+
+              <div class="dispatch-actions-row">
+                <a href="./room-detail.html?id=${encodeURIComponent(a.game_room_id)}" class="btn btn-ghost btn-sm" style="margin-right:auto;">Xem chi tiết phòng</a>
+                ${a.status === 'PENDING' && !isClosedRoom ? `
+                  <button class="btn btn-ghost btn-sm" data-reject="${a.id}">Từ chối ca</button>
+                  <button class="btn btn-gold btn-sm" data-accept="${a.id}">Nhận ca ngay</button>
                 ` : ''}
-                ${a.status === 'ACCEPTED' && sessStatus !== 'IN_PROGRESS' && sessStatus !== 'COMPLETED' && sessStatus !== 'CANCELLED' && a.room_status !== 'CANCELLED' ? `
-                  <button class="btn btn-gold btn-sm" data-start="${sessId}">Bắt đầu ca</button>
+                ${a.status === 'ACCEPTED' && sessStatus !== 'IN_PROGRESS' && !isClosedRoom ? `
                   <button class="btn btn-ghost btn-sm" data-noshow="${sessId}">Báo vắng mặt</button>
+                  ${enoughPlayers
+                    ? `<button class="btn btn-gold btn-sm" data-start="${sessId}">Bắt đầu buổi chơi</button>`
+                    : `<button class="btn btn-ghost btn-sm" disabled title="Chưa đủ người chơi tối thiểu (${curP}/${minP})" style="opacity:0.55;cursor:not-allowed;">Chưa đủ người (${curP}/${minP})</button>`}
                 ` : ''}
-                ${a.status === 'ACCEPTED' && sessStatus === 'IN_PROGRESS' && a.room_status !== 'CANCELLED' ? `
+                ${a.status === 'ACCEPTED' && sessStatus === 'IN_PROGRESS' && !isClosedRoom && !isGameplayFinished ? `
                   <button class="btn btn-ghost btn-sm" data-notes="${sessId}">Ghi chú / Sự cố</button>
                   <button class="btn btn-ghost btn-sm" data-noshow="${sessId}">Báo vắng mặt</button>
-                  <button class="btn btn-ghost btn-sm" data-settle="${sessId}">Tất toán quầy</button>
-                  <button class="btn btn-gold btn-sm" data-complete="${sessId}">Hoàn tất ca</button>
+                  <button class="btn btn-gold btn-sm" data-complete="${sessId}">Hoàn tất buổi chơi</button>
                 ` : ''}
-              </td>
-            </tr>
+                ${a.status === 'ACCEPTED' && sessStatus === 'IN_PROGRESS' && !isClosedRoom && isGameplayFinished ? `
+                  <button class="btn btn-ghost btn-sm" data-notes="${sessId}">Ghi chú / Sự cố</button>
+                  <button class="btn btn-gold btn-sm" data-settle="${sessId}">Tất toán tại quầy &amp; Hoàn tất ca</button>
+                ` : ''}
+              </div>
+            </article>
           `;
         }).join('');
 
@@ -123,7 +142,7 @@
           try { await api.post(`/dm/sessions/${b.getAttribute('data-start')}/start`, {}); showToast('Đã bắt đầu buổi chơi.'); render(); } catch (e) { showToast(e.message); }
         }));
         tbody.querySelectorAll('[data-settle]').forEach((b) => b.addEventListener('click', async () => {
-          try { await api.post(`/dm/sessions/${b.getAttribute('data-settle')}/settle`, { notes: 'Tất toán đầy đủ tại quầy' }); showToast('Đã xác nhận tất toán quầy.'); render(); } catch (e) { showToast(e.message); }
+          try { await api.post(`/dm/sessions/${b.getAttribute('data-settle')}/settle`, { notes: 'Tất toán đầy đủ tại quầy' }); showToast('Đã tất toán tại quầy và chuyển ca sang trạng thái Hoàn tất.'); render(); } catch (e) { showToast(e.message); }
         }));
         tbody.querySelectorAll('[data-notes]').forEach((b) => b.addEventListener('click', async () => {
           const text = window.prompt('Nhập ghi chú hiện trường cho ca chơi:');
@@ -137,32 +156,49 @@
               absent_user_id: uid ? Number(uid) : undefined,
               reason: 'Khách không có mặt tại quầy khi bắt đầu ca',
             });
-            showToast('Đã ghi nhận xử lý khách vắng mặt (No-show).');
+            showToast('Đã ghi nhận trường hợp khách vắng mặt.');
             render();
           } catch (e) { showToast(e.message); }
         }));
         tbody.querySelectorAll('[data-complete]').forEach((b) => b.addEventListener('click', async () => {
-          try { await api.post(`/dm/sessions/${b.getAttribute('data-complete')}/complete`, {}); showToast('Đã hoàn tất buổi chơi.'); render(); } catch (e) { showToast(e.message); }
+          try { await api.post(`/dm/sessions/${b.getAttribute('data-complete')}/complete`, {}); showToast('Đã hoàn tất buổi chơi — hãy bấm Tất toán tại quầy để chốt hoàn tất ca.'); render(); } catch (e) { showToast(e.message); }
         }));
       } catch (err) {
-        tbody.innerHTML = `<tr><td colspan="6" class="text-muted">Lỗi tải dữ liệu: ${err.message}</td></tr>`;
+        tbody.innerHTML = `<div class="sub-card text-muted">Lỗi tải dữ liệu: ${escapeHtml(err.message)}</div>`;
       }
 
-      // Tải thông báo công việc của DM
+      // Tải thông báo công việc của DM (nhấn trực tiếp để đánh dấu đã đọc và mở đúng ca trực)
       const notiBox = document.getElementById('dm-notifications');
       if (notiBox) {
         try {
           const nRes = await api.get('/notifications');
           const notis = Array.isArray(nRes) ? nRes : (nRes?.notifications || nRes?.items || []);
-          notiBox.innerHTML = notis.length ? notis.slice(0, 10).map((n) => `
-            <div class="summary-row" style="align-items:center;">
+          notiBox.innerHTML = notis.length ? notis.slice(0, 12).map((n) => `
+            <div class="summary-row" data-dm-notif-open="${n.id}" data-dm-notif-url="${escapeHtml(n.target_url || '/pages/dm-portal.html')}" data-dm-notif-unread="${n.is_read ? '0' : '1'}"
+                 style="align-items:center;cursor:pointer;padding:10px 12px;border-radius:8px;margin-bottom:6px;background:${n.is_read ? 'transparent' : 'rgba(197,160,89,0.12)'};border:1px solid ${n.is_read ? 'rgba(0,0,0,0.06)' : 'rgba(139,30,30,0.22)'};">
               <div>
-                <strong>${escapeHtml(n.title || 'Thông báo')}</strong>
+                <div style="display:flex;gap:6px;align-items:center;margin-bottom:3px;">
+                  <span class="v-badge ${n.scope === 'BROADCAST_ALL' || n.scope === 'BROADCAST_DM' ? 'v-badge-green' : 'v-badge-gold'}" style="font-size:0.7rem;">${escapeHtml(n.scope_label || 'Riêng bạn')}</span>
+                  <strong>${escapeHtml(n.title || 'Thông báo')}</strong>
+                </div>
                 <div class="text-muted" style="font-size:0.84rem;">${escapeHtml(n.content || n.message || '')}</div>
+                <div style="font-size:0.78rem;color:#8B1E1E;font-weight:700;margin-top:4px;">${escapeHtml(n.action_label || 'Mở chi tiết')} &rarr;</div>
               </div>
               <span class="v-badge ${n.is_read ? 'v-badge-muted' : 'v-badge-gold'}">${n.is_read ? 'Đã đọc' : 'Mới'}</span>
             </div>
           `).join('') : '<p class="text-muted">Chưa có thông báo công việc nào.</p>';
+
+          notiBox.querySelectorAll('[data-dm-notif-open]').forEach((item) => {
+            item.addEventListener('click', async () => {
+              const nid = item.getAttribute('data-dm-notif-open');
+              const rawUrl = item.getAttribute('data-dm-notif-url') || '/pages/dm-portal.html';
+              if (item.getAttribute('data-dm-notif-unread') === '1' && nid) {
+                try { await api.post(`/notifications/${nid}/read`, {}); } catch { /* ignore */ }
+              }
+              const target = rawUrl.startsWith('/pages/') ? `./${rawUrl.slice('/pages/'.length)}` : rawUrl;
+              window.location.href = target;
+            });
+          });
         } catch {
           notiBox.innerHTML = '<p class="text-muted">Không tải được thông báo.</p>';
         }
@@ -170,7 +206,7 @@
     }
 
     (async () => {
-      const auth = await requireAuthRole(['dm', 'admin'], 'Cổng Quản Trò (DM Portal)');
+      const auth = await requireAuthRole(['dm'], 'Cổng Điều Hành Quản Trò');
       initChrome('dm');
       if (!auth.allowed) return;
       render();

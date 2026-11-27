@@ -63,6 +63,17 @@ class GameController
             return Response::fail('Không tìm thấy kịch bản yêu cầu', 'GAME_NOT_FOUND', 404);
         }
 
+        // Kịch bản bị ẩn (INACTIVE) chỉ có Quản trị viên (ADMIN) mới có quyền xem/điều chỉnh
+        if (strtoupper((string) ($game['status'] ?? 'ACTIVE')) !== 'ACTIVE') {
+            if (session_status() === PHP_SESSION_NONE && !headers_sent()) {
+                @session_start();
+            }
+            $sessionRole = strtoupper((string) ($_SESSION['role_code'] ?? $_SESSION['role'] ?? ''));
+            if ($sessionRole !== 'ADMIN') {
+                return Response::fail('Kịch bản hiện đã được Quản trị viên tạm ẩn khỏi kho kịch bản', 'GAME_NOT_FOUND', 404);
+            }
+        }
+
         // Lấy cấu hình phiên bản mới nhất
         $cfgStmt = $this->pdo->prepare(
             'SELECT `id`, `version`, `configuration`, `description`
@@ -98,6 +109,17 @@ class GameController
 
         if ($game === null) {
             return Response::fail('Không tìm thấy kịch bản yêu cầu', 'GAME_NOT_FOUND', 404);
+        }
+
+        // Kịch bản bị ẩn (INACTIVE) chỉ có Quản trị viên (ADMIN) mới có quyền xem/điều chỉnh
+        if (strtoupper((string) ($game['status'] ?? 'ACTIVE')) !== 'ACTIVE') {
+            if (session_status() === PHP_SESSION_NONE && !headers_sent()) {
+                @session_start();
+            }
+            $sessionRole = strtoupper((string) ($_SESSION['role_code'] ?? $_SESSION['role'] ?? ''));
+            if ($sessionRole !== 'ADMIN') {
+                return Response::fail('Kịch bản hiện đã được Quản trị viên tạm ẩn khỏi kho kịch bản', 'GAME_NOT_FOUND', 404);
+            }
         }
 
         $prices = $this->gameRepo->getActivePrices($gameId);

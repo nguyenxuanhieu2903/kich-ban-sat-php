@@ -29,15 +29,17 @@ export function requireRole(allowedRoles, pageTitle = 'Khu vực này') {
   if (main) {
     const isGuest = role === 'guest';
     const homeTarget = role === 'admin' ? './admin-portal.html' : role === 'dm' ? './dm-portal.html' : role === 'player' ? './lobby.html' : '../index.html';
+    const roleViMap = { admin: 'Quản trị viên', dm: 'Quản trò', player: 'Người chơi', guest: 'Khách chưa đăng nhập' };
+    const roleVi = roleViMap[role] || 'Tài khoản hiện tại';
     main.innerHTML = `
       <div class="container" style="max-width:680px;padding-top:36px;">
         <section class="portal-panel" style="text-align:center;">
-          <div class="ticket-code" style="margin-bottom:8px;">RBAC ACCESS GUARD — BẢO MẬT PHÂN QUYỀN</div>
+          <div class="ticket-code" style="margin-bottom:8px;">PHÂN QUYỀN TRUY CẬP HỆ THỐNG</div>
           <h1 class="portal-panel-title" style="border-bottom:none;margin-bottom:8px;">${isGuest ? 'Yêu Cầu Đăng Nhập Hệ Thống' : 'Không Đủ Quyền Truy Cập'}</h1>
           <p class="text-muted" style="margin-bottom:20px;">
             ${isGuest
-              ? `Bạn đang ở chế độ Khách (Guest). Vui lòng đăng nhập đúng tài khoản để truy cập ${pageTitle}.`
-              : `Tài khoản hiện tại (${role.toUpperCase()}) không có thẩm quyền truy cập ${pageTitle}.`}
+              ? `Bạn chưa đăng nhập. Vui lòng đăng nhập đúng tài khoản để truy cập ${pageTitle}.`
+              : `Tài khoản hiện tại (${roleVi}) không có quyền truy cập ${pageTitle}.`}
           </p>
           <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;">
             <a href="./auth.html#login" class="btn btn-gold">Đăng nhập tài khoản khác</a>
@@ -59,6 +61,84 @@ export const ALL_SCENARIOS = ScriptData.SCENARIOS
 
 export function formatVND(amount) {
   return `${Math.round(Number(amount) || 0).toLocaleString('vi-VN')} đ`;
+}
+
+export function formatRoomStatus(status) {
+  const s = String(status || '').toUpperCase();
+  const map = {
+    FORMING: 'Đang tuyển người',
+    SCHEDULED: 'Đã xếp lịch (chờ Quản trò)',
+    CONFIRMED: 'Đã chốt ca',
+    IN_PROGRESS: 'Đang diễn ra',
+    COMPLETED: 'Đã hoàn tất',
+    CANCELLED: 'Đã hủy',
+  };
+  return map[s] || status || 'Đang cập nhật';
+}
+
+export function formatBookingType(type) {
+  const t = String(type || 'PUBLIC').toUpperCase();
+  return t === 'PRIVATE' ? 'Nhóm riêng' : 'Ghép công khai';
+}
+
+export function formatParticipantStatus(status) {
+  const s = String(status || '').toUpperCase();
+  const map = {
+    PENDING_DEPOSIT: 'Chờ đặt cọc',
+    DEPOSITED: 'Đã đặt cọc',
+    LEAVE_REQUESTED: 'Chờ duyệt rời phòng',
+    LEFT: 'Đã rời phòng',
+    CANCELLED: 'Đã hủy',
+    CANCELLED_UNPAID: 'Hủy do quá hạn cọc',
+    CANCELLED_BY_ADMIN: 'Đã hủy bởi quản trị',
+  };
+  return map[s] || status || 'Đang cập nhật';
+}
+
+export function formatPaymentStatus(status) {
+  const s = String(status || '').toUpperCase();
+  const map = {
+    PAID: 'Đã thanh toán đủ',
+    DEPOSITED: 'Đã đặt cọc',
+    PARTIAL: 'Đã thanh toán một phần',
+    PENDING: 'Chờ thanh toán',
+    REFUNDED: 'Đã hoàn tiền',
+    FAILED: 'Thanh toán thất bại',
+    CANCELLED: 'Đã hủy',
+  };
+  return map[s] || status || 'Chờ thanh toán';
+}
+
+export function formatPaymentType(type) {
+  const t = String(type || '').toUpperCase();
+  const map = {
+    DEPOSIT: 'Đặt cọc giữ chỗ',
+    REMAINING: 'Thanh toán phần còn lại',
+    FULL: 'Thanh toán trọn gói',
+  };
+  return map[t] || type || 'Đặt cọc giữ chỗ';
+}
+
+export function formatDmAssignmentStatus(status) {
+  const s = String(status || '').toUpperCase();
+  const map = {
+    PENDING: 'Chờ xác nhận',
+    ACCEPTED: 'Đã nhận ca',
+    REJECTED: 'Đã từ chối',
+    REVOKED: 'Đã thu hồi',
+  };
+  return map[s] || status || 'Chưa phân công';
+}
+
+export function formatRefundStatus(status) {
+  const s = String(status || '').toUpperCase();
+  const map = {
+    PENDING: 'Chờ duyệt',
+    APPROVED: 'Đã duyệt (chờ CK)',
+    COMPLETED: 'Đã hoàn tiền',
+    REJECTED: 'Đã từ chối',
+  };
+  return map[s] || status || 'Chờ duyệt';
 }
 
 export function escapeHtml(str) {

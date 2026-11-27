@@ -31,8 +31,8 @@ export function initChrome(activeKey = '') {
             <a href="${homeAnchorPrefix}#kho-kich-ban" class="${activeKey === 'scenarios' ? 'active' : ''}">Kho kịch bản</a>
             <a href="${pagesPrefix}info.html" class="${activeKey === 'policies' || activeKey === 'info' ? 'active' : ''}">Quy định &amp; Giá vé</a>
             <a href="#app-footer" class="${activeKey === 'contact' ? 'active' : ''}">Liên hệ</a>
-            ${role === 'dm' || role === 'admin' ? `<a href="${pagesPrefix}dm-portal.html" class="nav-special ${activeKey === 'dm' ? 'active' : ''}">DM Portal</a>` : ''}
-            ${role === 'admin' ? `<a href="${pagesPrefix}admin-portal.html" class="nav-special ${activeKey === 'admin' ? 'active' : ''}">Admin Portal</a>` : ''}
+            ${role === 'dm' ? `<a href="${pagesPrefix}dm-portal.html" class="nav-special ${activeKey === 'dm' ? 'active' : ''}">Cổng Quản Trò</a>` : ''}
+            ${role === 'admin' ? `<a href="${pagesPrefix}admin-portal.html" class="nav-special ${activeKey === 'admin' ? 'active' : ''}">Trang Quản Trị</a>` : ''}
             ${role !== 'guest' ? `
               ${role === 'player' ? `<a href="${pagesPrefix}create-room.html" class="mobile-only-nav nav-special">+ Tạo phòng mới</a>` : ''}
               <a href="${pagesPrefix}profile.html" class="mobile-only-nav">Hồ sơ: ${escHtml(store.state.currentUser.name)}</a>
@@ -78,7 +78,21 @@ export function initChrome(activeKey = '') {
 
       const notifBtn = document.getElementById('kbs-notif-link');
       if (notifBtn) {
-        notifBtn.addEventListener('click', async () => {
+        const scopeBadgeStyle = (scope) => {
+          if (scope === 'BROADCAST_ALL') return 'background:#1E3A5F;color:#fff;';
+          if (scope === 'BROADCAST_PLAYER') return 'background:#1A5936;color:#fff;';
+          if (scope === 'BROADCAST_DM') return 'background:#6B3FA0;color:#fff;';
+          return 'background:#8B1E1E;color:#fff;';
+        };
+
+        const resolveNavHref = (rawUrl) => {
+          const u = String(rawUrl || '/pages/lobby.html').trim();
+          if (u.startsWith('/pages/')) return `${pagesPrefix}${u.slice('/pages/'.length)}`;
+          if (u.startsWith('/')) return `${prefix}${u.slice(1)}`;
+          return u;
+        };
+
+        const openNotifModal = async () => {
           await refreshNotifs();
           let modal = document.getElementById('kbs-notif-modal');
           if (!modal) {
@@ -87,34 +101,64 @@ export function initChrome(activeKey = '') {
             modal.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.55);display:flex;align-items:center;justify-content:center;padding:16px;';
             document.body.appendChild(modal);
           }
+          const unreadCount = cachedNotifs.filter((n) => !n.is_read).length;
           modal.innerHTML = `
-            <div style="background:#FAF6EE;color:#1C1917;max-width:520px;width:100%;max-height:75vh;overflow:auto;border-radius:12px;padding:20px;border:1px solid #C5A059;box-shadow:0 18px 40px rgba(0,0,0,0.35);">
-              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;border-bottom:1px solid rgba(0,0,0,0.1);padding-bottom:10px;">
-                <strong style="font-size:1.1rem;color:#8B1E1E;">Thông Báo Hệ Thống</strong>
-                <button type="button" id="kbs-notif-close" class="btn btn-ghost btn-sm">Đóng</button>
-              </div>
-              ${cachedNotifs.length ? cachedNotifs.slice(0, 15).map((n) => `
-                <div style="padding:10px 0;border-bottom:1px dashed rgba(0,0,0,0.12);display:flex;justify-content:space-between;gap:10px;align-items:flex-start;">
-                  <div>
-                    <div style="font-weight:700;font-size:0.92rem;">${escHtml(n.title || 'Thông báo')}</div>
-                    <div style="font-size:0.85rem;color:#524B42;margin-top:2px;">${escHtml(n.content || n.message || '')}</div>
-                  </div>
-                  ${!n.is_read ? `<button type="button" class="btn btn-gold btn-sm" data-read-notif="${n.id}" style="white-space:nowrap;">Đã đọc</button>` : `<span style="font-size:0.75rem;color:#78716C;white-space:nowrap;">Đã đọc</span>`}
+            <div style="background:#FAF6EE;color:#1C1917;max-width:560px;width:100%;max-height:78vh;overflow:auto;border-radius:12px;padding:20px;border:1px solid #C5A059;box-shadow:0 18px 40px rgba(0,0,0,0.35);">
+              <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:12px;border-bottom:1px solid rgba(0,0,0,0.1);padding-bottom:10px;">
+                <strong style="font-size:1.1rem;color:#8B1E1E;">Thông Báo Của Bạn</strong>
+                <div style="display:flex;gap:8px;align-items:center;">
+                  ${unreadCount > 0 ? `<button type="button" id="kbs-notif-read-all" class="btn btn-gold btn-sm">Đọc tất cả</button>` : ''}
+                  <button type="button" id="kbs-notif-close" class="btn btn-ghost btn-sm">Đóng</button>
                 </div>
-              `).join('') : '<p style="color:#524B42;text-align:center;padding:16px 0;">Hiện chưa có thông báo mới nào.</p>'}
+              </div>
+              <div style="font-size:0.78rem;color:#6B6258;margin-bottom:10px;">Nhấn trực tiếp vào bất kỳ thông báo nào để mở đúng trang liên quan.</div>
+              ${cachedNotifs.length ? cachedNotifs.slice(0, 20).map((n) => `
+                <div data-notif-open="${n.id}" data-notif-url="${escHtml(n.target_url || '/pages/lobby.html')}" data-notif-unread="${n.is_read ? '0' : '1'}"
+                     style="padding:11px 12px;margin-bottom:8px;border-radius:8px;cursor:pointer;border:1px solid ${n.is_read ? 'rgba(0,0,0,0.08)' : 'rgba(139,30,30,0.28)'};background:${n.is_read ? 'rgba(255,255,255,0.55)' : 'rgba(197,160,89,0.16)'};transition:background 0.15s ease;">
+                  <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:4px;">
+                    <span style="display:inline-block;padding:1px 7px;border-radius:999px;font-size:0.7rem;font-weight:700;${scopeBadgeStyle(n.scope)}">${escHtml(n.scope_label || 'Riêng bạn')}</span>
+                    <span style="font-size:0.74rem;color:#78716C;">${n.is_read ? 'Đã đọc' : 'Mới'}</span>
+                  </div>
+                  <div style="font-weight:700;font-size:0.93rem;color:#1C1917;">${escHtml(n.title || 'Thông báo')}</div>
+                  <div style="font-size:0.84rem;color:#524B42;margin-top:3px;line-height:1.45;">${escHtml(n.content || n.message || '')}</div>
+                  <div style="margin-top:6px;display:flex;justify-content:space-between;align-items:center;font-size:0.78rem;">
+                    <span style="color:#8B1E1E;font-weight:700;">${escHtml(n.action_label || 'Mở chi tiết')} &rarr;</span>
+                    ${!n.is_read ? `<button type="button" class="btn btn-ghost btn-sm" data-read-notif="${n.id}" style="padding:2px 8px;font-size:0.72rem;">Đánh dấu đã đọc</button>` : ''}
+                  </div>
+                </div>
+              `).join('') : '<p style="color:#524B42;text-align:center;padding:16px 0;">Hiện chưa có thông báo mới nào dành cho bạn.</p>'}
             </div>
           `;
           modal.style.display = 'flex';
           modal.querySelector('#kbs-notif-close')?.addEventListener('click', () => { modal.style.display = 'none'; });
+          modal.querySelector('#kbs-notif-read-all')?.addEventListener('click', async () => {
+            try { await api.post('/notifications/read-all', {}); } catch { /* ignore */ }
+            await openNotifModal();
+          });
           modal.addEventListener('click', (ev) => { if (ev.target === modal) modal.style.display = 'none'; });
+
           modal.querySelectorAll('[data-read-notif]').forEach((b) => {
-            b.addEventListener('click', async () => {
+            b.addEventListener('click', async (ev) => {
+              ev.stopPropagation();
               try { await api.post(`/notifications/${b.getAttribute('data-read-notif')}/read`, {}); } catch { /* ignore */ }
-              await refreshNotifs();
-              notifBtn.click();
+              await openNotifModal();
             });
           });
-        });
+
+          modal.querySelectorAll('[data-notif-open]').forEach((card) => {
+            card.addEventListener('click', async () => {
+              const nid = card.getAttribute('data-notif-open');
+              const url = resolveNavHref(card.getAttribute('data-notif-url'));
+              if (card.getAttribute('data-notif-unread') === '1' && nid) {
+                try { await api.post(`/notifications/${nid}/read`, {}); } catch { /* ignore */ }
+              }
+              modal.style.display = 'none';
+              window.location.href = url;
+            });
+          });
+        };
+
+        notifBtn.addEventListener('click', openNotifModal);
       }
 
       const doLogout = async (ev) => {
@@ -248,10 +292,10 @@ export function initChrome(activeKey = '') {
             <!-- CỘT 1: LOGO & MẠNG XÃ HỘI -->
             <div>
               <a href="${prefix}index.html">
-                <img src="${prefix}src/assets/images/logo.png" alt="Kịch Bản Sát V16" class="footer-logo-img" />
+                <img src="${prefix}src/assets/images/logo.png" alt="Kịch Bản Sát" class="footer-logo-img" />
               </a>
               <p class="text-muted" style="font-size:0.88rem;line-height:1.6;">
-                Không gian nhập vai phá án Murder Mystery &amp; TTRPG chuyên nghiệp tại TP.HCM.
+                Không gian nhập vai phá án kịch bản sát chuyên nghiệp tại TP.HCM.
               </p>
               <div class="kbs-footer-socials">
                 <a href="https://www.facebook.com/share/1MTaRA71Fa/?mibextid=wwXIfr" class="kbs-social-circle" target="_blank" rel="noopener noreferrer" aria-label="Facebook">
@@ -302,16 +346,16 @@ export function initChrome(activeKey = '') {
             <div>
               <h4 class="kbs-footer-col-title">Liên Hệ Quán</h4>
               <ul class="kbs-footer-links">
-                <li>📍 36/52 Nguyễn Gia Trí, P.25, Q.Bình Thạnh, TP.HCM</li>
-                <li>🕒 Mở cửa: 09:00 – 23:00 mỗi ngày</li>
-                <li>📞 Hotline: <a href="tel:0915690033" class="text-gold"><strong>091.569.0033</strong></a></li>
-                <li>🤝 Hợp tác: <a href="tel:0989896833" class="text-gold"><strong>0989.896.833 (Mrs Yến)</strong></a></li>
+                <li>Địa chỉ: 36/52 Nguyễn Gia Trí, P.25, Q.Bình Thạnh, TP.HCM</li>
+                <li>Giờ mở cửa: 09:00 – 23:00 mỗi ngày</li>
+                <li>Đường dây nóng: <a href="tel:0915690033" class="text-gold"><strong>091.569.0033</strong></a></li>
+                <li>Hợp tác: <a href="tel:0989896833" class="text-gold"><strong>0989.896.833 (Chị Yến)</strong></a></li>
               </ul>
             </div>
           </div>
 
           <div class="footer-bottom">
-            <span>© 2026 KỊCH BẢN SÁT V16 — 36/52 Nguyễn Gia Trí, Bình Thạnh, TP.HCM.</span>
+            <span>© 2026 KỊCH BẢN SÁT — 36/52 Nguyễn Gia Trí, Bình Thạnh, TP.HCM.</span>
             <span>Đánh giá 100% đề xuất (59 lượt) • 2,2K người theo dõi</span>
           </div>
         </div>

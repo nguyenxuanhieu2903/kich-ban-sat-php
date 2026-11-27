@@ -422,6 +422,15 @@ class AuthController
                      INNER JOIN `player_payments` pp2 ON pp2.`id` = ref.`player_payment_id` 
                      WHERE pp2.`room_participant_id` = rp.`id` ORDER BY ref.`id` DESC LIMIT 1
                     ) AS `refund_amount`,
+                    (SELECT ref.`reason` FROM `refunds` ref 
+                     INNER JOIN `player_payments` pp2 ON pp2.`id` = ref.`player_payment_id` 
+                     WHERE pp2.`room_participant_id` = rp.`id` ORDER BY ref.`id` DESC LIMIT 1
+                    ) AS `refund_reason`,
+                    (SELECT ref.`review_reason` FROM `refunds` ref 
+                     INNER JOIN `player_payments` pp2 ON pp2.`id` = ref.`player_payment_id` 
+                     WHERE pp2.`room_participant_id` = rp.`id` ORDER BY ref.`id` DESC LIMIT 1
+                    ) AS `refund_review_reason`,
+                    gr.`price_details`,
                     (SELECT s.`id` FROM `sessions` s WHERE s.`game_room_id` = gr.`id` ORDER BY s.`id` DESC LIMIT 1) AS `session_id`,
                     (SELECT s.`status` FROM `sessions` s WHERE s.`game_room_id` = gr.`id` ORDER BY s.`id` DESC LIMIT 1) AS `session_status`,
                     (SELECT s.`start_at` FROM `sessions` s WHERE s.`game_room_id` = gr.`id` ORDER BY s.`id` DESC LIMIT 1) AS `session_start_at`,
@@ -460,10 +469,13 @@ class AuthController
                 if ($refStatus === 'PENDING') {
                     $refundHint = 'Đang chờ Quản trị viên phê duyệt hoàn tiền';
                 } elseif ($refStatus === 'APPROVED') {
-                    $refundHint = 'Đã được duyệt hoàn cọc - đang chờ kế toán chi trả về tài khoản';
+                    $refundHint = 'Đã được duyệt hoàn cọc — không thể gửi thêm yêu cầu';
                 } elseif ($refStatus === 'COMPLETED') {
                     $refundHint = 'Đã hoàn tất chuyển tiền cọc về tài khoản';
-                } elseif ($refStatus === null || $refStatus === 'REJECTED') {
+                } elseif ($refStatus === 'REJECTED') {
+                    $revReason = trim((string) ($r['refund_review_reason'] ?? ''));
+                    $refundHint = 'Yêu cầu hoàn tiền đã bị từ chối' . ($revReason !== '' ? " ({$revReason})" : '') . ' — không thể gửi lại';
+                } elseif ($refStatus === null) {
                     if (
                         in_array(strtoupper((string) ($r['room_status'] ?? '')), ['COMPLETED', 'IN_PROGRESS'], true)
                         || in_array(strtoupper((string) ($r['session_status'] ?? '')), ['COMPLETED', 'IN_PROGRESS'], true)
